@@ -113,6 +113,22 @@ function initChart() {
   // Plotly is loaded by the shell from the plugin's own route — nothing to eagerly init.
 }
 
+// Plotly keeps its state on the chart node, so a placeholder written straight into it
+// breaks both directions: react() then redraws nothing (blank graph), and a placeholder
+// left in place survives the redraw and floats over whatever sits under the chart.
+function chartShowPlaceholder(el, text) {
+  if (!el) return;
+  if (window.Plotly && el._fullLayout) Plotly.purge(el);
+  el.innerHTML = '<div class="dye-chart-empty" style="height:100%;display:flex;align-items:center;' +
+    'justify-content:center;color:var(--low-contrast-white);font-size:24px;">' + text + '</div>';
+}
+
+function chartClearPlaceholder(el) {
+  if (!el) return;
+  var ph = el.querySelector('.dye-chart-empty');
+  if (ph) ph.remove();
+}
+
 function plotHistoricalShot(measurements, workflow) {
   var el = document.getElementById('plotly-chart');
   if (!el) return;
@@ -232,10 +248,11 @@ function plotHistoricalShot(measurements, workflow) {
   var traces      = Object.values(tracks).filter(function(tr) { return tr.x.length > 0; });
 
   if (traces.length === 0) {
-    el.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--low-contrast-white);font-size:18px;">No sensor data</div>';
+    chartShowPlaceholder(el, 'No sensor data');
     return;
   }
 
+  chartClearPlaceholder(el);
   Plotly.react(el, traces, layout, { responsive: true, displayModeBar: false });
   Plotly.relayout(el, { 'xaxis.dtick': dtick });
 }

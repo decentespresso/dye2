@@ -173,10 +173,12 @@ function buildContent(): string { return `
             <div id="dye-last-shot-label" class="text-[var(--mimoja-blue)] font-semibold text-[30px] leading-[1.2]">Last Shot: —</div>
             <div id="dye-last-shot-date" class="text-[var(--text-primary)] font-normal text-[24px] leading-[1.2]">—</div>
           </div>
-          <div id="dye-search-wrap" class="hidden flex-1 mr-[24px] min-w-0">
+          <div id="dye-search-wrap" class="hidden flex-1 mr-[24px] min-w-0 flex items-center gap-[16px]">
             <input id="dye-search-input" type="text" autocomplete="off" spellcheck="false"
               placeholder="Coffee, roaster, profile, grinder, notes…"
-              class="w-full h-[54px] px-[24px] rounded-[23px] border-2 border-[var(--mimoja-blue)] bg-transparent text-[var(--text-primary)] text-[24px] outline-none">
+              class="flex-1 min-w-0 h-[54px] px-[24px] rounded-[23px] border-2 border-[var(--mimoja-blue)] bg-transparent text-[var(--text-primary)] text-[24px] outline-none">
+            <!-- The "Last Shot (3/12)" heading is hidden while searching, so the count lives here. -->
+            <span id="dye-search-count" class="text-[var(--low-contrast-white)] text-[21px] whitespace-nowrap shrink-0"></span>
           </div>
           <div class="flex items-center gap-[30px]">
             <button id="dye-search-btn" class="text-[var(--mimoja-blue)] cursor-pointer">
@@ -703,8 +705,7 @@ async function renderLastShot() {
   if (!shot) {
     if (labelEl) labelEl.textContent = 'Last Shot: —';
     if (dateEl) dateEl.textContent = shotFilter ? 'No matching shots' : 'No shots recorded';
-    const chartEl = document.getElementById('plotly-chart');
-    if (chartEl) chartEl.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--low-contrast-white);font-size:24px;">No shot data</div>';
+    chartShowPlaceholder(document.getElementById('plotly-chart'), 'No shot data');
     if (profileEl) profileEl.textContent = '—';
     if (statsEl) statsEl.textContent = '—';
     if (beansEl) beansEl.textContent = '—';
@@ -853,6 +854,8 @@ async function runShotSearch(query) {
   const sameBeansLabel = document.querySelector('#dye-same-beans-btn span');
   if (sameBeansLabel) sameBeansLabel.textContent = 'All Shots';
   await loadShots(query ? { search: query } : null);
+  const countEl = document.getElementById('dye-search-count');
+  if (countEl) countEl.textContent = query ? (shotsTotal === 1 ? '1 match' : shotsTotal + ' matches') : '';
   renderLastShot().catch(e => console.warn(e));
 }
 
@@ -865,6 +868,8 @@ function closeShotSearch() {
   if (headings) headings.classList.remove('hidden');
   const had = !!(input && input.value.trim());
   if (input) input.value = '';
+  const countEl = document.getElementById('dye-search-count');
+  if (countEl) countEl.textContent = '';
   return had;
 }
 
