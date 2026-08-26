@@ -69,6 +69,11 @@
       "data": {}
     },
     {
+      "id": "bc-import",
+      "type": "http",
+      "data": {}
+    },
+    {
       "id": "plotly",
       "type": "http",
       "data": {}
