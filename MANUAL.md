@@ -39,7 +39,7 @@ Once it's enabled, open the DYE2 **Dashboard**. That's the front door — every 
 screen is reached from it. Its address, if a screen ever asks you for one, is:
 
 ```
-/api/v1/plugins/dye2.reaplugin/dashboard
+http://localhost:8080/api/v1/plugins/dye2.reaplugin/dashboard
 ```
 
 The screens are drawn for a tablet held sideways (landscape). They also work in a normal
@@ -58,10 +58,10 @@ The dashboard is split down the middle:
 
 | What you see | What it does |
 | --- | --- |
-| `Last Shot: Today (3/50)` and a date | Which shot you're looking at — "Today", "Yesterday", or "N days ago" — and where it sits in the list. |
+| `Last Shot: Today (3/248)` and a date | Which shot you're looking at — "Today", "Yesterday", or "N days ago" — and where it sits in your history. |
 | The graph | Pressure, flow, temperature and weight flow (how fast espresso is landing in the cup — not the total in the cup) during that shot. Dotted lines show what the profile *asked for*; solid lines show what actually happened. Temperature is drawn at one tenth of its real value so it fits on the same scale. |
-| `‹` and `›` | Step back and forward through your recent shots (the last 50). They loop around — keep tapping and you'll come back to where you started. |
-| `All Shots` / `Same Beans` | Tap to switch between them. `Same Beans` shows only shots pulled with the same coffee. **The button shows the mode you are in now**, not the one you'd switch to. Switching jumps you to the newest shot in the new list. If the shot on screen has no coffee recorded, the button does nothing. |
+| `‹` and `›` | Step back and forward through your shots. Every shot the machine has stored is reachable — older ones are fetched as you reach them, so the first tap past the fiftieth may pause for a moment. Past the oldest it loops back to the newest. |
+| `All Shots` / `Same Beans` | Tap to switch between them. `Same Beans` shows only shots pulled with the same coffee from the same roaster, searched across your whole history rather than just the recent ones. **The button shows the mode you are in now**, not the one you'd switch to. Switching jumps you to the newest shot in the new list. If the shot on screen has no coffee recorded, the button does nothing. |
 | Profile, dose/drink, beans, grinder, barista, drinker | A read-only summary of that shot. To change any of it, use `Edit Shot`. |
 | The five stars | Tap a star to rate the shot. It saves immediately — there is no extra confirm step. |
 | `Read Note` | Shows the tasting note saved with that shot. Greyed out when there is no note. |
@@ -307,8 +307,8 @@ whichever shot is showing on the left of the dashboard.
   where you started.
 - **Shot navigation on the dashboard wraps around**, so `‹` repeatedly cycles the whole
   list. In the shot editor it stops at the ends.
-- **The dashboard holds your 50 most recent shots.** The bean and grinder pickers show your
-  whole library.
+- **The dashboard reaches your whole shot history**, a page at a time as you tap `‹`. The
+  bean and grinder pickers show your whole library too.
 
 ---
 

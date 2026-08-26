@@ -1,5 +1,6 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
+import { shotPagingScript } from "../utils/shot-paging";
 import { chartScript } from "../utils/chart";
 import { iconHistory, iconClipboard } from "../utils/icons";
 
@@ -478,10 +479,6 @@ function buildContent(): string { return `
 `; }
 
 const pageScript = `
-let shots = [];
-let currentShotIndex = 0;
-let sameBeanFilter = false;
-let allShots = [];
 let grinders = [];
 let recipes = [];
 let currentGrinderIndex = 0;
@@ -714,7 +711,7 @@ async function renderLastShot() {
 
   const { label, full } = formatShotDate(shot.timestamp);
   // Show position so a single-shot "Same Beans" view is obviously why prev/next don't move.
-  const pos = shots.length > 1 ? ' (' + (currentShotIndex + 1) + '/' + shots.length + ')' : '';
+  const pos = shotsTotal > 1 ? ' (' + (currentShotIndex + 1) + '/' + shotsTotal + ')' : '';
   if (labelEl) labelEl.textContent = 'Last Shot: ' + label + pos;
   if (dateEl) dateEl.textContent = full;
 
@@ -849,10 +846,8 @@ function setupShotNavigation() {
   const sameBeansBtn = document.getElementById('dye-same-beans-btn');
 
   // Wrap around so the ends are never dead: prev past oldest → newest, next past newest → oldest.
-  if (prevBtn) prevBtn.addEventListener('click', () => {
-    if (shots.length < 2) return;
-    currentShotIndex = (currentShotIndex + 1) % shots.length;
-    renderLastShot().catch(e => console.warn(e));
+  if (prevBtn) prevBtn.addEventListener('click', async () => {
+    if (await stepToOlderShot()) renderLastShot().catch(e => console.warn(e));
   });
 
   if (nextBtn) nextBtn.addEventListener('click', () => {
@@ -861,20 +856,22 @@ function setupShotNavigation() {
     renderLastShot().catch(e => console.warn(e));
   });
 
-  if (sameBeansBtn) sameBeansBtn.addEventListener('click', () => {
+  if (sameBeansBtn) sameBeansBtn.addEventListener('click', async () => {
     const shot = shots[currentShotIndex];
-    const coffeeName = shot && shot.workflow && shot.workflow.context && shot.workflow.context.coffeeName;
+    const ctx = (shot && shot.workflow && shot.workflow.context) || {};
     // Can't filter "same beans" if the current shot has no bean — stay in All Shots.
-    sameBeanFilter = !sameBeanFilter && !!coffeeName;
+    sameBeanFilter = !sameBeanFilter && !!ctx.coffeeName;
     // Label shows the CURRENT state being viewed, not the action.
     if (sameBeanFilter) {
-      shots = allShots.filter(s => s.workflow && s.workflow.context && s.workflow.context.coffeeName === coffeeName);
+      // Roaster too: the same coffee name from two roasters is two different coffees.
+      const filter = { coffeeName: ctx.coffeeName };
+      if (ctx.coffeeRoaster) filter.coffeeRoaster = ctx.coffeeRoaster;
+      await loadShots(filter);
       sameBeansBtn.querySelector('span').textContent = 'Same Beans';
     } else {
-      shots = [...allShots];
+      await loadShots(null);
       sameBeansBtn.querySelector('span').textContent = 'All Shots';
     }
-    currentShotIndex = 0;
     renderLastShot().catch(e => console.warn(e));
   });
 }
@@ -1188,8 +1185,8 @@ function setupDeleteShot() {
     if (!confirm('Delete this shot? This cannot be undone.')) return;
     try {
       await deleteShot(shot.id);
-      allShots = allShots.filter(s => s.id !== shot.id);
       shots = shots.filter(s => s.id !== shot.id);
+      shotsTotal = Math.max(0, shotsTotal - 1);
       currentShotIndex = Math.min(currentShotIndex, shots.length - 1);
       renderLastShot().catch(e => console.warn(e));
     } catch (e) { console.error('Failed to delete shot:', e); }
@@ -1416,13 +1413,13 @@ function setupBottomButtons() {
 async function initializeDyeDashboard() {
   try {
     const [shotsResult, workflowResult, grindersResult, recipesResult] = await Promise.all([
-      getShots({ limit: 50, order: 'desc' }).catch(() => ({ items: [] })),
+      fetchShotPage(0),
       getWorkflow().catch(() => null),
       getGrinders().catch(() => []),
       getRecipes().catch(() => []),
     ]);
-    allShots = (shotsResult && shotsResult.items) ? shotsResult.items : (Array.isArray(shotsResult) ? shotsResult : []);
-    shots = [...allShots];
+    shots = shotsResult.items;
+    shotsTotal = shotsResult.total;
     // Returning from edit-shot: land back on the shot they were editing, not the newest.
     const editedId = sessionStorage.getItem('dye_editShotId');
     sessionStorage.removeItem('dye_editShotId');
@@ -1433,7 +1430,7 @@ async function initializeDyeDashboard() {
     recipes = Array.isArray(recipesResult) ? recipesResult : [];
   } catch (e) {
     console.error('DYE Dashboard: Failed to load data:', e);
-    allShots = []; shots = []; currentWorkflow = null; grinders = [];
+    shots = []; shotsTotal = 0; currentWorkflow = null; grinders = [];
   }
 
   // Returning from the Auto Favourites picker: apply the chosen favourite to Next Shot.
@@ -1496,6 +1493,6 @@ export function renderDashboardPage(request: HttpRequest): HttpResponse {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Dashboard", buildContent(), styles, [devApiScript, chartScript, pageScript], { plotly: true }),
+    body: devPageShell("Dashboard", buildContent(), styles, [devApiScript, shotPagingScript, chartScript, pageScript], { plotly: true }),
   };
 }

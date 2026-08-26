@@ -313,10 +313,13 @@ async function updateWorkflow(data) {
 async function getShots(opts = {}) {
   const params = new URLSearchParams();
   if (opts.limit) params.set('limit', String(opts.limit));
+  if (opts.offset) params.set('offset', String(opts.offset));
   if (opts.order) params.set('order', opts.order);
   if (opts.grinderId) params.set('grinderId', opts.grinderId);
   if (opts.beanId) params.set('beanId', opts.beanId);
   if (opts.beanBatchId) params.set('beanBatchId', opts.beanBatchId);
+  if (opts.coffeeName) params.set('coffeeName', opts.coffeeName);
+  if (opts.coffeeRoaster) params.set('coffeeRoaster', opts.coffeeRoaster);
   const query = params.toString() ? '?' + params.toString() : '';
   const res = await fetch(API_BASE_URL + '/shots' + query);
   if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -3393,6 +3396,69 @@ initializeDyeAddBean().catch(e => console.error('initializeDyeAddBean failed:', 
 		};
 	}
 	//#endregion
+	//#region src/utils/shot-paging.ts
+	/**
+	* Shot history paging for the dashboard, as a browser-side script string.
+	*
+	* History is fetched from the bridge one page at a time, and "Same Beans" is a bridge-side
+	* filter rather than a filter over the loaded page — filtering locally made it mean "same
+	* beans among the last 50", which reads as missing shots.
+	*
+	* Inlined before the dashboard's own script, which shares these bindings (top-level `let`
+	* in a classic script is visible to the scripts that follow it) and owns rendering.
+	* Depends on getShots() from dev-api.
+	*/
+	var shotPagingScript = `
+const SHOT_PAGE = 50;
+let shots = [];              // the loaded window of history, newest first
+let shotsTotal = 0;          // how many the bridge holds for the current filter
+let currentShotIndex = 0;
+let sameBeanFilter = false;
+let shotFilter = null;       // {coffeeName, coffeeRoaster} while Same Beans is on
+let loadingShots = false;
+
+async function fetchShotPage(offset) {
+  const opts = { limit: SHOT_PAGE, offset: offset, order: 'desc' };
+  if (shotFilter) Object.assign(opts, shotFilter);
+  const res = await getShots(opts).catch(() => null);
+  const items = (res && res.items) ? res.items : (Array.isArray(res) ? res : []);
+  const total = (res && typeof res.total === 'number') ? res.total : offset + items.length;
+  return { items: items, total: total };
+}
+
+async function loadShots(filter) {
+  shotFilter = filter || null;
+  const page = await fetchShotPage(0);
+  shots = page.items;
+  shotsTotal = page.total;
+  currentShotIndex = 0;
+}
+
+// Only ever called when navigation actually runs off the end of what is loaded.
+async function loadMoreShots() {
+  if (loadingShots || shots.length >= shotsTotal) return false;
+  loadingShots = true;
+  try {
+    const page = await fetchShotPage(shots.length);
+    shotsTotal = page.total;
+    if (!page.items.length) return false;
+    shots = shots.concat(page.items);
+    return true;
+  } finally {
+    loadingShots = false;
+  }
+}
+
+// Step one shot older. Wrapping is the last resort: step off the loaded window and the next
+// page is fetched first, so history is limited by what the machine stored, not by SHOT_PAGE.
+async function stepToOlderShot() {
+  if (currentShotIndex + 1 >= shots.length) await loadMoreShots();
+  if (shots.length < 2) return false;
+  currentShotIndex = (currentShotIndex + 1) % shots.length;
+  return true;
+}
+`;
+	//#endregion
 	//#region src/utils/chart.ts
 	/**
 	* Browser-side Plotly chart logic for the dashboard page.
@@ -4118,10 +4184,6 @@ function plotHistoricalShot(measurements, workflow) {
 `;
 	}
 	var pageScript$5 = `
-let shots = [];
-let currentShotIndex = 0;
-let sameBeanFilter = false;
-let allShots = [];
 let grinders = [];
 let recipes = [];
 let currentGrinderIndex = 0;
@@ -4354,7 +4416,7 @@ async function renderLastShot() {
 
   const { label, full } = formatShotDate(shot.timestamp);
   // Show position so a single-shot "Same Beans" view is obviously why prev/next don't move.
-  const pos = shots.length > 1 ? ' (' + (currentShotIndex + 1) + '/' + shots.length + ')' : '';
+  const pos = shotsTotal > 1 ? ' (' + (currentShotIndex + 1) + '/' + shotsTotal + ')' : '';
   if (labelEl) labelEl.textContent = 'Last Shot: ' + label + pos;
   if (dateEl) dateEl.textContent = full;
 
@@ -4489,10 +4551,8 @@ function setupShotNavigation() {
   const sameBeansBtn = document.getElementById('dye-same-beans-btn');
 
   // Wrap around so the ends are never dead: prev past oldest → newest, next past newest → oldest.
-  if (prevBtn) prevBtn.addEventListener('click', () => {
-    if (shots.length < 2) return;
-    currentShotIndex = (currentShotIndex + 1) % shots.length;
-    renderLastShot().catch(e => console.warn(e));
+  if (prevBtn) prevBtn.addEventListener('click', async () => {
+    if (await stepToOlderShot()) renderLastShot().catch(e => console.warn(e));
   });
 
   if (nextBtn) nextBtn.addEventListener('click', () => {
@@ -4501,20 +4561,22 @@ function setupShotNavigation() {
     renderLastShot().catch(e => console.warn(e));
   });
 
-  if (sameBeansBtn) sameBeansBtn.addEventListener('click', () => {
+  if (sameBeansBtn) sameBeansBtn.addEventListener('click', async () => {
     const shot = shots[currentShotIndex];
-    const coffeeName = shot && shot.workflow && shot.workflow.context && shot.workflow.context.coffeeName;
+    const ctx = (shot && shot.workflow && shot.workflow.context) || {};
     // Can't filter "same beans" if the current shot has no bean — stay in All Shots.
-    sameBeanFilter = !sameBeanFilter && !!coffeeName;
+    sameBeanFilter = !sameBeanFilter && !!ctx.coffeeName;
     // Label shows the CURRENT state being viewed, not the action.
     if (sameBeanFilter) {
-      shots = allShots.filter(s => s.workflow && s.workflow.context && s.workflow.context.coffeeName === coffeeName);
+      // Roaster too: the same coffee name from two roasters is two different coffees.
+      const filter = { coffeeName: ctx.coffeeName };
+      if (ctx.coffeeRoaster) filter.coffeeRoaster = ctx.coffeeRoaster;
+      await loadShots(filter);
       sameBeansBtn.querySelector('span').textContent = 'Same Beans';
     } else {
-      shots = [...allShots];
+      await loadShots(null);
       sameBeansBtn.querySelector('span').textContent = 'All Shots';
     }
-    currentShotIndex = 0;
     renderLastShot().catch(e => console.warn(e));
   });
 }
@@ -4828,8 +4890,8 @@ function setupDeleteShot() {
     if (!confirm('Delete this shot? This cannot be undone.')) return;
     try {
       await deleteShot(shot.id);
-      allShots = allShots.filter(s => s.id !== shot.id);
       shots = shots.filter(s => s.id !== shot.id);
+      shotsTotal = Math.max(0, shotsTotal - 1);
       currentShotIndex = Math.min(currentShotIndex, shots.length - 1);
       renderLastShot().catch(e => console.warn(e));
     } catch (e) { console.error('Failed to delete shot:', e); }
@@ -5056,13 +5118,13 @@ function setupBottomButtons() {
 async function initializeDyeDashboard() {
   try {
     const [shotsResult, workflowResult, grindersResult, recipesResult] = await Promise.all([
-      getShots({ limit: 50, order: 'desc' }).catch(() => ({ items: [] })),
+      fetchShotPage(0),
       getWorkflow().catch(() => null),
       getGrinders().catch(() => []),
       getRecipes().catch(() => []),
     ]);
-    allShots = (shotsResult && shotsResult.items) ? shotsResult.items : (Array.isArray(shotsResult) ? shotsResult : []);
-    shots = [...allShots];
+    shots = shotsResult.items;
+    shotsTotal = shotsResult.total;
     // Returning from edit-shot: land back on the shot they were editing, not the newest.
     const editedId = sessionStorage.getItem('dye_editShotId');
     sessionStorage.removeItem('dye_editShotId');
@@ -5073,7 +5135,7 @@ async function initializeDyeDashboard() {
     recipes = Array.isArray(recipesResult) ? recipesResult : [];
   } catch (e) {
     console.error('DYE Dashboard: Failed to load data:', e);
-    allShots = []; shots = []; currentWorkflow = null; grinders = [];
+    shots = []; shotsTotal = 0; currentWorkflow = null; grinders = [];
   }
 
   // Returning from the Auto Favourites picker: apply the chosen favourite to Next Shot.
@@ -5137,6 +5199,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 			headers: { "Content-Type": "text/html; charset=utf-8" },
 			body: devPageShell("Dashboard", buildContent$3(), styles$5, [
 				devApiScript,
+				shotPagingScript,
 				chartScript,
 				pageScript$5
 			], { plotly: true })

@@ -112,10 +112,13 @@ async function updateWorkflow(data) {
 async function getShots(opts = {}) {
   const params = new URLSearchParams();
   if (opts.limit) params.set('limit', String(opts.limit));
+  if (opts.offset) params.set('offset', String(opts.offset));
   if (opts.order) params.set('order', opts.order);
   if (opts.grinderId) params.set('grinderId', opts.grinderId);
   if (opts.beanId) params.set('beanId', opts.beanId);
   if (opts.beanBatchId) params.set('beanBatchId', opts.beanBatchId);
+  if (opts.coffeeName) params.set('coffeeName', opts.coffeeName);
+  if (opts.coffeeRoaster) params.set('coffeeRoaster', opts.coffeeRoaster);
   const query = params.toString() ? '?' + params.toString() : '';
   const res = await fetch(API_BASE_URL + '/shots' + query);
   if (!res.ok) throw new Error('HTTP ' + res.status);
