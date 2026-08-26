@@ -119,6 +119,7 @@ async function getShots(opts = {}) {
   if (opts.beanBatchId) params.set('beanBatchId', opts.beanBatchId);
   if (opts.coffeeName) params.set('coffeeName', opts.coffeeName);
   if (opts.coffeeRoaster) params.set('coffeeRoaster', opts.coffeeRoaster);
+  if (opts.search) params.set('search', opts.search);
   const query = params.toString() ? '?' + params.toString() : '';
   const res = await fetch(API_BASE_URL + '/shots' + query);
   if (!res.ok) throw new Error('HTTP ' + res.status);

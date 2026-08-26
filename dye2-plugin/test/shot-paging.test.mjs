@@ -68,3 +68,23 @@ await env.loadShots(null);
 assert.equal(env.state().shotsTotal, 120, 'switching back to All Shots drops the filter');
 
 console.log('ok   shot paging + same-beans filter');
+
+// --- the query the bridge actually receives ----------------------------------
+// The paging tests stub getShots, so serialization is checked here against the real one.
+const { devApiScript } = await import('../src/utils/dev-api.ts');
+const urls = [];
+const realGetShots = new Function('fetch', devApiScript + '\nreturn getShots;')(
+  async (url) => { urls.push(url); return { ok: true, json: async () => ({ items: [], total: 0 }) }; }
+);
+
+await realGetShots({ limit: 50, offset: 50, order: 'desc' });
+assert.equal(urls[0], '/api/v1/shots?limit=50&offset=50&order=desc', 'offset reaches the bridge — without it page two repeats page one');
+
+await realGetShots({ limit: 50, offset: 0, order: 'desc', coffeeName: 'Red Brick', coffeeRoaster: 'Square Mile' });
+assert.equal(urls[1], '/api/v1/shots?limit=50&order=desc&coffeeName=Red+Brick&coffeeRoaster=Square+Mile', 'Same Beans filters server-side');
+
+await realGetShots({ limit: 50, offset: 0, order: 'desc', search: 'yirgacheffe & co' });
+assert.equal(urls[2], '/api/v1/shots?limit=50&order=desc&search=yirgacheffe+%26+co', 'search is passed through and escaped');
+
+console.log('ok   getShots query serialization');
+

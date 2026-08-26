@@ -169,9 +169,14 @@ function buildContent(): string { return `
 
         <!-- Header row -->
         <div class="flex items-center justify-between shrink-0 h-[90px]">
-          <div class="flex flex-col gap-[8px]">
+          <div id="dye-last-shot-headings" class="flex flex-col gap-[8px]">
             <div id="dye-last-shot-label" class="text-[var(--mimoja-blue)] font-semibold text-[30px] leading-[1.2]">Last Shot: —</div>
             <div id="dye-last-shot-date" class="text-[var(--text-primary)] font-normal text-[24px] leading-[1.2]">—</div>
+          </div>
+          <div id="dye-search-wrap" class="hidden flex-1 mr-[24px] min-w-0">
+            <input id="dye-search-input" type="text" autocomplete="off" spellcheck="false"
+              placeholder="Coffee, roaster, profile, grinder, notes…"
+              class="w-full h-[54px] px-[24px] rounded-[23px] border-2 border-[var(--mimoja-blue)] bg-transparent text-[var(--text-primary)] text-[24px] outline-none">
           </div>
           <div class="flex items-center gap-[30px]">
             <button id="dye-search-btn" class="text-[var(--mimoja-blue)] cursor-pointer">
@@ -697,7 +702,7 @@ async function renderLastShot() {
 
   if (!shot) {
     if (labelEl) labelEl.textContent = 'Last Shot: —';
-    if (dateEl) dateEl.textContent = 'No shots recorded';
+    if (dateEl) dateEl.textContent = shotFilter ? 'No matching shots' : 'No shots recorded';
     const chartEl = document.getElementById('plotly-chart');
     if (chartEl) chartEl.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--low-contrast-white);font-size:24px;">No shot data</div>';
     if (profileEl) profileEl.textContent = '—';
@@ -840,6 +845,59 @@ function setupStarRating() {
   });
 }
 
+// The magnifier searches the whole history through the bridge (coffee name, roaster,
+// profile, grinder and notes), not the loaded page — same reason Same Beans does.
+async function runShotSearch(query) {
+  // A search is its own view of history; Same Beans has no meaning inside one.
+  sameBeanFilter = false;
+  const sameBeansLabel = document.querySelector('#dye-same-beans-btn span');
+  if (sameBeansLabel) sameBeansLabel.textContent = 'All Shots';
+  await loadShots(query ? { search: query } : null);
+  renderLastShot().catch(e => console.warn(e));
+}
+
+function closeShotSearch() {
+  const wrap = document.getElementById('dye-search-wrap');
+  const input = document.getElementById('dye-search-input');
+  const headings = document.getElementById('dye-last-shot-headings');
+  if (!wrap || wrap.classList.contains('hidden')) return false;
+  wrap.classList.add('hidden');
+  if (headings) headings.classList.remove('hidden');
+  const had = !!(input && input.value.trim());
+  if (input) input.value = '';
+  return had;
+}
+
+function setupShotSearch() {
+  const btn = document.getElementById('dye-search-btn');
+  const wrap = document.getElementById('dye-search-wrap');
+  const input = document.getElementById('dye-search-input');
+  const headings = document.getElementById('dye-last-shot-headings');
+  if (!btn || !wrap || !input) return;
+  let timer = null;
+
+  btn.addEventListener('click', () => {
+    if (wrap.classList.contains('hidden')) {
+      if (headings) headings.classList.add('hidden');
+      wrap.classList.remove('hidden');
+      input.focus();
+      return;
+    }
+    // Closing on a live search puts the full history back.
+    if (closeShotSearch()) runShotSearch('');
+  });
+
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => runShotSearch(input.value.trim()), 350);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { clearTimeout(timer); runShotSearch(input.value.trim()); }
+    if (e.key === 'Escape') { clearTimeout(timer); if (closeShotSearch()) runShotSearch(''); }
+  });
+}
+
 function setupShotNavigation() {
   const prevBtn = document.getElementById('dye-prev-shot-btn');
   const nextBtn = document.getElementById('dye-next-shot-btn');
@@ -857,6 +915,7 @@ function setupShotNavigation() {
   });
 
   if (sameBeansBtn) sameBeansBtn.addEventListener('click', async () => {
+    closeShotSearch();
     const shot = shots[currentShotIndex];
     const ctx = (shot && shot.workflow && shot.workflow.context) || {};
     // Can't filter "same beans" if the current shot has no bean — stay in All Shots.
@@ -1448,6 +1507,7 @@ async function initializeDyeDashboard() {
   renderNextShot();
 
   setupShotNavigation();
+  setupShotSearch();
   setupStarRating();
   setupDropdownToggle('dye-edit-shot-chevron', 'dye-edit-shot-dropdown');
   document.getElementById('dye-edit-shot-go')?.addEventListener('click', () => {

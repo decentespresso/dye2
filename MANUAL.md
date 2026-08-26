@@ -60,6 +60,7 @@ The dashboard is split down the middle:
 | --- | --- |
 | `Last Shot: Today (3/248)` and a date | Which shot you're looking at — "Today", "Yesterday", or "N days ago" — and where it sits in your history. |
 | The graph | Pressure, flow, temperature and weight flow (how fast espresso is landing in the cup — not the total in the cup) during that shot. Dotted lines show what the profile *asked for*; solid lines show what actually happened. Temperature is drawn at one tenth of its real value so it fits on the same scale. |
+| The magnifying glass | Search your shots. Tap it, type, and the list narrows to matching shots — it matches coffee name, roaster, profile, grinder and your tasting notes, across your whole history. `‹ ›` then step through the matches. Tap the glass again (or press Escape) to go back to all shots. |
 | `‹` and `›` | Step back and forward through your shots. Every shot the machine has stored is reachable — older ones are fetched as you reach them, so the first tap past the fiftieth may pause for a moment. Past the oldest it loops back to the newest. |
 | `All Shots` / `Same Beans` | Tap to switch between them. `Same Beans` shows only shots pulled with the same coffee from the same roaster, searched across your whole history rather than just the recent ones. **The button shows the mode you are in now**, not the one you'd switch to. Switching jumps you to the newest shot in the new list. If the shot on screen has no coffee recorded, the button does nothing. |
 | Profile, dose/drink, beans, grinder, barista, drinker | A read-only summary of that shot. To change any of it, use `Edit Shot`. |
@@ -309,6 +310,9 @@ whichever shot is showing on the left of the dashboard.
   list. In the shot editor it stops at the ends.
 - **The dashboard reaches your whole shot history**, a page at a time as you tap `‹`. The
   bean and grinder pickers show your whole library too.
+- **Searching beats tapping `‹` fifty times.** To find a shot from weeks ago, use the
+  magnifying glass — it asks the machine for matches instead of walking back through
+  history.
 
 ---
 
@@ -316,7 +320,7 @@ whichever shot is showing on the left of the dashboard.
 
 These are drawn on screen but don't do anything, so you're not doing it wrong:
 
-- The **magnifying glass** on the dashboard and in the shot editor.
+- The **magnifying glass in the shot editor** (the one on the dashboard works).
 - **Export Shot** in the `Edit Shot ⌃` menu.
 - **View Text Profile** in the same menu (shown greyed out on purpose).
 - **Most Used** and **Least Used** sorting, everywhere. In the bean, roaster and grinder
