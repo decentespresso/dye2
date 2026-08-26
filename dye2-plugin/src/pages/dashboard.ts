@@ -692,7 +692,19 @@ function calcRatio(doseIn, doseOut) {
   return '1:' + (doseOut / doseIn).toFixed(1);
 }
 
+// While the search box is open it covers the "Last Shot … (2/4)" heading, so this is the
+// only place the position shows — without it, stepping through matches is blind.
+function updateSearchCount() {
+  const countEl = document.getElementById('dye-search-count');
+  if (!countEl) return;
+  if (!shotFilter || !shotFilter.search) { countEl.textContent = ''; return; }
+  countEl.textContent = shotsTotal
+    ? (currentShotIndex + 1) + ' of ' + shotsTotal + (shotsTotal === 1 ? ' match' : ' matches')
+    : 'No matches';
+}
+
 async function renderLastShot() {
+  updateSearchCount();
   let shot = shots[currentShotIndex];
   const labelEl = document.getElementById('dye-last-shot-label');
   const dateEl = document.getElementById('dye-last-shot-date');
@@ -854,8 +866,6 @@ async function runShotSearch(query) {
   const sameBeansLabel = document.querySelector('#dye-same-beans-btn span');
   if (sameBeansLabel) sameBeansLabel.textContent = 'All Shots';
   await loadShots(query ? { search: query } : null);
-  const countEl = document.getElementById('dye-search-count');
-  if (countEl) countEl.textContent = query ? (shotsTotal === 1 ? '1 match' : shotsTotal + ' matches') : '';
   renderLastShot().catch(e => console.warn(e));
 }
 
