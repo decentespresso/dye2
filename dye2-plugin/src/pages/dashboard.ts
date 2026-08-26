@@ -1484,7 +1484,49 @@ function setupBottomButtons() {
   });
 }
 
+// Wiring runs before any network call. Every handler below guards against data that has
+// not arrived yet, and wiring after the fetch left the whole header dead for as long as the
+// bridge took to answer — on a tablet that is seconds, and a search icon that does nothing
+// reads as broken rather than slow.
+function wireDashboardControls() {
+  setupShotNavigation();
+  setupShotSearch();
+  setupStarRating();
+  setupDropdownToggle('dye-edit-shot-chevron', 'dye-edit-shot-dropdown');
+  document.getElementById('dye-edit-shot-go')?.addEventListener('click', () => {
+    const shot = shots[currentShotIndex];
+    if (shot) sessionStorage.setItem('dye_editShotId', shot.id);
+    window.location.href = '/api/v1/plugins/dye2.reaplugin/edit-shot';
+  });
+  setupDropdownToggle('dye-settings-btn', 'dye-settings-dropdown');
+  document.getElementById('dye-settings-favourites')?.addEventListener('click', () => { window.location.href = '/api/v1/plugins/dye2.reaplugin/auto-favs'; });
+  document.getElementById('dye-settings-recipes')?.addEventListener('click', () => { sessionStorage.setItem('dye_editRecipeIdx', '0'); window.location.href = '/api/v1/plugins/dye2.reaplugin/recipe-edit'; });
+  setupVisualizerDropdown();
+  setupVisualizerModal();
+  checkVisualizerLoggedIn().catch(e => console.warn(e));
+  setupDeleteShot();
+  setupDoseControls();
+  setupBeanCard();
+  setupProfileName();
+  setupGrindLabel();
+  setupNameField('dye-barista-field', 'dye-next-barista', 'baristaName');
+  setupNameField('dye-drinker-field', 'dye-next-drinker', 'drinkerName');
+  setupClipboardPaste();
+  setupBottomButtons();
+  setupReadNote();
+  setupAddNote();
+  setupHistoryRevert();
+  const pills = document.getElementById('dye-recipe-pills');
+  document.getElementById('dye-recipe-prev')?.addEventListener('click', () => pills?.scrollBy({ left: -pills.clientWidth, behavior: 'smooth' }));
+  document.getElementById('dye-recipe-next')?.addEventListener('click', () => pills?.scrollBy({ left: pills.clientWidth, behavior: 'smooth' }));
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.dye-dash-dropdown.open').forEach(dd => dd.classList.remove('open'));
+  });
+}
+
 async function initializeDyeDashboard() {
+  wireDashboardControls();
+
   try {
     const [shotsResult, workflowResult, grindersResult, recipesResult] = await Promise.all([
       fetchShotPage(0),
@@ -1520,40 +1562,6 @@ async function initializeDyeDashboard() {
   initChart();
   await renderLastShot();
   renderNextShot();
-
-  setupShotNavigation();
-  setupShotSearch();
-  setupStarRating();
-  setupDropdownToggle('dye-edit-shot-chevron', 'dye-edit-shot-dropdown');
-  document.getElementById('dye-edit-shot-go')?.addEventListener('click', () => {
-    const shot = shots[currentShotIndex];
-    if (shot) sessionStorage.setItem('dye_editShotId', shot.id);
-    window.location.href = '/api/v1/plugins/dye2.reaplugin/edit-shot';
-  });
-  setupDropdownToggle('dye-settings-btn', 'dye-settings-dropdown');
-  document.getElementById('dye-settings-favourites')?.addEventListener('click', () => { window.location.href = '/api/v1/plugins/dye2.reaplugin/auto-favs'; });
-  document.getElementById('dye-settings-recipes')?.addEventListener('click', () => { sessionStorage.setItem('dye_editRecipeIdx', '0'); window.location.href = '/api/v1/plugins/dye2.reaplugin/recipe-edit'; });
-  setupVisualizerDropdown();
-  setupVisualizerModal();
-  await checkVisualizerLoggedIn();
-  setupDeleteShot();
-  setupDoseControls();
-  setupBeanCard();
-  setupProfileName();
-  setupGrindLabel();
-  setupNameField('dye-barista-field', 'dye-next-barista', 'baristaName');
-  setupNameField('dye-drinker-field', 'dye-next-drinker', 'drinkerName');
-  setupClipboardPaste();
-  setupBottomButtons();
-  setupReadNote();
-  setupAddNote();
-  setupHistoryRevert();
-  const pills = document.getElementById('dye-recipe-pills');
-  document.getElementById('dye-recipe-prev')?.addEventListener('click', () => pills?.scrollBy({ left: -pills.clientWidth, behavior: 'smooth' }));
-  document.getElementById('dye-recipe-next')?.addEventListener('click', () => pills?.scrollBy({ left: pills.clientWidth, behavior: 'smooth' }));
-  document.addEventListener('click', () => {
-    document.querySelectorAll('.dye-dash-dropdown.open').forEach(dd => dd.classList.remove('open'));
-  });
 }
 
 initializeDyeDashboard().catch(e => console.error('initializeDyeDashboard failed:', e));
