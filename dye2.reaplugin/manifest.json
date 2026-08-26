@@ -2,7 +2,7 @@
   "id": "dye2.reaplugin",
   "author": "Streamline",
   "name": "Streamline/DYE2",
-  "description": "Bean, grinder, and equipment management for Decent Espresso",
+  "description": "Beans, grinders, and shot workflow for Decent Espresso. Track roast batches and freshness, pick a bean and grinder before pulling, edit and rate shots afterwards, and manage auto-favourite recipes.",
   "version": "0.1.7",
   "apiVersion": 1,
   "permissions": [
