@@ -16,6 +16,8 @@ This manual assumes no technical knowledge. Read the first three sections, then 
   Give it stars and a tasting note.
 - **Set up the next shot** — dose, drink weight, grind, RPM, profile, beans, who made it,
   who drank it.
+- **Set up the your own recipes** — create your own and remembers the recipe of your favorite drinks.
+  Check out http://github.com/decentespresso/dye2/blob/main/MANUAL.md#recipes
 - **Keep a coffee library** — roaster, origin, roast date, bag weight, price, notes. One
   entry per coffee, plus a *batch* for each bag you buy.
 - **Keep a grinder library** — burrs, step sizes, notes.
@@ -33,7 +35,7 @@ Most people already have it: Decaid ships with a copy of DYE2 built in, so you o
 to switch it on in Decaid's plugin settings.
 
 If you want a specific version, download `dye2.reaplugin-vX.Y.Z.zip` from the
-[Releases page](../../releases) and install it through Decaid's plugin settings screen.
+[Releases page](../../releases) and install it through Decaid's plugin settings screen. Using the + button on the top right corner.
 
 Once it's enabled, open the DYE2 **Dashboard**. That's the front door — every other DYE2
 screen is reached from it. Its address, if a screen ever asks you for one, is:
