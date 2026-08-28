@@ -280,6 +280,12 @@ function buildContent(): string {
         <!-- populated by JS -->
       </div>
 
+      <!-- Basket names — same plain-text-tab style as Grinder above -->
+      <div class="re-var-label">Basket</div>
+      <div class="re-grinder-chips" id="re-basket-chips">
+        <!-- populated by JS -->
+      </div>
+
       <!-- Grind + RPM (no preset strips in Figma) -->
       <div class="flex items-center gap-[90px]">
         <div class="re-var-block">
@@ -324,8 +330,10 @@ const NUM_RECIPES = ${NUM_RECIPES};
 let recipes = [];
 let currentRecipeIdx = 0;
 let grinders = [];
+let baskets = [];
 let showOnStreamline = true;
 let selectedGrinderId = null;
+let selectedBasketId = null;
 let selectedBeanId = null;
 let selectedBeanName = null;
 let selectedProfileId = null;
@@ -440,6 +448,8 @@ function renderRecipe(recipe) {
 
   if (dv.grinderId) selectedGrinderId = dv.grinderId;
   renderGrinderChips();
+  if (dv.basketId) selectedBasketId = dv.basketId;
+  renderBasketChips();
 
   syncPresetActive('re-dose',   set => {});
 }
@@ -449,6 +459,7 @@ async function readFromWorkflow() {
   const wf = await getWorkflow().catch(() => null);
   const ctx = (wf && wf.context) || {};
   const g = grinders.find(x => (x.model || x.name) === ctx.grinderModel);
+  const extras = ctx.extras || {};
   return {
     barista: ctx.baristaName || ctx.barista || '',
     drinker: ctx.drinkerName || ctx.drinker || '',
@@ -456,8 +467,10 @@ async function readFromWorkflow() {
       dose:  ctx.targetDoseWeight,
       drink: ctx.targetYield,
       grind: ctx.grinderSetting,
-      rpm:   ctx.extras && ctx.extras.rpm,
+      rpm:   extras.rpm,
       grinderId: g ? g.id : undefined,
+      basketId:   extras.basketId,
+      basketName: extras.basketName,
     },
   };
 }
@@ -485,6 +498,8 @@ function favouriteToRecipePatch(fav) {
       grind: s.grindSetting,
       rpm:   s.rpm,
       grinderId: s.grinderId,
+      basketId:   s.basketId,
+      basketName: s.basketName,
     },
   };
 }
@@ -499,6 +514,7 @@ function applyToCurrentRecipe(src) {
   };
   recipes[currentRecipeIdx] = merged;
   if (merged.dashboardVariables.grinderId) selectedGrinderId = merged.dashboardVariables.grinderId;
+  if (merged.dashboardVariables.basketId) selectedBasketId = merged.dashboardVariables.basketId;
   renderRecipe(merged);
 }
 
@@ -580,6 +596,27 @@ function renderGrinderChips() {
   });
 }
 
+function renderBasketChips() {
+  const container = document.getElementById('re-basket-chips');
+  if (!container) return;
+  container.innerHTML = '';
+  if (baskets.length === 0) {
+    container.innerHTML = '<span style="color:var(--text-primary-disabled);font-size:20px">No baskets</span>';
+    return;
+  }
+  baskets.forEach(b => {
+    const chip = document.createElement('button');
+    chip.className = 're-grinder-chip' + (b.id === selectedBasketId ? ' active' : '');
+    chip.textContent = b.name || 'Basket';
+    chip.addEventListener('click', () => {
+      container.querySelectorAll('.re-grinder-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      selectedBasketId = b.id;
+    });
+    container.appendChild(chip);
+  });
+}
+
 function updateStreamlineBtn() {
   const btn = document.getElementById('re-show-streamline-btn');
   if (btn) btn.style.opacity = showOnStreamline ? '1' : '0.4';
@@ -622,6 +659,8 @@ function getCurrentRecipeData() {
       grind:   num('re-grind-value'),
       rpm:     num('re-rpm-value'),
       grinderId: selectedGrinderId,
+      basketId:   selectedBasketId,
+      basketName: (baskets.find(b => b.id === selectedBasketId) || {}).name,
     },
   };
 }
@@ -848,6 +887,10 @@ async function initRecipeEdit() {
     grinders = Array.isArray(gs) ? gs : (gs && gs.items ? gs.items : []);
   } catch (e) { grinders = []; }
 
+  try {
+    baskets = await getBaskets().catch(() => []);
+  } catch (e) { baskets = []; }
+
   const bs = await getBeans().catch(() => []);
   beans = Array.isArray(bs) ? bs : (bs && bs.items ? bs.items : []);
   const ps = await getProfiles().catch(() => []);
@@ -898,6 +941,7 @@ async function initRecipeEdit() {
   }
   renderRecipe(recipes[currentRecipeIdx] || {});
   renderGrinderChips();
+  renderBasketChips();
 }
 
 initRecipeEdit().catch(e => console.error('initRecipeEdit failed:', e));

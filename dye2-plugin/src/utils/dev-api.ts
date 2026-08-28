@@ -231,6 +231,10 @@ function buildFavouriteWorkflow(fav) {
     if (snp.grinderId) ctx.grinderId = snp.grinderId;
     if (snp.grinderModel) ctx.grinderModel = snp.grinderModel;
   }
+  if (on('basket')) {
+    if (snp.basketId)   ctx.extras = { ...(ctx.extras || {}), basketId: snp.basketId };
+    if (snp.basketName) ctx.extras = { ...(ctx.extras || {}), basketName: snp.basketName };
+  }
   if (on('beans')) {
     if (snp.beanBatchId) ctx.beanBatchId = snp.beanBatchId;
     if (snp.coffeeName) ctx.coffeeName = snp.coffeeName;
@@ -256,6 +260,8 @@ function buildRecipeWorkflow(recipe) {
   if (dv.grind != null) ctx.grinderSetting = String(dv.grind);
   if (dv.rpm != null)   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm };
   if (dv.grinderId) ctx.grinderId = dv.grinderId;
+  if (dv.basketId)   ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId };
+  if (dv.basketName) ctx.extras = { ...(ctx.extras || {}), basketName: dv.basketName };
   if (recipe && recipe.beanName) ctx.coffeeName = recipe.beanName;
   if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;

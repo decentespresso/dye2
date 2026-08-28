@@ -432,6 +432,10 @@ function buildFavouriteWorkflow(fav) {
     if (snp.grinderId) ctx.grinderId = snp.grinderId;
     if (snp.grinderModel) ctx.grinderModel = snp.grinderModel;
   }
+  if (on('basket')) {
+    if (snp.basketId)   ctx.extras = { ...(ctx.extras || {}), basketId: snp.basketId };
+    if (snp.basketName) ctx.extras = { ...(ctx.extras || {}), basketName: snp.basketName };
+  }
   if (on('beans')) {
     if (snp.beanBatchId) ctx.beanBatchId = snp.beanBatchId;
     if (snp.coffeeName) ctx.coffeeName = snp.coffeeName;
@@ -457,6 +461,8 @@ function buildRecipeWorkflow(recipe) {
   if (dv.grind != null) ctx.grinderSetting = String(dv.grind);
   if (dv.rpm != null)   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm };
   if (dv.grinderId) ctx.grinderId = dv.grinderId;
+  if (dv.basketId)   ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId };
+  if (dv.basketName) ctx.extras = { ...(ctx.extras || {}), basketName: dv.basketName };
   if (recipe && recipe.beanName) ctx.coffeeName = recipe.beanName;
   if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;
@@ -7226,6 +7232,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 		"afe-profile": "lookup",
 		"afe-beans": "lookup",
 		"afe-grinder": "lookup",
+		"afe-basket": "lookup",
 		"afe-barista": "lookup",
 		"afe-drinker": "lookup",
 		"afe-roast-date": "date",
@@ -7285,6 +7292,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 			["afe-beans", "Beans"],
 			["afe-roast-date", "Roast Date"],
 			["afe-grinder", "Grinder"],
+			["afe-basket", "Basket"],
 			["afe-grind-setting", "Grind Setting"],
 			["afe-dose", "Dose"],
 			["afe-drink", "Drink"],
@@ -7296,6 +7304,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 			"afe-profile",
 			"afe-beans",
 			"afe-grinder",
+			"afe-basket",
 			"afe-grind-setting",
 			"afe-dose",
 			"afe-drink"
@@ -7369,7 +7378,7 @@ let currentFav = null;
 const el = id => document.getElementById(id);
 
 const FIELD_KINDS = {
-  'afe-profile':'lookup','afe-beans':'lookup','afe-grinder':'lookup','afe-barista':'lookup','afe-drinker':'lookup',
+  'afe-profile':'lookup','afe-beans':'lookup','afe-grinder':'lookup','afe-basket':'lookup','afe-barista':'lookup','afe-drinker':'lookup',
   'afe-roast-date':'date','afe-grind-setting':'text','afe-dose':'number','afe-drink':'number','afe-note':'note'
 };
 const ALL_COPY_FIELDS = Object.keys(FIELD_KINDS);
@@ -7393,6 +7402,7 @@ const LOOKUP_SOURCES = {
   'afe-profile': { load: async () => normList(await getProfiles(), p => (p.profile && p.profile.title) || p.title || p.name || p.id) },
   'afe-beans':   { load: async () => normList(await getBeans(), b => [b.roaster, b.name].filter(Boolean).join(' ') || b.name || b.id) },
   'afe-grinder': { load: async () => normList(await getGrinders(), g => g.model || g.name || g.id) },
+  'afe-basket':  { load: async () => normList(await getBaskets(), b => b.name || b.id) },
   'afe-barista': { load: () => distinctNames('baristaName') },
   'afe-drinker': { load: () => distinctNames('drinkerName') },
 };
@@ -7528,7 +7538,7 @@ function syncAllRowStates() { ALL_COPY_FIELDS.forEach(id => applyRowState(id, is
 function getToggleMask() {
   return {
     profile: isToggleOn('afe-profile'), beans: isToggleOn('afe-beans'), roastDate: isToggleOn('afe-roast-date'),
-    grinder: isToggleOn('afe-grinder'), grindSetting: isToggleOn('afe-grind-setting'),
+    grinder: isToggleOn('afe-grinder'), basket: isToggleOn('afe-basket'), grindSetting: isToggleOn('afe-grind-setting'),
     dose: isToggleOn('afe-dose'), drink: isToggleOn('afe-drink'),
     barista: isToggleOn('afe-barista'), drinker: isToggleOn('afe-drinker'), note: isToggleOn('afe-note'),
   };
@@ -7576,9 +7586,11 @@ function renderFav(fav) {
   initLookup('afe-profile', snp.profileTitle || snp.profileId || '', snp.profileId);
   initLookup('afe-beans',   snp.coffeeName || '', snp.beanBatchId);
   initLookup('afe-grinder', snp.grinderModel || snp.grinderId || '', snp.grinderId);
+  initLookup('afe-basket',  snp.basketName || snp.basketId || '', snp.basketId);
   initLookup('afe-barista', snp.barista || '');
   initLookup('afe-drinker', snp.drinker || '');
   resolveLookupLabel('afe-grinder', snp.grinderId);
+  resolveLookupLabel('afe-basket', snp.basketId);
   resolveLookupLabel('afe-profile', snp.profileId);
 
   const dateInput = el('afe-roast-date-input');
@@ -7593,7 +7605,7 @@ function renderFav(fav) {
   if (noteInput) noteInput.value = snp.note || '';
 
   if (fav.copyMask) {
-    const keyMap = { 'afe-profile':'profile','afe-beans':'beans','afe-roast-date':'roastDate','afe-grinder':'grinder',
+    const keyMap = { 'afe-profile':'profile','afe-beans':'beans','afe-roast-date':'roastDate','afe-grinder':'grinder','afe-basket':'basket',
       'afe-grind-setting':'grindSetting','afe-dose':'dose','afe-drink':'drink','afe-barista':'barista','afe-drinker':'drinker','afe-note':'note' };
     Object.keys(keyMap).forEach(id => { const t = el(id + '-track'); if (t) t.classList.toggle('on', fav.copyMask[keyMap[id]] !== false); });
   }
@@ -7660,6 +7672,7 @@ function setupControls() {
     const p = lookupState['afe-profile']; if (p) { snapshot.profileTitle = p.label; snapshot.profileId = p.id; }
     const b = lookupState['afe-beans'];   if (b) { snapshot.coffeeName = b.label; if (b.id) snapshot.beanBatchId = b.id; }
     const g = lookupState['afe-grinder']; if (g) { snapshot.grinderModel = g.label; snapshot.grinderId = g.id; }
+    const bk = lookupState['afe-basket']; if (bk) { snapshot.basketName = bk.label; snapshot.basketId = bk.id; }
     const ba = lookupState['afe-barista']; if (ba) snapshot.barista = ba.label;
     const dr = lookupState['afe-drinker']; if (dr) snapshot.drinker = dr.label;
     const noteInput = el('afe-note-input'); if (noteInput) snapshot.note = noteInput.value.trim() || null;
@@ -7694,6 +7707,7 @@ function snapshotFromWorkflow(wf) {
     profileId: profile.id || null, profileTitle: profile.title || null,
     beanBatchId: ctx.beanBatchId || null, coffeeName: ctx.coffeeName || null, coffeeRoaster: ctx.coffeeRoaster || null,
     roastDate: ctx.roastDate || null, grinderId: ctx.grinderId || null, grinderModel: ctx.grinderModel || null,
+    basketId: extras.basketId || null, basketName: extras.basketName || null,
     grindSetting: ctx.grinderSetting != null ? ctx.grinderSetting : null, rpm: extras.rpm != null ? extras.rpm : null,
     dose: ctx.targetDoseWeight != null ? ctx.targetDoseWeight : null, drink: ctx.targetYield != null ? ctx.targetYield : null,
     barista: ctx.baristaName || null, drinker: ctx.drinkerName || null, note: extras.note || null,
@@ -8037,6 +8051,12 @@ initAutoFavEdit().catch(e => console.error('initAutoFavEdit failed:', e));
         <!-- populated by JS -->
       </div>
 
+      <!-- Basket names — same plain-text-tab style as Grinder above -->
+      <div class="re-var-label">Basket</div>
+      <div class="re-grinder-chips" id="re-basket-chips">
+        <!-- populated by JS -->
+      </div>
+
       <!-- Grind + RPM (no preset strips in Figma) -->
       <div class="flex items-center gap-[90px]">
         <div class="re-var-block">
@@ -8080,8 +8100,10 @@ const NUM_RECIPES = ${NUM_RECIPES};
 let recipes = [];
 let currentRecipeIdx = 0;
 let grinders = [];
+let baskets = [];
 let showOnStreamline = true;
 let selectedGrinderId = null;
+let selectedBasketId = null;
 let selectedBeanId = null;
 let selectedBeanName = null;
 let selectedProfileId = null;
@@ -8196,6 +8218,8 @@ function renderRecipe(recipe) {
 
   if (dv.grinderId) selectedGrinderId = dv.grinderId;
   renderGrinderChips();
+  if (dv.basketId) selectedBasketId = dv.basketId;
+  renderBasketChips();
 
   syncPresetActive('re-dose',   set => {});
 }
@@ -8205,6 +8229,7 @@ async function readFromWorkflow() {
   const wf = await getWorkflow().catch(() => null);
   const ctx = (wf && wf.context) || {};
   const g = grinders.find(x => (x.model || x.name) === ctx.grinderModel);
+  const extras = ctx.extras || {};
   return {
     barista: ctx.baristaName || ctx.barista || '',
     drinker: ctx.drinkerName || ctx.drinker || '',
@@ -8212,8 +8237,10 @@ async function readFromWorkflow() {
       dose:  ctx.targetDoseWeight,
       drink: ctx.targetYield,
       grind: ctx.grinderSetting,
-      rpm:   ctx.extras && ctx.extras.rpm,
+      rpm:   extras.rpm,
       grinderId: g ? g.id : undefined,
+      basketId:   extras.basketId,
+      basketName: extras.basketName,
     },
   };
 }
@@ -8241,6 +8268,8 @@ function favouriteToRecipePatch(fav) {
       grind: s.grindSetting,
       rpm:   s.rpm,
       grinderId: s.grinderId,
+      basketId:   s.basketId,
+      basketName: s.basketName,
     },
   };
 }
@@ -8255,6 +8284,7 @@ function applyToCurrentRecipe(src) {
   };
   recipes[currentRecipeIdx] = merged;
   if (merged.dashboardVariables.grinderId) selectedGrinderId = merged.dashboardVariables.grinderId;
+  if (merged.dashboardVariables.basketId) selectedBasketId = merged.dashboardVariables.basketId;
   renderRecipe(merged);
 }
 
@@ -8336,6 +8366,27 @@ function renderGrinderChips() {
   });
 }
 
+function renderBasketChips() {
+  const container = document.getElementById('re-basket-chips');
+  if (!container) return;
+  container.innerHTML = '';
+  if (baskets.length === 0) {
+    container.innerHTML = '<span style="color:var(--text-primary-disabled);font-size:20px">No baskets</span>';
+    return;
+  }
+  baskets.forEach(b => {
+    const chip = document.createElement('button');
+    chip.className = 're-grinder-chip' + (b.id === selectedBasketId ? ' active' : '');
+    chip.textContent = b.name || 'Basket';
+    chip.addEventListener('click', () => {
+      container.querySelectorAll('.re-grinder-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      selectedBasketId = b.id;
+    });
+    container.appendChild(chip);
+  });
+}
+
 function updateStreamlineBtn() {
   const btn = document.getElementById('re-show-streamline-btn');
   if (btn) btn.style.opacity = showOnStreamline ? '1' : '0.4';
@@ -8378,6 +8429,8 @@ function getCurrentRecipeData() {
       grind:   num('re-grind-value'),
       rpm:     num('re-rpm-value'),
       grinderId: selectedGrinderId,
+      basketId:   selectedBasketId,
+      basketName: (baskets.find(b => b.id === selectedBasketId) || {}).name,
     },
   };
 }
@@ -8604,6 +8657,10 @@ async function initRecipeEdit() {
     grinders = Array.isArray(gs) ? gs : (gs && gs.items ? gs.items : []);
   } catch (e) { grinders = []; }
 
+  try {
+    baskets = await getBaskets().catch(() => []);
+  } catch (e) { baskets = []; }
+
   const bs = await getBeans().catch(() => []);
   beans = Array.isArray(bs) ? bs : (bs && bs.items ? bs.items : []);
   const ps = await getProfiles().catch(() => []);
@@ -8654,6 +8711,7 @@ async function initRecipeEdit() {
   }
   renderRecipe(recipes[currentRecipeIdx] || {});
   renderGrinderChips();
+  renderBasketChips();
 }
 
 initRecipeEdit().catch(e => console.error('initRecipeEdit failed:', e));

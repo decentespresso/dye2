@@ -99,11 +99,11 @@ CONFIRM handler in `basket-picker.ts`), not a full context replacement.
 {
   id, title, beverage,
   alwaysOnDashboard, favSlot,
-  copyMask: { profile, beans, roastDate, grinder, grindSetting,
+  copyMask: { profile, beans, roastDate, grinder, basket, grindSetting,
               dose, drink, barista, drinker, note },   // booleans; absent ⇒ on
   snapshot: {
     profileId, profileTitle, beanBatchId, coffeeName, coffeeRoaster,
-    roastDate, grinderId, grinderModel, grindSetting, rpm,
+    roastDate, grinderId, grinderModel, basketId, basketName, grindSetting, rpm,
     dose, drink, barista, drinker, note
   },
   capturedAt,                 // ISO 8601
@@ -124,7 +124,8 @@ CONFIRM handler in `basket-picker.ts`), not a full context replacement.
   showOnStreamlineDashboard,
   dashboardVariables: {
     dose, drink, brewC, steamMode, steamTimeS, steamFlowMls,
-    flushS, hotWaterMode, hotWaterMl, hotWaterTempC, grind, rpm, grinderId
+    flushS, hotWaterMode, hotWaterMl, hotWaterTempC, grind, rpm, grinderId,
+    basketId, basketName
   },
 
   // added by this version (optional for consumers):
