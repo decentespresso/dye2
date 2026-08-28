@@ -83,7 +83,8 @@ const styles = `
   .re-var-block { display: flex; flex-direction: column; gap: 8px; }
   .re-var-label { font-size: 22px; font-weight: 700; color: var(--mimoja-blue); margin-bottom: 2px; }
   /* Figma: grinder options are plain text (no box) — active bold blue, inactive grey, wide gaps */
-  .re-grinder-chips { display: flex; align-items: center; gap: 32px; overflow-x: auto; padding-bottom: 4px; }
+  .re-grinder-chips { display: flex; align-items: center; gap: 32px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .re-grinder-chips::-webkit-scrollbar { display: none; }
   .re-grinder-chip {
     background: none; border: none; padding: 0;
     font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 600;
@@ -290,8 +291,7 @@ function buildContent(): string {
         </div>
       </div>
 
-      <!-- Basket names — same plain-text-tab style as Grinder above -->
-      <div class="re-var-label">Basket</div>
+      <!-- Basket names — same plain-text-tab style as Grinder above, no label -->
       <div class="re-grinder-chips" id="re-basket-chips">
         <!-- populated by JS -->
       </div>
