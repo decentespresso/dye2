@@ -1,6 +1,6 @@
 {
   "name": "@streamline/dye2-plugin",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "private": true,
   "description": "Streamline/DYE2 plugin for bean and grinder management",
   "type": "module",
