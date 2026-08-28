@@ -8051,12 +8051,6 @@ initAutoFavEdit().catch(e => console.error('initAutoFavEdit failed:', e));
         <!-- populated by JS -->
       </div>
 
-      <!-- Basket names — same plain-text-tab style as Grinder above -->
-      <div class="re-var-label">Basket</div>
-      <div class="re-grinder-chips" id="re-basket-chips">
-        <!-- populated by JS -->
-      </div>
-
       <!-- Grind + RPM (no preset strips in Figma) -->
       <div class="flex items-center gap-[90px]">
         <div class="re-var-block">
@@ -8065,6 +8059,12 @@ initAutoFavEdit().catch(e => console.error('initAutoFavEdit failed:', e));
         <div class="re-var-block">
           ${stepperHtml("re-rpm", "RPM", "75px")}
         </div>
+      </div>
+
+      <!-- Basket names — same plain-text-tab style as Grinder above -->
+      <div class="re-var-label">Basket</div>
+      <div class="re-grinder-chips" id="re-basket-chips">
+        <!-- populated by JS -->
       </div>
     </div>
   </div>
