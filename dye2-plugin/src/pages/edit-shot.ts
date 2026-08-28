@@ -149,6 +149,10 @@ function buildContent(): string {
       </div>
       <div class="edit-divider"></div>
 
+      <!-- Basket -->
+      ${expandFieldHtml('es-basket', 'Basket')}
+      <div class="edit-divider"></div>
+
       <!-- Barista / Drinker -->
       ${expandFieldHtml('es-barista', 'Barista')}
       ${expandFieldHtml('es-drinker', 'Drinker')}
@@ -399,6 +403,14 @@ function applyPendingSelections(shot) {
   const ctx = shot.workflow.context;
   const gId = sessionStorage.getItem('dye_selectedGrinderId');
   if (gId) { ctx.grinderId = gId; ctx.grinderModel = sessionStorage.getItem('dye_selectedGrinderModel') || ctx.grinderModel; }
+  // Basket has no schema field — lives in annotations.extras, same as RPM.
+  const bskId = sessionStorage.getItem('dye_selectedBasketId');
+  if (bskId) {
+    shot.annotations = shot.annotations || {};
+    shot.annotations.extras = shot.annotations.extras || {};
+    shot.annotations.extras.basketId = bskId;
+    shot.annotations.extras.basketName = sessionStorage.getItem('dye_selectedBasketName') || shot.annotations.extras.basketName;
+  }
   const bName = sessionStorage.getItem('dye_selectedBeanName');
   if (bName) {
     ctx.coffeeName = bName;
@@ -424,6 +436,7 @@ function leaveEditShot() {
 function clearReturnKeys() {
   ['dye_editShotReturn','dye_editShotDraft','dye_editShotIdx',
    'dye_selectedGrinderId','dye_selectedGrinderModel',
+   'dye_selectedBasketId','dye_selectedBasketName',
    'dye_selectedBeanId','dye_selectedBeanName','dye_selectedBeanRoaster','dye_selectedBatchId']
     .forEach(k => sessionStorage.removeItem(k));
 }
@@ -471,6 +484,10 @@ function renderShot(shot) {
 
   set('es-setting-value', ctx.grinderSetting != null ? ctx.grinderSetting : (gd.setting != null ? gd.setting : '—'));
   set('es-rpm-value',     (ann.extras && ann.extras.rpm != null) ? ann.extras.rpm : (gd.rpm != null ? gd.rpm : '—'));
+
+  // Basket has no schema field, same as RPM — lives in annotations.extras.
+  const basketEl = document.getElementById('es-basket-text');
+  if (basketEl) basketEl.textContent = (ann.extras && ann.extras.basketName) || '—';
 
   const baristaEl = document.getElementById('es-barista-text');
   if (baristaEl) baristaEl.textContent = ctx.baristaName || ctx.barista || '—';
@@ -525,6 +542,8 @@ function shotDialing(shot) {
     yield: ann.actualYield      != null ? ann.actualYield      : dd.doseOut,
     grind: ctx.grinderSetting   != null ? ctx.grinderSetting   : gd.setting,
     rpm:   (ann.extras && ann.extras.rpm != null) ? ann.extras.rpm : gd.rpm,
+    basketId:   ann.extras && ann.extras.basketId,
+    basketName: ann.extras && ann.extras.basketName,
     barista: ctx.baristaName || ctx.barista,
     drinker: ctx.drinkerName || ctx.drinker,
   };
@@ -539,6 +558,8 @@ async function workflowDialing() {
     yield: ctx.targetYield,
     grind: ctx.grinderSetting,
     rpm:   ctx.extras && ctx.extras.rpm,
+    basketId:   ctx.extras && ctx.extras.basketId,
+    basketName: ctx.extras && ctx.extras.basketName,
     barista: ctx.baristaName || ctx.barista,
     drinker: ctx.drinkerName || ctx.drinker,
   };
@@ -555,6 +576,7 @@ function applyDialing(d) {
   if (d.yield != null) ann.actualYield = d.yield;
   if (d.grind != null) ctx.grinderSetting = String(d.grind);
   if (d.rpm   != null) { ann.extras = ann.extras || {}; ann.extras.rpm = d.rpm; }
+  if (d.basketId != null) { ann.extras = ann.extras || {}; ann.extras.basketId = d.basketId; ann.extras.basketName = d.basketName; }
   if (d.barista) ctx.baristaName = d.barista;
   if (d.drinker) ctx.drinkerName = d.drinker;
   renderShot(currentShot);
@@ -621,6 +643,11 @@ function setupControls() {
   const goGrinder = () => goToPicker('/api/v1/plugins/dye2.reaplugin/grinder-picker');
   document.getElementById('es-grinder-expand')?.addEventListener('click', goGrinder);
   document.getElementById('es-grinder-text')?.addEventListener('click', goGrinder);
+
+  // Basket → picker (round-trips via draft; selection applied on return)
+  const goBasket = () => goToPicker('/api/v1/plugins/dye2.reaplugin/basket-picker');
+  document.getElementById('es-basket-expand')?.addEventListener('click', goBasket);
+  document.getElementById('es-basket-text')?.addEventListener('click', goBasket);
 
   // Barista / Drinker → expand shows remembered-name dropdown; tapping the text types a new one.
   const setBarista = v => { wfctx().baristaName = v; };

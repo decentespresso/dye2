@@ -189,6 +189,27 @@ function newId(prefix) {
   return (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : prefix + '-' + Date.now();
 }
 
+/* ── Filter baskets: same "bridge has no equipment resource" situation as
+   recipes/auto-favourites (see bc-map.ts bcMapEquipment) — parked in the KV store. */
+async function getBaskets() { return kvGetArray('baskets'); }
+
+async function createBasket(data) {
+  const arr = await kvGetArray('baskets');
+  const item = { ...data, id: newId('bskt'), createdAt: new Date().toISOString() };
+  arr.push(item);
+  await kvSetArray('baskets', arr);
+  return item;
+}
+
+async function updateBasket(id, data) {
+  const arr = await kvGetArray('baskets');
+  const existing = arr.find(x => x && x.id === id);
+  const item = { ...data, id, createdAt: (existing && existing.createdAt) || new Date().toISOString() };
+  kvUpsert(arr, item);
+  await kvSetArray('baskets', arr);
+  return item;
+}
+
 /* ── Denormalised fields written for the Streamline dashboard (read-only consumer).
    Both builders return a ready-to-PUT WorkflowRequest body { context, profile? }.
    They mirror dashboard.ts applyAutoFavourite/applyRecipe, but build a fresh ctx

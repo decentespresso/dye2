@@ -1,16 +1,17 @@
 # DYE2 KV Contract
 
-How DYE2 persists auto-favourites and recipes, and how a read-only consumer
-(the Streamline dashboard) should read and apply them.
+How DYE2 persists auto-favourites, recipes, and filter baskets, and how a
+read-only consumer (the Streamline dashboard) should read and apply them.
 
 ## Storage
 
-The Streamline Bridge has no `/recipes` or `/auto-favourites` REST resource. DYE2
-persists each collection as a **single JSON array** under one key in the generic
-plugin KV store:
+The Streamline Bridge has no `/recipes`, `/auto-favourites`, or equipment
+resource for baskets/portafilters/drippers (see `bc-map.ts` `bcMapEquipment`).
+DYE2 persists each collection as a **single JSON array** under one key in the
+generic plugin KV store:
 
 - Namespace: `dye2.reaplugin`
-- Keys: `autoFavourites`, `recipes`
+- Keys: `autoFavourites`, `recipes`, `baskets`
 - URL: `GET/POST /api/v1/store/{namespace}/{key}`
 - `GET` returning **404** ⇒ the key has never been written; treat as `[]`.
 - Each value is a JSON array of item objects (never an object/map).
@@ -83,6 +84,13 @@ treat these as optional:
 Legacy fields (`snapshot`, `copyMask`, `dashboardVariables`, `name`, …) are **kept**
 — DYE2's own pages still read them. Do not assume they were removed.
 
+### Baskets have no `workflow` field
+
+Unlike favourites/recipes, `baskets[]` items are not directly PUT-able to
+`/api/v1/workflow` — a basket is applied by writing just
+`context.extras.basketId` / `context.extras.basketName` (see the picker's
+CONFIRM handler in `basket-picker.ts`), not a full context replacement.
+
 ## Item schemas
 
 ### `autoFavourites[]`
@@ -126,3 +134,19 @@ Legacy fields (`snapshot`, `copyMask`, `dashboardVariables`, `name`, …) are **
   workflow: { context, profile? }   // ready-to-PUT WorkflowRequest
 }
 ```
+
+### `baskets[]`
+
+```
+{
+  id,                           // 'bskt-...'
+  name,                         // required
+  size,                         // 'single' | 'double' | 'triple' | 'bottomless' | 'other'
+  diameterMm,
+  notes,
+  createdAt,                    // ISO 8601
+}
+```
+
+Applying a basket does not use a `workflow` field (see above) — write
+`context.extras.basketId` / `context.extras.basketName` directly.

@@ -383,6 +383,10 @@ function buildContent(): string { return `
             </div>
             <div id="dye-bean-roast-info" class="text-[var(--text-primary)] font-normal text-[24px] leading-[1.2]"></div>
           </div>
+          <div id="dye-basket-field" class="flex items-baseline gap-[15px] cursor-pointer">
+            <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[69px] shrink-0">Basket</span>
+            <span id="dye-basket-name" class="font-semibold text-[24px] text-[var(--text-primary)] truncate">—</span>
+          </div>
           <div class="flex items-center gap-[30px]">
             <div id="dye-barista-field" class="flex items-center gap-[12px] dye-name-combo cursor-pointer">
               <span class="font-bold text-[24px] text-[var(--mimoja-blue)]">Barista</span>
@@ -1020,6 +1024,9 @@ function renderNextShot() {
     } else { roastInfoEl.textContent = ''; }
   }
 
+  const basketNameEl = document.getElementById('dye-basket-name');
+  if (basketNameEl) basketNameEl.textContent = (ctx.extras && ctx.extras.basketName) || '— Select Basket';
+
   const baristaEl = document.getElementById('dye-next-barista');
   const drinkerEl = document.getElementById('dye-next-drinker');
   if (baristaEl) baristaEl.textContent = ctx.baristaName || ctx.barista || '—';
@@ -1290,6 +1297,14 @@ function setupGrindLabel() {
   el.addEventListener('click', () => { window.location.href = 'grinders'; });
 }
 
+// Same pattern as the Beans card: tap opens the picker, whose own confirm writes
+// context.extras.basketId/basketName into the live workflow. No ?return= needed.
+function setupBasketField() {
+  const el = document.getElementById('dye-basket-field');
+  if (!el) return;
+  el.addEventListener('click', () => { window.location.href = 'basket-picker'; });
+}
+
 // Names previously used on shots, so Barista / Drinker can be picked instead of retyped.
 async function distinctNames(key) {
   const res = await getShots({ limit: 200 }).catch(() => []);
@@ -1509,6 +1524,7 @@ function wireDashboardControls() {
   setupBeanCard();
   setupProfileName();
   setupGrindLabel();
+  setupBasketField();
   setupNameField('dye-barista-field', 'dye-next-barista', 'baristaName');
   setupNameField('dye-drinker-field', 'dye-next-drinker', 'drinkerName');
   setupClipboardPaste();
