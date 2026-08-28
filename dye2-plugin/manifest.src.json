@@ -24,7 +24,17 @@
       "data": {}
     },
     {
+      "id": "baskets",
+      "type": "http",
+      "data": {}
+    },
+    {
       "id": "grinder-picker",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "basket-picker",
       "type": "http",
       "data": {}
     },
