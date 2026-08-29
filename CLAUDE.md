@@ -78,3 +78,10 @@ See `rea_restapi.yml` for full OpenAPI spec. Core resources used by this plugin:
 - `GET/POST /api/v1/grinders`
 - `GET/PUT/DELETE /api/v1/grinders/:id`
 - `GET/PUT /api/v1/workflow` — active shot workflow (dose data, grinder settings)
+
+Beans/grinders are real, typed bridge resources. Auto-favourites, recipes, and
+(for now) filter baskets have no bridge resource of their own and are instead
+persisted through the bridge's generic, **unscoped** per-plugin KV store
+(`/api/v1/store/{namespace}/{key}` — readable/writable by any skin or plugin,
+not just the owner). See `dye2-plugin/KV_CONTRACT.md` for the schema and the
+single-writer convention this relies on.

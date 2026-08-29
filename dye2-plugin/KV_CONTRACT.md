@@ -5,16 +5,38 @@ read-only consumer (the Streamline dashboard) should read and apply them.
 
 ## Storage
 
-The Streamline Bridge has no `/recipes`, `/auto-favourites`, or equipment
-resource for baskets/portafilters/drippers (see `bc-map.ts` `bcMapEquipment`).
-DYE2 persists each collection as a **single JSON array** under one key in the
-generic plugin KV store:
+The Streamline Bridge has no `/recipes` or `/auto-favourites` resource, and
+(as of this writing) no equipment resource for baskets/portafilters/drippers
+either — see `bc-map.ts` `bcMapEquipment`. DYE2 persists each collection as a
+**single JSON array** under one key in the generic plugin KV store:
 
 - Namespace: `dye2.reaplugin`
 - Keys: `autoFavourites`, `recipes`, `baskets`
 - URL: `GET/POST /api/v1/store/{namespace}/{key}`
 - `GET` returning **404** ⇒ the key has never been written; treat as `[]`.
 - Each value is a JSON array of item objects (never an object/map).
+
+**Baskets is transitional.** [decentespresso/decaid#727](https://github.com/decentespresso/decaid/pull/727)
+adds a real `/api/v1/equipment` resource (`type: basket|portafilter|dripper|other`)
+to the bridge, mirroring Grinders. Once that ships and DYE2 migrates onto it,
+`baskets` moves off the KV store described here onto a typed, discoverable
+endpoint — check whether it has landed before building new consumers against
+the `baskets` key below. `autoFavourites`/`recipes` are DYE2-specific concepts
+with no native bridge equivalent and are expected to stay on the KV store.
+
+## Access model — this is not a private store
+
+The KV store is **not scoped to the owning plugin**. Decaid's
+`/api/v1/store/{namespace}/{key}` routes take `namespace` and `key` as plain
+path params with no ownership or permission check (see
+`kv_store_handler.dart` / `kv_store_service.dart` in the Decaid repo) — any
+skin or plugin can `GET` (or `POST`/`DELETE`) `dye2.reaplugin`'s keys today,
+the same as its own. Nothing in the bridge stops a second writer from racing
+DYE2 or corrupting an array; the single-writer rule below is a convention
+this document defines and DYE2 follows, not something the platform enforces.
+That's also exactly why this file exists: to give another consumer (the
+Streamline dashboard, or any other skin) a documented, stable shape to read
+against instead of reverse-engineering it.
 
 ## Single-writer rule
 
