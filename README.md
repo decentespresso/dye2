@@ -76,6 +76,18 @@ Run `npm run dev` and `npm run serve` in separate terminals; the dev server relo
 
 See `rea_restapi.yml` for the full Decaid OpenAPI spec (beans, batches, grinders, workflow).
 
+### Accessing favourites, recipes, and baskets
+
+Beans and grinders are real Decaid resources (`/api/v1/beans`, `/api/v1/grinders`). Auto-favourites, recipes, and (for now) filter baskets have no bridge resource of their own — DYE2 persists them in Decaid's generic per-plugin KV store instead:
+
+```
+GET /api/v1/store/dye2.reaplugin/autoFavourites
+GET /api/v1/store/dye2.reaplugin/recipes
+GET /api/v1/store/dye2.reaplugin/baskets
+```
+
+No auth required. Returns a JSON array, or `null` if the key was never written — treat `null` as `[]`. This route isn't scoped to the owning plugin (verified against Decaid's `kv_store_handler.dart`), so any skin can already read these today; DYE2 is the sole writer by convention only, not by enforcement — don't `POST`/`DELETE` these keys. Full schema in `dye2-plugin/KV_CONTRACT.md`. Baskets is transitional: [decentespresso/decaid#727](https://github.com/decentespresso/decaid/pull/727) adds a real `/api/v1/equipment` resource that DYE2 will migrate onto.
+
 ### Releasing
 
 Version is driven entirely by the git tag — push a `vX.Y.Z` tag and the release workflow (`.github/workflows/release.yml`) syncs `dye2-plugin/manifest.src.json` and `package.json` to match, builds, validates the output, and publishes `dye2.reaplugin-vX.Y.Z.zip` to Releases.
