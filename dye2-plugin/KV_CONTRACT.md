@@ -13,7 +13,9 @@ either — see `bc-map.ts` `bcMapEquipment`. DYE2 persists each collection as a
 - Namespace: `dye2.reaplugin`
 - Keys: `autoFavourites`, `recipes`, `baskets`
 - URL: `GET/POST /api/v1/store/{namespace}/{key}`
-- `GET` returning **404** ⇒ the key has never been written; treat as `[]`.
+- `GET` on a key that's never been written returns **`200` with body `null`**
+  (verified against `kv_store_handler.dart` — it always responds `jsonOk`,
+  never 404). Treat any non-array response (`null` included) as `[]`.
 - Each value is a JSON array of item objects (never an object/map).
 
 **Baskets is transitional.** [decentespresso/decaid#727](https://github.com/decentespresso/decaid/pull/727)
