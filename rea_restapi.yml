@@ -4,6 +4,27 @@ info:
   version: 1.0.0
   description: |
     This API provides endpoints to retrieve a list of Bluetooth devices, trigger a scan for new devices, manage DE1 espresso machine state and settings, and interact with a connected scale.
+
+    Requests under `/api/` are subject to process-local admission limits. A
+    per-client limit returns 429 and a global limit returns 503; both include
+    `Retry-After: 1`. Saturated requests are rejected rather than queued.
+x-admission-control:
+  windowSeconds: 1
+  globalConcurrent: 128
+  perClientConcurrent: 32
+  globalAcceptedPerSecond: 1024
+  perClientAcceptedPerSecond: 256
+  maxTrackedClients: 256
+x-buffered-request-bodies:
+  timeoutStatus: 408
+  oversizedStatus: 413
+  limits:
+    control:
+      maxBytes: 65536
+      timeoutSeconds: 10
+    ordinary:
+      maxBytes: 1048576
+      timeoutSeconds: 30
 servers:
   - url: http://{tablet-ip}:8080
     variables:
@@ -39,11 +60,12 @@ paths:
                     available:
                       type: boolean
                       description: >
-                        true if the device is currently present in discovery;
-                        false for a remembered device that is not present
-                        (reported with state "disconnected"). Remembered devices
-                        are those the user has connected to; they persist across
-                        restarts until forgotten via /api/v1/devices/forget.
+                        true if the device is currently present in discovery or
+                        is actively connected; false for a remembered device
+                        that is not present (reported with state "disconnected").
+                        Remembered devices are those the user has connected to;
+                        they persist across restarts until forgotten via
+                        /api/v1/devices/forget.
         "500":
           description: Internal Server Error
           content:
@@ -120,6 +142,8 @@ paths:
         Accepts deviceId via JSON body (preferred) or query parameter (backward compatible).
         Device IDs may contain special characters (e.g. colons in BLE MAC addresses,
         slashes in serial port paths), so the JSON body approach avoids URL encoding issues.
+        Controller-owned inventory devices such as Bengle's integrated virtual scale
+        are not independent command targets and return 409.
       tags: [Devices]
       parameters:
         - name: deviceId
@@ -153,11 +177,13 @@ paths:
         "404":
           description: "Device not found"
         "409":
-          description: "Connection conflicts with another operation or a stale selection"
+          description: "Connection conflicts with another operation, a stale selection, or an inventory-only device"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeviceConnectResult"
+                oneOf:
+                  - $ref: "#/components/schemas/DeviceConnectResult"
+                  - $ref: "#/components/schemas/Error"
         "503":
           description: "Device transport currently unavailable"
           content:
@@ -176,6 +202,8 @@ paths:
       summary: Disconnect a specified device
       description: |
         Accepts deviceId via JSON body (preferred) or query parameter (backward compatible).
+        Controller-owned inventory devices such as Bengle's integrated virtual scale
+        follow their machine lifecycle and return 409.
       tags: [Devices]
       parameters:
         - name: deviceId
@@ -204,6 +232,12 @@ paths:
           description: "Missing deviceId"
         "404":
           description: "Device not found"
+        "409":
+          description: "Device is inventory-only and cannot be disconnected independently"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /api/v1/devices/wifi:
     get:
@@ -345,6 +379,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MachineStateError"
+        "503":
+          description: Machine write queue is full for non-idle state changes
   /api/v1/machine/profile:
     post:
       summary: Set Machine Profile
@@ -362,9 +398,9 @@ paths:
         "400":
           description: Malformed JSON body
         "503":
-          description: Machine disconnected mid-write and no replacement appeared within the bounded wait
+          description: Machine write queue is full
         "500":
-          description: No machine was ever connected
+          description: No machine was connected, the machine changed during the write, or the write failed
   /api/v1/machine/shotSettings:
     post:
       summary: Update Shot Settings
@@ -382,17 +418,16 @@ paths:
         "400":
           description: Malformed JSON body
         "503":
-          description: Machine disconnected mid-write and no replacement appeared within the bounded wait
+          description: Machine write queue is full
         "500":
-          description: No machine was ever connected
+          description: No machine was connected, the machine changed during the write, or the write failed
   /api/v1/machine/capabilities:
     get:
       summary: List machine capabilities
       description: |
-        Returns the optional capability surfaces the currently connected
-        machine exposes. Plain DE1s return an empty list; Bengle returns
-        `["cupWarmer", "integratedScale"]` plus any future capabilities
-        as they ship. Skins should query this
+        Returns the capability surface the currently connected machine
+        exposes. Plain DE1s return an empty list. Every Bengle returns
+        the complete Bengle capability set. Skins should query this
         endpoint once after connect to decide which UI to render and
         which `/api/v1/machine/...` capability endpoints to call.
       tags: [Machine]
@@ -405,14 +440,19 @@ paths:
                 $ref: "#/components/schemas/MachineCapabilities"
   /api/v1/machine/cupWarmer:
     get:
-      summary: Get cup-warmer setpoint
+      summary: Get cup-warmer state
       description: |
-        Read the current cup-warmer mat target temperature in °C.
-        Returns 404 when the connected machine is not a Bengle.
+        Read the cup-warmer mat target temperature in whole °C, the
+        manual enable state (CupWarmerMode) and the current mat
+        temperature. `currentTemperature` is null whenever the firmware
+        has no valid NTC reading. The manual enable is RAM-only in
+        firmware: it boots off after every power cycle and the app never
+        re-enables it on reconnect. Returns 404 when the connected
+        machine is not a Bengle.
       tags: [Machine]
       responses:
         "200":
-          description: Current cup-warmer setpoint
+          description: Current cup-warmer state
           content:
             application/json:
               schema:
@@ -420,38 +460,97 @@ paths:
         "404":
           description: Machine connected but does not support cup warmer
     put:
-      summary: Set cup-warmer setpoint
+      summary: Set cup-warmer setpoint and/or manual enable
       description: |
-        Set the cup-warmer mat target temperature in °C. Range
-        `0.0`–`80.0`; `0.0` turns the mat off (there is no separate
-        enable flag). Out-of-range values return 400; the app does not
-        rely on FW-side clamping so callers see immediate feedback.
-        Returns 404 when the connected machine is not a Bengle.
+        Set the cup-warmer mat target temperature (whole °C, range
+        `0`–`80`; `0` turns the mat off) and/or the manual enable
+        (`enabled`). Backwards compatibility: a
+        request with only `temperature` sets the setpoint AND enables
+        manual heating, exactly like the original endpoint; an explicit
+        `enabled` field can disable manual heating without destroying
+        the persisted setpoint (required for scheduled pre-warm, which
+        needs a non-zero setpoint while manual mode is off). Fractional
+        or out-of-range temperatures return 400. Returns 404 when the
+        connected machine is not a Bengle.
       tags: [Machine]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CupWarmerState"
+              $ref: "#/components/schemas/CupWarmerUpdateRequest"
       responses:
         "200":
-          description: Setpoint accepted
+          description: Accepted
         "400":
-          description: Temperature missing or out of range 0.0–80.0, or malformed JSON
+          description: Missing fields, fractional/out-of-range temperature, non-boolean enabled, or malformed JSON
         "404":
-          description: Machine connected but does not support cup warmer
+          description: Machine connected but does not support cup warmer (not a Bengle)
         "503":
-          description: Machine disconnected mid-write and no replacement appeared within the bounded wait
+          description: Machine write queue is full
         "500":
-          description: No machine was ever connected
+          description: No machine was connected, the machine changed during the write, or the write failed
+  /api/v1/machine/cupWarmer/preheat:
+    get:
+      summary: Get scheduled pre-warm state
+      description: |
+        Read the persisted scheduled pre-warm configuration
+        (`enabled`, `leadMinutes` 0-120) and whether the wake schedule
+        is currently driving the mat (`active`). The firmware owns all
+        pre-warm timing: with pre-warm enabled it starts the mat
+        `leadMinutes` before a scheduled wake window and holds it until
+        the window closes, with the machine still asleep (only the 24 V
+        rail runs; the boilers stay cold). Returns 404 when the
+        connected machine is not a Bengle.
+      tags: [Machine]
+      responses:
+        "200":
+          description: Current pre-warm state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CupWarmerPreheatState"
+        "404":
+          description: Machine connected but does not support pre-warm
+    put:
+      summary: Set scheduled pre-warm configuration
+      description: |
+        Set `enabled` and/or `leadMinutes` (whole minutes, 0-120). Both
+        are persisted firmware configuration; the app stores nothing and
+        never reasserts them on connect. Omitted fields keep their
+        current firmware values. Returns 404 when the connected machine
+        is not a Bengle.
+      tags: [Machine]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CupWarmerPreheatUpdateRequest"
+      responses:
+        "200":
+          description: Accepted
+        "400":
+          description: Missing fields, out-of-range or fractional leadMinutes, non-boolean enabled, or malformed JSON
+        "404":
+          description: Machine connected but does not support pre-warm
+        "503":
+          description: Machine write queue is full
+        "500":
+          description: No machine was connected, the machine changed during the write, or the write failed
   /api/v1/machine/ledStrip:
     get:
       summary: Get LED strip configuration
       description: |
         Read the current LED strip configuration (all 3 zones × 2 modes)
-        from the in-memory cache. Returns 404 when the connected
-        machine is not a Bengle.
+        from the firmware-persisted palette registers. The state is
+        hydrated from the machine once per connection; if hydration has
+        not succeeded (no black is ever fabricated as authoritative
+        state), the endpoint answers 503. `frontSwitch` is not an
+        independent hardware control — it is derived from the front
+        strip palette exactly as the firmware derives the HV switch
+        colours (black falls back to the product defaults). Returns 404
+        when the connected machine is not a Bengle.
       tags: [Machine]
       responses:
         "200":
@@ -462,13 +561,17 @@ paths:
                 $ref: "#/components/schemas/LedStripState"
         "404":
           description: Machine connected but does not support LED strip
+        "503":
+          description: LED state unavailable (hydration failed or not yet complete)
     put:
       summary: Set LED strip configuration
       description: |
         Write a full LED strip configuration (all 3 zones × 2 modes).
-        Updates cache and pushes to FW live registers. Does NOT persist
-        to NVM — call `/commit` separately. Returns 404 when the
-        connected machine is not a Bengle.
+        `frontStrip` and `backStrip` are written write-through to the
+        firmware palette registers and persisted there immediately;
+        `frontSwitch` is ignored on write (derived hardware behavior, not
+        an independent control). There is no separate commit latch.
+        Returns 404 when the connected machine is not a Bengle.
       tags: [Machine]
       requestBody:
         required: true
@@ -478,23 +581,24 @@ paths:
               $ref: "#/components/schemas/LedStripState"
       responses:
         "200":
-          description: Configuration accepted
+          description: Configuration accepted and persisted
         "400":
           description: Invalid request body or malformed JSON
         "404":
           description: Machine connected but does not support LED strip
         "503":
-          description: Machine disconnected mid-write and no replacement appeared within the bounded wait
+          description: Machine write queue is full
         "500":
-          description: No machine was ever connected
+          description: No machine was connected, the machine changed during the write, or the write failed
 
   /api/v1/machine/ledStrip/commit:
     post:
-      summary: Commit LED strip config to NVM
+      summary: Commit LED strip config to NVM (compatibility no-op)
       description: |
-        Persist the current in-memory LED strip configuration to FW
-        non-volatile memory. The machine retains settings across power
-        cycles. Returns 404 when the connected machine is not a Bengle.
+        Palette writes are write-through and persisted by the firmware;
+        there is no separate commit latch. This endpoint is kept for API
+        compatibility and always answers 202 without side effects.
+        Returns 404 when the connected machine is not a Bengle.
       tags: [Machine]
       requestBody:
         required: true
@@ -505,22 +609,23 @@ paths:
               example: {}
       responses:
         "202":
-          description: Commit accepted
+          description: Commit accepted (no-op)
         "404":
           description: Machine connected but does not support LED strip
         "503":
-          description: Machine disconnected mid-write and no replacement appeared within the bounded wait
+          description: Machine write queue is full
         "500":
-          description: No machine was ever connected
+          description: No machine was connected, the machine changed during the write, or the write failed
 
   /api/v1/machine/ledStrip/reset:
     post:
-      summary: Reset LED strip cache from NVM
+      summary: Reload LED strip config from the firmware
       description: |
-        Reload the LED strip cache from FW non-volatile memory,
-        dropping any uncommitted changes. Returns the refreshed
-        configuration. Returns 404 when the connected machine is not
-        a Bengle.
+        Re-read the palette registers from the firmware and return the
+        refreshed configuration. This is a truthful reload, not a
+        rollback: the firmware cannot undo a persisted write. Returns
+        404 when the connected machine is not a Bengle; 503 when the
+        firmware read fails.
       tags: [Machine]
       requestBody:
         required: true
@@ -539,9 +644,72 @@ paths:
         "404":
           description: Machine connected but does not support LED strip
         "503":
-          description: Machine disconnected mid-write and no replacement appeared within the bounded wait
+          description: Machine write queue is full, or firmware read failed
+        "500":
+          description: No machine was connected, the machine changed during the write, or the write failed
+  /api/v1/machine/scaleCalibration:
+    get:
+      summary: Get scale-calibration state
+      description: |
+        Read the current load-cell calibration procedure state for the
+        integrated scale (Bengle only, firmware MMR rows 39-41). The
+        firmware packs step, detected cell, sub-state, seconds remaining
+        and calibration status into one register; this endpoint decodes
+        it. Returns 404 when the connected machine is not a Bengle.
+      tags: [Machine]
+      responses:
+        "200":
+          description: Current calibration state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScaleCalibrationState"
+        "404":
+          description: Machine connected but does not support scale calibration
         "500":
           description: No machine was ever connected
+    put:
+      summary: Start a scale-calibration step
+      description: |
+        Start one firmware calibration step. `command` is `zero`
+        (precision zero), `latch` (isolated-cell gain latch with the
+        platform removed and a known mass on either load cell; the
+        firmware auto-detects the cell, run once per cell) or `abort`.
+        `weightGrams` is required for `latch` (1..10000 g, fractional
+        grams allowed). The firmware stages commands asynchronously and
+        rejects them while the cal machine is busy or a shot is in
+        progress; a rejected command leaves the step unchanged and
+        answers 409. Quick tare is deliberately not exposed here — use
+        the integrated-scale tare path. Returns 404 when the connected
+        machine is not a Bengle.
+      tags: [Machine]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScaleCalibrationCommandRequest"
+      responses:
+        "202":
+          description: Command accepted, returns the new state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScaleCalibrationAccepted"
+        "400":
+          description: Malformed JSON, unknown command, or invalid weightGrams
+        "404":
+          description: Machine connected but does not support scale calibration
+        "409":
+          description: Command rejected (machine busy or shot in progress), returns the current state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScaleCalibrationRejected"
+        "503":
+          description: Machine write queue is full
+        "500":
+          description: No machine was connected, the machine changed during the write, or the write failed
   /api/v1/machine/settings:
     get:
       summary: Get machine settings
@@ -570,9 +738,9 @@ paths:
         "400":
           description: Malformed JSON body
         "503":
-          description: Machine disconnected mid-write and no replacement appeared within the bounded wait
+          description: Machine write queue is full
         "500":
-          description: No machine was ever connected
+          description: No machine was connected, the machine changed during the write, or the write failed
 
   /api/v1/machine/settings/advanced:
     get:
@@ -602,9 +770,9 @@ paths:
         "400":
           description: Malformed JSON body
         "503":
-          description: Machine disconnected mid-write and no replacement appeared within the bounded wait
+          description: Machine write queue is full
         "500":
-          description: No machine was ever connected
+          description: No machine was connected, the machine changed during the write, or the write failed
 
   /api/v1/machine/settings/reset:
     delete:
@@ -618,14 +786,17 @@ paths:
         "202":
           description: Reset accepted (one grouped serialized device write)
         "503":
-          description: Machine disconnected mid-write and no replacement appeared within the bounded wait
+          description: Machine write queue is full
         "500":
-          description: No DE1 connected
+          description: No machine was connected, the machine changed during the write, or the write failed
 
   /api/v1/machine/calibration:
     get:
       summary: Get machine calibration settings
-      description: Returns the current flow estimation calibration multiplier from the DE1
+      description: |
+        Returns the current flow estimation calibration multiplier from the DE1
+        (calFlowEst MMR). For DE1 sensor calibration (flow/pressure/temperature)
+        see GET /api/v1/machine/calibration/{target}.
       tags: [Machine]
       responses:
         "200":
@@ -636,7 +807,10 @@ paths:
                 $ref: "#/components/schemas/De1CalibrationResponse"
     post:
       summary: Set machine calibration settings
-      description: Updates the flow estimation calibration multiplier on the DE1
+      description: |
+        Updates the flow estimation calibration multiplier on the DE1
+        (calFlowEst MMR). For DE1 sensor calibration (flow/pressure/temperature)
+        see PUT /api/v1/machine/calibration/{target}.
       tags: [Machine]
       requestBody:
         required: true
@@ -650,9 +824,88 @@ paths:
         "400":
           description: Malformed JSON body
         "503":
-          description: Machine disconnected mid-write and no replacement appeared within the bounded wait
+          description: Machine write queue is full
+        "500":
+          description: No machine was connected, the machine changed during the write, or the write failed
+
+  /api/v1/machine/calibration/{target}:
+    get:
+      summary: Read DE1 sensor calibration
+      description: |
+        Reads the DE1 A012 calibration characteristic for one target. `source`
+        selects the current calibration (default) or the factory calibration.
+        This is distinct from the flow estimation multiplier served by
+        GET /api/v1/machine/calibration.
+
+        Read responses follow the DE1 firmware: ratiometric targets (flow,
+        pressure) always carry 1.0 in `de1ReportedValue` with the calibration
+        value in `measuredValue`; the temperature target carries 0.0 in
+        `de1ReportedValue`.
+      tags: [Machine]
+      parameters:
+        - name: target
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/De1SensorCalibrationTarget"
+        - name: source
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/De1SensorCalibrationSource"
+          default: current
+      responses:
+        "200":
+          description: Calibration values
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/De1SensorCalibration"
+        "400":
+          description: Unknown target or source
+        "503":
+          description: Machine disconnected mid-read and no replacement appeared within the bounded wait
+        "504":
+          description: Machine did not answer the calibration request within the response timeout
         "500":
           description: No machine was ever connected
+    put:
+      summary: Write DE1 sensor calibration
+      description: |
+        Writes calibration values for one target via the DE1 A012 calibration
+        characteristic. Returns 202 only after the machine acknowledges the
+        write.
+
+        A write is a correction, not an absolute set, per the DE1 firmware:
+        flow and pressure multiply the stored calibration by
+        `measuredValue / de1ReportedValue`, and temperature adds
+        `measuredValue - de1ReportedValue`. To set an absolute value X, first
+        read the current calibration C, then write
+        `de1ReportedValue: C, measuredValue: X`.
+      tags: [Machine]
+      parameters:
+        - name: target
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/De1SensorCalibrationTarget"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/De1SensorCalibrationWriteRequest"
+      responses:
+        "202":
+          description: Calibration write acknowledged by the machine
+        "400":
+          description: Malformed JSON body, unknown target, or invalid values
+        "503":
+          description: Machine write queue is full
+        "504":
+          description: Machine did not acknowledge the calibration write within the response timeout
+        "500":
+          description: No machine was connected, the machine changed during the write, or the write failed
 
   /api/v1/machine/waterLevels:
     post:
@@ -670,9 +923,9 @@ paths:
         "400":
           description: Malformed JSON body
         "503":
-          description: Machine disconnected mid-write and no replacement appeared within the bounded wait
+          description: Machine write queue is full
         "500":
-          description: No machine was ever connected
+          description: No machine was connected, the machine changed during the write, or the write failed
 
   /api/v1/machine/firmware:
     get:
@@ -693,8 +946,10 @@ paths:
       summary: Push raw firmware to the machine (developer/recovery)
       description: |
         Send a raw firmware file to the machine. Returns an NDJSON progress
-        stream. Rejects an empty body with 400. Returns 409 if an update is
-        already in progress. Returns 503 if no machine is connected.
+        stream. The body is limited to 16 MiB and must arrive within 60 seconds.
+        Rejects an empty body with 400, a stalled body with 408, and an oversized
+        body with 413. Returns 409 if an update is already in progress. Returns
+        503 if no machine is connected or the machine write queue is full.
 
         A successful stream emits `erasing`, zero or more `uploading` events,
         then `done`. A failed stream emits `erasing`, zero or more `uploading`
@@ -712,6 +967,10 @@ paths:
         required: true
         content:
           application/octet-stream:
+            schema:
+              type: string
+              format: binary
+              maxLength: 16777216
       responses:
         "200":
           description: NDJSON progress stream (see FirmwareProgressEvent)
@@ -721,10 +980,14 @@ paths:
                 $ref: "#/components/schemas/FirmwareProgressEvent"
         "400":
           description: Empty request body
+        "408":
+          description: Request body was not received within 60 seconds
         "409":
           description: Firmware update already in progress
+        "413":
+          description: Request body exceeds 16 MiB
         "503":
-          description: No machine connected
+          description: No machine connected or machine write queue full
     delete:
       summary: Cancel an in-progress firmware update
       description: |
@@ -745,6 +1008,7 @@ paths:
       description: |
         Resolves, loads, and validates a bundled firmware artifact before
         starting the upload. Returns an NDJSON progress stream on success.
+        The JSON body is limited to 64 KiB and must arrive within 10 seconds.
         Accepts optional `force: true` to bypass version-newer policy
         (never bypasses integrity or compatibility checks).
       tags: [Machine]
@@ -774,12 +1038,16 @@ paths:
           description: Missing or malformed artifactId
         "404":
           description: Unknown artifact ID
+        "408":
+          description: Request body was not received within 10 seconds
         "409":
           description: Firmware update already in progress
+        "413":
+          description: Request body exceeds 64 KiB
         "422":
           description: Artifact validation, compatibility, or version-policy failure
         "503":
-          description: No machine connected
+          description: No machine connected or machine write queue full
 
   # Scale API
   /api/v1/scale/tare:
@@ -981,8 +1249,11 @@ paths:
 
         Each HTTP request is an independent mutation. Requests are processed in FIFO order,
         and partial request bodies are deep-merged against the workflow state when that request
-        reaches the front of the queue. The server does not debounce or combine separate
-        requests. Machine side effects from workflow PUT requests do not execute concurrently,
+        reaches the front of the queue. Omitted steam-setting fields keep their current values;
+        supplied values replace them. Steam settings are non-nullable, so explicit `null` for
+        `steamSettings` or any of its fields returns `400`.
+        The server does not debounce or combine separate requests. Machine side effects from
+        workflow PUT requests do not execute concurrently,
         so a request may wait behind an in-flight machine operation. Each response describes
         the workflow resulting from that request. High-frequency clients should throttle input
         on the client side rather than relying on server-side debounce.
@@ -1014,7 +1285,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/WorkflowRequest"
+              $ref: "#/components/schemas/WorkflowPatch"
             examples:
               updateContext:
                 summary: Update dose and grinder via context (recommended)
@@ -1105,6 +1376,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "409":
+          description: A pending DE1 settings write was superseded by a newer value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "413":
           description: Request body exceeds the 1 MiB workflow payload limit
           content:
@@ -1126,9 +1403,9 @@ paths:
         "503":
           description: >
             The request waited more than 30 seconds for its turn and was
-            skipped, or the machine disconnected mid-write and no replacement
-            machine appeared within the bounded wait (10 seconds). In both
-            cases the controller workflow is unchanged.
+            skipped, the machine write queue was full, or a replaceable setting
+            could not reconnect to the same machine within the bounded wait.
+            In each case the controller workflow is unchanged.
           content:
             application/json:
               schema:
@@ -1700,7 +1977,10 @@ paths:
           description: Internal Server Error
     put:
       summary: Update a bean
-      description: Updates an existing bean. Pass only the fields to change.
+      description: |
+        Updates an existing bean. Omitted fields preserve their current values,
+        explicit `null` clears nullable fields, and supplied values replace them.
+        Explicit `null` for a non-nullable field returns `400`.
       tags: [Beans]
       parameters:
         - name: id
@@ -1943,6 +2223,40 @@ paths:
         "500":
           description: Internal Server Error
 
+  /api/v1/bean-batches:
+    get:
+      summary: List all bean batches
+      description: Returns batches across all beans, optionally including archived ones.
+      tags: [Beans]
+      parameters:
+        - name: includeArchived
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Include archived batches
+      responses:
+        "200":
+          description: Array of batches
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: |
+                Strong entity tag derived from the response body. Echo back as
+                `If-None-Match` on subsequent requests for conditional GET.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BeanBatch"
+        "304":
+          description: Not Modified — client's `If-None-Match` matched the current ETag.
+        "500":
+          description: Internal Server Error
+
   /api/v1/bean-batches/{id}:
     get:
       summary: Get a batch by ID
@@ -1967,7 +2281,10 @@ paths:
           description: Internal Server Error
     put:
       summary: Update a batch
-      description: Updates an existing batch. Pass only the fields to change.
+      description: |
+        Updates an existing batch. Omitted fields preserve their current values,
+        explicit `null` clears nullable fields, and supplied values replace them.
+        Explicit `null` for a non-nullable field returns `400`.
       tags: [Beans]
       parameters:
         - name: id
@@ -2241,7 +2558,10 @@ paths:
           description: Internal Server Error
     put:
       summary: Update a grinder
-      description: Updates an existing grinder. Pass only the fields to change.
+      description: |
+        Updates an existing grinder. Omitted fields preserve their current values,
+        explicit `null` clears nullable fields, and supplied values replace them.
+        Explicit `null` for a non-nullable field returns `400`.
       tags: [Grinders]
       parameters:
         - name: id
@@ -2509,7 +2829,9 @@ paths:
       description: >
         Applies a settings patch. Omitted fields preserve the existing value;
         a null value clears the setting. For secure fields, an isSet state
-        object preserves the stored credential; null clears it. The response
+        object preserves the stored credential; null clears it. If the plugin
+        is loaded, it is reloaded so the running instance picks up the patch;
+        if it is unloaded, the patch is only persisted. The response
         is always redacted and never echoes a submitted credential.
       parameters:
         - name: id
@@ -2582,6 +2904,99 @@ paths:
                   id:
                     type: string
 
+  /api/v1/plugins/{id}/source:
+    put:
+      summary: Create or overwrite a plugin's manifest and source
+      description: >
+        Writes manifest.json and plugin.js for the given plugin id, creating the
+        plugin when it is not installed yet. This is a partial update: every
+        other file in the plugin directory is left untouched. The manifest id
+        must match the path id, and the manifest version may not be lower than
+        the installed version - an older version can only be installed after the
+        plugin has been removed. A plugin that was loaded is unloaded, replaced,
+        and reloaded; if the new source fails to load, the previous manifest,
+        source, and running plugin are restored and the request fails. An
+        unloaded plugin stays unloaded and its source is not validated.
+        Settings and the auto-load preference are preserved. Overwriting a
+        bundled plugin is temporary: on the next app start the bundled copy wins
+        whenever its version is higher. This path shadows a plugin-declared
+        endpoint named "source", the same way /settings does.
+      tags: [Plugins]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Plugin ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [manifest, plugin]
+              properties:
+                manifest:
+                  type: object
+                  description: Contents of manifest.json, including a matching id
+                plugin:
+                  type: string
+                  description: JavaScript source written to plugin.js
+      responses:
+        "200":
+          description: Plugin source updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  id:
+                    type: string
+                  version:
+                    type: string
+                  loaded:
+                    type: boolean
+        "400":
+          description: >
+            Invalid JSON body, missing manifest or plugin source, invalid
+            manifest, manifest id mismatch, or unsafe plugin id
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "409":
+          description: >
+            The submitted version is lower than the installed version; remove
+            the plugin before installing an older version
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: >
+            The plugin could not be written, or the new source failed to load
+            and the previous version was restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  id:
+                    type: string
+                  loaded:
+                    type: boolean
+
   /api/v1/plugins/{id}:
     delete:
       summary: Delete a plugin
@@ -2646,8 +3061,41 @@ paths:
 
   /api/v1/plugins/install:
     post:
-      summary: Install a plugin from URL
-      description: Installs a plugin from a remote URL (not yet implemented)
+      summary: Install a plugin from URL (not supported)
+      description: >
+        Installing from an arbitrary URL is not supported. Use
+        /api/v1/plugins/install/github-release or
+        /api/v1/plugins/install/github-branch.
+      tags: [Plugins]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+      responses:
+        "501":
+          description: Not supported; the response names the endpoints to use
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /api/v1/plugins/install/github-release:
+    post:
+      summary: Install a plugin from a GitHub release
+      description: >
+        Downloads a release asset, validates the package, and installs it. The
+        release tag must be X.Y.Z or vX.Y.Z and must equal the manifest version
+        after stripping the optional leading v. When the release carries several
+        .zip assets, assetName must name the one to install. Downgrades are
+        rejected; remove the plugin first to go back to an older version.
       tags: [Plugins]
       requestBody:
         required: true
@@ -2655,31 +3103,167 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - url
+              required: [repo]
               properties:
-                url:
+                repo:
                   type: string
-                  description: URL to install the plugin from
+                  description: owner/repo
+                assetName:
+                  type: string
+                  description: Release asset to install; required when several .zip assets exist
+                includePrerelease:
+                  type: boolean
+                  default: false
       responses:
-        "501":
-          description: Not yet implemented
+        "200":
+          description: Plugin installed
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
+                $ref: '#/components/schemas/PluginInstallResult'
         "400":
-          description: Missing url field
+          description: Invalid body, invalid package, or tag/version mismatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: The release is older than the installed version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Download or installation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/plugins/install/github-branch:
+    post:
+      summary: Install a plugin from a GitHub branch
+      description: >
+        Resolves the branch head, downloads the branch archive, validates the
+        package, and installs it. The resolved commit is stored and later drives
+        updates, so a branch-backed plugin updates even when its manifest
+        version does not change.
+      tags: [Plugins]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repo]
+              properties:
+                repo:
+                  type: string
+                  description: owner/repo
+                branch:
+                  type: string
+                  default: main
+      responses:
+        "200":
+          description: Plugin installed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PluginInstallResult'
+        "400":
+          description: Invalid body or invalid package
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: The branch carries an older version than the installed one
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Download or installation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/plugins/update:
+    post:
+      summary: Check every GitHub-backed plugin for updates
+      description: >
+        Runs the same check the app runs on its update cadence. Unchanged
+        plugins only get a new lastChecked; changed plugins are validated and
+        installed when the candidate keeps the same permissions or fewer, and
+        recorded as a pendingUpdate when it asks for more. One plugin failing
+        does not stop the others.
+      tags: [Plugins]
+      responses:
+        "200":
+          description: Update check finished
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  error:
+                  message:
                     type: string
+        "500":
+          description: The update check could not run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/plugins/{id}/update/approve:
+    post:
+      summary: Approve and install a permission-escalating update
+      description: >
+        Installs the exact candidate recorded in pendingUpdate - the stored
+        release tag or commit - accepting its added permissions. If the source
+        moved since detection, the fetched candidate is refused, recorded as
+        the new pendingUpdate and has to be approved again.
+      tags: [Plugins]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Plugin updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PluginInstallResult'
+        "400":
+          description: The candidate package is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Plugin not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: >
+            No update is awaiting approval, or the candidate no longer matches
+            the approved one
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Installation failed and the previous version was restored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   # Profiles API
   # 
@@ -2804,7 +3388,14 @@ paths:
     
     put:
       summary: Update profile
-      description: Updates an existing profile. Cannot modify default profiles' content, only metadata.
+      description: |
+        Updates an existing profile. Omitted fields preserve their current values;
+        `metadata: null` clears metadata; supplied metadata replaces it. The profile
+        itself is non-nullable, so `profile: null` returns `400`.
+        Cannot modify default profiles' content, only metadata. Execution changes
+        that produce a new profile ID replace the old record atomically. If the
+        target ID already exists, the update is rejected and both records remain
+        unchanged.
       tags: [Profiles]
       parameters:
         - name: id
@@ -2822,10 +3413,10 @@ paths:
               properties:
                 profile:
                   $ref: '#/components/schemas/Profile'
-                  nullable: true
                 metadata:
                   type: object
                   nullable: true
+                  description: Set to `null` to clear stored profile metadata.
       responses:
         "200":
           description: Profile updated successfully
@@ -2834,7 +3425,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProfileRecord'
         "400":
-          description: Bad Request (profile not found or cannot modify default profile)
+          description: Bad Request (profile not found, target ID already exists, or cannot modify default profile)
         "500":
           description: Internal Server Error
     
@@ -3382,6 +3973,7 @@ paths:
                   port:
                     type: integer
                     nullable: true
+                    description: Active per-generation skin origin port
                   ip:
                     type: string
                     nullable: true
@@ -3389,7 +3981,7 @@ paths:
   /api/v1/webui/server/start:
     post:
       summary: Start the WebUI server
-      description: Starts serving the default WebUI skin
+      description: Starts serving the default WebUI skin through the stable port 3000 entry point
       tags: [WebUI]
       responses:
         "200":
@@ -3980,7 +4572,8 @@ paths:
         is not rolled back when another section fails.
 
         The request body is streamed into a temporary file; the whole archive
-        is never buffered in memory. Imports are bounded by the following
+        is never buffered in memory. If no body bytes arrive for 30 seconds,
+        the request is cancelled with 408. Imports are bounded by the following
         limits (exceeding any of them returns 400 with `Invalid backup
         archive`):
 
@@ -4064,13 +4657,15 @@ paths:
                     type: string
                   message:
                     type: string
+        "408":
+          description: Import request body stopped arriving for 30 seconds
         "500":
           description: Internal server error
   /api/v1/data/sync:
     post:
-      summary: Sync data between Bridge instances
+      summary: Sync data between Decaid instances
       description: |
-        Synchronizes data between this Bridge instance and a target Bridge
+        Synchronizes data between this Decaid instance and a target Decaid
         instance over the network. Supports three modes:
         - **pull**: imports data from the target into this instance
         - **push**: exports data from this instance to the target
@@ -4087,8 +4682,9 @@ paths:
 
         Pull responses are streamed to a temporary ZIP before import; push
         requests stream a locally built temporary ZIP with a known content
-        length. The sync request body is limited to 1 MiB, and target
-        responses to 8 MiB. Transfers apply a connection timeout (10 s,
+        length. The sync request body is limited to 1 MiB and must arrive
+        within 30 seconds; target responses are limited to 8 MiB. Transfers
+        apply a connection timeout (10 s,
         connect establishment only), an idle timeout (30 s between stream
         events), and one deadline (10 min) per phase covering the network
         stages (upload/download and response). Timeouts abort the request
@@ -4113,7 +4709,12 @@ paths:
               properties:
                 target:
                   type: string
-                  description: Base URL of the target Bridge instance (e.g. "http://192.168.1.50:8080")
+                  description: |
+                    Base URL of the target Decaid instance
+                    (e.g. "http://192.168.1.50:8080"). Must be an HTTP/HTTPS
+                    origin with no path, query, or fragment; a trailing slash
+                    is accepted and equivalent. IPv4, hostname, and IPv6
+                    hosts are supported.
                 mode:
                   type: string
                   enum: [pull, push, two_way]
@@ -4173,6 +4774,10 @@ paths:
                     type: string
                   message:
                     type: string
+        "408":
+          description: Sync request body was not received within 30 seconds
+        "413":
+          description: Sync request body exceeds 1 MiB
         "502":
           description: Unsuccessful single-direction synchronization or two-way synchronization with no complete or partial phase
           content:
@@ -4428,6 +5033,116 @@ paths:
         "404":
           description: Unknown command or endpoint not available (non-simulate build)
 
+  /api/v1/debug/replay/shots:
+    get:
+      summary: List replay recordings and current selection (simulate=replay only)
+      description: |
+        Lists the bundled recordings the replay simulator (ReplayDE1) can play,
+        each addressable by a stable `id`, plus the currently forced selection.
+        Only meaningful when the connected machine is the replay simulator.
+      tags: [Debug]
+      responses:
+        "200":
+          description: Recordings listed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  selected:
+                    type: string
+                    nullable: true
+                    description: The forced recording id, or null for profile match.
+                  shots:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        profileTitle:
+                          type: string
+                          nullable: true
+        "400":
+          description: Connected machine is not the replay simulator
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: Endpoint not available (non-simulate build)
+
+  /api/v1/debug/replay/shot/{id}:
+    post:
+      summary: Force a replay recording for subsequent pulls (simulate=replay only)
+      description: |
+        Forces ReplayDE1 to play the recording with the given stable `id` on the
+        next espresso pulls, overriding profile-match/fallback selection. The
+        override is session-only. The normal machine-state API still starts and
+        stops the shot.
+      tags: [Debug]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Stable recording id from `GET /api/v1/debug/replay/shots`.
+      responses:
+        "200":
+          description: Recording forced
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  selected:
+                    type: string
+        "400":
+          description: Connected machine is not the replay simulator
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: Unknown recording id, or endpoint not available (non-simulate build)
+
+  /api/v1/debug/replay/shot:
+    delete:
+      summary: Clear the forced replay recording (simulate=replay only)
+      description: |
+        Clears any forced recording, returning ReplayDE1 to normal
+        profile-match/fallback selection.
+      tags: [Debug]
+      responses:
+        "200":
+          description: Override cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  selected:
+                    type: string
+                    nullable: true
+        "400":
+          description: Connected machine is not the replay simulator
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "404":
+          description: Endpoint not available (non-simulate build)
+
   /api/v1/feedback:
     post:
       summary: Submit feedback
@@ -4470,9 +5185,14 @@ paths:
 
   /api/v1/account/decent:
     get:
-      summary: Decent account link status
+      summary: Decent account auth status
       description: >
-        Reports whether a Decent Espresso account is currently linked.
+        Reports whether the linked Decent Espresso account is currently
+        authenticated. `loggedIn` is true only when the stored credentials
+        have been accepted by the Decent backend (validated via
+        `login_test` on first status read per session); a definitive upstream
+        401 invalidates the state until the next successful login or
+        re-validation. Stored credentials being present is not sufficient.
         Linking and unlinking are performed only through the app's native UI,
         not over the network, so no login/logout routes are exposed here. The
         linked email is deliberately omitted — it is PII and this endpoint is
@@ -4480,7 +5200,7 @@ paths:
       tags: [Account]
       responses:
         "200":
-          description: Current link status
+          description: Current auth status
           content:
             application/json:
               schema:
@@ -4489,7 +5209,7 @@ paths:
                 properties:
                   loggedIn:
                     type: boolean
-                    description: True if a Decent account is linked
+                    description: True if the linked Decent account is authenticated
 
   /api/v1/account/proxy/support/api/{endpoint}:
     get:
@@ -4508,7 +5228,8 @@ paths:
         token (injected into served skin pages) or a user-managed API-client
         token. Unauthenticated/unknown tokens get 401; known but unscoped get
         403; a path outside the allowed prefix gets 403; no linked account gets
-        401.
+        401. A caller's first linked-account request pauses for native consent;
+        denial or a 30-second timeout gets 403 before any upstream request.
       tags: [Account]
       parameters:
         - name: endpoint
@@ -4534,7 +5255,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
-          description: Token not scoped for account:proxy, or path not allowed
+          description: Token unscoped, path disallowed, or account consent not granted
           content:
             application/json:
               schema:
@@ -4551,7 +5272,8 @@ paths:
         Requires `Authorization: Bearer <token>` scoped
         `account:proxy:write`. The read-only skin token cannot write — it gets
         403. Other rejection rules match the GET form (401 unknown token / no
-        linked account; 403 unscoped or disallowed path).
+        linked account; 403 unscoped, disallowed path, or account consent not
+        granted).
       tags: [Account]
       parameters:
         - name: endpoint
@@ -4585,7 +5307,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
-          description: Token not scoped for account:proxy:write, or path not allowed
+          description: Token unscoped, path disallowed, or account consent not granted
           content:
             application/json:
               schema:
@@ -4628,7 +5350,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
-          description: Token not scoped for account:proxy:write, or path not allowed
+          description: Token unscoped, path disallowed, or account consent not granted
           content:
             application/json:
               schema:
@@ -4869,7 +5591,33 @@ components:
           description: Whether GroupHeadController is present and active
         extra:
           type: object
-          description: various extra information
+          description: >
+            Machine details read from MMR once at connect. The object stays
+            open — a firmware or model may contribute keys not listed here —
+            but these two are always present for a DE1.
+          additionalProperties: true
+          properties:
+            refillKit:
+              type: boolean
+              description: >
+                Whether an automatic refill kit was detected on this machine.
+                Bit 0 of the refill-kit register as read at connect, before
+                Decaid writes auto back to that register. This is machine
+                detection, not configuration: writing `refillKitSetting` does
+                not change it, and it is fixed for the lifetime of the
+                connection.
+
+                Use this, not `refillKitSetting`, to decide whether a machine
+                refills itself: on a plumbed machine a low-water check against
+                WaterLevels.refillLevel fires more or less continuously, and
+                this is the only field that tells that case apart from a
+                machine with no kit.
+            voltage:
+              type: integer
+              description: Heater supply voltage in volts, as reported by the machine.
+          example:
+            refillKit: true
+            voltage: 220
 
     MachineCapabilities:
       type: object
@@ -4879,45 +5627,118 @@ components:
           type: array
           description: |
             Capability identifiers supported by the currently connected
-            machine. Plain DE1 returns an empty array. Bengle returns
-            `cupWarmer`, `integratedScale`, `ledStrip`, and
-            `stopAtWeight` (autonomous in-FW stop-at-weight driven by
-            the integrated scale; the app reflects
-            `WorkflowContext.targetYield` into the SAW MMR). Future
-            Bengle peripherals will append their identifiers as they
-            ship. Note: the milk-probe scaffolding lives in `/sensors`,
-            not here.
+            machine. Plain DE1 returns an empty array. Every Bengle
+            returns the complete set: `cupWarmer`, `integratedScale`,
+            `stopAtWeight` (autonomous in-FW stop-at-weight driven by the
+            integrated scale; the app reflects
+            `WorkflowContext.targetYield` into the SAW MMR), `ledStrip`,
+            `scaleCalibration`, `preheat` and `wakeSchedule`. Note: the
+            milk-probe scaffolding lives in `/sensors`, not here.
           items:
             type: string
-            enum: [cupWarmer, integratedScale, ledStrip, stopAtWeight]
-          example: [cupWarmer, integratedScale, ledStrip, stopAtWeight]
+            enum: [
+              cupWarmer,
+              integratedScale,
+              ledStrip,
+              stopAtWeight,
+              scaleCalibration,
+              preheat,
+              wakeSchedule,
+            ]
+          example: [
+            cupWarmer,
+            integratedScale,
+            ledStrip,
+            stopAtWeight,
+            scaleCalibration,
+            preheat,
+            wakeSchedule,
+          ]
 
     CupWarmerState:
       type: object
-      required: [temperature]
+      required: [temperature, enabled, currentTemperature]
       properties:
         temperature:
-          type: number
-          format: float
-          minimum: 0.0
-          maximum: 80.0
+          type: integer
+          minimum: 0
+          maximum: 80
           description: |
-            Cup-warmer mat target temperature in °C. `0.0` turns the
-            mat off — there is no separate enable flag.
-          example: 60.0
+            Cup-warmer mat target temperature in whole °C, with 1 °C
+            resolution. `0` turns the mat off.
+          example: 60
+        enabled:
+          type: boolean
+          description: |
+            Manual enable state (CupWarmerMode). RAM-only in firmware:
+            boots off after a power cycle.
+        currentTemperature:
+          type: number
+          nullable: true
+          description: |
+            Live mat temperature in °C, or null when the firmware has no
+            valid NTC reading (raw 0).
+
+    CupWarmerUpdateRequest:
+      type: object
+      properties:
+        temperature:
+          type: integer
+          minimum: 0
+          maximum: 80
+          description: |
+            Whole °C setpoint. When present without `enabled`, manual
+            heating is also enabled (backwards compatibility).
+        enabled:
+          type: boolean
+          description: |
+            Manual enable. Disabling does not destroy the persisted
+            setpoint (scheduled pre-warm needs a non-zero setpoint while
+            manual mode is off).
+
+    CupWarmerPreheatState:
+      type: object
+      required: [enabled, leadMinutes, active]
+      properties:
+        enabled:
+          type: boolean
+          description: MatPreheatEnable — persisted firmware configuration
+        leadMinutes:
+          type: integer
+          minimum: 0
+          maximum: 120
+          description: MatPreheatLeadMin — minutes before a scheduled wake to start the mat
+        active:
+          type: boolean
+          description: MatPreheatActive — 1 when the wake schedule (not manual mode) is currently driving the mat
+
+    CupWarmerPreheatUpdateRequest:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        leadMinutes:
+          type: integer
+          minimum: 0
+          maximum: 120
+          description: Whole minutes; omitted fields keep their firmware values
 
     LedStripState:
       type: object
       properties:
         frontStrip:
           $ref: "#/components/schemas/ZoneLedState"
-          description: Front LED strip (both sleeping and awake colours)
+          description: Front LED strip palette (persisted in firmware; applied on awake/sleep)
         backStrip:
           $ref: "#/components/schemas/ZoneLedState"
-          description: Back LED strip (both sleeping and awake colours)
+          description: Back LED strip palette (persisted in firmware; applied on awake/sleep)
         frontSwitch:
           $ref: "#/components/schemas/ZoneLedState"
-          description: Front switch LED (both sleeping and awake colours)
+          description: |
+            Derived read-only palette for the HV front switch. There is no
+            independent switch register: the firmware derives these from
+            the front strip, substituting product defaults when the strip
+            colour is black. Ignored on write.
 
     ZoneLedState:
       type: object
@@ -4941,6 +5762,77 @@ components:
         preferred, case-insensitive). Missing / non-hex / wrong length
         → treated as black (`000000000000`).
       example: FFFF80000000
+
+    ScaleCalibrationState:
+      type: object
+      required: [step, detectedCell, subState, secondsRemaining, status]
+      properties:
+        step:
+          type: string
+          enum: [idle, zeroing, calLatch, taring, complete, error]
+          description: Firmware procedure step
+        detectedCell:
+          type: string
+          enum: [none, a, b]
+          description: Load cell detected by the last successful latch
+        subState:
+          type: string
+          enum: [settling, averaging, done, error]
+          description: Phase within the current step
+        secondsRemaining:
+          type: integer
+          description: Seconds left in the current settle/average phase
+        status:
+          type: string
+          enum: [
+            ok,
+            incomplete,
+            noZero,
+            notSettled,
+            badWeight,
+            badDelta,
+            illConditioned,
+            outOfRange,
+            notIsolated,
+            none,
+          ]
+          description: Result of the last latch attempt (`none` = in progress / not attempted)
+
+    ScaleCalibrationCommandRequest:
+      type: object
+      required: [command]
+      properties:
+        command:
+          type: string
+          enum: [abort, zero, latch]
+        weightGrams:
+          type: number
+          minimum: 1
+          maximum: 10000
+          description: Known calibration mass (grams), required for `latch`; fractional grams are preserved
+
+    ScaleCalibrationAccepted:
+      type: object
+      required: [status, state]
+      properties:
+        status:
+          type: string
+          enum: [accepted]
+        state:
+          $ref: "#/components/schemas/ScaleCalibrationState"
+
+    ScaleCalibrationRejected:
+      type: object
+      required: [status, reason, state]
+      properties:
+        status:
+          type: string
+          enum: [rejected]
+        reason:
+          type: string
+          description: machine busy or shot in progress
+        state:
+          $ref: "#/components/schemas/ScaleCalibrationState"
 
     MachineStateError:
       type: object
@@ -5306,7 +6198,19 @@ components:
           enum: [120, 230]
         refillKitSetting:
           description: |
-            Refill kit behavior. `2` = auto (default), `1` = force on, `0` = force off.
+            Refill kit override: `2` = auto (default), `1` = force on,
+            `0` = force off.
+
+            Writes the value to the machine's refill-kit register and updates
+            the override Decaid reports back. It does not change
+            `MachineInfo.extra.refillKit`, which is what the machine detected
+            at connect.
+
+            The override is not persisted. Decaid writes `2` (auto) at connect,
+            so a force-on or force-off selection lasts only until the machine is
+            discovered and connected again.
+
+            Any value other than `0`, `1` or `2` is rejected with `400`.
           type: integer
           nullable: true
           enum: [0, 1, 2]
@@ -5334,7 +6238,16 @@ components:
           enum: [120, 230, -1]
         refillKitSetting:
           description: |
-            Refill kit behavior. `2` = auto, `1` = force on, `0` = force off.
+            Refill kit override currently in effect: `2` = auto, `1` = force on,
+            `0` = force off.
+
+            This is the configuration, not a detection result. Decaid writes `2`
+            (auto) at connect, so a machine that has not been written to since
+            reports `2` whether or not it has a kit fitted. For detection, read
+            `MachineInfo.extra.refillKit`.
+
+            The value is served from Decaid's cache of the last override
+            written; the register is not re-read.
           type: integer
           enum: [0, 1, 2]
     De1CalibrationRequest:
@@ -5353,6 +6266,46 @@ components:
       properties:
         flowMultiplier:
           description: Flow estimation calibration multiplier (valid range 0.13–2.0)
+          type: number
+          format: double
+          example: 1.0
+    De1SensorCalibrationTarget:
+      type: string
+      enum: [flow, pressure, temperature]
+      description: Calibration target of the DE1 A012 calibration characteristic.
+    De1SensorCalibrationSource:
+      type: string
+      enum: [current, factory]
+      description: Current calibration (default) or factory calibration.
+    De1SensorCalibration:
+      type: object
+      required: [target, source, de1ReportedValue, measuredValue]
+      properties:
+        target:
+          $ref: "#/components/schemas/De1SensorCalibrationTarget"
+        source:
+          $ref: "#/components/schemas/De1SensorCalibrationSource"
+        de1ReportedValue:
+          description: Value the DE1 reports for the calibration (Q16.16 on the wire)
+          type: number
+          format: double
+          example: 1.0
+        measuredValue:
+          description: Value measured by the calibration procedure (signed Q16.16 on the wire)
+          type: number
+          format: double
+          example: 1.0
+    De1SensorCalibrationWriteRequest:
+      type: object
+      required: [de1ReportedValue, measuredValue]
+      properties:
+        de1ReportedValue:
+          description: Value the DE1 reports for the calibration (Q16.16 on the wire)
+          type: number
+          format: double
+          example: 1.0
+        measuredValue:
+          description: Value measured by the calibration procedure (signed Q16.16 on the wire)
           type: number
           format: double
           example: 1.0
@@ -5727,19 +6680,70 @@ components:
             Machine settings active when the shot was pulled — recorded onto the
             shot, ignored on apply.
 
+    WorkflowPatch:
+      type: object
+      description: |
+        Partial workflow update. Omitted fields preserve their current values.
+        Fields in `steamSettings` are non-nullable and reject explicit `null`.
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        profile:
+          $ref: "#/components/schemas/Profile"
+        context:
+          $ref: "#/components/schemas/WorkflowContext"
+        steamSettings:
+          $ref: "#/components/schemas/SteamSettingsPatch"
+        hotWaterData:
+          $ref: "#/components/schemas/HotWaterData"
+        rinseData:
+          $ref: "#/components/schemas/RinseData"
+        machine:
+          $ref: "#/components/schemas/WorkflowMachine"
+
     WorkflowMachine:
       type: object
       description: >
         Machine-side settings snapshotted onto a shot (the part of the setup that
-        lives on the machine, not the recipe). Extensible; currently just the
-        flow-estimation calibration.
+        lives on the machine, not the recipe), including the capture-time identity
+        required to attribute historical uploads safely.
       properties:
+        provenanceStatus:
+          type: string
+          enum: [captured, unavailable]
+          description: >
+            Capture-time provenance state for newly recorded shots. Absence marks
+            pre-provenance legacy history; unavailable means capture was attempted
+            but failed and automatic upload must not substitute another machine.
         flowCalibration:
           type: number
           nullable: true
           description: >
             The DE1's flow-estimation calibration (calibration_flow_multiplier)
             active when the shot was pulled.
+        serialNumber:
+          type: string
+        model:
+          type: string
+        firmwareVersion:
+          type: string
+
+    SteamSettingsPatch:
+      type: object
+      description: Partial steam-settings update; omitted fields are preserved and `null` is rejected.
+      properties:
+        targetTemperature:
+          type: integer
+        duration:
+          type: integer
+        flow:
+          type: number
+          format: double
+        stopAtTemperature:
+          type: number
+          format: double
 
     SteamSettings:
       type: object
@@ -5750,11 +6754,17 @@ components:
       properties:
         targetTemperature:
           type: integer
-          description: Target steam temperature in Celsius
+          description: >
+            Target steam temperature in Celsius. Set to 0 to disable steam-heater
+            preheating. Decaid writes 0 to the machine when steam is disabled and
+            treats temperatures below the supported range as disabled. Supported
+            enabled ranges are 135–160 °C for DE1 and 135–165 °C for Bengle.
           example: 150
         duration:
           type: integer
-          description: Steam duration in seconds
+          description: >
+            Maximum steam operation duration in seconds. This does not control
+            steam-heater preheating.
           example: 50
         flow:
           type: number
@@ -5988,6 +6998,7 @@ components:
           type: number
         weightFlow:
           type: number
+          description: Device-provided gravimetric flow when available; otherwise Decaid's weight-derived estimate.
         battery:
           type: integer
           nullable: true
@@ -6011,15 +7022,36 @@ components:
         version:
           type: string
         apiVersion:
-          type: string
+          type: integer
+          description: Plugin API contract version the plugin targets.
+          example: 1
         permissions:
           type: array
           items:
             type: string
             enum: [log, api, emit, pluginStorage, events.machine, events.shots, proxy.decent_api, proxy.decent_api.write]
         settings:
-          description: Plugin settings schema
           type: object
+          description: >
+            Declared settings for this plugin, keyed by setting name. This is the
+            manifest schema, not the stored values: it carries the type, the
+            human-readable description and the default for each setting, so a
+            client can render a settings form without reading the plugin's
+            repository. Current values come from
+            GET /api/v1/plugins/{id}/settings instead.
+          additionalProperties:
+            $ref: '#/components/schemas/PluginSettingSchema'
+          example:
+            AutoUpload:
+              type: boolean
+              label: Upload shots automatically
+              description: Upload shots automatically when they finish (opt-in; off by default)
+              default: false
+            LengthThreshold:
+              type: number
+              label: Minimum shot length
+              description: Only upload shots longer than this many seconds (skips flushes)
+              default: 5
         api:
           type: array
           description: A list of endpoints this plugin will expose
@@ -6039,6 +7071,143 @@ components:
         autoLoad:
           type: boolean
           description: Whether the plugin is set to auto-load on startup
+        source:
+          allOf:
+            - $ref: '#/components/schemas/PluginSource'
+          nullable: true
+          description: >
+            Where the installed copy came from. Null for plugins installed
+            before source tracking existed and for bundled plugins.
+        pendingUpdate:
+          allOf:
+            - $ref: '#/components/schemas/PluginPendingUpdate'
+          nullable: true
+          description: >
+            An update that was found but not installed because it requests
+            permissions the installed version does not hold.
+
+    PluginSettingSchema:
+      type: object
+      description: >
+        Declaration of a single plugin setting, taken verbatim from the
+        plugin's manifest.json. Returned inside PluginManifest.settings by
+        GET /api/v1/plugins.
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [string, number, boolean, enum]
+          description: >
+            Value type. `enum` additionally requires `values`, and the API
+            rejects a saved value that is not one of them.
+        label:
+          type: string
+          description: >
+            Human-readable name for the setting, written by the plugin author.
+            Optional: when it is absent, empty or whitespace, clients fall back
+            to the setting's key, so a manifest that omits it renders exactly as
+            before. Use it so a settings form can read "Upload shots
+            automatically" instead of the storage key "AutoUpload".
+        description:
+          type: string
+          description: >
+            Human-readable explanation of what the setting does, written by the
+            plugin author. Optional, and absent when the author did not supply
+            one.
+        default:
+          description: >
+            Value applied when the user has not saved one. Matches `type`.
+            Optional.
+          nullable: true
+        secure:
+          type: boolean
+          default: false
+          description: >
+            When true the value is held in platform credential storage. It is
+            supplied in memory to the plugin's onLoad(settings) but never
+            returned in plaintext by the REST API; GET
+            /api/v1/plugins/{id}/settings reports it as an isSet state object
+            instead.
+        values:
+          type: array
+          items:
+            type: string
+          description: Allowed values. Required when `type` is `enum`, otherwise absent.
+      example:
+        type: boolean
+        label: Upload shots automatically
+        description: Upload shots automatically when they finish (opt-in; off by default)
+        default: false
+
+    PluginInstallResult:
+      type: object
+      properties:
+        message:
+          type: string
+        id:
+          type: string
+        version:
+          type: string
+        loaded:
+          type: boolean
+
+    PluginSource:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [github_release, github_branch, local_zip, local_folder]
+        repo:
+          type: string
+          nullable: true
+          description: owner/repo for GitHub-backed sources
+        branch:
+          type: string
+          nullable: true
+        commit:
+          type: string
+          nullable: true
+          description: Resolved branch head at install time; the branch update signal
+        releaseTag:
+          type: string
+          nullable: true
+        assetName:
+          type: string
+          nullable: true
+        includePrerelease:
+          type: boolean
+        installedAt:
+          type: string
+          format: date-time
+        lastChecked:
+          type: string
+          format: date-time
+          nullable: true
+        lastError:
+          type: string
+          nullable: true
+          description: Why the most recent update check or install failed
+
+    PluginPendingUpdate:
+      type: object
+      properties:
+        version:
+          type: string
+          description: Manifest version of the candidate
+        releaseTag:
+          type: string
+          nullable: true
+        commit:
+          type: string
+          nullable: true
+        addedPermissions:
+          type: array
+          items:
+            type: string
+        detectedAt:
+          type: string
+          format: date-time
 
     PluginSettings:
       type: object
