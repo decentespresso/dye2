@@ -6003,7 +6003,20 @@ function setupBottomButtons() {
   if (clearBtn) clearBtn.addEventListener('click', () => {
     if (!currentWorkflow) return;
     snapshotWorkflow();
-    currentWorkflow.context = {};
+    // Explicit nulls, not an empty object. Done PUTs this context and the bridge
+    // deep-merges it (deepMergeJson): an empty map iterates nothing and leaves
+    // every field standing, so assigning {} cleared the display while the bean,
+    // grinder and dose survived on the bridge and came back on the next open.
+    // A null value does overwrite. Only fields DYE2 itself writes are listed --
+    // finalBeverageType belongs to other writers, and roastDate is not a real
+    // WorkflowContext field (the bridge drops it).
+    currentWorkflow.context = {
+      targetDoseWeight: null, targetYield: null,
+      beanBatchId: null, coffeeName: null, coffeeRoaster: null,
+      grinderId: null, grinderModel: null, grinderSetting: null,
+      baristaName: null, drinkerName: null,
+      extras: { basketId: null, basketName: null, rpm: null, note: null },
+    };
     renderNextShot();
   });
 }
