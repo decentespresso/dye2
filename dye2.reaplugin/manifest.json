@@ -3,7 +3,7 @@
   "author": "Streamline",
   "name": "Streamline/DYE2",
   "description": "Beans, grinders, and shot workflow for Decent Espresso. Track roast batches and freshness, pick a bean and grinder before pulling, edit and rate shots afterwards, and manage auto-favourite recipes.",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "apiVersion": 1,
   "permissions": [
     "log",
