@@ -55,7 +55,7 @@ Files are consumed directly by REA. No build or install step needed. Open the HT
 
 **Plugin runtime (flutter_js):** `dye2-plugin/src/` code runs inside `flutter_js` on the tablet. The plugin implements `PluginInstance` and responds to `__httpRequestHandler` calls — acting as a server-side HTML renderer. It has access to `PluginHost` (log, emit, storage) but no DOM or browser APIs.
 
-**Browser runtime:** The `src/components/` files export JavaScript class definitions as plain string constants. These strings are inlined as `<script>` tags by `pageShell()` and execute in the tablet's WebView. Components call `/api/v1/*` directly via `fetch()` and communicate via `CustomEvent` bubbling.
+**Browser runtime:** `src/utils/*.ts` and `src/pages/*.ts` export browser JavaScript as plain string constants. These strings are inlined as `<script>` tags by `devPageShell()` and execute in the tablet's WebView, calling `/api/v1/*` directly via `fetch()`. The split runs through files, not just between them: a plugin-runtime module's main export is often a long string of browser code.
 
 ## Key Patterns
 
