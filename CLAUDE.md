@@ -15,12 +15,13 @@ dye2/
 │   │   ├── plugin.ts     # Entry point — implements PluginInstance interface
 │   │   ├── host.d.ts     # flutter_js host API types
 │   │   ├── pages/        # Page-level orchestrators (beans, grinders, pickers)
-│   │   ├── components/   # Web Components exported as JS strings
-│   │   ├── api/          # Browser-side REST client (client.ts)
-│   │   └── utils/html.ts # html`` tagged template + escapeHtml()
+│   │   ├── components/   # UNUSED — Web Component experiment, nothing imports it
+│   │   ├── api/          # UNUSED — earlier REST client (client.ts), nothing imports it
+│   │   └── utils/        # Browser-code strings (dev-api, chart, shot-paging, icons),
+│   │                     # dev-shell.ts (devPageShell), html.ts (html`` + escapeHtml)
 │   ├── dev-server.mjs    # Dev server: serves plugin pages, proxies /api/v1/* to bridge
 │   ├── manifest.src.json # Plugin metadata and permissions (copied to the build output as manifest.json)
-│   └── vite.config.ts    # Builds to IIFE → ../../assets/plugins/dye2.reaplugin/plugin.js
+│   └── vite.config.ts    # Builds to IIFE → ../dye2.reaplugin/plugin.js
 │
 ├── dev/                  # Plain JS/HTML for REA's native DYE workflow pages (no build step)
 │   ├── dye/              # HTML pages loaded by REA's webview router
@@ -58,11 +59,11 @@ Files are consumed directly by REA. No build or install step needed. Open the HT
 
 ## Key Patterns
 
-**Components as string exports:** Each `src/components/*.ts` file exports a `const fooComponent = \`...\`` string containing a browser-side Web Component class definition and `customElements.define(...)` call. These are NOT executed by the plugin — they're inlined into HTML. Do not import browser APIs in plugin-runtime code.
+**Browser code as string exports:** Shared browser-side JavaScript lives in `src/utils/*.ts` as exported template literals (`dev-api.ts`, `shot-paging.ts`, `chart.ts`, `shared-components.ts`, `icons.ts`). These are NOT executed by the plugin — they're inlined into HTML as `<script>` blocks. Do not import browser APIs in plugin-runtime code.
 
-**Page assembly:** Pages in `src/pages/` call `pageShell(title, content, [scripts])`. Scripts array accepts the component strings and orchestration script strings. `pageShell` inlines each as a `<script>` block.
+**Page assembly:** Live pages call `devPageShell(title, content, styles, scripts, opts)` from `src/utils/dev-shell.ts`, passing shared strings plus a per-page orchestration script — e.g. `devPageShell("Grinders", content, styles, [devApiScript, pageScript])`.
 
-**Event flow:** Components dispatch `CustomEvent` with `bubbles: true`. Page-level orchestration scripts in `src/pages/*.ts` wire up document-level listeners to show/hide sibling components and trigger re-fetches.
+**Dead code — do not copy or extend:** `src/components/` (the only `customElements.define`/`CustomEvent` in the tree), `src/api/client.ts`, and `pageShell()` in `src/pages/layout.ts` all have zero importers. Earlier docs described these as the house style; they are not.
 
 **HTML safety:** Use `escapeHtml()` from `src/utils/html.ts` for user-provided data interpolated into HTML strings. The `html` tagged template does NOT escape values.
 
