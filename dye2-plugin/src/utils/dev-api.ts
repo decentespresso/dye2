@@ -210,6 +210,33 @@ async function updateBasket(id, data) {
   return item;
 }
 
+/* ── Equipment: free-text kit the user attaches to a shot (scale, tamper, WDT, kettle…).
+   No bridge resource either — same KV table shape as baskets: one row per item,
+   { id, name, custom?: [{key,value}], createdAt }. createEquipment() also accepts a bare
+   name string for the edit-shot quick-add flow. Shots reference a row by
+   annotations.extras.equipmentId/Name. */
+async function getEquipment() { return kvGetArray('equipment'); }
+
+async function createEquipment(data) {
+  const body = typeof data === 'string' ? { name: data } : data;
+  const arr = await kvGetArray('equipment');
+  const existing = arr.find(x => x && String(x.name).toLowerCase() === String(body.name).toLowerCase());
+  if (existing) return existing;
+  const item = { ...body, id: newId('eqp'), createdAt: new Date().toISOString() };
+  arr.push(item);
+  await kvSetArray('equipment', arr);
+  return item;
+}
+
+async function updateEquipment(id, data) {
+  const arr = await kvGetArray('equipment');
+  const existing = arr.find(x => x && x.id === id);
+  const item = { ...data, id, createdAt: (existing && existing.createdAt) || new Date().toISOString() };
+  kvUpsert(arr, item);
+  await kvSetArray('equipment', arr);
+  return item;
+}
+
 /* ── Denormalised fields written for the Streamline dashboard (read-only consumer).
    Both builders return a ready-to-PUT WorkflowRequest body { context, profile? }.
    They mirror dashboard.ts applyAutoFavourite/applyRecipe, but build a fresh ctx

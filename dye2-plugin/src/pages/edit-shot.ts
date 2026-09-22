@@ -153,6 +153,10 @@ function buildContent(): string {
       ${expandFieldHtml('es-basket', 'Basket')}
       <div class="edit-divider"></div>
 
+      <!-- Equipment (free text, remembered in the plugin KV store) -->
+      ${expandFieldHtml('es-equipment', 'Equipment')}
+      <div class="edit-divider"></div>
+
       <!-- Barista / Drinker -->
       ${expandFieldHtml('es-barista', 'Barista')}
       ${expandFieldHtml('es-drinker', 'Drinker')}
@@ -359,6 +363,62 @@ function rememberName(storeKey, v) {
   if (!list.includes(v)) { list.push(v); localStorage.setItem(storeKey, JSON.stringify(list)); }
 }
 
+// ── Equipment: free text, rows remembered in the plugin KV store ('equipment' key).
+// Kept out of rememberedNames/localStorage on purpose — the list is shared across
+// devices and readable by the skin, so it lives in the same KV table as baskets.
+let equipmentCache = [];
+
+function setEquipment(item) {
+  if (!currentShot) return;
+  currentShot.annotations = currentShot.annotations || {};
+  currentShot.annotations.extras = currentShot.annotations.extras || {};
+  currentShot.annotations.extras.equipmentId = item ? item.id : null;
+  currentShot.annotations.extras.equipmentName = item ? item.name : null;
+}
+
+// Typed text: reuse a matching row, otherwise add one. Empty clears the field.
+async function commitEquipmentText(v) {
+  if (!v) { setEquipment(null); return; }
+  const hit = equipmentCache.find(e => e && String(e.name).toLowerCase() === v.toLowerCase());
+  if (hit) { setEquipment(hit); return; }
+  try {
+    const item = await createEquipment(v);
+    if (!equipmentCache.some(e => e && e.id === item.id)) equipmentCache.push(item);
+    setEquipment(item);
+  } catch (e) {
+    console.warn('Could not save equipment:', e);
+    setEquipment({ id: null, name: v });   // keep it on the shot even if the KV write failed
+  }
+}
+
+function openEquipmentDropdown() {
+  const textEl = document.getElementById('es-equipment-text');
+  if (!textEl) return;
+  const box = textEl.parentElement;
+  const existing = box.querySelector('.dye-name-dropdown');
+  if (existing) { existing.remove(); return; }  // toggle off
+  box.style.position = 'relative';
+  const dd = document.createElement('div');
+  dd.className = 'dye-name-dropdown';
+
+  const rows = [{ label: '＋ New…', act: () => makeTextEditable('es-equipment-text', v => commitEquipmentText(v)) }];
+  equipmentCache.slice()
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+    .forEach(e => rows.push({ label: e.name, act: () => { textEl.textContent = e.name || '—'; setEquipment(e); } }));
+
+  rows.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'read-from-item';
+    row.textContent = r.label;
+    row.addEventListener('click', (ev) => { ev.stopPropagation(); dd.remove(); r.act(); });
+    dd.appendChild(row);
+  });
+  box.appendChild(dd);
+  setTimeout(() => document.addEventListener('click', function close(ev) {
+    if (!dd.contains(ev.target)) { dd.remove(); document.removeEventListener('click', close); }
+  }), 0);
+}
+
 // Expand button → dropdown of remembered names (＋ New… falls back to inline typing).
 function openNameDropdown(fieldId, storeKey, ctxKeys, onPick) {
   const textEl = document.getElementById(fieldId + '-text');
@@ -489,6 +549,10 @@ function renderShot(shot) {
   const basketEl = document.getElementById('es-basket-text');
   if (basketEl) basketEl.textContent = (ann.extras && ann.extras.basketName) || '—';
 
+  // Equipment, same annotations.extras home as basket/RPM.
+  const equipEl = document.getElementById('es-equipment-text');
+  if (equipEl) equipEl.textContent = (ann.extras && ann.extras.equipmentName) || '—';
+
   const baristaEl = document.getElementById('es-barista-text');
   if (baristaEl) baristaEl.textContent = ctx.baristaName || ctx.barista || '—';
   const drinkerEl = document.getElementById('es-drinker-text');
@@ -544,6 +608,8 @@ function shotDialing(shot) {
     rpm:   (ann.extras && ann.extras.rpm != null) ? ann.extras.rpm : gd.rpm,
     basketId:   ann.extras && ann.extras.basketId,
     basketName: ann.extras && ann.extras.basketName,
+    equipmentId:   ann.extras && ann.extras.equipmentId,
+    equipmentName: ann.extras && ann.extras.equipmentName,
     barista: ctx.baristaName || ctx.barista,
     drinker: ctx.drinkerName || ctx.drinker,
   };
@@ -560,6 +626,8 @@ async function workflowDialing() {
     rpm:   ctx.extras && ctx.extras.rpm,
     basketId:   ctx.extras && ctx.extras.basketId,
     basketName: ctx.extras && ctx.extras.basketName,
+    equipmentId:   ctx.extras && ctx.extras.equipmentId,
+    equipmentName: ctx.extras && ctx.extras.equipmentName,
     barista: ctx.baristaName || ctx.barista,
     drinker: ctx.drinkerName || ctx.drinker,
   };
@@ -577,6 +645,7 @@ function applyDialing(d) {
   if (d.grind != null) ctx.grinderSetting = String(d.grind);
   if (d.rpm   != null) { ann.extras = ann.extras || {}; ann.extras.rpm = d.rpm; }
   if (d.basketId != null) { ann.extras = ann.extras || {}; ann.extras.basketId = d.basketId; ann.extras.basketName = d.basketName; }
+  if (d.equipmentName != null) { ann.extras = ann.extras || {}; ann.extras.equipmentId = d.equipmentId; ann.extras.equipmentName = d.equipmentName; }
   if (d.barista) ctx.baristaName = d.barista;
   if (d.drinker) ctx.drinkerName = d.drinker;
   renderShot(currentShot);
@@ -648,6 +717,14 @@ function setupControls() {
   const goBasket = () => goToPicker('/api/v1/plugins/dye2.reaplugin/basket-picker');
   document.getElementById('es-basket-expand')?.addEventListener('click', goBasket);
   document.getElementById('es-basket-text')?.addEventListener('click', goBasket);
+
+  // Equipment → expand lists saved kit; tapping the text types a new one (saved to KV).
+  document.getElementById('es-equipment-expand')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openEquipmentDropdown();
+  });
+  document.getElementById('es-equipment-text')?.addEventListener('click', () =>
+    makeTextEditable('es-equipment-text', v => commitEquipmentText(v)));
 
   // Barista / Drinker → expand shows remembered-name dropdown; tapping the text types a new one.
   const setBarista = v => { wfctx().baristaName = v; };
@@ -733,6 +810,7 @@ function setupControls() {
 
 async function initEditShot() {
   setupControls();
+  getEquipment().then(list => { equipmentCache = list; }).catch(e => console.warn('Could not load equipment:', e));
   const returning = sessionStorage.getItem('dye_editShotReturn') === '1';
   try {
     const result = await getShots({ limit: 50, order: 'desc' }).catch(() => ({ items: [] }));

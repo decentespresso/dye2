@@ -254,6 +254,7 @@ function buildContent(): string { return `
             <div id="dye-settings-dropdown" class="dye-dash-dropdown">
               <div class="dye-dash-dropdown-item" id="dye-settings-favourites">Favourites</div>
               <div class="dye-dash-dropdown-item" id="dye-settings-recipes">Recipes</div>
+              <div class="dye-dash-dropdown-item" id="dye-settings-equipment">Equipment</div>
             </div>
           </div>
           <div class="relative">
@@ -1529,6 +1530,7 @@ function wireDashboardControls() {
   setupDropdownToggle('dye-settings-btn', 'dye-settings-dropdown');
   document.getElementById('dye-settings-favourites')?.addEventListener('click', () => { window.location.href = '/api/v1/plugins/dye2.reaplugin/auto-favs'; });
   document.getElementById('dye-settings-recipes')?.addEventListener('click', () => { sessionStorage.setItem('dye_editRecipeIdx', '0'); window.location.href = '/api/v1/plugins/dye2.reaplugin/recipe-edit'; });
+  document.getElementById('dye-settings-equipment')?.addEventListener('click', () => { window.location.href = '/api/v1/plugins/dye2.reaplugin/equipment'; });
   setupVisualizerDropdown();
   setupVisualizerModal();
   checkVisualizerLoggedIn().catch(e => console.warn(e));

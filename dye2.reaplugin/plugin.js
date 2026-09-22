@@ -411,6 +411,33 @@ async function updateBasket(id, data) {
   return item;
 }
 
+/* ── Equipment: free-text kit the user attaches to a shot (scale, tamper, WDT, kettle…).
+   No bridge resource either — same KV table shape as baskets: one row per item,
+   { id, name, custom?: [{key,value}], createdAt }. createEquipment() also accepts a bare
+   name string for the edit-shot quick-add flow. Shots reference a row by
+   annotations.extras.equipmentId/Name. */
+async function getEquipment() { return kvGetArray('equipment'); }
+
+async function createEquipment(data) {
+  const body = typeof data === 'string' ? { name: data } : data;
+  const arr = await kvGetArray('equipment');
+  const existing = arr.find(x => x && String(x.name).toLowerCase() === String(body.name).toLowerCase());
+  if (existing) return existing;
+  const item = { ...body, id: newId('eqp'), createdAt: new Date().toISOString() };
+  arr.push(item);
+  await kvSetArray('equipment', arr);
+  return item;
+}
+
+async function updateEquipment(id, data) {
+  const arr = await kvGetArray('equipment');
+  const existing = arr.find(x => x && x.id === id);
+  const item = { ...data, id, createdAt: (existing && existing.createdAt) || new Date().toISOString() };
+  kvUpsert(arr, item);
+  await kvSetArray('equipment', arr);
+  return item;
+}
+
 /* ── Denormalised fields written for the Streamline dashboard (read-only consumer).
    Both builders return a ready-to-PUT WorkflowRequest body { context, profile? }.
    They mirror dashboard.ts applyAutoFavourite/applyRecipe, but build a fresh ctx
@@ -581,7 +608,7 @@ async function uploadShotToVisualizer(shotId) {
 `;
 	//#endregion
 	//#region src/pages/grinders.ts
-	var styles$13 = `
+	var styles$14 = `
   .dye-sort-btn {
     width: 100%;
     padding: 12px 0;
@@ -692,7 +719,7 @@ async function uploadShotToVisualizer(shotId) {
   .dye-modal-error { color: #C0392B; font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
-	var content$9 = `
+	var content$10 = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
 
   <!-- Top bar -->
@@ -801,7 +828,7 @@ async function uploadShotToVisualizer(shotId) {
   </div>
 </div>
 `;
-	var pageScript$13 = `
+	var pageScript$14 = `
 let grindersCache = [];
 let searchQuery = '';
 let editingId = null;
@@ -980,12 +1007,12 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Grinders", content$9, styles$13, [devApiScript, pageScript$13])
+			body: devPageShell("Grinders", content$10, styles$14, [devApiScript, pageScript$14])
 		};
 	}
 	//#endregion
 	//#region src/pages/baskets.ts
-	var styles$12 = `
+	var styles$13 = `
   .dye-sort-btn {
     width: 100%;
     padding: 12px 0;
@@ -1096,7 +1123,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   .dye-modal-error { color: #C0392B; font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
-	var content$8 = `
+	var content$9 = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
 
   <!-- Top bar -->
@@ -1169,7 +1196,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   </div>
 </div>
 `;
-	var pageScript$12 = `
+	var pageScript$13 = `
 let basketsCache = [];
 let searchQuery = '';
 let editingId = null;
@@ -1318,7 +1345,353 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Filter Baskets", content$8, styles$12, [devApiScript, pageScript$12])
+			body: devPageShell("Filter Baskets", content$9, styles$13, [devApiScript, pageScript$13])
+		};
+	}
+	//#endregion
+	//#region src/pages/equipment.ts
+	var styles$12 = `
+  .dye-sort-btn {
+    width: 100%;
+    padding: 12px 0;
+    border: 2px solid var(--mimoja-blue);
+    border-radius: 9999px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 19px;
+    text-align: center;
+    color: var(--mimoja-blue);
+    background: transparent;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .dye-sort-btn.dye-sort-active {
+    background: var(--mimoja-blue);
+    color: #fff;
+    border-color: var(--mimoja-blue);
+  }
+
+  .dye-card {
+    width: 100%;
+    min-height: 80px;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 14px 18px;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    background: var(--box-color);
+    border: 1px solid var(--profile-button-outline-color);
+    color: var(--text-primary);
+    transition: background 0.15s, color 0.15s;
+    user-select: none;
+    gap: 8px;
+  }
+  .dye-card:hover { opacity: 0.85; }
+  .dye-card-add {
+    border: 2px solid var(--mimoja-blue);
+    color: var(--mimoja-blue);
+    font-weight: 700;
+    gap: 8px;
+    background: var(--box-color);
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+  }
+  .dye-card-add svg { stroke: var(--mimoja-blue); }
+
+  .dye-card-name  { font-size: 22px; font-weight: 600; line-height: 1.3; }
+  .dye-card-sub   { font-size: 18px; font-weight: 400; opacity: 0.7; line-height: 1.4; }
+
+  .dye-search-wrap { position: relative; width: 100%; margin-bottom: 10px; }
+  .dye-search-input {
+    width: 100%; height: 54px; border-radius: 12px; border: none;
+    background: #EDF0F4; padding: 0 46px 0 16px;
+    font-family: 'Inter', sans-serif; font-size: 19px;
+    color: var(--text-primary); outline: none;
+  }
+  .dye-search-input::placeholder { color: var(--text-primary-disabled); }
+  .dye-search-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+
+  #dye-cards-container::-webkit-scrollbar { width: 36px; }
+  #dye-cards-container::-webkit-scrollbar-track { background: transparent; }
+  #dye-cards-container::-webkit-scrollbar-thumb {
+    background: var(--profile-button-outline-color);
+    border-radius: 9999px;
+    border: 12px solid transparent;
+    background-clip: padding-box;
+  }
+
+  /* Add/edit modal */
+  .dye-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    display: none; align-items: center; justify-content: center; z-index: 50;
+  }
+  .dye-modal-backdrop.open { display: flex; }
+  .dye-modal {
+    background: var(--box-color); color: var(--text-primary);
+    width: min(760px, 92vw); max-height: 90vh; overflow-y: auto;
+    border-radius: 18px; padding: 32px 36px;
+    font-family: 'Inter', sans-serif;
+  }
+  .dye-modal h2 { font-size: 28px; font-weight: 700; margin-bottom: 20px; }
+  .dye-field { margin-bottom: 16px; }
+  .dye-field label { display: block; font-size: 17px; font-weight: 600; color: var(--text-primary-disabled); margin-bottom: 6px; }
+  .dye-field input {
+    width: 100%; height: 50px; border-radius: 10px;
+    border: 1px solid var(--profile-button-outline-color);
+    background: #EDF0F4; padding: 0 14px; font-size: 19px;
+    color: var(--text-primary); font-family: 'Inter', sans-serif; outline: none;
+  }
+  .dye-field-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+  .dye-field-row input { flex: 1; }
+  .dye-field-remove {
+    flex-shrink: 0; width: 40px; height: 40px; border-radius: 9999px; border: none;
+    background: transparent; color: #C0392B; font-size: 24px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .dye-add-field-btn {
+    background: transparent; border: 1px dashed var(--mimoja-blue); color: var(--mimoja-blue);
+    border-radius: 10px; height: 44px; padding: 0 16px; font-size: 17px; font-weight: 600;
+    cursor: pointer; font-family: 'Inter', sans-serif; margin-top: 4px;
+  }
+  .dye-modal-actions { display: flex; justify-content: flex-end; gap: 14px; margin-top: 24px; }
+  .dye-btn {
+    height: 56px; padding: 0 30px; border-radius: 9999px;
+    font-weight: 700; font-size: 22px; cursor: pointer; border: none;
+    font-family: 'Inter', sans-serif;
+  }
+  .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
+  .dye-btn-ghost { background: transparent; color: var(--text-primary); }
+  .dye-modal-error { color: #C0392B; font-size: 18px; margin-top: 12px; }
+  .dye-hidden { display: none !important; }
+`;
+	var content$8 = `
+<div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
+
+  <!-- Top bar -->
+  <div class="flex justify-between items-center px-[38px] border-b border-[var(--profile-button-outline-color)] bg-[var(--box-color)] h-[134px] shrink-0">
+    <h1 class="text-[36px] font-bold text-[var(--text-primary)]">Equipment</h1>
+    <button id="dye-done-btn" class="flex items-center justify-center h-[60px] px-[30px] rounded-[9999px] font-bold text-[24px] bg-[var(--mimoja-blue)] text-white cursor-pointer">
+      DONE
+    </button>
+  </div>
+
+  <!-- Body: sort rail + grid -->
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- Sort rail -->
+    <div id="dye-sort-sidebar" class="flex flex-col gap-[18px] items-stretch pt-[28px] px-[20px] shrink-0 w-[180px]">
+      <div class="dye-search-wrap">
+        <input id="dye-search-input" class="dye-search-input" type="text" placeholder="Search" />
+        <svg class="dye-search-icon" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary-disabled)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </div>
+      <button class="dye-sort-btn dye-sort-active" data-sort="recent">Recent</button>
+      <button class="dye-sort-btn" data-sort="oldest">Oldest</button>
+      <button class="dye-sort-btn" data-sort="az">A-Z</button>
+      <button class="dye-sort-btn" data-sort="za">Z-A</button>
+    </div>
+
+    <!-- Card grid -->
+    <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[28px] px-[38px] pb-[28px]">
+      <div id="dye-cards-grid" class="grid grid-cols-3 gap-[20px]"></div>
+    </div>
+
+  </div>
+
+  <!-- Add/edit modal -->
+  <div id="dye-modal-backdrop" class="dye-modal-backdrop">
+    <div class="dye-modal">
+      <h2 id="dye-modal-title">New Equipment</h2>
+      <form id="dye-equipment-form">
+        <div class="dye-field">
+          <label>Name *</label>
+          <input name="name" required placeholder="e.g. Acaia Pearl scale" />
+        </div>
+        <div class="dye-field">
+          <label>Your own fields</label>
+          <div id="dye-custom-fields"></div>
+          <button type="button" id="dye-add-field-btn" class="dye-add-field-btn">+ Add field</button>
+        </div>
+        <div id="dye-modal-error" class="dye-modal-error dye-hidden"></div>
+        <div class="dye-modal-actions">
+          <button type="button" id="dye-modal-cancel" class="dye-btn dye-btn-ghost">CANCEL</button>
+          <button type="submit" id="dye-modal-save" class="dye-btn dye-btn-primary">SAVE</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+`;
+	var pageScript$12 = `
+let equipmentCache = [];
+let searchQuery = '';
+let editingId = null;
+let currentSort = 'recent';
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function itemName(e) { return e.name || 'Unnamed'; }
+function itemFields(e) { return Array.isArray(e.custom) ? e.custom : []; }
+function itemSub(e) {
+  return itemFields(e).filter(f => f && f.key).map(f => f.key + ': ' + f.value).join(' · ');
+}
+
+function matchesSearch(e) {
+  if (!searchQuery) return true;
+  return (itemName(e) + ' ' + itemSub(e)).toLowerCase().includes(searchQuery);
+}
+
+function sortItems(items, sortKey) {
+  const sorted = [...items];
+  const name = (e) => itemName(e).toLowerCase();
+  switch (sortKey) {
+    case 'recent':  sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); break;
+    case 'oldest':  sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)); break;
+    case 'az':      sorted.sort((a, b) => name(a).localeCompare(name(b))); break;
+    case 'za':      sorted.sort((a, b) => name(b).localeCompare(name(a))); break;
+    default:        sorted.sort((a, b) => name(a).localeCompare(name(b))); break;
+  }
+  return sorted;
+}
+
+function setupSortButtons(onSort) {
+  const sidebar = document.getElementById('dye-sort-sidebar');
+  if (!sidebar) return;
+  sidebar.querySelectorAll('.dye-sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sidebar.querySelectorAll('.dye-sort-btn').forEach(b => b.classList.remove('dye-sort-active'));
+      btn.classList.add('dye-sort-active');
+      onSort(btn.dataset.sort);
+    });
+  });
+}
+
+function renderEquipmentCards(grid) {
+  grid.innerHTML = '';
+
+  const addCard = document.createElement('div');
+  addCard.className = 'dye-card dye-card-add';
+  addCard.innerHTML = '<span>ADD NEW EQUIPMENT +</span><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+  addCard.addEventListener('click', () => openModal(null));
+  grid.appendChild(addCard);
+
+  sortItems(equipmentCache.filter(matchesSearch), currentSort).forEach(e => {
+    const card = document.createElement('div');
+    card.className = 'dye-card';
+    const sub = itemSub(e);
+    card.innerHTML =
+      '<div class="dye-card-name">' + esc(itemName(e)) + '</div>' +
+      (sub ? '<div class="dye-card-sub">' + esc(sub) + '</div>' : '');
+    card.addEventListener('click', () => openModal(e));
+    grid.appendChild(card);
+  });
+}
+
+/* ── Modal ── */
+function form() { return document.getElementById('dye-equipment-form'); }
+
+// Custom fields: free-form key/value rows the user defines per equipment item.
+function fieldsContainer() { return document.getElementById('dye-custom-fields'); }
+
+function addFieldRow(key, value) {
+  const row = document.createElement('div');
+  row.className = 'dye-field-row';
+  row.innerHTML =
+    '<input class="dye-field-key" placeholder="Field (e.g. Weight)" value="' + esc(key || '') + '" />' +
+    '<input class="dye-field-value" placeholder="Value (e.g. 250g)" value="' + esc(value || '') + '" />' +
+    '<button type="button" class="dye-field-remove">×</button>';
+  row.querySelector('.dye-field-remove').addEventListener('click', () => row.remove());
+  fieldsContainer().appendChild(row);
+}
+
+function readFieldRows() {
+  return Array.from(fieldsContainer().querySelectorAll('.dye-field-row')).map(row => ({
+    key: row.querySelector('.dye-field-key').value.trim(),
+    value: row.querySelector('.dye-field-value').value.trim(),
+  })).filter(f => f.key);
+}
+
+function openModal(e) {
+  editingId = e ? e.id : null;
+  document.getElementById('dye-modal-title').textContent = e ? 'Edit Equipment' : 'New Equipment';
+  document.getElementById('dye-modal-error').classList.add('dye-hidden');
+  form().reset();
+  fieldsContainer().innerHTML = '';
+  if (e) {
+    form().elements['name'].value = e.name || '';
+    itemFields(e).forEach(f => addFieldRow(f.key, f.value));
+  }
+  document.getElementById('dye-modal-backdrop').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('dye-modal-backdrop').classList.remove('open');
+  editingId = null;
+}
+
+async function submitForm() {
+  const fd = new FormData(form());
+  const body = { name: fd.get('name') || '', custom: readFieldRows() };
+
+  try {
+    if (editingId) await updateEquipment(editingId, body);
+    else await createEquipment(body);
+    closeModal();
+    await reload();
+  } catch (err) {
+    const errEl = document.getElementById('dye-modal-error');
+    errEl.textContent = 'Save failed: ' + err.message;
+    errEl.classList.remove('dye-hidden');
+  }
+}
+
+async function reload() {
+  try {
+    equipmentCache = await getEquipment();
+  } catch (e) {
+    console.error('Failed to load equipment:', e);
+    equipmentCache = [];
+  }
+  renderEquipmentCards(document.getElementById('dye-cards-grid'));
+}
+
+async function initializeDyeEquipment() {
+  const grid = document.getElementById('dye-cards-grid');
+  if (!grid) return;
+
+  await reload();
+  setupSortButtons((sort) => { currentSort = sort; renderEquipmentCards(grid); });
+
+  const searchInput = document.getElementById('dye-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => { searchQuery = searchInput.value.trim().toLowerCase(); renderEquipmentCards(grid); });
+  }
+
+  document.getElementById('dye-done-btn')?.addEventListener('click', () => window.history.back());
+  document.getElementById('dye-modal-cancel')?.addEventListener('click', closeModal);
+  document.getElementById('dye-add-field-btn')?.addEventListener('click', () => addFieldRow('', ''));
+  document.getElementById('dye-modal-backdrop')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+  form().addEventListener('submit', (e) => { e.preventDefault(); submitForm(); });
+}
+
+initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed:', e));
+`;
+	function renderEquipmentPage(request) {
+		return {
+			requestId: request.requestId,
+			status: 200,
+			headers: { "Content-Type": "text/html; charset=utf-8" },
+			body: devPageShell("Equipment", content$8, styles$12, [devApiScript, pageScript$12])
 		};
 	}
 	//#endregion
@@ -4763,6 +5136,7 @@ function plotHistoricalShot(measurements, workflow) {
             <div id="dye-settings-dropdown" class="dye-dash-dropdown">
               <div class="dye-dash-dropdown-item" id="dye-settings-favourites">Favourites</div>
               <div class="dye-dash-dropdown-item" id="dye-settings-recipes">Recipes</div>
+              <div class="dye-dash-dropdown-item" id="dye-settings-equipment">Equipment</div>
             </div>
           </div>
           <div class="relative">
@@ -6038,6 +6412,7 @@ function wireDashboardControls() {
   setupDropdownToggle('dye-settings-btn', 'dye-settings-dropdown');
   document.getElementById('dye-settings-favourites')?.addEventListener('click', () => { window.location.href = '/api/v1/plugins/dye2.reaplugin/auto-favs'; });
   document.getElementById('dye-settings-recipes')?.addEventListener('click', () => { sessionStorage.setItem('dye_editRecipeIdx', '0'); window.location.href = '/api/v1/plugins/dye2.reaplugin/recipe-edit'; });
+  document.getElementById('dye-settings-equipment')?.addEventListener('click', () => { window.location.href = '/api/v1/plugins/dye2.reaplugin/equipment'; });
   setupVisualizerDropdown();
   setupVisualizerModal();
   checkVisualizerLoggedIn().catch(e => console.warn(e));
@@ -6295,6 +6670,10 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
       ${expandFieldHtml("es-basket", "Basket")}
       <div class="edit-divider"></div>
 
+      <!-- Equipment (free text, remembered in the plugin KV store) -->
+      ${expandFieldHtml("es-equipment", "Equipment")}
+      <div class="edit-divider"></div>
+
       <!-- Barista / Drinker -->
       ${expandFieldHtml("es-barista", "Barista")}
       ${expandFieldHtml("es-drinker", "Drinker")}
@@ -6500,6 +6879,62 @@ function rememberName(storeKey, v) {
   if (!list.includes(v)) { list.push(v); localStorage.setItem(storeKey, JSON.stringify(list)); }
 }
 
+// ── Equipment: free text, rows remembered in the plugin KV store ('equipment' key).
+// Kept out of rememberedNames/localStorage on purpose — the list is shared across
+// devices and readable by the skin, so it lives in the same KV table as baskets.
+let equipmentCache = [];
+
+function setEquipment(item) {
+  if (!currentShot) return;
+  currentShot.annotations = currentShot.annotations || {};
+  currentShot.annotations.extras = currentShot.annotations.extras || {};
+  currentShot.annotations.extras.equipmentId = item ? item.id : null;
+  currentShot.annotations.extras.equipmentName = item ? item.name : null;
+}
+
+// Typed text: reuse a matching row, otherwise add one. Empty clears the field.
+async function commitEquipmentText(v) {
+  if (!v) { setEquipment(null); return; }
+  const hit = equipmentCache.find(e => e && String(e.name).toLowerCase() === v.toLowerCase());
+  if (hit) { setEquipment(hit); return; }
+  try {
+    const item = await createEquipment(v);
+    if (!equipmentCache.some(e => e && e.id === item.id)) equipmentCache.push(item);
+    setEquipment(item);
+  } catch (e) {
+    console.warn('Could not save equipment:', e);
+    setEquipment({ id: null, name: v });   // keep it on the shot even if the KV write failed
+  }
+}
+
+function openEquipmentDropdown() {
+  const textEl = document.getElementById('es-equipment-text');
+  if (!textEl) return;
+  const box = textEl.parentElement;
+  const existing = box.querySelector('.dye-name-dropdown');
+  if (existing) { existing.remove(); return; }  // toggle off
+  box.style.position = 'relative';
+  const dd = document.createElement('div');
+  dd.className = 'dye-name-dropdown';
+
+  const rows = [{ label: '＋ New…', act: () => makeTextEditable('es-equipment-text', v => commitEquipmentText(v)) }];
+  equipmentCache.slice()
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+    .forEach(e => rows.push({ label: e.name, act: () => { textEl.textContent = e.name || '—'; setEquipment(e); } }));
+
+  rows.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'read-from-item';
+    row.textContent = r.label;
+    row.addEventListener('click', (ev) => { ev.stopPropagation(); dd.remove(); r.act(); });
+    dd.appendChild(row);
+  });
+  box.appendChild(dd);
+  setTimeout(() => document.addEventListener('click', function close(ev) {
+    if (!dd.contains(ev.target)) { dd.remove(); document.removeEventListener('click', close); }
+  }), 0);
+}
+
 // Expand button → dropdown of remembered names (＋ New… falls back to inline typing).
 function openNameDropdown(fieldId, storeKey, ctxKeys, onPick) {
   const textEl = document.getElementById(fieldId + '-text');
@@ -6630,6 +7065,10 @@ function renderShot(shot) {
   const basketEl = document.getElementById('es-basket-text');
   if (basketEl) basketEl.textContent = (ann.extras && ann.extras.basketName) || '—';
 
+  // Equipment, same annotations.extras home as basket/RPM.
+  const equipEl = document.getElementById('es-equipment-text');
+  if (equipEl) equipEl.textContent = (ann.extras && ann.extras.equipmentName) || '—';
+
   const baristaEl = document.getElementById('es-barista-text');
   if (baristaEl) baristaEl.textContent = ctx.baristaName || ctx.barista || '—';
   const drinkerEl = document.getElementById('es-drinker-text');
@@ -6685,6 +7124,8 @@ function shotDialing(shot) {
     rpm:   (ann.extras && ann.extras.rpm != null) ? ann.extras.rpm : gd.rpm,
     basketId:   ann.extras && ann.extras.basketId,
     basketName: ann.extras && ann.extras.basketName,
+    equipmentId:   ann.extras && ann.extras.equipmentId,
+    equipmentName: ann.extras && ann.extras.equipmentName,
     barista: ctx.baristaName || ctx.barista,
     drinker: ctx.drinkerName || ctx.drinker,
   };
@@ -6701,6 +7142,8 @@ async function workflowDialing() {
     rpm:   ctx.extras && ctx.extras.rpm,
     basketId:   ctx.extras && ctx.extras.basketId,
     basketName: ctx.extras && ctx.extras.basketName,
+    equipmentId:   ctx.extras && ctx.extras.equipmentId,
+    equipmentName: ctx.extras && ctx.extras.equipmentName,
     barista: ctx.baristaName || ctx.barista,
     drinker: ctx.drinkerName || ctx.drinker,
   };
@@ -6718,6 +7161,7 @@ function applyDialing(d) {
   if (d.grind != null) ctx.grinderSetting = String(d.grind);
   if (d.rpm   != null) { ann.extras = ann.extras || {}; ann.extras.rpm = d.rpm; }
   if (d.basketId != null) { ann.extras = ann.extras || {}; ann.extras.basketId = d.basketId; ann.extras.basketName = d.basketName; }
+  if (d.equipmentName != null) { ann.extras = ann.extras || {}; ann.extras.equipmentId = d.equipmentId; ann.extras.equipmentName = d.equipmentName; }
   if (d.barista) ctx.baristaName = d.barista;
   if (d.drinker) ctx.drinkerName = d.drinker;
   renderShot(currentShot);
@@ -6789,6 +7233,14 @@ function setupControls() {
   const goBasket = () => goToPicker('/api/v1/plugins/dye2.reaplugin/basket-picker');
   document.getElementById('es-basket-expand')?.addEventListener('click', goBasket);
   document.getElementById('es-basket-text')?.addEventListener('click', goBasket);
+
+  // Equipment → expand lists saved kit; tapping the text types a new one (saved to KV).
+  document.getElementById('es-equipment-expand')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openEquipmentDropdown();
+  });
+  document.getElementById('es-equipment-text')?.addEventListener('click', () =>
+    makeTextEditable('es-equipment-text', v => commitEquipmentText(v)));
 
   // Barista / Drinker → expand shows remembered-name dropdown; tapping the text types a new one.
   const setBarista = v => { wfctx().baristaName = v; };
@@ -6874,6 +7326,7 @@ function setupControls() {
 
 async function initEditShot() {
   setupControls();
+  getEquipment().then(list => { equipmentCache = list; }).catch(e => console.warn('Could not load equipment:', e));
   const returning = sessionStorage.getItem('dye_editShotReturn') === '1';
   try {
     const result = await getShots({ limit: 50, order: 'desc' }).catch(() => ({ items: [] }));
@@ -9242,6 +9695,7 @@ bcInit();
 				switch (request.endpoint) {
 					case "grinders": return renderGrindersPage(request);
 					case "baskets": return renderBasketsPage(request);
+					case "equipment": return renderEquipmentPage(request);
 					case "bean-picker": return renderBeanPickerPage(request);
 					case "grinder-picker": return renderGrinderPickerPage(request);
 					case "basket-picker": return renderBasketPickerPage(request);

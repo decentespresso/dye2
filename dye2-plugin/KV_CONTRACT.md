@@ -1,6 +1,6 @@
 # DYE2 KV Contract
 
-How DYE2 persists auto-favourites, recipes, and filter baskets, and how a
+How DYE2 persists auto-favourites, recipes, filter baskets, and equipment, and how a
 read-only consumer (the Streamline dashboard) should read and apply them.
 
 ## Storage
@@ -11,7 +11,7 @@ either — see `bc-map.ts` `bcMapEquipment`. DYE2 persists each collection as a
 **single JSON array** under one key in the generic plugin KV store:
 
 - Namespace: `dye2.reaplugin`
-- Keys: `autoFavourites`, `recipes`, `baskets`
+- Keys: `autoFavourites`, `recipes`, `baskets`, `equipment`
 - URL: `GET/POST /api/v1/store/{namespace}/{key}`
 - `GET` on a key that's never been written returns **`200` with body `null`**
   (verified against `kv_store_handler.dart` — it always responds `jsonOk`,
@@ -159,6 +159,33 @@ CONFIRM handler in `basket-picker.ts`), not a full context replacement.
   workflow: { context, profile? }   // ready-to-PUT WorkflowRequest
 }
 ```
+
+### `equipment[]`
+
+Free-text kit the user types on the edit-shot page (scale, tamper, WDT tool,
+kettle…), or adds/edits in full on the `equipment` manage page. One row per
+distinct name; the edit-shot quick-add reuses an existing row on a
+case-insensitive name match rather than adding a duplicate.
+
+```
+{
+  id,                           // 'eqp-...' (or a uuid)
+  name,                         // required, as the user typed it
+  custom,                       // [{ key, value }, ...] — user-defined fields, optional/absent on older rows
+  createdAt,                    // ISO 8601
+}
+```
+
+`custom` is free-form: the user names their own fields (e.g. `Weight: 250g`,
+`Burr size: 64mm`) on the manage page. There is no fixed schema for it —
+consumers must treat it as an arbitrary array and not assume any particular
+keys are present.
+
+A shot references a row by `annotations.extras.equipmentId` /
+`annotations.extras.equipmentName` (the name is denormalised onto the shot so a
+consumer can render it without reading this key, and so a deleted row does not
+blank out old shots). Like baskets, there is no `workflow` field — equipment is
+not applied to `/api/v1/workflow`.
 
 ### `baskets[]`
 

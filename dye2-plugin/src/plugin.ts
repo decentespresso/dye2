@@ -2,6 +2,7 @@
 
 import { renderGrindersPage } from "./pages/grinders";
 import { renderBasketsPage } from "./pages/baskets";
+import { renderEquipmentPage } from "./pages/equipment";
 import { renderBeanPickerPage } from "./pages/bean-picker";
 import { renderGrinderPickerPage } from "./pages/grinder-picker";
 import { renderBasketPickerPage } from "./pages/basket-picker";
@@ -46,6 +47,9 @@ export default function createPlugin(host: PluginHost): PluginInstance {
 
         case "baskets":
           return renderBasketsPage(request);
+
+        case "equipment":
+          return renderEquipmentPage(request);
 
         case "bean-picker":
           return renderBeanPickerPage(request);
