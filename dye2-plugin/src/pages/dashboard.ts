@@ -283,7 +283,7 @@ function buildContent(): string { return `
             <div id="dye-next-date" class="text-[var(--text-primary)] font-normal text-[24px] leading-[1.2]">—</div>
           </div>
           <div class="flex items-center gap-[27px]">
-            <button id="dye-history-btn" class="cursor-pointer">
+            <button id="dye-history-btn" class="cursor-pointer" title="Undo — reverts your last change here; tap again to redo it" aria-label="Undo last change">
               <img src="${iconHistory}" width="42" height="42" alt="History" />
             </button>
             <button id="dye-clipboard-btn" class="cursor-pointer">
