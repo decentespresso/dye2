@@ -300,24 +300,34 @@ function isToggleOn(id) {
 `;
 
 // ── Script helper: enjoyment <-> stars scale conversion ───────────────────────
-// annotations.enjoyment is 0-100 — the same scale as de1app/visualizer.coffee's
-// espresso_enjoyment (confirmed against visualizer.coffee's own shot form, which
-// renders it as a 0-100 range input, and against Decaid's legacy-.tcl-shot importer,
-// which copies espresso_enjoyment into enjoyment with no rescaling — so Decaid's own
-// field is the same 0-100 scale, not a separate 0-5). DYE2 briefly wrote the raw
-// 1-5 star index instead (see issue #7): a shot with enjoyment in [1,5] almost
-// certainly got that buggy write rather than a genuine (and extremely poor) 1-5-out-
-// of-100 legacy rating, so it's read back as-is instead of being divided by 20.
+// annotations.enjoyment is Decaid's own 0-10 field, not de1app's or
+// visualizer.coffee's 0-100 espresso_enjoyment. Decaid converts at those two
+// boundaries itself (decentespresso/decaid#887): its importer rescales on the
+// way in, its Visualizer plugin multiplies by 10 on the way out, and
+// PUT /api/v1/shots/<id> rejects anything outside 0-10. So DYE2's only job is
+// 0-10 <-> 5 stars, a plain halving and doubling.
+//
+// There is deliberately no value-range heuristic here. Under the 0-10 contract
+// 1-5 are ordinary canonical ratings, so the old "an integer in [1,5] must be a
+// raw star index" rule (issue #7) would now misread normal data — a stored 4
+// is 2 stars, not 4. Rows written by that old bug are indistinguishable from
+// valid 0-10 values; repairing them needs provenance, not a guess from the
+// number, and is out of scope here.
 
 export const enjoymentScaleScript = `
 function enjoymentToStars(enjoyment) {
   if (enjoyment == null || enjoyment === '') return 0;
   const n = parseFloat(enjoyment);
   if (isNaN(n)) return 0;
-  if (n >= 1 && n <= 5 && Number.isInteger(n)) return n;   // legacy buggy DYE2 write — see issue #7
-  return Math.round(n / 20);
+  const canonical = Math.min(Math.max(n, 0), 10);
+  return Math.round(canonical / 2);
 }
-function starsToEnjoyment(stars) { return stars * 20; }
+function starsToEnjoyment(stars) {
+  const n = Number(stars);
+  if (!Number.isFinite(n)) return 0;
+  const clampedStars = Math.min(Math.max(Math.round(n), 0), 5);
+  return clampedStars * 2;
+}
 `;
 
 // ── Script helper: star rating wiring ────────────────────────────────────────

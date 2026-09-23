@@ -1,6 +1,6 @@
 {
   "name": "@streamline/dye2-plugin",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "private": true,
   "description": "Streamline/DYE2 plugin for bean and grinder management",
   "type": "module",
@@ -9,7 +9,7 @@
     "build": "npm run build:css && vite build",
     "dev": "vite build --watch",
     "serve": "node dev-server.mjs",
-    "test": "node --experimental-strip-types test/bc-map.test.mjs && node --experimental-strip-types test/shot-paging.test.mjs && node --experimental-strip-types test/equipment.test.mjs"
+    "test": "node --experimental-strip-types test/bc-map.test.mjs && node --experimental-strip-types test/shot-paging.test.mjs && node --experimental-strip-types test/equipment.test.mjs && node --experimental-strip-types test/enjoyment-scale.test.mjs"
   },
   "devDependencies": {
     "tailwindcss": "^3.4.19",
