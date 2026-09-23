@@ -123,18 +123,20 @@ CONFIRM handler in `basket-picker.ts`), not a full context replacement.
 {
   id, title, beverage,
   alwaysOnDashboard, favSlot,
-  copyMask: { profile, beans, roastDate, grinder, basket, grindSetting,
+  copyMask: { profile, beans, roastDate, grinder, basket, equipment, grindSetting,
               dose, drink, barista, drinker, note },   // booleans; absent ⇒ on
   snapshot: {
     profileId, profileTitle, beanBatchId, coffeeName, coffeeRoaster,
     roastDate, grinderId, grinderModel, basketId, basketName, grindSetting, rpm,
-    dose, drink, barista, drinker, note
+    dose, drink, barista, drinker, note,
+    equipmentIds, equipmentNames,   // arrays in lockstep — see equipment[] below
+    equipmentCustom,                // { [equipmentId]: [{key,value}, ...] } — per-value overrides, optional
   },
   capturedAt,                 // ISO 8601
 
   // added by this version (optional for consumers):
   subtitle,                   // "roaster · coffee" || beverage || ''
-  workflow: { context, profile? }   // ready-to-PUT WorkflowRequest
+  workflow: { context, profile? }   // ready-to-PUT WorkflowRequest — does NOT carry equipment, see note below
 }
 ```
 
@@ -149,23 +151,28 @@ CONFIRM handler in `basket-picker.ts`), not a full context replacement.
   dashboardVariables: {
     dose, drink, brewC, steamMode, steamTimeS, steamFlowMls,
     flushS, hotWaterMode, hotWaterMl, hotWaterTempC, grind, rpm, grinderId,
-    basketId, basketName
+    basketId, basketName,
+    equipmentIds, equipmentNames,   // arrays in lockstep — see equipment[] below
+    equipmentCustom,                // { [equipmentId]: [{key,value}, ...] } — per-value overrides, optional
   },
 
   // added by this version (optional for consumers):
   title,                       // name || 'Recipe <id>'
   subtitle,                    // beanName || beverage || ''
   capturedAt,                  // ISO 8601 (recipes had no timestamp before)
-  workflow: { context, profile? }   // ready-to-PUT WorkflowRequest
+  workflow: { context, profile? }   // ready-to-PUT WorkflowRequest — does NOT carry equipment, see note below
 }
 ```
 
 ### `equipment[]`
 
-Free-text kit the user types on the edit-shot page (scale, tamper, WDT tool,
-kettle…), or adds/edits in full on the `equipment` manage page. One row per
-distinct name; the edit-shot quick-add reuses an existing row on a
-case-insensitive name match rather than adding a duplicate.
+The master list of kit (scale, tamper, WDT tool, dosing ring, kettle…),
+managed in full (add / edit its `custom` fields / delete) on the `equipment`
+manage page (`equipment.ts`; CRUD in `dev-api.ts`: `getEquipment`,
+`createEquipment`, `updateEquipment`, `deleteEquipment`). One row per
+distinct item. A shot's edit page can also create a row inline via
+"+ New…", which round-trips to the manage page rather than a quick free-text
+add — see "Where equipment data lives" below.
 
 ```
 {
@@ -179,21 +186,35 @@ case-insensitive name match rather than adding a duplicate.
 `custom` is free-form: the user names their own fields (e.g. `Weight: 250g`,
 `Burr size: 64mm`) on the manage page. There is no fixed schema for it —
 consumers must treat it as an arbitrary array and not assume any particular
-keys are present.
+keys are present. Deleting a row here only removes it from this list — it
+does not touch the `equipmentIds`/`equipmentNames` already denormalised onto
+shots/recipes/favourites below (see next paragraph), so old records keep
+their name even after the row they pointed at is gone.
 
-A shot references **zero or more** rows via parallel arrays,
-`annotations.extras.equipmentIds` / `annotations.extras.equipmentNames` (names
-denormalised onto the shot so a consumer can render them without reading this
-key, and so a deleted row does not blank out old shots). One Equipment row is
-one named kit item (e.g. "V60 kit") with its own `custom` fields — it is not
-itself a bundle of unrelated tools; a shot bundles multiple rows by picking
-several from the edit-shot dropdown (e.g. "RDT tool" + "WDT tool" + "Dosing
-ring").
+#### Where equipment data lives
 
-The same kit item can be dialed differently shot to shot (e.g. a WDT tool
-used for 15s on one shot, 20s on another). A shot may override a selected
-row's field *values* — never its keys or which fields exist — via
-`annotations.extras.equipmentCustom`, keyed by equipment id:
+A record — a shot, a recipe, or an auto-favourite — references **zero or
+more** `equipment[]` rows via the same shape wherever it appears: parallel
+`equipmentIds` / `equipmentNames` arrays (names denormalised so a consumer
+can render them without a second read against `equipment[]`, and so a
+deleted row doesn't blank out the record), plus an optional `equipmentCustom`
+map for per-record value overrides (see below). Only the container differs:
+
+| Record        | Field path                                         |
+|---------------|-----------------------------------------------------|
+| Shot          | `annotations.extras.equipmentIds` / `equipmentNames` / `equipmentCustom` |
+| Recipe        | `dashboardVariables.equipmentIds` / `equipmentNames` / `equipmentCustom` |
+| Auto-favourite| `snapshot.equipmentIds` / `equipmentNames` / `equipmentCustom` (gated by `copyMask.equipment`, default on) |
+
+One `equipment[]` row is one named kit item (e.g. "V60 kit") with its own
+`custom` fields — it is not itself a bundle of unrelated tools; a record
+bundles multiple rows by picking several from the Equipment dropdown (e.g.
+"RDT tool" + "WDT tool" + "Dosing ring").
+
+The same kit item can be dialed differently record to record (e.g. a WDT
+tool used for 15s on one shot, 20s on another). A record may override a
+selected row's field *values* — never its keys or which fields exist — via
+its `equipmentCustom` map, keyed by equipment id:
 
 ```
 equipmentCustom: {
@@ -207,8 +228,15 @@ consumers should fall back to `equipment[].custom` for any id with no entry
 `annotations.extras.equipmentId` / `equipmentName` instead — treat that as a
 one-item equivalent of the arrays above; DYE2 migrates a shot onto the array
 fields (and drops the singular ones) the next time it's edited and saved.
-Like baskets, there is no `workflow` field — equipment is not applied to
-`/api/v1/workflow`.
+Recipes/favourites have no such legacy singular form — the array shape is
+all they've ever used.
+
+Like baskets, equipment is **not** applied to `/api/v1/workflow` — there is
+no `workflow`-embed equivalent (see `buildRecipeWorkflow` /
+`buildFavouriteWorkflow` in `dev-api.ts`, which both skip it). A consumer
+that wants to reproduce a recipe's or favourite's equipment selection reads
+`equipmentIds`/`equipmentNames`/`equipmentCustom` directly from the table
+above instead of expecting them inside the embedded `workflow` object.
 
 ### `baskets[]`
 
