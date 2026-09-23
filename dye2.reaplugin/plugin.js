@@ -447,7 +447,7 @@ async function deleteEquipment(id) {
    Both builders return a ready-to-PUT WorkflowRequest body { context, profile? }.
    They mirror dashboard.ts applyAutoFavourite/applyRecipe, but build a fresh ctx
    and RETURN it instead of mutating currentWorkflow. Legacy fields are kept; these
-   are additive and consumers MUST treat them as optional. See KV_CONTRACT.md. */
+   are additive and consumers MUST treat them as optional. See ../../../docs/KV_CONTRACT.md. */
 function buildFavouriteWorkflow(fav) {
   const snp = (fav && fav.snapshot) || {};
   const mask = (fav && fav.copyMask) || {};

@@ -64,14 +64,15 @@ dye2/
 │   ├── test/                 # Node test runner (.test.mjs)
 │   ├── manifest.src.json     # Plugin metadata — SOURCE of manifest.json
 │   ├── vite.config.ts        # IIFE build → ../dye2.reaplugin/plugin.js
-│   ├── dev-server.mjs        # Local page server, proxies /api/v1/* to a machine
-│   └── KV_CONTRACT.md        # Schemas for the KV keys DYE2 owns
+│   └── dev-server.mjs        # Local page server, proxies /api/v1/* to a machine
 │
 ├── dye2.reaplugin/           # BUILD OUTPUT — committed, never hand-edited
 │   ├── manifest.json
 │   └── plugin.js
 │
 ├── dev/                      # Legacy plain JS/HTML for Decaid's native DYE pages
+├── docs/
+│   └── KV_CONTRACT.md        # Schemas for the KV keys DYE2 owns
 ├── rea_restapi.yml           # Decaid REST OpenAPI spec
 └── websocket_v1.yml          # Decaid WebSocket AsyncAPI spec
 ```
@@ -150,15 +151,16 @@ GET /api/v1/beans
 GET /api/v1/grinders
 ```
 
-Auto-favourites, recipes and (for now) filter baskets have no resource of their own, so DYE2 persists them in Decaid's generic per-plugin KV store:
+Auto-favourites, recipes, (for now) filter baskets, and equipment have no resource of their own, so DYE2 persists them in Decaid's generic per-plugin KV store:
 
 ```
 GET /api/v1/store/dye2.reaplugin/autoFavourites
 GET /api/v1/store/dye2.reaplugin/recipes
 GET /api/v1/store/dye2.reaplugin/baskets
+GET /api/v1/store/dye2.reaplugin/equipment
 ```
 
-No auth. Returns a JSON array, or `null` if the key was never written — treat `null` as `[]`. Schemas in [`dye2-plugin/KV_CONTRACT.md`](dye2-plugin/KV_CONTRACT.md).
+No auth. Returns a JSON array, or `null` if the key was never written — treat `null` as `[]`. Full schemas, field-by-field, plus a worked query example: [`docs/KV_CONTRACT.md`](docs/KV_CONTRACT.md).
 
 > The KV route is **not** scoped to the owning plugin. Any skin can already read and write these keys. DYE2 is the sole writer by convention, not by enforcement — don't `POST`/`DELETE` keys you don't own.
 

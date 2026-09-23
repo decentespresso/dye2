@@ -78,7 +78,7 @@ a missing key → `kvGetArray` falls back via `Array.isArray(val) ? val : []`.
 
 **Update (denormalized apply payload — supersedes most of B4).** Each fav/recipe now also
 embeds a **ready-to-PUT `workflow`** (`{ context, profile? }`, favourite honours `copyMask`),
-plus `subtitle` / recipe `title` / `capturedAt`. Contract: `dye2-plugin/KV_CONTRACT.md`.
+plus `subtitle` / recipe `title` / `capturedAt`. Contract: `docs/KV_CONTRACT.md`.
 Consequence: Phase B no longer reimplements the B4 `context`/`profile` mapping — it PUTs
 `item.workflow` as-is. The **one exception is recipe steam / hot-water / flush**: those
 `WorkflowRequest` sub-objects require `targetTemperature`/`flow` a recipe doesn't capture,

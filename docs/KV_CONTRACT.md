@@ -52,6 +52,67 @@ There is **no push channel** for the KV store. A consumer must **poll** — re-`
 the key on page focus and on `visibilitychange` (and/or a light interval) to pick
 up changes DYE2 made while the consumer was idle.
 
+## Querying the data
+
+Every key is a plain, unauthenticated HTTP `GET` against the bridge — no
+plugin-specific client or SDK needed, from a terminal or from a skin's own
+browser-side code.
+
+From a terminal, against a bridge reachable at `<bridge-host>:8080` (the
+dev server proxies the same path at `:4444`, see `dye2-plugin/README.md`):
+
+```bash
+curl http://<bridge-host>:8080/api/v1/store/dye2.reaplugin/equipment | jq
+curl http://<bridge-host>:8080/api/v1/store/dye2.reaplugin/recipes   | jq
+```
+
+From a browser-side consumer:
+
+```js
+async function getDyeCollection(key) {
+  const res = await fetch(`/api/v1/store/dye2.reaplugin/${key}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const val = await res.json();
+  return Array.isArray(val) ? val : [];   // null on a never-written key — see "Storage" above
+}
+
+const equipment = await getDyeCollection('equipment');
+const recipes   = await getDyeCollection('recipes');
+```
+
+### Worked example: resolve a shot's equipment selection
+
+A shot only stores equipment **ids** plus denormalised **names** (see "Where
+equipment data lives" below) — it does not carry each item's `custom`
+fields. To show more than the name (e.g. the live values, honouring a
+per-shot override), cross-reference the `equipment[]` table:
+
+```js
+async function shotEquipmentDetails(shot) {
+  const extras = (shot.annotations && shot.annotations.extras) || {};
+  // Pre-multi-select shots may still carry the singular equipmentId/equipmentName.
+  const ids   = extras.equipmentIds   || (extras.equipmentId   ? [extras.equipmentId]   : []);
+  const names = extras.equipmentNames || (extras.equipmentName ? [extras.equipmentName] : []);
+  if (!ids.length) return [];
+
+  const all = await getDyeCollection('equipment');
+  return ids.map((id, i) => {
+    const item = all.find(e => e.id === id);   // undefined if the row was since deleted
+    const override = extras.equipmentCustom && extras.equipmentCustom[id];
+    return {
+      id,
+      name: item ? item.name : names[i],       // fall back to the denormalised name
+      custom: override || (item && item.custom) || [],
+    };
+  });
+}
+```
+
+The same pattern applies to a recipe (read `dashboardVariables.equipmentIds`
+etc. instead of `annotations.extras.*`) or an auto-favourite (read
+`snapshot.equipmentIds` etc.) — only the container object differs; see the
+table in "Where equipment data lives" below.
+
 ## Applying an item to the workflow
 
 Every item written by this version carries a `workflow` field that is a

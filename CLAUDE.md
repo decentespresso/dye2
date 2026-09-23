@@ -29,6 +29,8 @@ dye2/
 │   └── dyeDashboard.js   # Dashboard (shot history, grinder selection, workflow)
 │
 ├── dye2.reaplugin/       # Build output (generated — do not edit directly)
+├── docs/
+│   └── KV_CONTRACT.md    # Schemas for the KV keys DYE2 owns (recipes, favourites, baskets, equipment)
 └── rea_restapi.yml       # OpenAPI spec for the Streamline Bridge REST API
 ```
 
@@ -86,6 +88,6 @@ and are instead persisted through the bridge's generic, **unscoped**
 per-plugin KV store (`/api/v1/store/{namespace}/{key}` — readable/writable by
 any skin or plugin, not just the owner). A shot, a recipe, and an
 auto-favourite can each reference multiple equipment rows — see
-`dye2-plugin/KV_CONTRACT.md` for the full schema (including where the
+`docs/KV_CONTRACT.md` for the full schema (including where the
 equipment fields live on each of those three) and the single-writer
 convention this relies on.
