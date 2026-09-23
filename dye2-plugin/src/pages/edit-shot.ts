@@ -65,6 +65,8 @@ const styles = `
   }
   .read-from-item + .read-from-item { border-top: 1px solid var(--profile-button-outline-color); }
   .read-from-item:hover { background: var(--mimoja-blue); color: #fff; }
+  .equip-edit-icon { display: flex; flex-shrink: 0; color: var(--mimoja-blue); }
+  .read-from-item:hover .equip-edit-icon { color: #fff; }
   .dye-name-dropdown {
     position: absolute; top: calc(100% + 4px); left: 0; right: 0;
     max-height: 320px; overflow-y: auto;
@@ -245,7 +247,9 @@ function buildContent(): string {
 `;
 }
 
-const equipPencilSvgJs = JSON.stringify(lucideIcon('pencil', 20, 'var(--mimoja-blue)', 2));
+// currentColor so it follows .equip-edit-icon's color (blue normally, white on the row's
+// hover highlight) instead of staying a fixed color that goes invisible against the highlight.
+const equipPencilSvgJs = JSON.stringify(lucideIcon('pencil', 20, 'currentColor', 2));
 
 const pageScript = `
 const PENCIL_SVG = ${equipPencilSvgJs};
@@ -428,21 +432,6 @@ function toggleEquipment(item) {
   renderEquipmentText();
 }
 
-// Typed text: reuse a matching row, otherwise create one, then add it to the selection.
-async function commitEquipmentText(v) {
-  if (!v) return;
-  const hit = equipmentCache.find(e => e && String(e.name).toLowerCase() === v.toLowerCase());
-  if (hit) { toggleEquipment(hit); return; }
-  try {
-    const item = await createEquipment(v);
-    if (!equipmentCache.some(e => e && e.id === item.id)) equipmentCache.push(item);
-    toggleEquipment(item);
-  } catch (e) {
-    console.warn('Could not save equipment:', e);
-    toggleEquipment({ id: 'local-' + v, name: v });   // keep it on the shot even if the KV write failed
-  }
-}
-
 // Per-shot value overrides: the same equipment item can carry different custom-field values
 // from shot to shot (e.g. a dosing ring dialed differently), stored keyed by item id in
 // annotations.extras.equipmentCustom. Falls back to the item's own saved defaults until edited.
@@ -508,34 +497,16 @@ function openEquipmentDropdown() {
     dd.innerHTML = '';
     const { ids } = equipmentArrays(currentShot && currentShot.annotations && currentShot.annotations.extras);
 
-    // "+ New…" always starts as an empty input — it must not inherit the summary text
-    // shown in the field above, which is the comma-joined list of everything already picked.
+    // "+ New…" hands off to the full equipment manage page — that's the only place to set
+    // custom fields on a new row, not just its name. goToPicker() stashes the in-progress
+    // draft first; the equipment page hands the saved row back via sessionStorage and
+    // returns here, same round-trip as the grinder/basket/bean pickers.
     const newRow = document.createElement('div');
     newRow.className = 'read-from-item';
     newRow.textContent = '＋ New…';
     newRow.addEventListener('click', (ev) => {
       ev.stopPropagation();
-      if (newRow.querySelector('input')) return;
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.placeholder = 'New equipment name';
-      input.style.cssText = 'width:100%;font:inherit;border:1px solid var(--mimoja-blue);border-radius:8px;background:#fff;color:inherit;outline:none;padding:4px 8px';
-      input.addEventListener('click', ev2 => ev2.stopPropagation());
-      newRow.textContent = '';
-      newRow.appendChild(input);
-      input.focus();
-      let done = false;
-      const commit = async (apply) => {
-        if (done) return; done = true;
-        const v = input.value.trim();
-        if (apply && v) await commitEquipmentText(v);
-        renderRows();   // refresh whether committed or cancelled — restores the "+ New…" row
-      };
-      input.addEventListener('keydown', ev2 => {
-        if (ev2.key === 'Enter') { ev2.preventDefault(); commit(true); }
-        else if (ev2.key === 'Escape') { ev2.preventDefault(); commit(false); }
-      });
-      input.addEventListener('blur', () => commit(true));
+      goToPicker('/api/v1/plugins/dye2.reaplugin/equipment');
     });
     dd.appendChild(newRow);
 
@@ -552,7 +523,7 @@ function openEquipmentDropdown() {
         if (ids.includes(e.id) && Array.isArray(e.custom) && e.custom.length) {
           const editBtn = document.createElement('span');
           editBtn.innerHTML = PENCIL_SVG;
-          editBtn.style.cssText = 'display:flex;flex-shrink:0';
+          editBtn.className = 'equip-edit-icon';
           editBtn.addEventListener('click', (ev) => { ev.stopPropagation(); dd.remove(); openEquipmentValuesEditor(e); });
           row.appendChild(editBtn);
         }
@@ -628,6 +599,19 @@ function applyPendingSelections(shot) {
     const rd = sessionStorage.getItem('dye_selectedRoastDate');
     if (rd) ctx.roastDate = rd;
   }
+  // Equipment created via the "+ New…" round-trip to the manage page — add it to whatever
+  // was already selected rather than replacing it, same as toggling an existing row on.
+  const eqId = sessionStorage.getItem('dye_selectedEquipmentId');
+  if (eqId) {
+    shot.annotations = shot.annotations || {};
+    shot.annotations.extras = shot.annotations.extras || {};
+    const ex = shot.annotations.extras;
+    const { ids, names } = equipmentArrays(ex);
+    if (!ids.includes(eqId)) { ids.push(eqId); names.push(sessionStorage.getItem('dye_selectedEquipmentName') || ''); }
+    ex.equipmentIds = ids;
+    ex.equipmentNames = names;
+    delete ex.equipmentId; delete ex.equipmentName;
+  }
 }
 
 // Opening a picker pushes pages onto the stack (picker, then this page again on its
@@ -645,7 +629,8 @@ function clearReturnKeys() {
   ['dye_editShotReturn','dye_editShotDraft','dye_editShotIdx',
    'dye_selectedGrinderId','dye_selectedGrinderModel',
    'dye_selectedBasketId','dye_selectedBasketName',
-   'dye_selectedBeanId','dye_selectedBeanName','dye_selectedBeanRoaster','dye_selectedBatchId']
+   'dye_selectedBeanId','dye_selectedBeanName','dye_selectedBeanRoaster','dye_selectedBatchId',
+   'dye_selectedEquipmentId','dye_selectedEquipmentName']
     .forEach(k => sessionStorage.removeItem(k));
 }
 

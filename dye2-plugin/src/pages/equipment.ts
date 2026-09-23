@@ -188,6 +188,11 @@ let searchQuery = '';
 let editingId = null;
 let currentSort = 'recent';
 
+// Set by edit-shot's goToPicker() right before navigating here for its "+ New…" equipment
+// flow — same round-trip flag the bean/grinder/basket pickers use. When present, saving
+// (new or edited) selects that row and returns to edit-shot instead of staying on this page.
+const pickerMode = sessionStorage.getItem('dye_editShotReturn') === '1';
+
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -312,9 +317,16 @@ async function submitForm() {
   const body = { name: fd.get('name') || '', custom: readFieldRows() };
 
   try {
-    if (editingId) await updateEquipment(editingId, body);
-    else await createEquipment(body);
+    const saved = editingId ? await updateEquipment(editingId, body) : await createEquipment(body);
     closeModal();
+    if (pickerMode) {
+      // Came from edit-shot's equipment "+ New…" — hand the saved row back and return,
+      // same as picking an existing row does, instead of staying on the manage page.
+      sessionStorage.setItem('dye_selectedEquipmentId', saved.id);
+      sessionStorage.setItem('dye_selectedEquipmentName', saved.name || '');
+      window.history.back();
+      return;
+    }
     await reload();
   } catch (err) {
     const errEl = document.getElementById('dye-modal-error');
@@ -339,6 +351,7 @@ async function initializeDyeEquipment() {
 
   await reload();
   setupSortButtons((sort) => { currentSort = sort; renderEquipmentCards(grid); });
+  if (pickerMode) openModal(null);   // came here specifically to add one — skip the extra tap
 
   const searchInput = document.getElementById('dye-search-input');
   if (searchInput) {
