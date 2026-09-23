@@ -181,11 +181,19 @@ case-insensitive name match rather than adding a duplicate.
 consumers must treat it as an arbitrary array and not assume any particular
 keys are present.
 
-A shot references a row by `annotations.extras.equipmentId` /
-`annotations.extras.equipmentName` (the name is denormalised onto the shot so a
-consumer can render it without reading this key, and so a deleted row does not
-blank out old shots). Like baskets, there is no `workflow` field — equipment is
-not applied to `/api/v1/workflow`.
+A shot references **zero or more** rows via parallel arrays,
+`annotations.extras.equipmentIds` / `annotations.extras.equipmentNames` (names
+denormalised onto the shot so a consumer can render them without reading this
+key, and so a deleted row does not blank out old shots). One Equipment row is
+one named kit item (e.g. "V60 kit") with its own `custom` fields — it is not
+itself a bundle of unrelated tools; a shot bundles multiple rows by picking
+several from the edit-shot dropdown (e.g. "RDT tool" + "WDT tool" + "Dosing
+ring"). Older shots (pre-multi-select) may still carry the singular
+`annotations.extras.equipmentId` / `equipmentName` instead — treat that as a
+one-item equivalent of the arrays above; DYE2 migrates a shot onto the array
+fields (and drops the singular ones) the next time it's edited and saved.
+Like baskets, there is no `workflow` field — equipment is not applied to
+`/api/v1/workflow`.
 
 ### `baskets[]`
 

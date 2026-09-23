@@ -366,28 +366,54 @@ function rememberName(storeKey, v) {
 // ── Equipment: free text, rows remembered in the plugin KV store ('equipment' key).
 // Kept out of rememberedNames/localStorage on purpose — the list is shared across
 // devices and readable by the skin, so it lives in the same KV table as baskets.
+// A shot can carry MULTIPLE equipment rows (RDT, WDT, dosing ring, ...), stored as
+// parallel annotations.extras.equipmentIds/equipmentNames arrays.
 let equipmentCache = [];
 
-function setEquipment(item) {
+// Reads either the current array shape or a legacy single equipmentId/equipmentName
+// (pre-multi-select shots) and always returns the array shape.
+function equipmentArrays(extras) {
+  const ex = extras || {};
+  if (Array.isArray(ex.equipmentIds)) return { ids: ex.equipmentIds.slice(), names: (ex.equipmentNames || []).slice() };
+  if (ex.equipmentId != null || ex.equipmentName != null) return { ids: [ex.equipmentId], names: [ex.equipmentName] };
+  return { ids: [], names: [] };
+}
+
+function renderEquipmentText() {
+  const textEl = document.getElementById('es-equipment-text');
+  if (!textEl) return;
+  const { names } = equipmentArrays(currentShot && currentShot.annotations && currentShot.annotations.extras);
+  textEl.textContent = names.filter(Boolean).join(', ') || '—';
+}
+
+// Toggle one equipment row on/off the shot's selection.
+function toggleEquipment(item) {
   if (!currentShot) return;
   currentShot.annotations = currentShot.annotations || {};
   currentShot.annotations.extras = currentShot.annotations.extras || {};
-  currentShot.annotations.extras.equipmentId = item ? item.id : null;
-  currentShot.annotations.extras.equipmentName = item ? item.name : null;
+  const ex = currentShot.annotations.extras;
+  const { ids, names } = equipmentArrays(ex);
+  const idx = ids.indexOf(item.id);
+  if (idx >= 0) { ids.splice(idx, 1); names.splice(idx, 1); }
+  else { ids.push(item.id); names.push(item.name); }
+  ex.equipmentIds = ids;
+  ex.equipmentNames = names;
+  delete ex.equipmentId; delete ex.equipmentName;   // fully migrated off the legacy singular fields
+  renderEquipmentText();
 }
 
-// Typed text: reuse a matching row, otherwise add one. Empty clears the field.
+// Typed text: reuse a matching row, otherwise create one, then add it to the selection.
 async function commitEquipmentText(v) {
-  if (!v) { setEquipment(null); return; }
+  if (!v) return;
   const hit = equipmentCache.find(e => e && String(e.name).toLowerCase() === v.toLowerCase());
-  if (hit) { setEquipment(hit); return; }
+  if (hit) { toggleEquipment(hit); return; }
   try {
     const item = await createEquipment(v);
     if (!equipmentCache.some(e => e && e.id === item.id)) equipmentCache.push(item);
-    setEquipment(item);
+    toggleEquipment(item);
   } catch (e) {
     console.warn('Could not save equipment:', e);
-    setEquipment({ id: null, name: v });   // keep it on the shot even if the KV write failed
+    toggleEquipment({ id: 'local-' + v, name: v });   // keep it on the shot even if the KV write failed
   }
 }
 
@@ -401,18 +427,28 @@ function openEquipmentDropdown() {
   const dd = document.createElement('div');
   dd.className = 'dye-name-dropdown';
 
-  const rows = [{ label: '＋ New…', act: () => makeTextEditable('es-equipment-text', v => commitEquipmentText(v)) }];
-  equipmentCache.slice()
-    .sort((a, b) => String(a.name).localeCompare(String(b.name)))
-    .forEach(e => rows.push({ label: e.name, act: () => { textEl.textContent = e.name || '—'; setEquipment(e); } }));
-
-  rows.forEach(r => {
-    const row = document.createElement('div');
-    row.className = 'read-from-item';
-    row.textContent = r.label;
-    row.addEventListener('click', (ev) => { ev.stopPropagation(); dd.remove(); r.act(); });
-    dd.appendChild(row);
-  });
+  const renderRows = () => {
+    dd.innerHTML = '';
+    const { ids } = equipmentArrays(currentShot && currentShot.annotations && currentShot.annotations.extras);
+    const newRow = document.createElement('div');
+    newRow.className = 'read-from-item';
+    newRow.textContent = '＋ New…';
+    newRow.addEventListener('click', (ev) => {
+      ev.stopPropagation(); dd.remove();
+      makeTextEditable('es-equipment-text', v => commitEquipmentText(v).then(renderEquipmentText));
+    });
+    dd.appendChild(newRow);
+    equipmentCache.slice()
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+      .forEach(e => {
+        const row = document.createElement('div');
+        row.className = 'read-from-item';
+        row.textContent = (ids.includes(e.id) ? '✓ ' : '') + e.name;
+        row.addEventListener('click', (ev) => { ev.stopPropagation(); toggleEquipment(e); renderRows(); });
+        dd.appendChild(row);
+      });
+  };
+  renderRows();
   box.appendChild(dd);
   setTimeout(() => document.addEventListener('click', function close(ev) {
     if (!dd.contains(ev.target)) { dd.remove(); document.removeEventListener('click', close); }
@@ -549,9 +585,9 @@ function renderShot(shot) {
   const basketEl = document.getElementById('es-basket-text');
   if (basketEl) basketEl.textContent = (ann.extras && ann.extras.basketName) || '—';
 
-  // Equipment, same annotations.extras home as basket/RPM.
-  const equipEl = document.getElementById('es-equipment-text');
-  if (equipEl) equipEl.textContent = (ann.extras && ann.extras.equipmentName) || '—';
+  // Equipment, same annotations.extras home as basket/RPM. Multi-select: a shot can carry
+  // several rows (RDT, WDT, dosing ring, ...), joined for display.
+  renderEquipmentText();
 
   const baristaEl = document.getElementById('es-barista-text');
   if (baristaEl) baristaEl.textContent = ctx.baristaName || ctx.barista || '—';
@@ -601,6 +637,7 @@ function shotDialing(shot) {
   const ann = (shot && shot.annotations) || {};
   const wf  = (shot && shot.workflow) || {};
   const ctx = wf.context || {}, dd = wf.doseData || {}, gd = wf.grinderData || {};
+  const equip = equipmentArrays(ann.extras);
   return {
     dose:  ann.actualDoseWeight != null ? ann.actualDoseWeight : dd.doseIn,
     yield: ann.actualYield      != null ? ann.actualYield      : dd.doseOut,
@@ -608,8 +645,8 @@ function shotDialing(shot) {
     rpm:   (ann.extras && ann.extras.rpm != null) ? ann.extras.rpm : gd.rpm,
     basketId:   ann.extras && ann.extras.basketId,
     basketName: ann.extras && ann.extras.basketName,
-    equipmentId:   ann.extras && ann.extras.equipmentId,
-    equipmentName: ann.extras && ann.extras.equipmentName,
+    equipmentIds:   equip.ids,
+    equipmentNames: equip.names,
     barista: ctx.baristaName || ctx.barista,
     drinker: ctx.drinkerName || ctx.drinker,
   };
@@ -619,6 +656,7 @@ function shotDialing(shot) {
 async function workflowDialing() {
   const wf = await getWorkflow().catch(() => null);
   const ctx = (wf && wf.context) || {};
+  const equip = equipmentArrays(ctx.extras);
   return {
     dose:  ctx.targetDoseWeight,
     yield: ctx.targetYield,
@@ -626,8 +664,8 @@ async function workflowDialing() {
     rpm:   ctx.extras && ctx.extras.rpm,
     basketId:   ctx.extras && ctx.extras.basketId,
     basketName: ctx.extras && ctx.extras.basketName,
-    equipmentId:   ctx.extras && ctx.extras.equipmentId,
-    equipmentName: ctx.extras && ctx.extras.equipmentName,
+    equipmentIds:   equip.ids,
+    equipmentNames: equip.names,
     barista: ctx.baristaName || ctx.barista,
     drinker: ctx.drinkerName || ctx.drinker,
   };
@@ -645,7 +683,12 @@ function applyDialing(d) {
   if (d.grind != null) ctx.grinderSetting = String(d.grind);
   if (d.rpm   != null) { ann.extras = ann.extras || {}; ann.extras.rpm = d.rpm; }
   if (d.basketId != null) { ann.extras = ann.extras || {}; ann.extras.basketId = d.basketId; ann.extras.basketName = d.basketName; }
-  if (d.equipmentName != null) { ann.extras = ann.extras || {}; ann.extras.equipmentId = d.equipmentId; ann.extras.equipmentName = d.equipmentName; }
+  if (d.equipmentNames && d.equipmentNames.length) {
+    ann.extras = ann.extras || {};
+    ann.extras.equipmentIds = d.equipmentIds.slice();
+    ann.extras.equipmentNames = d.equipmentNames.slice();
+    delete ann.extras.equipmentId; delete ann.extras.equipmentName;
+  }
   if (d.barista) ctx.baristaName = d.barista;
   if (d.drinker) ctx.drinkerName = d.drinker;
   renderShot(currentShot);
@@ -718,13 +761,16 @@ function setupControls() {
   document.getElementById('es-basket-expand')?.addEventListener('click', goBasket);
   document.getElementById('es-basket-text')?.addEventListener('click', goBasket);
 
-  // Equipment → expand lists saved kit; tapping the text types a new one (saved to KV).
+  // Equipment → expand (or tapping the text) opens a multi-select dropdown of saved kit;
+  // "＋ New…" in that dropdown types and adds a new row (saved to KV).
   document.getElementById('es-equipment-expand')?.addEventListener('click', (e) => {
     e.stopPropagation();
     openEquipmentDropdown();
   });
-  document.getElementById('es-equipment-text')?.addEventListener('click', () =>
-    makeTextEditable('es-equipment-text', v => commitEquipmentText(v)));
+  document.getElementById('es-equipment-text')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openEquipmentDropdown();
+  });
 
   // Barista / Drinker → expand shows remembered-name dropdown; tapping the text types a new one.
   const setBarista = v => { wfctx().baristaName = v; };
