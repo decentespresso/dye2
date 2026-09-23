@@ -493,7 +493,6 @@ function buildContent(): string { return `
 const pageScript = `
 let grinders = [];
 let recipes = [];
-let currentGrinderIndex = 0;
 let currentWorkflow = null;
 let currentStarRating = 0;
 let currentShotNote = '';
@@ -1036,17 +1035,37 @@ function renderNextShot() {
   renderRecipePills(wf);
 }
 
+// Burr info in parentheses so two burr sets on the same model (e.g. "EK43") don't render
+// as identical, indistinguishable tabs.
+function grinderTabLabel(g) {
+  const name = g.model || g.name || 'Grinder';
+  const parts = [];
+  if (g.burrs) parts.push(g.burrs);
+  if (g.burrType) parts.push(g.burrType);
+  if (g.burrSize) parts.push(g.burrSize + 'mm');
+  return parts.length ? name + ' (' + parts.join(' · ') + ')' : name;
+}
+
 function renderGrinderTabs() {
   const container = document.getElementById('dye-grinder-tabs');
   if (!container || grinders.length === 0) return;
   container.innerHTML = '';
+  const ctx = (currentWorkflow && currentWorkflow.context) || {};
+  // Match by id first (unambiguous between two grinders sharing a model name); fall back
+  // to model for older workflow state that only ever carried the string.
+  const activeIdx = grinders.findIndex(g => ctx.grinderId ? g.id === ctx.grinderId : (g.model || g.name) === ctx.grinderModel);
   grinders.forEach((g, i) => {
     const tab = document.createElement('button');
-    tab.className = 'dye-grinder-tab' + (i === currentGrinderIndex ? ' active' : '');
-    tab.textContent = g.model || g.name || ('Grinder ' + (i + 1));
+    tab.className = 'dye-grinder-tab' + (i === activeIdx ? ' active' : '');
+    tab.textContent = grinderTabLabel(g);
     tab.addEventListener('click', () => {
-      currentGrinderIndex = i;
-      document.querySelectorAll('.dye-grinder-tab').forEach((t, j) => t.classList.toggle('active', j === i));
+      if (!currentWorkflow) return;
+      snapshotWorkflow();
+      currentWorkflow.context = currentWorkflow.context || {};
+      currentWorkflow.context.grinderId = g.id;
+      currentWorkflow.context.grinderModel = g.model || g.name;
+      renderGrinderTabs();
+      updateWorkflow(currentWorkflow).catch(e => console.warn(e));
     });
     container.appendChild(tab);
   });
