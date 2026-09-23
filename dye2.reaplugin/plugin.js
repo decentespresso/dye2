@@ -6613,11 +6613,15 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
     background: var(--box-color); border: 2px solid var(--profile-button-outline-color);
     border-radius: 15px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); z-index: 50;
   }
-  .equip-value-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-  .equip-value-row label { width: 160px; flex-shrink: 0; font-weight: 600; font-size: 20px; }
+  /* Matches the right-hand column's field rows (expandFieldHtml): gray page background,
+     white bordered field boxes — not the plain white notes-modal look. */
+  #es-equip-values-overlay .notes-modal { background: var(--bgmain-color); }
+  .equip-value-row { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; }
+  .equip-value-row label { width: 160px; flex-shrink: 0; font-weight: 700; font-size: 24px; color: var(--mimoja-blue); }
   .equip-value-row input {
-    flex: 1; font: inherit; font-size: 20px; border: 1px solid var(--profile-button-outline-color);
-    border-radius: 10px; padding: 10px 14px; outline: none; color: var(--text-primary); background: var(--box-color);
+    flex: 1; font: inherit; font-size: 24px; font-weight: 400; color: var(--text-primary);
+    border: 1px solid var(--profile-button-outline-color); border-radius: 12px;
+    padding: 0 20px; height: 72px; outline: none; background: var(--box-color);
   }
 `;
 	function buildContent$2() {
