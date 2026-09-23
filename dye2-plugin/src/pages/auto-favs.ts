@@ -33,6 +33,19 @@ const styles = `
     font-family: 'Inter', sans-serif; font-weight: 700; font-size: 22px;
     color: var(--mimoja-blue); padding: 10px 2px 0;
   }
+  .dye-suggested-banner {
+    margin: 14px 20px 0; padding: 14px 20px; border-radius: 12px;
+    background: var(--dye-surface, #F8FAFC); border: 1px solid var(--profile-button-outline-color);
+    font-family: 'Inter', sans-serif; font-size: 19px; font-weight: 400;
+    color: var(--text-primary); line-height: 1.4;
+  }
+  .fav-card-suggested-badge {
+    align-self: flex-start;
+    font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 700;
+    color: var(--mimoja-blue); background: var(--bgmain-color);
+    border-radius: 9999px; padding: 3px 12px; margin-bottom: 6px;
+  }
+  .dye-card.dye-card-selected .fav-card-suggested-badge { background: rgba(255,255,255,0.25); color: #fff; }
 `;
 
 const content = `
@@ -43,6 +56,9 @@ const content = `
     <div class="flex flex-col flex-1 overflow-hidden px-[20px]">
       <div class="dye-tab-strip shrink-0" id="dye-tab-strip">
         ${TAB_KEYS.map((k, i) => `<button class="dye-tab-btn${i === 0 ? ' active' : ''}" data-tab="${k}">${TAB_LABELS[i]}</button>`).join('')}
+      </div>
+      <div id="dye-suggested-banner" class="dye-suggested-banner shrink-0" style="display:none">
+        No favourites yet — these are your most-used bean + grinder + profile combos from recent shots. Tap one, then CONFIRM to save it as a real favourite.
       </div>
       <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[20px] pr-[20px]">
         <div id="dye-cards-grid" class="grid grid-cols-3 gap-[30px]"></div>
@@ -59,6 +75,62 @@ let favsCache = [];
 let selectedFavId = null;
 let currentSort = 'recent';
 let currentTab  = 'beans';
+// True when favsCache holds computed suggestions rather than the user's own saved
+// favourites (only happens when they have none yet — see initAutoFavs). Suggestions
+// have no id (never written to the KV store) until the user actually picks one.
+let suggestedMode = false;
+let selectedSuggested = null;
+
+// Recent-shot combos, most-used first, for a first-time (or fully-cleared) user — same
+// idea as "last 5 combinations" from the previous dsx2 iteration. Only ever shown when
+// the user has zero favourites of their own; as soon as they save one for real (see the
+// CONFIRM handler), this stops appearing.
+async function computeSuggestedFavourites() {
+  const res = await getShots({ limit: 100, order: 'desc' }).catch(() => []);
+  const shots = Array.isArray(res) ? res : (res && res.items) || [];
+  const groups = new Map();   // "bean||grinder||profile" -> { count, shot: most recent }
+  shots.forEach(s => {
+    const ctx = (s.workflow && s.workflow.context) || {};
+    if (!ctx.coffeeName) return;   // need at least a bean for a suggestion to mean anything
+    const profileTitle = (s.workflow && s.workflow.profile && s.workflow.profile.title) || '';
+    const key = [ctx.coffeeName, ctx.grinderModel || '', profileTitle].join('||');
+    const g = groups.get(key) || { count: 0, shot: s };
+    g.count++;
+    const gTime = new Date(g.shot.timestamp || g.shot.createdAt || 0);
+    const sTime = new Date(s.timestamp || s.createdAt || 0);
+    if (sTime > gTime) g.shot = s;
+    groups.set(key, g);
+  });
+  return [...groups.values()]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+    .map(g => suggestedFavFromShot(g.shot));
+}
+
+function suggestedFavFromShot(shot) {
+  const wf = shot.workflow || {};
+  const ctx = wf.context || {};
+  const ann = shot.annotations || {};
+  return {
+    suggested: true,   // no id yet — see the CONFIRM handler, which saves it for real on pick
+    title: ctx.coffeeName || 'Suggested favourite',
+    beverage: '',
+    alwaysOnDashboard: true,
+    favSlot: null,
+    copyMask: { profile: true, beans: true, grinder: true, grindSetting: true, dose: true, drink: true },
+    snapshot: {
+      profileId: wf.profile && wf.profile.id, profileTitle: wf.profile && wf.profile.title,
+      beanBatchId: ctx.beanBatchId, coffeeName: ctx.coffeeName, coffeeRoaster: ctx.coffeeRoaster,
+      roastDate: ctx.roastDate,
+      grinderId: ctx.grinderId, grinderModel: ctx.grinderModel,
+      grindSetting: ctx.grinderSetting,
+      rpm: ctx.extras && ctx.extras.rpm,
+      dose: ann.actualDoseWeight != null ? ann.actualDoseWeight : ctx.targetDoseWeight,
+      drink: ann.actualYield != null ? ann.actualYield : ctx.targetYield,
+    },
+    capturedAt: shot.timestamp || shot.createdAt,
+  };
+}
 
 function sortFavs(favs, sortKey) {
   const s = [...favs];
@@ -114,18 +186,21 @@ function renderCards(favs) {
 
     items.forEach(fav => {
       const card = document.createElement('div');
-      card.className = 'dye-card' + (fav.id === selectedFavId ? ' dye-card-selected' : '');
+      const isSelected = fav.suggested ? fav === selectedSuggested : fav.id === selectedFavId;
+      card.className = 'dye-card' + (isSelected ? ' dye-card-selected' : '');
       const title = fav.title || fav.snapshot?.coffeeName || 'Untitled Favourite';
       const sub = fav.snapshot?.coffeeRoaster || '';
       const dateStr = formatFavDate(fav.capturedAt);
       card.innerHTML =
+        (fav.suggested ? '<div class="fav-card-suggested-badge">SUGGESTED</div>' : '') +
         '<div class="fav-card-title">' + title + '</div>' +
         (sub ? '<div class="dye-card-sub">' + sub + '</div>' : '') +
         (dateStr ? '<hr class="dye-card-divider"><div class="fav-card-date">' + dateStr + '</div>' : '');
       card.addEventListener('click', () => {
         grid.querySelectorAll('.dye-card').forEach(c => c.classList.remove('dye-card-selected'));
         card.classList.add('dye-card-selected');
-        selectedFavId = fav.id;
+        if (fav.suggested) { selectedSuggested = fav; selectedFavId = null; }
+        else { selectedFavId = fav.id; selectedSuggested = null; }
         const confirmBtn = document.getElementById('dye-confirm-btn');
         if (confirmBtn) confirmBtn.classList.remove('opacity-50');
       });
@@ -133,23 +208,26 @@ function renderCards(favs) {
       // a poor fit on the tablet — it competes with the WebView's own double-tap handling
       // and gives no feedback that a second tap is expected. Same 500ms press and
       // click-swallowing as the preset chips (attachPresetLongPress in shared-components).
-      let editTimer = null, longFired = false;
-      const clearEdit = () => { if (editTimer) { clearTimeout(editTimer); editTimer = null; } };
-      card.addEventListener('pointerdown', () => {
-        longFired = false;
-        clearEdit();
-        editTimer = setTimeout(() => {
-          editTimer = null;
-          longFired = true;
-          sessionStorage.setItem('dye_editAutoFavId', fav.id);
-          window.location.href = 'auto-fav-edit';
-        }, 500);
-      });
-      ['pointerup','pointerleave','pointercancel'].forEach(ev => card.addEventListener(ev, clearEdit));
-      // Capture phase: stop the trailing click from also re-selecting the card.
-      card.addEventListener('click', (e) => {
-        if (longFired) { e.stopImmediatePropagation(); e.preventDefault(); longFired = false; }
-      }, true);
+      // Suggested cards have nothing to edit yet — they're not saved until CONFIRM.
+      if (!fav.suggested) {
+        let editTimer = null, longFired = false;
+        const clearEdit = () => { if (editTimer) { clearTimeout(editTimer); editTimer = null; } };
+        card.addEventListener('pointerdown', () => {
+          longFired = false;
+          clearEdit();
+          editTimer = setTimeout(() => {
+            editTimer = null;
+            longFired = true;
+            sessionStorage.setItem('dye_editAutoFavId', fav.id);
+            window.location.href = 'auto-fav-edit';
+          }, 500);
+        });
+        ['pointerup','pointerleave','pointercancel'].forEach(ev => card.addEventListener(ev, clearEdit));
+        // Capture phase: stop the trailing click from also re-selecting the card.
+        card.addEventListener('click', (e) => {
+          if (longFired) { e.stopImmediatePropagation(); e.preventDefault(); longFired = false; }
+        }, true);
+      }
       grid.appendChild(card);
     });
   });
@@ -188,9 +266,20 @@ async function initAutoFavs() {
   setupSortButtons(sort => { currentSort = sort; render(); });
 
   document.getElementById('dye-cancel-btn')?.addEventListener('click', () => window.history.back());
-  document.getElementById('dye-confirm-btn')?.addEventListener('click', () => {
-    if (!selectedFavId) return;
-    sessionStorage.setItem('dye_selectedAutoFavId', selectedFavId);
+  document.getElementById('dye-confirm-btn')?.addEventListener('click', async () => {
+    if (selectedSuggested) {
+      // First real pick out of the suggestions — save it for real. From here on the user
+      // has a favourite of their own, so suggestions won't be offered again.
+      try {
+        const { suggested, ...toSave } = selectedSuggested;   // internal-only flag, not part of the saved schema
+        const created = await createAutoFavourite(toSave);
+        sessionStorage.setItem('dye_selectedAutoFavId', created.id);
+      } catch (e) { console.warn('Could not save suggested favourite:', e); return; }
+    } else if (selectedFavId) {
+      sessionStorage.setItem('dye_selectedAutoFavId', selectedFavId);
+    } else {
+      return;
+    }
     window.history.back();
   });
 
@@ -201,6 +290,14 @@ async function initAutoFavs() {
     console.warn('Auto favourites endpoint not available yet:', e);
     favsCache = [];
   }
+
+  if (favsCache.length === 0) {
+    try { favsCache = await computeSuggestedFavourites(); } catch (e) { console.warn('Could not compute suggested favourites:', e); }
+    suggestedMode = favsCache.length > 0;
+  }
+  const banner = document.getElementById('dye-suggested-banner');
+  if (banner) banner.style.display = suggestedMode ? '' : 'none';
+
   render();
 }
 
