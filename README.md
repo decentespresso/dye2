@@ -7,6 +7,7 @@ DYE2 (Describe Your Espresso) is a plugin for [Decaid](https://github.com/decent
 | I want to… | Go to |
 |---|---|
 | Use DYE2 | [User manual](MANUAL.md) · [Releases](../../releases) |
+| Work on the code (human or AI) | [Repository map](docs/AI_REPO_MAP.md) — routes any task to the one note that covers it |
 | Build a Decaid plugin | [For plugin developers](#for-plugin-developers) below |
 | Read the plugin contract | Decaid's [`doc/Plugins.md`](https://github.com/decentespresso/decaid/blob/main/doc/Plugins.md) |
 
