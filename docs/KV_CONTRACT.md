@@ -59,7 +59,8 @@ plugin-specific client or SDK needed, from a terminal or from a skin's own
 browser-side code.
 
 From a terminal, against a bridge reachable at `<bridge-host>:8080` (the
-dev server proxies the same path at `:4444`, see `dye2-plugin/README.md`):
+dev server proxies the same path at `:4444`, see the root `README.md`'s
+"Build and run" section):
 
 ```bash
 curl http://<bridge-host>:8080/api/v1/store/dye2.reaplugin/equipment | jq
