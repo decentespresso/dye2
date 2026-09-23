@@ -237,6 +237,11 @@ async function updateEquipment(id, data) {
   return item;
 }
 
+async function deleteEquipment(id) {
+  const arr = await kvGetArray('equipment');
+  await kvSetArray('equipment', arr.filter(x => !(x && x.id === id)));
+}
+
 /* ── Denormalised fields written for the Streamline dashboard (read-only consumer).
    Both builders return a ready-to-PUT WorkflowRequest body { context, profile? }.
    They mirror dashboard.ts applyAutoFavourite/applyRecipe, but build a fresh ctx

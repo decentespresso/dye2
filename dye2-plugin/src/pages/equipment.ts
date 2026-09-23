@@ -118,6 +118,7 @@ const styles = `
   }
   .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
+  .dye-btn-danger { background: transparent; color: #E53935; border: 2px solid #E53935; margin-right: auto; }
   .dye-modal-error { color: #C0392B; font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
@@ -171,6 +172,7 @@ const content = `
         </div>
         <div id="dye-modal-error" class="dye-modal-error dye-hidden"></div>
         <div class="dye-modal-actions">
+          <button type="button" id="dye-modal-delete" class="dye-btn dye-btn-danger dye-hidden">DELETE</button>
           <button type="button" id="dye-modal-cancel" class="dye-btn dye-btn-ghost">CANCEL</button>
           <button type="submit" id="dye-modal-save" class="dye-btn dye-btn-primary">SAVE</button>
         </div>
@@ -276,6 +278,7 @@ function openModal(e) {
   editingId = e ? e.id : null;
   document.getElementById('dye-modal-title').textContent = e ? 'Edit Equipment' : 'New Equipment';
   document.getElementById('dye-modal-error').classList.add('dye-hidden');
+  document.getElementById('dye-modal-delete').classList.toggle('dye-hidden', !e);
   form().reset();
   fieldsContainer().innerHTML = '';
   if (e) {
@@ -288,6 +291,20 @@ function openModal(e) {
 function closeModal() {
   document.getElementById('dye-modal-backdrop').classList.remove('open');
   editingId = null;
+}
+
+async function removeEditing() {
+  if (!editingId) return;
+  if (!confirm('Delete this equipment item? Shots that reference it keep their saved name, but the row itself is gone.')) return;
+  try {
+    await deleteEquipment(editingId);
+    closeModal();
+    await reload();
+  } catch (err) {
+    const errEl = document.getElementById('dye-modal-error');
+    errEl.textContent = 'Delete failed: ' + err.message;
+    errEl.classList.remove('dye-hidden');
+  }
 }
 
 async function submitForm() {
@@ -330,6 +347,7 @@ async function initializeDyeEquipment() {
 
   document.getElementById('dye-done-btn')?.addEventListener('click', () => window.history.back());
   document.getElementById('dye-modal-cancel')?.addEventListener('click', closeModal);
+  document.getElementById('dye-modal-delete')?.addEventListener('click', removeEditing);
   document.getElementById('dye-add-field-btn')?.addEventListener('click', () => addFieldRow('', ''));
   document.getElementById('dye-modal-backdrop')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeModal();

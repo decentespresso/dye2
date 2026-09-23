@@ -188,7 +188,22 @@ key, and so a deleted row does not blank out old shots). One Equipment row is
 one named kit item (e.g. "V60 kit") with its own `custom` fields — it is not
 itself a bundle of unrelated tools; a shot bundles multiple rows by picking
 several from the edit-shot dropdown (e.g. "RDT tool" + "WDT tool" + "Dosing
-ring"). Older shots (pre-multi-select) may still carry the singular
+ring").
+
+The same kit item can be dialed differently shot to shot (e.g. a WDT tool
+used for 15s on one shot, 20s on another). A shot may override a selected
+row's field *values* — never its keys or which fields exist — via
+`annotations.extras.equipmentCustom`, keyed by equipment id:
+
+```
+equipmentCustom: {
+  "<equipment id>": [{ key, value }, ...],   // same keys as that row's `custom`, values only
+}
+```
+
+Absent here means "use the row's own `custom` values as the default" —
+consumers should fall back to `equipment[].custom` for any id with no entry
+(or no key) in `equipmentCustom`. Older shots (pre-multi-select) may still carry the singular
 `annotations.extras.equipmentId` / `equipmentName` instead — treat that as a
 one-item equivalent of the arrays above; DYE2 migrates a shot onto the array
 fields (and drops the singular ones) the next time it's edited and saved.

@@ -71,6 +71,12 @@ const styles = `
     background: var(--box-color); border: 2px solid var(--profile-button-outline-color);
     border-radius: 15px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); z-index: 50;
   }
+  .equip-value-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+  .equip-value-row label { width: 160px; flex-shrink: 0; font-weight: 600; font-size: 20px; }
+  .equip-value-row input {
+    flex: 1; font: inherit; font-size: 20px; border: 1px solid var(--profile-button-outline-color);
+    border-radius: 10px; padding: 10px 14px; outline: none; color: var(--text-primary); background: var(--box-color);
+  }
 `;
 
 function buildContent(): string {
@@ -219,10 +225,26 @@ function buildContent(): string {
     </div>
   </div>
 </div>
+
+<!-- Equipment per-shot value editor: same equipment item, different values per shot
+     (e.g. a dosing ring dialed differently) -->
+<div id="es-equip-values-overlay" class="notes-overlay">
+  <div class="notes-modal">
+    <h2 id="es-equip-values-title">Equipment</h2>
+    <div id="es-equip-values-fields"></div>
+    <div style="display:flex;gap:16px;margin-top:24px;justify-content:flex-end">
+      <button class="notes-modal-close" id="es-equip-values-cancel" style="margin-top:0;background:transparent;color:var(--text-primary);border:2px solid var(--profile-button-outline-color)">Cancel</button>
+      <button class="notes-modal-close" id="es-equip-values-save" style="margin-top:0">Save</button>
+    </div>
+  </div>
+</div>
 `;
 }
 
+const equipPencilSvgJs = JSON.stringify(lucideIcon('pencil', 20, 'var(--mimoja-blue)', 2));
+
 const pageScript = `
+const PENCIL_SVG = ${equipPencilSvgJs};
 let currentShot = null;
 let currentStarRating = 0;
 let allShots = [];
@@ -417,6 +439,57 @@ async function commitEquipmentText(v) {
   }
 }
 
+// Per-shot value overrides: the same equipment item can carry different custom-field values
+// from shot to shot (e.g. a dosing ring dialed differently), stored keyed by item id in
+// annotations.extras.equipmentCustom. Falls back to the item's own saved defaults until edited.
+function equipmentCustomFor(extras, item) {
+  const overrides = (extras && extras.equipmentCustom) || {};
+  const stored = overrides[item.id];
+  if (Array.isArray(stored)) return stored.map(f => ({ ...f }));
+  return (Array.isArray(item.custom) ? item.custom : []).map(f => ({ ...f }));
+}
+
+let editingEquipItem = null;
+
+function openEquipmentValuesEditor(item) {
+  if (!currentShot) return;
+  editingEquipItem = item;
+  const fields = equipmentCustomFor(currentShot.annotations && currentShot.annotations.extras, item);
+  document.getElementById('es-equip-values-title').textContent = item.name;
+  const container = document.getElementById('es-equip-values-fields');
+  container.innerHTML = '';
+  fields.forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'equip-value-row';
+    const label = document.createElement('label');
+    label.textContent = f.key;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = f.value || '';
+    input.dataset.key = f.key;
+    row.appendChild(label);
+    row.appendChild(input);
+    container.appendChild(row);
+  });
+  document.getElementById('es-equip-values-overlay')?.classList.add('open');
+}
+
+function closeEquipmentValuesEditor() {
+  document.getElementById('es-equip-values-overlay')?.classList.remove('open');
+  editingEquipItem = null;
+}
+
+function saveEquipmentValues() {
+  if (!currentShot || !editingEquipItem) { closeEquipmentValuesEditor(); return; }
+  currentShot.annotations = currentShot.annotations || {};
+  currentShot.annotations.extras = currentShot.annotations.extras || {};
+  const ex = currentShot.annotations.extras;
+  ex.equipmentCustom = ex.equipmentCustom || {};
+  const inputs = [...document.querySelectorAll('#es-equip-values-fields input')];
+  ex.equipmentCustom[editingEquipItem.id] = inputs.map(inp => ({ key: inp.dataset.key, value: inp.value.trim() }));
+  closeEquipmentValuesEditor();
+}
+
 function openEquipmentDropdown() {
   const textEl = document.getElementById('es-equipment-text');
   if (!textEl) return;
@@ -430,20 +503,55 @@ function openEquipmentDropdown() {
   const renderRows = () => {
     dd.innerHTML = '';
     const { ids } = equipmentArrays(currentShot && currentShot.annotations && currentShot.annotations.extras);
+
+    // "+ New…" always starts as an empty input — it must not inherit the summary text
+    // shown in the field above, which is the comma-joined list of everything already picked.
     const newRow = document.createElement('div');
     newRow.className = 'read-from-item';
     newRow.textContent = '＋ New…';
     newRow.addEventListener('click', (ev) => {
-      ev.stopPropagation(); dd.remove();
-      makeTextEditable('es-equipment-text', v => commitEquipmentText(v).then(renderEquipmentText));
+      ev.stopPropagation();
+      if (newRow.querySelector('input')) return;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = 'New equipment name';
+      input.style.cssText = 'width:100%;font:inherit;border:1px solid var(--mimoja-blue);border-radius:8px;background:#fff;color:inherit;outline:none;padding:4px 8px';
+      input.addEventListener('click', ev2 => ev2.stopPropagation());
+      newRow.textContent = '';
+      newRow.appendChild(input);
+      input.focus();
+      let done = false;
+      const commit = async (apply) => {
+        if (done) return; done = true;
+        const v = input.value.trim();
+        if (apply && v) await commitEquipmentText(v);
+        renderRows();   // refresh whether committed or cancelled — restores the "+ New…" row
+      };
+      input.addEventListener('keydown', ev2 => {
+        if (ev2.key === 'Enter') { ev2.preventDefault(); commit(true); }
+        else if (ev2.key === 'Escape') { ev2.preventDefault(); commit(false); }
+      });
+      input.addEventListener('blur', () => commit(true));
     });
     dd.appendChild(newRow);
+
     equipmentCache.slice()
       .sort((a, b) => String(a.name).localeCompare(String(b.name)))
       .forEach(e => {
         const row = document.createElement('div');
         row.className = 'read-from-item';
-        row.textContent = (ids.includes(e.id) ? '✓ ' : '') + e.name;
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px';
+        const label = document.createElement('span');
+        label.textContent = (ids.includes(e.id) ? '✓ ' : '') + e.name;
+        row.appendChild(label);
+        // Only a selected item's values apply to this shot, and only when it has fields to edit.
+        if (ids.includes(e.id) && Array.isArray(e.custom) && e.custom.length) {
+          const editBtn = document.createElement('span');
+          editBtn.innerHTML = PENCIL_SVG;
+          editBtn.style.cssText = 'display:flex;flex-shrink:0';
+          editBtn.addEventListener('click', (ev) => { ev.stopPropagation(); dd.remove(); openEquipmentValuesEditor(e); });
+          row.appendChild(editBtn);
+        }
         row.addEventListener('click', (ev) => { ev.stopPropagation(); toggleEquipment(e); renderRows(); });
         dd.appendChild(row);
       });
@@ -647,6 +755,7 @@ function shotDialing(shot) {
     basketName: ann.extras && ann.extras.basketName,
     equipmentIds:   equip.ids,
     equipmentNames: equip.names,
+    equipmentCustom: (ann.extras && ann.extras.equipmentCustom) || null,
     barista: ctx.baristaName || ctx.barista,
     drinker: ctx.drinkerName || ctx.drinker,
   };
@@ -687,6 +796,7 @@ function applyDialing(d) {
     ann.extras = ann.extras || {};
     ann.extras.equipmentIds = d.equipmentIds.slice();
     ann.extras.equipmentNames = d.equipmentNames.slice();
+    if (d.equipmentCustom) ann.extras.equipmentCustom = JSON.parse(JSON.stringify(d.equipmentCustom));
     delete ann.extras.equipmentId; delete ann.extras.equipmentName;
   }
   if (d.barista) ctx.baristaName = d.barista;
@@ -771,6 +881,8 @@ function setupControls() {
     e.stopPropagation();
     openEquipmentDropdown();
   });
+  document.getElementById('es-equip-values-cancel')?.addEventListener('click', closeEquipmentValuesEditor);
+  document.getElementById('es-equip-values-save')?.addEventListener('click', saveEquipmentValues);
 
   // Barista / Drinker → expand shows remembered-name dropdown; tapping the text types a new one.
   const setBarista = v => { wfctx().baristaName = v; };
