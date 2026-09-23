@@ -130,9 +130,11 @@ function rowHtml(id: string, label: string, on: boolean, editorInner: string): s
   </div>`;
 }
 
+// readonly by default so tapping to pick an existing option doesn't pop the keyboard —
+// see beginEdit()/renderDrop(). LOOKUP_ALLOW_NEW fields take it out of readonly to type.
 function lookupEditor(id: string, label: string): string {
   return `<div class="afe-combo">
-    <input id="${id}-input" class="afe-combo-input" type="text" placeholder="Search ${label}…" autocomplete="off" data-field="${id}" />
+    <input id="${id}-input" class="afe-combo-input" type="text" placeholder="${label}" autocomplete="off" data-field="${id}" readonly />
     <div id="${id}-drop" class="afe-combo-drop"></div>
   </div>`;
 }
@@ -298,6 +300,10 @@ const LOOKUP_SOURCES = {
   'afe-barista': { load: () => distinctNames('baristaName') },
   'afe-drinker': { load: () => distinctNames('drinkerName') },
 };
+// Profile/Beans/Grinder/Basket only ever point at a real existing row (pick-only — a new
+// one is created on its own page, not here). Barista/Drinker are free-form names, so they
+// keep a "+ New…" escape hatch that takes the field out of readonly to type one.
+const LOOKUP_ALLOW_NEW = { 'afe-barista': true, 'afe-drinker': true };
 const lookupCache = {};
 const lookupState = {};   // field -> {id, label}
 
@@ -312,25 +318,57 @@ function filterOptions(opts, q) {
   const s = (q || '').trim().toLowerCase();
   return s ? opts.filter(o => o.label.toLowerCase().includes(s)) : opts;
 }
+function startTypingNew(field) {
+  const input = el(field + '-input');
+  const drop = el(field + '-drop');
+  if (drop) drop.classList.remove('open');
+  input.readOnly = false;
+  input.value = '';
+  lookupState[field] = { id: null, label: '' };
+  input.focus();
+  // Belt-and-braces alongside the 'blur' listener: a tap on a plain non-focusable area
+  // doesn't reliably blur a focused input on every WebView, so also watch for a click
+  // anywhere outside the field itself.
+  const pencil = document.querySelector('[data-editrow="' + field + '"]');
+  setTimeout(() => document.addEventListener('click', function outside(ev) {
+    if (ev.target !== input && ev.target !== pencil && !(drop && drop.contains(ev.target))) {
+      document.removeEventListener('click', outside);
+      if (editing === field) endEdit(field);
+    }
+  }), 0);
+}
 function renderDrop(field, opts) {
   const drop = el(field + '-drop');
   if (!drop) return;
-  drop.innerHTML = opts.length
-    ? opts.slice(0, 50).map((o, i) => '<div class="afe-combo-opt" data-idx="' + i + '">' + o.label + '</div>').join('')
-    : '<div class="afe-combo-empty">No matches</div>';
+  drop.innerHTML = '';
+  if (LOOKUP_ALLOW_NEW[field]) {
+    const newRow = document.createElement('div');
+    newRow.className = 'afe-combo-opt';
+    newRow.textContent = '＋ New…';
+    newRow.addEventListener('mousedown', (ev) => { ev.preventDefault(); startTypingNew(field); });
+    drop.appendChild(newRow);
+  }
+  if (!opts.length) {
+    drop.insertAdjacentHTML('beforeend', '<div class="afe-combo-empty">No matches</div>');
+  } else {
+    opts.slice(0, 50).forEach((o, i) => {
+      const row = document.createElement('div');
+      row.className = 'afe-combo-opt';
+      row.textContent = o.label;
+      row.addEventListener('mousedown', (ev) => { ev.preventDefault(); chooseLookup(field, o); });
+      drop.appendChild(row);
+    });
+  }
   drop.classList.add('open');
-  drop.querySelectorAll('.afe-combo-opt').forEach(elm => {
-    elm.addEventListener('mousedown', (ev) => { ev.preventDefault(); chooseLookup(field, opts[parseInt(elm.dataset.idx)]); });
-  });
 }
+// Not readonly only while actively typing a "+ New…" value (see startTypingNew) — that's
+// the only time input.value holds anything, so this doubles as the live filter query.
 async function openMatches(field) {
   const input = el(field + '-input');
   renderDrop(field, filterOptions(await loadOptions(field), input ? input.value : ''));
 }
 function chooseLookup(field, opt) {
   lookupState[field] = opt;
-  const input = el(field + '-input');
-  if (input) input.value = opt.label;
   const drop = el(field + '-drop');
   if (drop) drop.classList.remove('open');
   if (field === 'afe-beans' && opt.id) fillRoastDateFromBean(opt.id);
@@ -414,6 +452,10 @@ function beginEdit(id) {
 function endEdit(id) {
   const kind = FIELD_KINDS[id], input = el(id + '-input');
   if (kind === 'number' && input) { const v = input.value.trim(); const n = Number(v); editVals[id] = (v === '' || isNaN(n)) ? null : n; }
+  // No-op unless "+ New..." took it out of readonly. Clearing value too, so the next
+  // openMatches() (which filters by input.value) shows the full list again, not just
+  // whatever was last typed/picked.
+  if (kind === 'lookup' && input) { input.readOnly = true; input.value = ''; }
   const drop = el(id + '-drop'); if (drop) drop.classList.remove('open');
   refreshValue(id);
   if (kind === 'note' && input) input.style.display = 'none';
@@ -453,10 +495,12 @@ function getAssignedSlot() {
   return active ? parseInt(active.dataset.num) : null;
 }
 function set(id, val) { const e = el(id); if (e) e.textContent = val == null ? '—' : val; }
+// input.value is only ever the "+ New..." typing buffer now (see startTypingNew /
+// renderDrop) — the read-only value span shows lookupState[field].label instead, so
+// there's no reason to mirror label into the input; doing so would make the next
+// openMatches() filter the picker down to just what's currently selected.
 function initLookup(field, label, id) {
-  const input = el(field + '-input');
-  if (label) { lookupState[field] = { id: id || null, label }; if (input) input.value = label; }
-  else if (input) input.value = '';
+  lookupState[field] = label ? { id: id || null, label } : null;
 }
 
 // Older snapshots stored only the id (no grinderModel/profileTitle), so initLookup falls
@@ -468,8 +512,6 @@ async function resolveLookupLabel(field, id) {
   const opt = (await loadOptions(field)).find(o => String(o.id) === String(id));
   if (!opt) return;
   lookupState[field] = opt;
-  const input = el(field + '-input');
-  if (input) input.value = opt.label;
   refreshValue(field);
 }
 
