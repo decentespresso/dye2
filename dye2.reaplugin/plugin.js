@@ -5201,7 +5201,7 @@ function plotHistoricalShot(measurements, workflow) {
             <div id="dye-next-date" class="text-[var(--text-primary)] font-normal text-[24px] leading-[1.2]">—</div>
           </div>
           <div class="flex items-center gap-[27px]">
-            <button id="dye-history-btn" class="cursor-pointer">
+            <button id="dye-history-btn" class="cursor-pointer" title="Undo — reverts your last change here; tap again to redo it" aria-label="Undo last change">
               <img src="${iconHistory}" width="42" height="42" alt="History" />
             </button>
             <button id="dye-clipboard-btn" class="cursor-pointer">
@@ -7618,6 +7618,19 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
     font-family: 'Inter', sans-serif; font-weight: 700; font-size: 22px;
     color: var(--mimoja-blue); padding: 10px 2px 0;
   }
+  .dye-suggested-banner {
+    margin: 14px 20px 0; padding: 14px 20px; border-radius: 12px;
+    background: var(--dye-surface, #F8FAFC); border: 1px solid var(--profile-button-outline-color);
+    font-family: 'Inter', sans-serif; font-size: 19px; font-weight: 400;
+    color: var(--text-primary); line-height: 1.4;
+  }
+  .fav-card-suggested-badge {
+    align-self: flex-start;
+    font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 700;
+    color: var(--mimoja-blue); background: var(--bgmain-color);
+    border-radius: 9999px; padding: 3px 12px; margin-bottom: 6px;
+  }
+  .dye-card.dye-card-selected .fav-card-suggested-badge { background: rgba(255,255,255,0.25); color: #fff; }
 `;
 	var content$1 = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
@@ -7627,6 +7640,9 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
     <div class="flex flex-col flex-1 overflow-hidden px-[20px]">
       <div class="dye-tab-strip shrink-0" id="dye-tab-strip">
         ${TAB_KEYS.map((k, i) => `<button class="dye-tab-btn${i === 0 ? " active" : ""}" data-tab="${k}">${TAB_LABELS[i]}</button>`).join("")}
+      </div>
+      <div id="dye-suggested-banner" class="dye-suggested-banner shrink-0" style="display:none">
+        No favourites yet — these are your most-used bean + grinder + profile combos from recent shots. Tap one, then CONFIRM to save it as a real favourite.
       </div>
       <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[20px] pr-[20px]">
         <div id="dye-cards-grid" class="grid grid-cols-3 gap-[30px]"></div>
@@ -7642,6 +7658,62 @@ let favsCache = [];
 let selectedFavId = null;
 let currentSort = 'recent';
 let currentTab  = 'beans';
+// True when favsCache holds computed suggestions rather than the user's own saved
+// favourites (only happens when they have none yet — see initAutoFavs). Suggestions
+// have no id (never written to the KV store) until the user actually picks one.
+let suggestedMode = false;
+let selectedSuggested = null;
+
+// Recent-shot combos, most-used first, for a first-time (or fully-cleared) user — same
+// idea as "last 5 combinations" from the previous dsx2 iteration. Only ever shown when
+// the user has zero favourites of their own; as soon as they save one for real (see the
+// CONFIRM handler), this stops appearing.
+async function computeSuggestedFavourites() {
+  const res = await getShots({ limit: 100, order: 'desc' }).catch(() => []);
+  const shots = Array.isArray(res) ? res : (res && res.items) || [];
+  const groups = new Map();   // "bean||grinder||profile" -> { count, shot: most recent }
+  shots.forEach(s => {
+    const ctx = (s.workflow && s.workflow.context) || {};
+    if (!ctx.coffeeName) return;   // need at least a bean for a suggestion to mean anything
+    const profileTitle = (s.workflow && s.workflow.profile && s.workflow.profile.title) || '';
+    const key = [ctx.coffeeName, ctx.grinderModel || '', profileTitle].join('||');
+    const g = groups.get(key) || { count: 0, shot: s };
+    g.count++;
+    const gTime = new Date(g.shot.timestamp || g.shot.createdAt || 0);
+    const sTime = new Date(s.timestamp || s.createdAt || 0);
+    if (sTime > gTime) g.shot = s;
+    groups.set(key, g);
+  });
+  return [...groups.values()]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+    .map(g => suggestedFavFromShot(g.shot));
+}
+
+function suggestedFavFromShot(shot) {
+  const wf = shot.workflow || {};
+  const ctx = wf.context || {};
+  const ann = shot.annotations || {};
+  return {
+    suggested: true,   // no id yet — see the CONFIRM handler, which saves it for real on pick
+    title: ctx.coffeeName || 'Suggested favourite',
+    beverage: '',
+    alwaysOnDashboard: true,
+    favSlot: null,
+    copyMask: { profile: true, beans: true, grinder: true, grindSetting: true, dose: true, drink: true },
+    snapshot: {
+      profileId: wf.profile && wf.profile.id, profileTitle: wf.profile && wf.profile.title,
+      beanBatchId: ctx.beanBatchId, coffeeName: ctx.coffeeName, coffeeRoaster: ctx.coffeeRoaster,
+      roastDate: ctx.roastDate,
+      grinderId: ctx.grinderId, grinderModel: ctx.grinderModel,
+      grindSetting: ctx.grinderSetting,
+      rpm: ctx.extras && ctx.extras.rpm,
+      dose: ann.actualDoseWeight != null ? ann.actualDoseWeight : ctx.targetDoseWeight,
+      drink: ann.actualYield != null ? ann.actualYield : ctx.targetYield,
+    },
+    capturedAt: shot.timestamp || shot.createdAt,
+  };
+}
 
 function sortFavs(favs, sortKey) {
   const s = [...favs];
@@ -7697,18 +7769,21 @@ function renderCards(favs) {
 
     items.forEach(fav => {
       const card = document.createElement('div');
-      card.className = 'dye-card' + (fav.id === selectedFavId ? ' dye-card-selected' : '');
+      const isSelected = fav.suggested ? fav === selectedSuggested : fav.id === selectedFavId;
+      card.className = 'dye-card' + (isSelected ? ' dye-card-selected' : '');
       const title = fav.title || fav.snapshot?.coffeeName || 'Untitled Favourite';
       const sub = fav.snapshot?.coffeeRoaster || '';
       const dateStr = formatFavDate(fav.capturedAt);
       card.innerHTML =
+        (fav.suggested ? '<div class="fav-card-suggested-badge">SUGGESTED</div>' : '') +
         '<div class="fav-card-title">' + title + '</div>' +
         (sub ? '<div class="dye-card-sub">' + sub + '</div>' : '') +
         (dateStr ? '<hr class="dye-card-divider"><div class="fav-card-date">' + dateStr + '</div>' : '');
       card.addEventListener('click', () => {
         grid.querySelectorAll('.dye-card').forEach(c => c.classList.remove('dye-card-selected'));
         card.classList.add('dye-card-selected');
-        selectedFavId = fav.id;
+        if (fav.suggested) { selectedSuggested = fav; selectedFavId = null; }
+        else { selectedFavId = fav.id; selectedSuggested = null; }
         const confirmBtn = document.getElementById('dye-confirm-btn');
         if (confirmBtn) confirmBtn.classList.remove('opacity-50');
       });
@@ -7716,23 +7791,26 @@ function renderCards(favs) {
       // a poor fit on the tablet — it competes with the WebView's own double-tap handling
       // and gives no feedback that a second tap is expected. Same 500ms press and
       // click-swallowing as the preset chips (attachPresetLongPress in shared-components).
-      let editTimer = null, longFired = false;
-      const clearEdit = () => { if (editTimer) { clearTimeout(editTimer); editTimer = null; } };
-      card.addEventListener('pointerdown', () => {
-        longFired = false;
-        clearEdit();
-        editTimer = setTimeout(() => {
-          editTimer = null;
-          longFired = true;
-          sessionStorage.setItem('dye_editAutoFavId', fav.id);
-          window.location.href = 'auto-fav-edit';
-        }, 500);
-      });
-      ['pointerup','pointerleave','pointercancel'].forEach(ev => card.addEventListener(ev, clearEdit));
-      // Capture phase: stop the trailing click from also re-selecting the card.
-      card.addEventListener('click', (e) => {
-        if (longFired) { e.stopImmediatePropagation(); e.preventDefault(); longFired = false; }
-      }, true);
+      // Suggested cards have nothing to edit yet — they're not saved until CONFIRM.
+      if (!fav.suggested) {
+        let editTimer = null, longFired = false;
+        const clearEdit = () => { if (editTimer) { clearTimeout(editTimer); editTimer = null; } };
+        card.addEventListener('pointerdown', () => {
+          longFired = false;
+          clearEdit();
+          editTimer = setTimeout(() => {
+            editTimer = null;
+            longFired = true;
+            sessionStorage.setItem('dye_editAutoFavId', fav.id);
+            window.location.href = 'auto-fav-edit';
+          }, 500);
+        });
+        ['pointerup','pointerleave','pointercancel'].forEach(ev => card.addEventListener(ev, clearEdit));
+        // Capture phase: stop the trailing click from also re-selecting the card.
+        card.addEventListener('click', (e) => {
+          if (longFired) { e.stopImmediatePropagation(); e.preventDefault(); longFired = false; }
+        }, true);
+      }
       grid.appendChild(card);
     });
   });
@@ -7771,9 +7849,20 @@ async function initAutoFavs() {
   setupSortButtons(sort => { currentSort = sort; render(); });
 
   document.getElementById('dye-cancel-btn')?.addEventListener('click', () => window.history.back());
-  document.getElementById('dye-confirm-btn')?.addEventListener('click', () => {
-    if (!selectedFavId) return;
-    sessionStorage.setItem('dye_selectedAutoFavId', selectedFavId);
+  document.getElementById('dye-confirm-btn')?.addEventListener('click', async () => {
+    if (selectedSuggested) {
+      // First real pick out of the suggestions — save it for real. From here on the user
+      // has a favourite of their own, so suggestions won't be offered again.
+      try {
+        const { suggested, ...toSave } = selectedSuggested;   // internal-only flag, not part of the saved schema
+        const created = await createAutoFavourite(toSave);
+        sessionStorage.setItem('dye_selectedAutoFavId', created.id);
+      } catch (e) { console.warn('Could not save suggested favourite:', e); return; }
+    } else if (selectedFavId) {
+      sessionStorage.setItem('dye_selectedAutoFavId', selectedFavId);
+    } else {
+      return;
+    }
     window.history.back();
   });
 
@@ -7784,6 +7873,14 @@ async function initAutoFavs() {
     console.warn('Auto favourites endpoint not available yet:', e);
     favsCache = [];
   }
+
+  if (favsCache.length === 0) {
+    try { favsCache = await computeSuggestedFavourites(); } catch (e) { console.warn('Could not compute suggested favourites:', e); }
+    suggestedMode = favsCache.length > 0;
+  }
+  const banner = document.getElementById('dye-suggested-banner');
+  if (banner) banner.style.display = suggestedMode ? '' : 'none';
+
   render();
 }
 
@@ -8872,7 +8969,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
         <span class="re-field-label">Beverage</span>
         <div class="re-combo">
           <div class="re-input-row">
-            <input id="re-beverage-input" class="re-input" type="text" placeholder="e.g. Cappucino" />
+            <input id="re-beverage-input" class="re-input" type="text" placeholder="e.g. Cappucino" readonly />
             <button class="re-input-pencil" id="re-beverage-pencil">${pencilSvg}</button>
           </div>
           <div id="re-beverage-drop" class="re-combo-drop"></div>
@@ -8884,7 +8981,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
           <span class="re-field-label" style="width:auto">Barista</span>
           <div class="re-combo">
             <div class="re-input-row">
-              <input id="re-barista-input" class="re-input" type="text" placeholder="Barista" />
+              <input id="re-barista-input" class="re-input" type="text" placeholder="Barista" readonly />
               <button class="re-input-pencil" id="re-barista-pencil">${pencilSvg}</button>
             </div>
             <div id="re-barista-drop" class="re-combo-drop"></div>
@@ -8894,7 +8991,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
           <span class="re-field-label" style="width:auto">Drinker</span>
           <div class="re-combo">
             <div class="re-input-row">
-              <input id="re-drinker-input" class="re-input" type="text" placeholder="Drinker" />
+              <input id="re-drinker-input" class="re-input" type="text" placeholder="Drinker" readonly />
               <button class="re-input-pencil" id="re-drinker-pencil">${pencilSvg}</button>
             </div>
             <div id="re-drinker-drop" class="re-combo-drop"></div>
@@ -9528,6 +9625,10 @@ async function distinctBeverages() {
   return [...seen];
 }
 const nameComboCache = {};
+// Tapping the field opens a pick-list instead of the keyboard (the field starts
+// readonly, which the WebView won't pop a keyboard for — same trick the themed date
+// picker already uses). "+ New…" is the only path that hands the keyboard back, and only
+// for as long as it takes to type — blur returns the field to readonly/display mode.
 function setupNameCombo(field, loader) {
   const input = document.getElementById(field + '-input');
   const drop  = document.getElementById(field + '-drop');
@@ -9537,27 +9638,48 @@ function setupNameCombo(field, loader) {
     if (!nameComboCache[field]) { try { nameComboCache[field] = await loader(); } catch (e) { nameComboCache[field] = []; } }
     return nameComboCache[field];
   }
+  function closeDrop() { drop.classList.remove('open'); }
+  function commitTyping() { input.readOnly = true; closeDrop(); }
   async function open() {
+    if (!input.readOnly) return;   // already in "type a new value" mode — let it type, don't reopen
     const opts = await options();
-    const q = (input.value || '').trim().toLowerCase();
-    const list = q ? opts.filter(o => String(o).toLowerCase().includes(q)) : opts;
     drop.innerHTML = '';
-    if (!list.length) {
+    const newRow = document.createElement('div');
+    newRow.className = 're-combo-opt';
+    newRow.textContent = '＋ New…';
+    newRow.addEventListener('mousedown', (ev) => {
+      ev.preventDefault();
+      closeDrop();
+      input.readOnly = false;
+      input.value = '';
+      input.focus();
+      // Belt-and-braces alongside the 'blur' listener below: a tap on a plain (non-focusable)
+      // area doesn't reliably blur a focused input on every WebView, so also watch for a
+      // click anywhere outside the field itself.
+      setTimeout(() => document.addEventListener('click', function outside(ev2) {
+        if (ev2.target !== input && ev2.target !== pencil && !drop.contains(ev2.target)) {
+          commitTyping();
+          document.removeEventListener('click', outside);
+        }
+      }), 0);
+    });
+    drop.appendChild(newRow);
+    if (!opts.length) {
       const e = document.createElement('div'); e.className = 're-combo-empty'; e.textContent = 'No previous entries'; drop.appendChild(e);
     } else {
-      list.slice(0, 50).forEach(o => {
+      opts.slice(0, 50).forEach(o => {
         const el = document.createElement('div'); el.className = 're-combo-opt'; el.textContent = o;
         // mousedown (not click) so the pick lands before the input's blur closes the drop.
-        el.addEventListener('mousedown', (ev) => { ev.preventDefault(); input.value = o; drop.classList.remove('open'); });
+        el.addEventListener('mousedown', (ev) => { ev.preventDefault(); input.value = o; closeDrop(); });
         drop.appendChild(el);
       });
     }
     drop.classList.add('open');
   }
-  pencil?.addEventListener('click', () => { input.focus(); open(); });
-  input.addEventListener('focus', open);
-  input.addEventListener('input', open);
-  input.addEventListener('blur', () => setTimeout(() => drop.classList.remove('open'), 150));
+  pencil?.addEventListener('click', (e) => { e.stopPropagation(); open(); });
+  input.addEventListener('click', open);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+  input.addEventListener('blur', () => setTimeout(commitTyping, 150));
 }
 
 function setupStreamlineToggle() {

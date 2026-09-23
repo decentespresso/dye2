@@ -201,7 +201,7 @@ function buildContent(): string {
         <span class="re-field-label">Beverage</span>
         <div class="re-combo">
           <div class="re-input-row">
-            <input id="re-beverage-input" class="re-input" type="text" placeholder="e.g. Cappucino" />
+            <input id="re-beverage-input" class="re-input" type="text" placeholder="e.g. Cappucino" readonly />
             <button class="re-input-pencil" id="re-beverage-pencil">${pencilSvg}</button>
           </div>
           <div id="re-beverage-drop" class="re-combo-drop"></div>
@@ -213,7 +213,7 @@ function buildContent(): string {
           <span class="re-field-label" style="width:auto">Barista</span>
           <div class="re-combo">
             <div class="re-input-row">
-              <input id="re-barista-input" class="re-input" type="text" placeholder="Barista" />
+              <input id="re-barista-input" class="re-input" type="text" placeholder="Barista" readonly />
               <button class="re-input-pencil" id="re-barista-pencil">${pencilSvg}</button>
             </div>
             <div id="re-barista-drop" class="re-combo-drop"></div>
@@ -223,7 +223,7 @@ function buildContent(): string {
           <span class="re-field-label" style="width:auto">Drinker</span>
           <div class="re-combo">
             <div class="re-input-row">
-              <input id="re-drinker-input" class="re-input" type="text" placeholder="Drinker" />
+              <input id="re-drinker-input" class="re-input" type="text" placeholder="Drinker" readonly />
               <button class="re-input-pencil" id="re-drinker-pencil">${pencilSvg}</button>
             </div>
             <div id="re-drinker-drop" class="re-combo-drop"></div>
@@ -825,6 +825,10 @@ async function distinctBeverages() {
   return [...seen];
 }
 const nameComboCache = {};
+// Tapping the field opens a pick-list instead of the keyboard (the field starts
+// readonly, which the WebView won't pop a keyboard for — same trick the themed date
+// picker already uses). "+ New…" is the only path that hands the keyboard back, and only
+// for as long as it takes to type — blur returns the field to readonly/display mode.
 function setupNameCombo(field, loader) {
   const input = document.getElementById(field + '-input');
   const drop  = document.getElementById(field + '-drop');
@@ -834,27 +838,48 @@ function setupNameCombo(field, loader) {
     if (!nameComboCache[field]) { try { nameComboCache[field] = await loader(); } catch (e) { nameComboCache[field] = []; } }
     return nameComboCache[field];
   }
+  function closeDrop() { drop.classList.remove('open'); }
+  function commitTyping() { input.readOnly = true; closeDrop(); }
   async function open() {
+    if (!input.readOnly) return;   // already in "type a new value" mode — let it type, don't reopen
     const opts = await options();
-    const q = (input.value || '').trim().toLowerCase();
-    const list = q ? opts.filter(o => String(o).toLowerCase().includes(q)) : opts;
     drop.innerHTML = '';
-    if (!list.length) {
+    const newRow = document.createElement('div');
+    newRow.className = 're-combo-opt';
+    newRow.textContent = '＋ New…';
+    newRow.addEventListener('mousedown', (ev) => {
+      ev.preventDefault();
+      closeDrop();
+      input.readOnly = false;
+      input.value = '';
+      input.focus();
+      // Belt-and-braces alongside the 'blur' listener below: a tap on a plain (non-focusable)
+      // area doesn't reliably blur a focused input on every WebView, so also watch for a
+      // click anywhere outside the field itself.
+      setTimeout(() => document.addEventListener('click', function outside(ev2) {
+        if (ev2.target !== input && ev2.target !== pencil && !drop.contains(ev2.target)) {
+          commitTyping();
+          document.removeEventListener('click', outside);
+        }
+      }), 0);
+    });
+    drop.appendChild(newRow);
+    if (!opts.length) {
       const e = document.createElement('div'); e.className = 're-combo-empty'; e.textContent = 'No previous entries'; drop.appendChild(e);
     } else {
-      list.slice(0, 50).forEach(o => {
+      opts.slice(0, 50).forEach(o => {
         const el = document.createElement('div'); el.className = 're-combo-opt'; el.textContent = o;
         // mousedown (not click) so the pick lands before the input's blur closes the drop.
-        el.addEventListener('mousedown', (ev) => { ev.preventDefault(); input.value = o; drop.classList.remove('open'); });
+        el.addEventListener('mousedown', (ev) => { ev.preventDefault(); input.value = o; closeDrop(); });
         drop.appendChild(el);
       });
     }
     drop.classList.add('open');
   }
-  pencil?.addEventListener('click', () => { input.focus(); open(); });
-  input.addEventListener('focus', open);
-  input.addEventListener('input', open);
-  input.addEventListener('blur', () => setTimeout(() => drop.classList.remove('open'), 150));
+  pencil?.addEventListener('click', (e) => { e.stopPropagation(); open(); });
+  input.addEventListener('click', open);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+  input.addEventListener('blur', () => setTimeout(commitTyping, 150));
 }
 
 function setupStreamlineToggle() {
