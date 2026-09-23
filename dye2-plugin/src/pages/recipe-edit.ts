@@ -85,8 +85,12 @@ const styles = `
   .re-vrule { width: 2px; align-self: stretch; background: var(--profile-button-outline-color); flex-shrink: 0; }
   .re-var-block { display: flex; flex-direction: column; gap: 8px; }
   .re-var-label { font-size: 22px; font-weight: 700; color: var(--mimoja-blue); margin-bottom: 2px; }
-  /* Figma: grinder options are plain text (no box) — active bold blue, inactive grey, wide gaps */
-  .re-grinder-chips { display: flex; align-items: center; gap: 32px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  /* Figma: grinder options are plain text (no box) — active bold blue, inactive grey, wide gaps.
+     flex-shrink: 0 matters here: a flex item with overflow-x set gets an automatic minimum
+     height of 0 (not content-based) in a flex column, so once #re-right's total content
+     exceeds the viewport, this row (and the basket-chips row, same class) collapse to ~0
+     height under flex-shrink instead of the sibling rows sharing the squeeze evenly. */
+  .re-grinder-chips { display: flex; align-items: center; gap: 32px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; flex-shrink: 0; }
   .re-grinder-chips::-webkit-scrollbar { display: none; }
   .re-grinder-chip {
     background: none; border: none; padding: 0;
