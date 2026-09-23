@@ -4,6 +4,7 @@ import { lucideIcon } from "../utils/lucide";
 import {
   stepperCss, stepperHtml,
   starRatingHtml, starRatingScript,
+  enjoymentScaleScript,
   expandFieldHtml,
 } from "../utils/shared-components";
 
@@ -252,6 +253,7 @@ function buildContent(): string {
 const equipPencilSvgJs = JSON.stringify(lucideIcon('pencil', 20, 'currentColor', 2));
 
 const pageScript = `
+${enjoymentScaleScript}
 const PENCIL_SVG = ${equipPencilSvgJs};
 let currentShot = null;
 let currentStarRating = 0;
@@ -716,7 +718,7 @@ function renderShot(shot) {
   if (readMoreBtn) readMoreBtn.style.display = beanNotes.length > 200 ? 'block' : 'none';
 
   // Stars
-  const rating = ann.enjoyment ? parseInt(ann.enjoyment) : 0;
+  const rating = enjoymentToStars(ann.enjoyment);
   currentStarRating = rating;
   updateStars(rating);
 }
@@ -830,7 +832,7 @@ function setupControls() {
       const idx = parseInt(star.getAttribute('data-index'));
       currentStarRating = idx;
       updateStars(idx);
-      if (currentShot) { ann().enjoyment = idx; }
+      if (currentShot) { ann().enjoyment = starsToEnjoyment(idx); }
     });
   });
 

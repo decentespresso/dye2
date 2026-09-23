@@ -3,6 +3,7 @@ import { devApiScript } from "../utils/dev-api";
 import { shotPagingScript } from "../utils/shot-paging";
 import { chartScript } from "../utils/chart";
 import { iconHistory, iconClipboard } from "../utils/icons";
+import { enjoymentScaleScript } from "../utils/shared-components";
 
 const styles = `
   /* Navy popup menu, matches Figma 2345:1613 */
@@ -491,6 +492,7 @@ function buildContent(): string { return `
 `; }
 
 const pageScript = `
+${enjoymentScaleScript}
 let grinders = [];
 let recipes = [];
 let currentWorkflow = null;
@@ -827,7 +829,7 @@ async function renderLastShot() {
     baristaEl.innerHTML = html;
   }
 
-  const rating = (shot.annotations && shot.annotations.enjoyment) ? parseInt(shot.annotations.enjoyment) : 0;
+  const rating = enjoymentToStars(shot.annotations && shot.annotations.enjoyment);
   currentStarRating = rating;
   updateStarDisplay(rating);
 
@@ -855,7 +857,7 @@ function setupStarRating() {
       updateStarDisplay(idx);
       const shot = shots[currentShotIndex];
       if (shot) {
-        try { const ann = { ...(shot.annotations || {}), enjoyment: idx }; await updateShot(shot.id, { annotations: ann }); shot.annotations = ann; }
+        try { const ann = { ...(shot.annotations || {}), enjoyment: starsToEnjoyment(idx) }; await updateShot(shot.id, { annotations: ann }); shot.annotations = ann; }
         catch (e) { console.warn('Could not save star rating:', e); }
       }
     });

@@ -4014,6 +4014,16 @@ function isToggleOn(id) {
   return t ? t.classList.contains('on') : false;
 }
 `;
+	var enjoymentScaleScript = `
+function enjoymentToStars(enjoyment) {
+  if (enjoyment == null || enjoyment === '') return 0;
+  const n = parseFloat(enjoyment);
+  if (isNaN(n)) return 0;
+  if (n >= 1 && n <= 5 && Number.isInteger(n)) return n;   // legacy buggy DYE2 write — see issue #7
+  return Math.round(n / 20);
+}
+function starsToEnjoyment(stars) { return stars * 20; }
+`;
 	var segmentControlScript = `
 function setupSegmentControls() {
   document.querySelectorAll('.dye-seg-btn').forEach(btn => {
@@ -5430,6 +5440,7 @@ function plotHistoricalShot(measurements, workflow) {
 `;
 	}
 	var pageScript$5 = `
+${enjoymentScaleScript}
 let grinders = [];
 let recipes = [];
 let currentWorkflow = null;
@@ -5766,7 +5777,7 @@ async function renderLastShot() {
     baristaEl.innerHTML = html;
   }
 
-  const rating = (shot.annotations && shot.annotations.enjoyment) ? parseInt(shot.annotations.enjoyment) : 0;
+  const rating = enjoymentToStars(shot.annotations && shot.annotations.enjoyment);
   currentStarRating = rating;
   updateStarDisplay(rating);
 
@@ -5794,7 +5805,7 @@ function setupStarRating() {
       updateStarDisplay(idx);
       const shot = shots[currentShotIndex];
       if (shot) {
-        try { const ann = { ...(shot.annotations || {}), enjoyment: idx }; await updateShot(shot.id, { annotations: ann }); shot.annotations = ann; }
+        try { const ann = { ...(shot.annotations || {}), enjoyment: starsToEnjoyment(idx) }; await updateShot(shot.id, { annotations: ann }); shot.annotations = ann; }
         catch (e) { console.warn('Could not save star rating:', e); }
       }
     });
@@ -6840,6 +6851,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 `;
 	}
 	var pageScript$4 = `
+${enjoymentScaleScript}
 const PENCIL_SVG = ${JSON.stringify(lucideIcon("pencil", 20, "currentColor", 2))};
 let currentShot = null;
 let currentStarRating = 0;
@@ -7304,7 +7316,7 @@ function renderShot(shot) {
   if (readMoreBtn) readMoreBtn.style.display = beanNotes.length > 200 ? 'block' : 'none';
 
   // Stars
-  const rating = ann.enjoyment ? parseInt(ann.enjoyment) : 0;
+  const rating = enjoymentToStars(ann.enjoyment);
   currentStarRating = rating;
   updateStars(rating);
 }
@@ -7418,7 +7430,7 @@ function setupControls() {
       const idx = parseInt(star.getAttribute('data-index'));
       currentStarRating = idx;
       updateStars(idx);
-      if (currentShot) { ann().enjoyment = idx; }
+      if (currentShot) { ann().enjoyment = starsToEnjoyment(idx); }
     });
   });
 
