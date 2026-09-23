@@ -5,13 +5,16 @@ import {
   stepperCss, stepperHtml,
   presetStripCss, presetStripHtml, presetStripScript,
   segmentControlScript,
+  expandFieldHtml,
 } from "../utils/shared-components";
+import { equipmentFieldCss, equipmentValuesModalHtml, equipmentFieldScript } from "../utils/equipment-field";
 
 const NUM_RECIPES = 5;
 
 const styles = `
   ${stepperCss()}
   ${presetStripCss()}
+  ${equipmentFieldCss}
   /* Figma 2396:728: fixed 270x60 pills, stroke #C5CDDA, text #5F7BA8 */
   .re-tab {
     width: 270px; height: 60px; border-radius: 15px;
@@ -100,16 +103,20 @@ const styles = `
     font-family: 'Inter', sans-serif; white-space: nowrap; display: flex; align-items: center; gap: 8px;
     background: var(--box-color);
   }
-  /* Figma 2386:1884: bordered pill with check | divider | label */
+  /* Figma 2386:1884: bordered pill with check | divider | label. On/off reads by fill,
+     not just opacity — solid blue + check when on, outline + x when off. */
   .re-show-streamline {
     display: flex; align-items: center; gap: 14px;
     border: 2px solid var(--mimoja-blue); border-radius: 23px;
-    height: 60px; padding: 0 24px 0 16px; background: var(--box-color);
+    height: 60px; padding: 0 24px 0 16px;
     font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 600;
-    color: var(--mimoja-blue); cursor: pointer;
+    cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
+  .re-show-streamline.on  { background: var(--mimoja-blue); color: #fff; }
+  .re-show-streamline.off { background: var(--box-color); color: var(--text-primary-disabled); border-color: var(--profile-button-outline-color); }
   .re-show-streamline-icon { flex-shrink: 0; display: flex; align-items: center; }
   .re-show-streamline-sep { width: 2px; height: 36px; background: var(--profile-button-outline-color); flex-shrink: 0; }
+  .re-show-streamline.on .re-show-streamline-sep { background: rgba(255,255,255,0.4); }
   .read-from-dropdown {
     display: none; position: absolute; bottom: calc(100% + 4px); left: 0;
     min-width: 220px; background: var(--box-color);
@@ -132,10 +139,14 @@ const styles = `
   .re-mode-sep { color: var(--profile-button-outline-color); }
 `;
 
+// currentColor so these follow .re-show-streamline's text color (white when on, gray when
+// off) instead of staying a fixed blue that reads the same regardless of state.
+const streamlineOnSvg  = lucideIcon('check-circle', 28, 'currentColor', 2);
+const streamlineOffSvg = lucideIcon('x',            28, 'currentColor', 2.5);
+
 function buildContent(): string {
-  const chevUpSvg      = lucideIcon('chevron-up',    24, 'var(--mimoja-blue)', 2.5);
-  const checkCircleSvg = lucideIcon('check-circle',  28, 'var(--mimoja-blue)', 2);
-  const pencilSvg      = lucideIcon('pencil',        26, 'var(--text-primary-disabled)', 2);
+  const chevUpSvg = lucideIcon('chevron-up', 24, 'var(--mimoja-blue)', 2.5);
+  const pencilSvg = lucideIcon('pencil',     26, 'var(--text-primary-disabled)', 2);
 
   const tabs = Array.from({ length: NUM_RECIPES }, (_, i) =>
     `<button class="re-tab${i === 0 ? ' active' : ''}" data-recipe="${i}">Recipe ${i + 1}</button>`
@@ -295,8 +306,15 @@ function buildContent(): string {
       <div class="re-grinder-chips" id="re-basket-chips">
         <!-- populated by JS -->
       </div>
+
+      <div class="re-divider"></div>
+
+      <!-- Equipment: multi-select, same dropdown as edit-shot's Equipment field -->
+      ${expandFieldHtml('re-equipment', 'Equipment')}
     </div>
   </div>
+
+  ${equipmentValuesModalHtml()}
 
   <!-- Footer -->
   <!-- Figma 2386:1876: 201px-tall footer band on the 2560 canvas → 151px here -->
@@ -309,8 +327,8 @@ function buildContent(): string {
         <div class="read-from-item" id="re-read-from-fav">From Favourite</div>
       </div>
     </div>
-    <button id="re-show-streamline-btn" class="re-show-streamline">
-      <span id="re-show-streamline-icon" class="re-show-streamline-icon">${checkCircleSvg}</span>
+    <button id="re-show-streamline-btn" class="re-show-streamline on">
+      <span id="re-show-streamline-icon" class="re-show-streamline-icon">${streamlineOnSvg}</span>
       <span class="re-show-streamline-sep"></span>
       <span>Show on Streamline Dashboard</span>
     </button>
@@ -325,6 +343,10 @@ function buildContent(): string {
 const pageScript = `
 ${presetStripScript}
 ${segmentControlScript}
+${equipmentFieldScript}
+
+const STREAMLINE_ON_SVG  = ${JSON.stringify(streamlineOnSvg)};
+const STREAMLINE_OFF_SVG = ${JSON.stringify(streamlineOffSvg)};
 
 const NUM_RECIPES = ${NUM_RECIPES};
 let recipes = [];
@@ -340,6 +362,26 @@ let selectedProfileId = null;
 let selectedProfileTitle = null;
 let beans = [];
 let profiles = [];
+let equipmentSelIds = [];
+let equipmentSelNames = [];
+let equipmentCustomOverrides = {};   // per-recipe value overrides, keyed by equipment id
+
+const reEquipmentField = {
+  textElId: 're-equipment-text',
+  expandElId: 're-equipment-expand',
+  getSelected: () => ({ ids: equipmentSelIds, names: equipmentSelNames }),
+  toggle: (item) => {
+    const idx = equipmentSelIds.indexOf(item.id);
+    if (idx >= 0) { equipmentSelIds.splice(idx, 1); equipmentSelNames.splice(idx, 1); }
+    else { equipmentSelIds.push(item.id); equipmentSelNames.push(item.name); }
+  },
+  getCustomOverrides: () => equipmentCustomOverrides,
+  setCustomOverride: (id, arr) => { equipmentCustomOverrides[id] = arr; },
+  goToNewEquipment: () => {
+    sessionStorage.setItem('dye_editShotReturn', '1');   // tells the equipment page to auto-open "add" and hand the new row back
+    goToPicker('/api/v1/plugins/dye2.reaplugin/equipment');
+  },
+};
 
 function set(id, val) {
   const el = document.getElementById(id);
@@ -451,6 +493,11 @@ function renderRecipe(recipe) {
   if (dv.basketId) selectedBasketId = dv.basketId;
   renderBasketChips();
 
+  equipmentSelIds = Array.isArray(dv.equipmentIds) ? dv.equipmentIds.slice() : [];
+  equipmentSelNames = Array.isArray(dv.equipmentNames) ? dv.equipmentNames.slice() : [];
+  equipmentCustomOverrides = (dv.equipmentCustom && typeof dv.equipmentCustom === 'object') ? { ...dv.equipmentCustom } : {};
+  refreshEquipmentField(reEquipmentField);
+
   syncPresetActive('re-dose',   set => {});
 }
 
@@ -500,6 +547,9 @@ function favouriteToRecipePatch(fav) {
       grinderId: s.grinderId,
       basketId:   s.basketId,
       basketName: s.basketName,
+      equipmentIds:   s.equipmentIds,
+      equipmentNames: s.equipmentNames,
+      equipmentCustom: s.equipmentCustom,
     },
   };
 }
@@ -619,7 +669,11 @@ function renderBasketChips() {
 
 function updateStreamlineBtn() {
   const btn = document.getElementById('re-show-streamline-btn');
-  if (btn) btn.style.opacity = showOnStreamline ? '1' : '0.4';
+  if (!btn) return;
+  btn.classList.toggle('on', showOnStreamline);
+  btn.classList.toggle('off', !showOnStreamline);
+  const icon = document.getElementById('re-show-streamline-icon');
+  if (icon) icon.innerHTML = showOnStreamline ? STREAMLINE_ON_SVG : STREAMLINE_OFF_SVG;
 }
 
 function getCurrentRecipeData() {
@@ -661,6 +715,9 @@ function getCurrentRecipeData() {
       grinderId: selectedGrinderId,
       basketId:   selectedBasketId,
       basketName: (baskets.find(b => b.id === selectedBasketId) || {}).name,
+      equipmentIds:    equipmentSelIds.slice(),
+      equipmentNames:  equipmentSelNames.slice(),
+      equipmentCustom: { ...equipmentCustomOverrides },
     },
   };
 }
@@ -855,6 +912,9 @@ async function initRecipeEdit() {
   setupNameCombo('re-drinker',  () => distinctNames('drinkerName'));
   setupNameCombo('re-beverage', distinctBeverages);
   setupFooter();
+  initEquipmentField(reEquipmentField);
+  wireEquipmentValuesModal();
+  loadEquipmentCache();
 
   wireAdjuster('re-dose-minus',  're-dose-plus',  're-dose-value',  0.5, 0, null, v => v + 'g');
   wireAdjuster('re-drink-minus', 're-drink-plus', 're-drink-value', 1,   0, null, v => v + 'g');
@@ -922,6 +982,18 @@ async function initRecipeEdit() {
         cur.profileTitle = sessionStorage.getItem('dye_selectedProfileTitle') || '';
         ['dye_selectedProfileId','dye_selectedProfileTitle'].forEach(k => sessionStorage.removeItem(k));
       }
+      // Returning from the equipment manage page's "+ New…" round trip — add it to
+      // whatever was already selected, same as toggling an existing row on.
+      const eqId = sessionStorage.getItem('dye_selectedEquipmentId');
+      if (eqId) {
+        cur.dashboardVariables = cur.dashboardVariables || {};
+        const dvIds = Array.isArray(cur.dashboardVariables.equipmentIds) ? cur.dashboardVariables.equipmentIds.slice() : [];
+        const dvNames = Array.isArray(cur.dashboardVariables.equipmentNames) ? cur.dashboardVariables.equipmentNames.slice() : [];
+        if (!dvIds.includes(eqId)) { dvIds.push(eqId); dvNames.push(sessionStorage.getItem('dye_selectedEquipmentName') || ''); }
+        cur.dashboardVariables.equipmentIds = dvIds;
+        cur.dashboardVariables.equipmentNames = dvNames;
+      }
+      ['dye_selectedEquipmentId','dye_selectedEquipmentName','dye_editShotReturn'].forEach(k => sessionStorage.removeItem(k));
     } catch (e) { console.warn('recipe draft restore failed:', e); }
   }
   // Returning from the Auto Favourites picker: load the chosen favourite into this recipe.

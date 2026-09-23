@@ -7,11 +7,13 @@ import {
   stepperCss,
 } from "../utils/shared-components";
 import { datePickerCss, datePickerScript } from "../utils/date-picker";
+import { equipmentFieldCss, equipmentValuesModalHtml, equipmentFieldScript } from "../utils/equipment-field";
 
 const styles = `
   ${datePickerCss()}
   ${stepperCss()}
   ${toggleCss()}
+  ${equipmentFieldCss}
   .afe-header-sub { font-size: 22px; font-weight: 400; color: var(--text-primary); margin-top: 4px; }
   .afe-section-title { font-size: 28px; font-weight: 700; color: var(--text-primary); margin-bottom: 18px; }
   .afe-label { font-size: 24px; font-weight: 600; color: var(--mimoja-blue); margin-bottom: 8px; }
@@ -100,7 +102,7 @@ const styles = `
 // id → kind. Drives which editor the pencil reveals and how the value displays.
 const FIELD_KINDS: Record<string, string> = {
   'afe-profile': 'lookup', 'afe-beans': 'lookup', 'afe-grinder': 'lookup', 'afe-basket': 'lookup',
-  'afe-barista': 'lookup', 'afe-drinker': 'lookup',
+  'afe-barista': 'lookup', 'afe-drinker': 'lookup', 'afe-equipment': 'multilookup',
   'afe-roast-date': 'date', 'afe-grind-setting': 'text',
   'afe-dose': 'number', 'afe-drink': 'number', 'afe-note': 'note',
 };
@@ -141,6 +143,9 @@ function rowFor(id: string, label: string, on: boolean): string {
   if (kind === 'date')   return rowHtml(id, label, on, `<input id="${id}-input" class="afe-date-input" type="date" required readonly data-dye-datepicker />`);
   if (kind === 'text')   return rowHtml(id, label, on, `<input id="${id}-input" class="afe-combo-input" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 2.5 or 15 clicks" />`);
   if (kind === 'number') return rowHtml(id, label, on, `<input id="${id}-input" class="afe-combo-input" type="text" inputmode="decimal" data-unit="g" autocomplete="off" />`);
+  // multi-select equipment: no separate editor panel — the pencil opens the shared
+  // dropdown directly (see beginEdit's multilookup case), same as edit-shot's field.
+  if (kind === 'multilookup') return rowHtml(id, label, on, '');
   // note
   const pencilSvg = lucideIcon('pencil', 26, 'var(--mimoja-blue)', 2);
   return `<div class="dye-toggle-row afe-note-row">
@@ -163,6 +168,7 @@ function buildContent(): string {
     ['afe-roast-date',   'Roast Date'],
     ['afe-grinder',      'Grinder'],
     ['afe-basket',       'Basket'],
+    ['afe-equipment',    'Equipment'],
     ['afe-grind-setting','Grind Setting'],
     ['afe-dose',         'Dose'],
     ['afe-drink',        'Drink'],
@@ -170,7 +176,7 @@ function buildContent(): string {
     ['afe-drinker',      'Drinker'],
     ['afe-note',         'Note'],
   ];
-  const defaultOn = new Set(['afe-profile', 'afe-beans', 'afe-grinder', 'afe-basket', 'afe-grind-setting', 'afe-dose', 'afe-drink']);
+  const defaultOn = new Set(['afe-profile', 'afe-beans', 'afe-grinder', 'afe-basket', 'afe-equipment', 'afe-grind-setting', 'afe-dose', 'afe-drink']);
 
   return `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex flex-col font-['Inter',sans-serif]">
@@ -227,21 +233,47 @@ function buildContent(): string {
     </div>
   </div>
 </div>
+
+${equipmentValuesModalHtml()}
 `;
 }
 
 const pageScript = `
 ${toggleRowScript}
 ${segmentControlScript}
+${equipmentFieldScript}
 
 let currentFav = null;
 const el = id => document.getElementById(id);
 
 const FIELD_KINDS = {
-  'afe-profile':'lookup','afe-beans':'lookup','afe-grinder':'lookup','afe-basket':'lookup','afe-barista':'lookup','afe-drinker':'lookup',
+  'afe-profile':'lookup','afe-beans':'lookup','afe-grinder':'lookup','afe-basket':'lookup','afe-barista':'lookup','afe-drinker':'lookup','afe-equipment':'multilookup',
   'afe-roast-date':'date','afe-grind-setting':'text','afe-dose':'number','afe-drink':'number','afe-note':'note'
 };
 const ALL_COPY_FIELDS = Object.keys(FIELD_KINDS);
+
+// ── Equipment (multi-select) ─────────────────────────────────────────────────
+let equipmentSelIds = [];
+let equipmentSelNames = [];
+let equipmentCustomOverrides = {};   // per-favourite value overrides, keyed by equipment id
+
+const afeEquipmentField = {
+  textElId: 'afe-equipment-value',
+  expandElId: 'afe-equipment-value',   // no separate expand icon on this row kind — the value itself is the trigger
+  getSelected: () => ({ ids: equipmentSelIds, names: equipmentSelNames }),
+  toggle: (item) => {
+    const idx = equipmentSelIds.indexOf(item.id);
+    if (idx >= 0) { equipmentSelIds.splice(idx, 1); equipmentSelNames.splice(idx, 1); }
+    else { equipmentSelIds.push(item.id); equipmentSelNames.push(item.name); }
+  },
+  getCustomOverrides: () => equipmentCustomOverrides,
+  setCustomOverride: (id, arr) => { equipmentCustomOverrides[id] = arr; },
+  goToNewEquipment: () => {
+    sessionStorage.setItem('dye_autoFavDraft', JSON.stringify(collectFavData()));
+    sessionStorage.setItem('dye_editShotReturn', '1');   // tells the equipment page to auto-open "add" and hand the new row back
+    window.location.href = '/api/v1/plugins/dye2.reaplugin/equipment';
+  },
+};
 
 // ── Lookup sources (real data) ──────────────────────────────────────────────
 function normList(result, labelFn) {
@@ -344,6 +376,7 @@ function fieldDisplay(id) {
   if (kind === 'text')   return input && input.value.trim() ? input.value.trim() : '—';
   if (kind === 'number') { const n = editVals[id]; return n != null ? n + 'g' : '—'; }
   if (kind === 'note')   { const t = input ? input.value.trim() : ''; return t ? (t.length > 60 ? t.slice(0, 60) + '…' : t) : '—'; }
+  if (kind === 'multilookup') return equipmentFieldText(afeEquipmentField);
   return '—';
 }
 function refreshValue(id) { const v = el(id + '-value'); if (v) v.textContent = fieldDisplay(id); }
@@ -353,6 +386,13 @@ function refreshAllValues() { ALL_COPY_FIELDS.forEach(refreshValue); }
 let editing = null;
 function beginEdit(id) {
   if (!isToggleOn(id)) return;             // off rows aren't editable
+  // Equipment has no single "-input" to focus — its pencil opens the shared multi-select
+  // dropdown directly, positioned off the row's value span (its parent).
+  if (FIELD_KINDS[id] === 'multilookup') {
+    if (editing && editing !== id) endEdit(editing);
+    openEquipmentDropdown(afeEquipmentField);
+    return;
+  }
   if (editing && editing !== id) endEdit(editing);
   editing = id;
   const kind = FIELD_KINDS[id], input = el(id + '-input');
@@ -398,7 +438,8 @@ function syncAllRowStates() { ALL_COPY_FIELDS.forEach(id => applyRowState(id, is
 function getToggleMask() {
   return {
     profile: isToggleOn('afe-profile'), beans: isToggleOn('afe-beans'), roastDate: isToggleOn('afe-roast-date'),
-    grinder: isToggleOn('afe-grinder'), basket: isToggleOn('afe-basket'), grindSetting: isToggleOn('afe-grind-setting'),
+    grinder: isToggleOn('afe-grinder'), basket: isToggleOn('afe-basket'), equipment: isToggleOn('afe-equipment'),
+    grindSetting: isToggleOn('afe-grind-setting'),
     dose: isToggleOn('afe-dose'), drink: isToggleOn('afe-drink'),
     barista: isToggleOn('afe-barista'), drinker: isToggleOn('afe-drinker'), note: isToggleOn('afe-note'),
   };
@@ -464,8 +505,13 @@ function renderFav(fav) {
   const noteInput = el('afe-note-input');
   if (noteInput) noteInput.value = snp.note || '';
 
+  equipmentSelIds = Array.isArray(snp.equipmentIds) ? snp.equipmentIds.slice() : [];
+  equipmentSelNames = Array.isArray(snp.equipmentNames) ? snp.equipmentNames.slice() : [];
+  equipmentCustomOverrides = (snp.equipmentCustom && typeof snp.equipmentCustom === 'object') ? { ...snp.equipmentCustom } : {};
+
   if (fav.copyMask) {
     const keyMap = { 'afe-profile':'profile','afe-beans':'beans','afe-roast-date':'roastDate','afe-grinder':'grinder','afe-basket':'basket',
+      'afe-equipment':'equipment',
       'afe-grind-setting':'grindSetting','afe-dose':'dose','afe-drink':'drink','afe-barista':'barista','afe-drinker':'drinker','afe-note':'note' };
     Object.keys(keyMap).forEach(id => { const t = el(id + '-track'); if (t) t.classList.toggle('on', fav.copyMask[keyMap[id]] !== false); });
   }
@@ -485,9 +531,43 @@ function renderFav(fav) {
   });
 }
 
+// Builds the favourite-shaped save payload — also used to stash a draft before the
+// equipment "+ New…" round trip, since a draft is just a save payload not yet sent.
+function collectFavData() {
+  if (editing) endEdit(editing);   // flush any in-progress edit
+  const snapshot = { ...((currentFav && currentFav.snapshot) || {}) };
+  const p = lookupState['afe-profile']; if (p) { snapshot.profileTitle = p.label; snapshot.profileId = p.id; }
+  const b = lookupState['afe-beans'];   if (b) { snapshot.coffeeName = b.label; if (b.id) snapshot.beanBatchId = b.id; }
+  const g = lookupState['afe-grinder']; if (g) { snapshot.grinderModel = g.label; snapshot.grinderId = g.id; }
+  const bk = lookupState['afe-basket']; if (bk) { snapshot.basketName = bk.label; snapshot.basketId = bk.id; }
+  const ba = lookupState['afe-barista']; if (ba) snapshot.barista = ba.label;
+  const dr = lookupState['afe-drinker']; if (dr) snapshot.drinker = dr.label;
+  const noteInput = el('afe-note-input'); if (noteInput) snapshot.note = noteInput.value.trim() || null;
+  const dateInput = el('afe-roast-date-input'); if (dateInput) snapshot.roastDate = dateInput.value ? new Date(dateInput.value).toISOString() : null;
+  const grindInput = el('afe-grind-setting-input');
+  if (grindInput) { const v = grindInput.value.trim(); const n = Number(v); snapshot.grindSetting = v === '' ? null : (isNaN(n) ? v : n); }
+  snapshot.dose = editVals['afe-dose'];
+  snapshot.drink = editVals['afe-drink'];
+  snapshot.equipmentIds = equipmentSelIds.slice();
+  snapshot.equipmentNames = equipmentSelNames.slice();
+  snapshot.equipmentCustom = { ...equipmentCustomOverrides };
+
+  return {
+    ...(currentFav || {}),
+    title: el('afe-title-input') ? el('afe-title-input').value : '',
+    beverage: el('afe-beverage-input') ? el('afe-beverage-input').value : '',
+    alwaysOnDashboard: getAlwaysDisplay(),
+    favSlot: getAssignedSlot(),
+    copyMask: getToggleMask(),
+    snapshot,
+  };
+}
+
 function setupControls() {
   setupToggleRows(applyRowState);
   setupSegmentControls();
+  wireEquipmentValuesModal();
+  loadEquipmentCache();
 
   // Pencil reveals the row's editor.
   document.querySelectorAll('[data-editrow]').forEach(btn => btn.addEventListener('click', () => beginEdit(btn.dataset.editrow)));
@@ -527,30 +607,7 @@ function setupControls() {
   el('afe-cancel-btn')?.addEventListener('click', () => window.history.back());
 
   el('afe-save-btn')?.addEventListener('click', async () => {
-    if (editing) endEdit(editing);   // flush any in-progress edit
-    const snapshot = { ...((currentFav && currentFav.snapshot) || {}) };
-    const p = lookupState['afe-profile']; if (p) { snapshot.profileTitle = p.label; snapshot.profileId = p.id; }
-    const b = lookupState['afe-beans'];   if (b) { snapshot.coffeeName = b.label; if (b.id) snapshot.beanBatchId = b.id; }
-    const g = lookupState['afe-grinder']; if (g) { snapshot.grinderModel = g.label; snapshot.grinderId = g.id; }
-    const bk = lookupState['afe-basket']; if (bk) { snapshot.basketName = bk.label; snapshot.basketId = bk.id; }
-    const ba = lookupState['afe-barista']; if (ba) snapshot.barista = ba.label;
-    const dr = lookupState['afe-drinker']; if (dr) snapshot.drinker = dr.label;
-    const noteInput = el('afe-note-input'); if (noteInput) snapshot.note = noteInput.value.trim() || null;
-    const dateInput = el('afe-roast-date-input'); if (dateInput) snapshot.roastDate = dateInput.value ? new Date(dateInput.value).toISOString() : null;
-    const grindInput = el('afe-grind-setting-input');
-    if (grindInput) { const v = grindInput.value.trim(); const n = Number(v); snapshot.grindSetting = v === '' ? null : (isNaN(n) ? v : n); }
-    snapshot.dose = editVals['afe-dose'];
-    snapshot.drink = editVals['afe-drink'];
-
-    const data = {
-      ...(currentFav || {}),
-      title: el('afe-title-input') ? el('afe-title-input').value : '',
-      beverage: el('afe-beverage-input') ? el('afe-beverage-input').value : '',
-      alwaysOnDashboard: getAlwaysDisplay(),
-      favSlot: getAssignedSlot(),
-      copyMask: getToggleMask(),
-      snapshot,
-    };
+    const data = collectFavData();
     try {
       if (currentFav && currentFav.id) await updateAutoFavourite(currentFav.id, data);
       else await createAutoFavourite(data);
@@ -576,6 +633,30 @@ function snapshotFromWorkflow(wf) {
 
 async function initAutoFavEdit() {
   setupControls();
+
+  // Returning from the equipment manage page's "+ New…" round trip: the draft is the
+  // whole in-progress form (collectFavData()'s own shape), so just fold in the new
+  // selection and render it — same as loading any other favourite.
+  const draftRaw = sessionStorage.getItem('dye_autoFavDraft');
+  sessionStorage.removeItem('dye_autoFavDraft');
+  if (draftRaw) {
+    try {
+      const draft = JSON.parse(draftRaw);
+      const eqId = sessionStorage.getItem('dye_selectedEquipmentId');
+      if (eqId) {
+        draft.snapshot = draft.snapshot || {};
+        const ids = Array.isArray(draft.snapshot.equipmentIds) ? draft.snapshot.equipmentIds.slice() : [];
+        const names = Array.isArray(draft.snapshot.equipmentNames) ? draft.snapshot.equipmentNames.slice() : [];
+        if (!ids.includes(eqId)) { ids.push(eqId); names.push(sessionStorage.getItem('dye_selectedEquipmentName') || ''); }
+        draft.snapshot.equipmentIds = ids;
+        draft.snapshot.equipmentNames = names;
+      }
+      ['dye_selectedEquipmentId','dye_selectedEquipmentName','dye_editShotReturn'].forEach(k => sessionStorage.removeItem(k));
+      renderFav(draft);
+      return;
+    } catch (e) { console.warn('Could not restore auto-fav draft:', e); }
+  }
+
   // Consume the edit id immediately (like dashboard/recipe-edit do): if left set it
   // would hijack the next "new favourite" open — silently editing (and re-saving) the
   // old one instead of creating, or, if it was since deleted, breaking renderFav.
@@ -597,6 +678,10 @@ async function initAutoFavEdit() {
 }
 
 initAutoFavEdit().catch(e => console.error('initAutoFavEdit failed:', e));
+
+// history.back() from the equipment manage page can restore this page frozen from bfcache,
+// so init (and the draft round-trip fold-in) never re-runs — reload so it does.
+window.addEventListener('pageshow', function(e) { if (e.persisted) window.location.reload(); });
 `;
 
 export function renderAutoFavEditPage(request: HttpRequest): HttpResponse {

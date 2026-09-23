@@ -7784,11 +7784,202 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 		};
 	}
 	//#endregion
+	//#region src/utils/equipment-field.ts
+	/** Shared multi-select equipment field: dropdown of saved kit (from the `equipment` KV
+	*  table), a "+ New…" round trip to the equipment manage page, and a per-item pencil that
+	*  overrides a selected row's custom-field VALUES just for this record (shot / favourite /
+	*  recipe) without touching the row's own saved defaults.
+	*
+	*  Pulled out of edit-shot.ts (the original implementation) so auto-fav-edit and
+	*  recipe-edit can offer the same field without copy-pasting it. edit-shot keeps its own
+	*  copy — same rules, different ids — rather than risk a regression by migrating it.
+	*
+	*  A page wires one field per instance:
+	*    const field = {
+	*      textElId, expandElId,               // ids of the summary span + the element that opens the dropdown
+	*      getSelected: () => ({ ids, names }), // current selection, arrays in lockstep
+	*      toggle: (item) => { ... },           // add/remove `item` from that selection
+	*      getCustomOverrides: () => obj,       // { [equipmentId]: [{key,value}, ...] } or {}
+	*      setCustomOverride: (id, arr) => {},
+	*      goToNewEquipment: () => { ... },     // stash a draft + navigate to the equipment page
+	*    };
+	*  then calls initEquipmentField(field) once the page's DOM is ready, and
+	*  wireEquipmentValuesModal() once (shared modal, one per page).
+	*/
+	var equipmentFieldCss = `
+  .dye-name-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    max-height: 320px; overflow-y: auto;
+    background: var(--box-color); border: 2px solid var(--profile-button-outline-color);
+    border-radius: 15px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); z-index: 50;
+  }
+  .read-from-item {
+    padding: 16px 23px; font-family: 'Inter', sans-serif;
+    font-size: 21px; font-weight: 600; color: var(--text-primary);
+    cursor: pointer; white-space: nowrap;
+  }
+  .read-from-item + .read-from-item { border-top: 1px solid var(--profile-button-outline-color); }
+  .read-from-item:hover { background: var(--mimoja-blue); color: #fff; }
+  .equip-edit-icon { display: flex; flex-shrink: 0; color: var(--mimoja-blue); }
+  .read-from-item:hover .equip-edit-icon { color: #fff; }
+  .eq-values-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    z-index: 100; align-items: center; justify-content: center;
+  }
+  .eq-values-overlay.open { display: flex; }
+  .eq-values-modal {
+    background: var(--bgmain-color); border-radius: 24px;
+    padding: 40px 48px; max-width: 900px; width: 90%;
+    max-height: 80vh; overflow-y: auto; font-size: 22px;
+    line-height: 1.6; color: var(--text-primary);
+  }
+  .eq-values-modal h2 { font-size: 28px; font-weight: 700; margin-bottom: 20px; color: var(--mimoja-blue); }
+  .eq-values-modal-btn {
+    margin-top: 30px; padding: 14px 40px;
+    background: var(--mimoja-blue); color: #fff;
+    border-radius: 9999px; font-size: 22px; font-weight: 700; cursor: pointer;
+  }
+  .equip-value-row { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; }
+  .equip-value-row label { width: 160px; flex-shrink: 0; font-weight: 700; font-size: 24px; color: var(--mimoja-blue); }
+  .equip-value-row input {
+    flex: 1; font: inherit; font-size: 24px; font-weight: 400; color: var(--text-primary);
+    border: 1px solid var(--profile-button-outline-color); border-radius: 12px;
+    padding: 0 20px; height: 72px; outline: none; background: var(--box-color);
+  }
+`;
+	/** The per-item value-override modal markup — include once per page. */
+	function equipmentValuesModalHtml() {
+		return `
+<div id="eq-values-overlay" class="eq-values-overlay">
+  <div class="eq-values-modal">
+    <h2 id="eq-values-title">Equipment</h2>
+    <div id="eq-values-fields"></div>
+    <div style="display:flex;gap:16px;margin-top:24px;justify-content:flex-end">
+      <button class="eq-values-modal-btn" id="eq-values-cancel" style="margin-top:0;background:transparent;color:var(--text-primary);border:2px solid var(--profile-button-outline-color)">Cancel</button>
+      <button class="eq-values-modal-btn" id="eq-values-save" style="margin-top:0">Save</button>
+    </div>
+  </div>
+</div>`;
+	}
+	var equipmentFieldScript = `
+const EQUIP_PENCIL_SVG = ${JSON.stringify(lucideIcon("pencil", 20, "currentColor", 2))};
+let __equipmentCache = [];
+async function loadEquipmentCache() {
+  try { __equipmentCache = await getEquipment(); } catch (e) { console.warn('Could not load equipment:', e); __equipmentCache = []; }
+  return __equipmentCache;
+}
+
+function equipmentCustomFor(overrides, item) {
+  const stored = overrides && overrides[item.id];
+  if (Array.isArray(stored)) return stored.map(f => ({ ...f }));
+  return (Array.isArray(item.custom) ? item.custom : []).map(f => ({ ...f }));
+}
+
+let __equipEditingItem = null;
+let __equipEditingField = null;
+
+function openEquipmentValuesEditor(field, item) {
+  __equipEditingItem = item;
+  __equipEditingField = field;
+  const titleEl = document.getElementById('eq-values-title');
+  if (titleEl) titleEl.textContent = item.name;
+  const container = document.getElementById('eq-values-fields');
+  if (!container) return;
+  container.innerHTML = '';
+  equipmentCustomFor(field.getCustomOverrides(), item).forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'equip-value-row';
+    const label = document.createElement('label'); label.textContent = f.key;
+    const input = document.createElement('input');
+    input.type = 'text'; input.value = f.value || ''; input.dataset.key = f.key;
+    row.appendChild(label); row.appendChild(input);
+    container.appendChild(row);
+  });
+  document.getElementById('eq-values-overlay')?.classList.add('open');
+}
+function closeEquipmentValuesEditor() {
+  document.getElementById('eq-values-overlay')?.classList.remove('open');
+  __equipEditingItem = null; __equipEditingField = null;
+}
+function saveEquipmentValues() {
+  if (!__equipEditingItem || !__equipEditingField) { closeEquipmentValuesEditor(); return; }
+  const inputs = [...document.querySelectorAll('#eq-values-fields input')];
+  __equipEditingField.setCustomOverride(__equipEditingItem.id, inputs.map(inp => ({ key: inp.dataset.key, value: inp.value.trim() })));
+  closeEquipmentValuesEditor();
+}
+function wireEquipmentValuesModal() {
+  document.getElementById('eq-values-cancel')?.addEventListener('click', closeEquipmentValuesEditor);
+  document.getElementById('eq-values-save')?.addEventListener('click', saveEquipmentValues);
+}
+
+function equipmentFieldText(field) {
+  const { names } = field.getSelected();
+  return names.filter(Boolean).join(', ') || '—';
+}
+function refreshEquipmentField(field) {
+  const el = document.getElementById(field.textElId);
+  if (el) el.textContent = equipmentFieldText(field);
+}
+
+function openEquipmentDropdown(field) {
+  const textEl = document.getElementById(field.textElId);
+  if (!textEl) return;
+  const box = textEl.parentElement;
+  const existing = box.querySelector('.dye-name-dropdown');
+  if (existing) { existing.remove(); return; }   // toggle off
+  box.style.position = 'relative';
+  const dd = document.createElement('div');
+  dd.className = 'dye-name-dropdown';
+
+  const renderRows = () => {
+    dd.innerHTML = '';
+    const { ids } = field.getSelected();
+    const newRow = document.createElement('div');
+    newRow.className = 'read-from-item';
+    newRow.textContent = '＋ New…';
+    newRow.addEventListener('click', (ev) => { ev.stopPropagation(); field.goToNewEquipment(); });
+    dd.appendChild(newRow);
+    __equipmentCache.slice()
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+      .forEach(e => {
+        const row = document.createElement('div');
+        row.className = 'read-from-item';
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px';
+        const label = document.createElement('span');
+        label.textContent = (ids.includes(e.id) ? '✓ ' : '') + e.name;
+        row.appendChild(label);
+        // Only a selected item's values apply here, and only when it has fields to edit.
+        if (ids.includes(e.id) && Array.isArray(e.custom) && e.custom.length) {
+          const editBtn = document.createElement('span');
+          editBtn.innerHTML = EQUIP_PENCIL_SVG;
+          editBtn.className = 'equip-edit-icon';
+          editBtn.addEventListener('click', (ev) => { ev.stopPropagation(); dd.remove(); openEquipmentValuesEditor(field, e); });
+          row.appendChild(editBtn);
+        }
+        row.addEventListener('click', (ev) => { ev.stopPropagation(); field.toggle(e); renderRows(); refreshEquipmentField(field); });
+        dd.appendChild(row);
+      });
+  };
+  renderRows();
+  box.appendChild(dd);
+  setTimeout(() => document.addEventListener('click', function close(ev) {
+    if (!dd.contains(ev.target)) { dd.remove(); document.removeEventListener('click', close); }
+  }), 0);
+}
+
+function initEquipmentField(field) {
+  refreshEquipmentField(field);
+  document.getElementById(field.expandElId)?.addEventListener('click', (e) => { e.stopPropagation(); openEquipmentDropdown(field); });
+  document.getElementById(field.textElId)?.addEventListener('click', (e) => { e.stopPropagation(); openEquipmentDropdown(field); });
+}
+`;
+	//#endregion
 	//#region src/pages/auto-fav-edit.ts
 	var styles$2 = `
   ${datePickerCss()}
   ${stepperCss()}
   ${toggleCss()}
+  ${equipmentFieldCss}
   .afe-header-sub { font-size: 22px; font-weight: 400; color: var(--text-primary); margin-top: 4px; }
   .afe-section-title { font-size: 28px; font-weight: 700; color: var(--text-primary); margin-bottom: 18px; }
   .afe-label { font-size: 24px; font-weight: 600; color: var(--mimoja-blue); margin-bottom: 8px; }
@@ -7880,6 +8071,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 		"afe-basket": "lookup",
 		"afe-barista": "lookup",
 		"afe-drinker": "lookup",
+		"afe-equipment": "multilookup",
 		"afe-roast-date": "date",
 		"afe-grind-setting": "text",
 		"afe-dose": "number",
@@ -7918,6 +8110,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 		if (kind === "date") return rowHtml(id, label, on, `<input id="${id}-input" class="afe-date-input" type="date" required readonly data-dye-datepicker />`);
 		if (kind === "text") return rowHtml(id, label, on, `<input id="${id}-input" class="afe-combo-input" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 2.5 or 15 clicks" />`);
 		if (kind === "number") return rowHtml(id, label, on, `<input id="${id}-input" class="afe-combo-input" type="text" inputmode="decimal" data-unit="g" autocomplete="off" />`);
+		if (kind === "multilookup") return rowHtml(id, label, on, "");
 		const pencilSvg = lucideIcon("pencil", 26, "var(--mimoja-blue)", 2);
 		return `<div class="dye-toggle-row afe-note-row">
     <div class="afe-note-head">
@@ -7938,6 +8131,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 			["afe-roast-date", "Roast Date"],
 			["afe-grinder", "Grinder"],
 			["afe-basket", "Basket"],
+			["afe-equipment", "Equipment"],
 			["afe-grind-setting", "Grind Setting"],
 			["afe-dose", "Dose"],
 			["afe-drink", "Drink"],
@@ -7950,6 +8144,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 			"afe-beans",
 			"afe-grinder",
 			"afe-basket",
+			"afe-equipment",
 			"afe-grind-setting",
 			"afe-dose",
 			"afe-drink"
@@ -8013,20 +8208,46 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
     </div>
   </div>
 </div>
+
+${equipmentValuesModalHtml()}
 `;
 	}
 	var pageScript$2 = `
 ${toggleRowScript}
 ${segmentControlScript}
+${equipmentFieldScript}
 
 let currentFav = null;
 const el = id => document.getElementById(id);
 
 const FIELD_KINDS = {
-  'afe-profile':'lookup','afe-beans':'lookup','afe-grinder':'lookup','afe-basket':'lookup','afe-barista':'lookup','afe-drinker':'lookup',
+  'afe-profile':'lookup','afe-beans':'lookup','afe-grinder':'lookup','afe-basket':'lookup','afe-barista':'lookup','afe-drinker':'lookup','afe-equipment':'multilookup',
   'afe-roast-date':'date','afe-grind-setting':'text','afe-dose':'number','afe-drink':'number','afe-note':'note'
 };
 const ALL_COPY_FIELDS = Object.keys(FIELD_KINDS);
+
+// ── Equipment (multi-select) ─────────────────────────────────────────────────
+let equipmentSelIds = [];
+let equipmentSelNames = [];
+let equipmentCustomOverrides = {};   // per-favourite value overrides, keyed by equipment id
+
+const afeEquipmentField = {
+  textElId: 'afe-equipment-value',
+  expandElId: 'afe-equipment-value',   // no separate expand icon on this row kind — the value itself is the trigger
+  getSelected: () => ({ ids: equipmentSelIds, names: equipmentSelNames }),
+  toggle: (item) => {
+    const idx = equipmentSelIds.indexOf(item.id);
+    if (idx >= 0) { equipmentSelIds.splice(idx, 1); equipmentSelNames.splice(idx, 1); }
+    else { equipmentSelIds.push(item.id); equipmentSelNames.push(item.name); }
+  },
+  getCustomOverrides: () => equipmentCustomOverrides,
+  setCustomOverride: (id, arr) => { equipmentCustomOverrides[id] = arr; },
+  goToNewEquipment: () => {
+    sessionStorage.setItem('dye_autoFavDraft', JSON.stringify(collectFavData()));
+    sessionStorage.setItem('dye_editShotReturn', '1');   // tells the equipment page to auto-open "add" and hand the new row back
+    window.location.href = '/api/v1/plugins/dye2.reaplugin/equipment';
+  },
+};
 
 // ── Lookup sources (real data) ──────────────────────────────────────────────
 function normList(result, labelFn) {
@@ -8129,6 +8350,7 @@ function fieldDisplay(id) {
   if (kind === 'text')   return input && input.value.trim() ? input.value.trim() : '—';
   if (kind === 'number') { const n = editVals[id]; return n != null ? n + 'g' : '—'; }
   if (kind === 'note')   { const t = input ? input.value.trim() : ''; return t ? (t.length > 60 ? t.slice(0, 60) + '…' : t) : '—'; }
+  if (kind === 'multilookup') return equipmentFieldText(afeEquipmentField);
   return '—';
 }
 function refreshValue(id) { const v = el(id + '-value'); if (v) v.textContent = fieldDisplay(id); }
@@ -8138,6 +8360,13 @@ function refreshAllValues() { ALL_COPY_FIELDS.forEach(refreshValue); }
 let editing = null;
 function beginEdit(id) {
   if (!isToggleOn(id)) return;             // off rows aren't editable
+  // Equipment has no single "-input" to focus — its pencil opens the shared multi-select
+  // dropdown directly, positioned off the row's value span (its parent).
+  if (FIELD_KINDS[id] === 'multilookup') {
+    if (editing && editing !== id) endEdit(editing);
+    openEquipmentDropdown(afeEquipmentField);
+    return;
+  }
   if (editing && editing !== id) endEdit(editing);
   editing = id;
   const kind = FIELD_KINDS[id], input = el(id + '-input');
@@ -8183,7 +8412,8 @@ function syncAllRowStates() { ALL_COPY_FIELDS.forEach(id => applyRowState(id, is
 function getToggleMask() {
   return {
     profile: isToggleOn('afe-profile'), beans: isToggleOn('afe-beans'), roastDate: isToggleOn('afe-roast-date'),
-    grinder: isToggleOn('afe-grinder'), basket: isToggleOn('afe-basket'), grindSetting: isToggleOn('afe-grind-setting'),
+    grinder: isToggleOn('afe-grinder'), basket: isToggleOn('afe-basket'), equipment: isToggleOn('afe-equipment'),
+    grindSetting: isToggleOn('afe-grind-setting'),
     dose: isToggleOn('afe-dose'), drink: isToggleOn('afe-drink'),
     barista: isToggleOn('afe-barista'), drinker: isToggleOn('afe-drinker'), note: isToggleOn('afe-note'),
   };
@@ -8249,8 +8479,13 @@ function renderFav(fav) {
   const noteInput = el('afe-note-input');
   if (noteInput) noteInput.value = snp.note || '';
 
+  equipmentSelIds = Array.isArray(snp.equipmentIds) ? snp.equipmentIds.slice() : [];
+  equipmentSelNames = Array.isArray(snp.equipmentNames) ? snp.equipmentNames.slice() : [];
+  equipmentCustomOverrides = (snp.equipmentCustom && typeof snp.equipmentCustom === 'object') ? { ...snp.equipmentCustom } : {};
+
   if (fav.copyMask) {
     const keyMap = { 'afe-profile':'profile','afe-beans':'beans','afe-roast-date':'roastDate','afe-grinder':'grinder','afe-basket':'basket',
+      'afe-equipment':'equipment',
       'afe-grind-setting':'grindSetting','afe-dose':'dose','afe-drink':'drink','afe-barista':'barista','afe-drinker':'drinker','afe-note':'note' };
     Object.keys(keyMap).forEach(id => { const t = el(id + '-track'); if (t) t.classList.toggle('on', fav.copyMask[keyMap[id]] !== false); });
   }
@@ -8270,9 +8505,43 @@ function renderFav(fav) {
   });
 }
 
+// Builds the favourite-shaped save payload — also used to stash a draft before the
+// equipment "+ New…" round trip, since a draft is just a save payload not yet sent.
+function collectFavData() {
+  if (editing) endEdit(editing);   // flush any in-progress edit
+  const snapshot = { ...((currentFav && currentFav.snapshot) || {}) };
+  const p = lookupState['afe-profile']; if (p) { snapshot.profileTitle = p.label; snapshot.profileId = p.id; }
+  const b = lookupState['afe-beans'];   if (b) { snapshot.coffeeName = b.label; if (b.id) snapshot.beanBatchId = b.id; }
+  const g = lookupState['afe-grinder']; if (g) { snapshot.grinderModel = g.label; snapshot.grinderId = g.id; }
+  const bk = lookupState['afe-basket']; if (bk) { snapshot.basketName = bk.label; snapshot.basketId = bk.id; }
+  const ba = lookupState['afe-barista']; if (ba) snapshot.barista = ba.label;
+  const dr = lookupState['afe-drinker']; if (dr) snapshot.drinker = dr.label;
+  const noteInput = el('afe-note-input'); if (noteInput) snapshot.note = noteInput.value.trim() || null;
+  const dateInput = el('afe-roast-date-input'); if (dateInput) snapshot.roastDate = dateInput.value ? new Date(dateInput.value).toISOString() : null;
+  const grindInput = el('afe-grind-setting-input');
+  if (grindInput) { const v = grindInput.value.trim(); const n = Number(v); snapshot.grindSetting = v === '' ? null : (isNaN(n) ? v : n); }
+  snapshot.dose = editVals['afe-dose'];
+  snapshot.drink = editVals['afe-drink'];
+  snapshot.equipmentIds = equipmentSelIds.slice();
+  snapshot.equipmentNames = equipmentSelNames.slice();
+  snapshot.equipmentCustom = { ...equipmentCustomOverrides };
+
+  return {
+    ...(currentFav || {}),
+    title: el('afe-title-input') ? el('afe-title-input').value : '',
+    beverage: el('afe-beverage-input') ? el('afe-beverage-input').value : '',
+    alwaysOnDashboard: getAlwaysDisplay(),
+    favSlot: getAssignedSlot(),
+    copyMask: getToggleMask(),
+    snapshot,
+  };
+}
+
 function setupControls() {
   setupToggleRows(applyRowState);
   setupSegmentControls();
+  wireEquipmentValuesModal();
+  loadEquipmentCache();
 
   // Pencil reveals the row's editor.
   document.querySelectorAll('[data-editrow]').forEach(btn => btn.addEventListener('click', () => beginEdit(btn.dataset.editrow)));
@@ -8312,30 +8581,7 @@ function setupControls() {
   el('afe-cancel-btn')?.addEventListener('click', () => window.history.back());
 
   el('afe-save-btn')?.addEventListener('click', async () => {
-    if (editing) endEdit(editing);   // flush any in-progress edit
-    const snapshot = { ...((currentFav && currentFav.snapshot) || {}) };
-    const p = lookupState['afe-profile']; if (p) { snapshot.profileTitle = p.label; snapshot.profileId = p.id; }
-    const b = lookupState['afe-beans'];   if (b) { snapshot.coffeeName = b.label; if (b.id) snapshot.beanBatchId = b.id; }
-    const g = lookupState['afe-grinder']; if (g) { snapshot.grinderModel = g.label; snapshot.grinderId = g.id; }
-    const bk = lookupState['afe-basket']; if (bk) { snapshot.basketName = bk.label; snapshot.basketId = bk.id; }
-    const ba = lookupState['afe-barista']; if (ba) snapshot.barista = ba.label;
-    const dr = lookupState['afe-drinker']; if (dr) snapshot.drinker = dr.label;
-    const noteInput = el('afe-note-input'); if (noteInput) snapshot.note = noteInput.value.trim() || null;
-    const dateInput = el('afe-roast-date-input'); if (dateInput) snapshot.roastDate = dateInput.value ? new Date(dateInput.value).toISOString() : null;
-    const grindInput = el('afe-grind-setting-input');
-    if (grindInput) { const v = grindInput.value.trim(); const n = Number(v); snapshot.grindSetting = v === '' ? null : (isNaN(n) ? v : n); }
-    snapshot.dose = editVals['afe-dose'];
-    snapshot.drink = editVals['afe-drink'];
-
-    const data = {
-      ...(currentFav || {}),
-      title: el('afe-title-input') ? el('afe-title-input').value : '',
-      beverage: el('afe-beverage-input') ? el('afe-beverage-input').value : '',
-      alwaysOnDashboard: getAlwaysDisplay(),
-      favSlot: getAssignedSlot(),
-      copyMask: getToggleMask(),
-      snapshot,
-    };
+    const data = collectFavData();
     try {
       if (currentFav && currentFav.id) await updateAutoFavourite(currentFav.id, data);
       else await createAutoFavourite(data);
@@ -8361,6 +8607,30 @@ function snapshotFromWorkflow(wf) {
 
 async function initAutoFavEdit() {
   setupControls();
+
+  // Returning from the equipment manage page's "+ New…" round trip: the draft is the
+  // whole in-progress form (collectFavData()'s own shape), so just fold in the new
+  // selection and render it — same as loading any other favourite.
+  const draftRaw = sessionStorage.getItem('dye_autoFavDraft');
+  sessionStorage.removeItem('dye_autoFavDraft');
+  if (draftRaw) {
+    try {
+      const draft = JSON.parse(draftRaw);
+      const eqId = sessionStorage.getItem('dye_selectedEquipmentId');
+      if (eqId) {
+        draft.snapshot = draft.snapshot || {};
+        const ids = Array.isArray(draft.snapshot.equipmentIds) ? draft.snapshot.equipmentIds.slice() : [];
+        const names = Array.isArray(draft.snapshot.equipmentNames) ? draft.snapshot.equipmentNames.slice() : [];
+        if (!ids.includes(eqId)) { ids.push(eqId); names.push(sessionStorage.getItem('dye_selectedEquipmentName') || ''); }
+        draft.snapshot.equipmentIds = ids;
+        draft.snapshot.equipmentNames = names;
+      }
+      ['dye_selectedEquipmentId','dye_selectedEquipmentName','dye_editShotReturn'].forEach(k => sessionStorage.removeItem(k));
+      renderFav(draft);
+      return;
+    } catch (e) { console.warn('Could not restore auto-fav draft:', e); }
+  }
+
   // Consume the edit id immediately (like dashboard/recipe-edit do): if left set it
   // would hijack the next "new favourite" open — silently editing (and re-saving) the
   // old one instead of creating, or, if it was since deleted, breaking renderFav.
@@ -8382,6 +8652,10 @@ async function initAutoFavEdit() {
 }
 
 initAutoFavEdit().catch(e => console.error('initAutoFavEdit failed:', e));
+
+// history.back() from the equipment manage page can restore this page frozen from bfcache,
+// so init (and the draft round-trip fold-in) never re-runs — reload so it does.
+window.addEventListener('pageshow', function(e) { if (e.persisted) window.location.reload(); });
 `;
 	function renderAutoFavEditPage(request) {
 		return {
@@ -8401,6 +8675,7 @@ initAutoFavEdit().catch(e => console.error('initAutoFavEdit failed:', e));
 	var styles$1 = `
   ${stepperCss()}
   ${presetStripCss()}
+  ${equipmentFieldCss}
   /* Figma 2396:728: fixed 270x60 pills, stroke #C5CDDA, text #5F7BA8 */
   .re-tab {
     width: 270px; height: 60px; border-radius: 15px;
@@ -8489,16 +8764,20 @@ initAutoFavEdit().catch(e => console.error('initAutoFavEdit failed:', e));
     font-family: 'Inter', sans-serif; white-space: nowrap; display: flex; align-items: center; gap: 8px;
     background: var(--box-color);
   }
-  /* Figma 2386:1884: bordered pill with check | divider | label */
+  /* Figma 2386:1884: bordered pill with check | divider | label. On/off reads by fill,
+     not just opacity — solid blue + check when on, outline + x when off. */
   .re-show-streamline {
     display: flex; align-items: center; gap: 14px;
     border: 2px solid var(--mimoja-blue); border-radius: 23px;
-    height: 60px; padding: 0 24px 0 16px; background: var(--box-color);
+    height: 60px; padding: 0 24px 0 16px;
     font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 600;
-    color: var(--mimoja-blue); cursor: pointer;
+    cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
+  .re-show-streamline.on  { background: var(--mimoja-blue); color: #fff; }
+  .re-show-streamline.off { background: var(--box-color); color: var(--text-primary-disabled); border-color: var(--profile-button-outline-color); }
   .re-show-streamline-icon { flex-shrink: 0; display: flex; align-items: center; }
   .re-show-streamline-sep { width: 2px; height: 36px; background: var(--profile-button-outline-color); flex-shrink: 0; }
+  .re-show-streamline.on .re-show-streamline-sep { background: rgba(255,255,255,0.4); }
   .read-from-dropdown {
     display: none; position: absolute; bottom: calc(100% + 4px); left: 0;
     min-width: 220px; background: var(--box-color);
@@ -8520,9 +8799,10 @@ initAutoFavEdit().catch(e => console.error('initAutoFavEdit failed:', e));
   .re-mode-seg.active { color: var(--mimoja-blue); }
   .re-mode-sep { color: var(--profile-button-outline-color); }
 `;
+	var streamlineOnSvg = lucideIcon("check-circle", 28, "currentColor", 2);
+	var streamlineOffSvg = lucideIcon("x", 28, "currentColor", 2.5);
 	function buildContent() {
 		const chevUpSvg = lucideIcon("chevron-up", 24, "var(--mimoja-blue)", 2.5);
-		const checkCircleSvg = lucideIcon("check-circle", 28, "var(--mimoja-blue)", 2);
 		const pencilSvg = lucideIcon("pencil", 26, "var(--text-primary-disabled)", 2);
 		return `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex flex-col font-['Inter',sans-serif]">
@@ -8711,8 +8991,15 @@ initAutoFavEdit().catch(e => console.error('initAutoFavEdit failed:', e));
       <div class="re-grinder-chips" id="re-basket-chips">
         <!-- populated by JS -->
       </div>
+
+      <div class="re-divider"></div>
+
+      <!-- Equipment: multi-select, same dropdown as edit-shot's Equipment field -->
+      ${expandFieldHtml("re-equipment", "Equipment")}
     </div>
   </div>
+
+  ${equipmentValuesModalHtml()}
 
   <!-- Footer -->
   <!-- Figma 2386:1876: 201px-tall footer band on the 2560 canvas → 151px here -->
@@ -8725,8 +9012,8 @@ initAutoFavEdit().catch(e => console.error('initAutoFavEdit failed:', e));
         <div class="read-from-item" id="re-read-from-fav">From Favourite</div>
       </div>
     </div>
-    <button id="re-show-streamline-btn" class="re-show-streamline">
-      <span id="re-show-streamline-icon" class="re-show-streamline-icon">${checkCircleSvg}</span>
+    <button id="re-show-streamline-btn" class="re-show-streamline on">
+      <span id="re-show-streamline-icon" class="re-show-streamline-icon">${streamlineOnSvg}</span>
       <span class="re-show-streamline-sep"></span>
       <span>Show on Streamline Dashboard</span>
     </button>
@@ -8740,6 +9027,10 @@ initAutoFavEdit().catch(e => console.error('initAutoFavEdit failed:', e));
 	var pageScript$1 = `
 ${presetStripScript}
 ${segmentControlScript}
+${equipmentFieldScript}
+
+const STREAMLINE_ON_SVG  = ${JSON.stringify(streamlineOnSvg)};
+const STREAMLINE_OFF_SVG = ${JSON.stringify(streamlineOffSvg)};
 
 const NUM_RECIPES = ${NUM_RECIPES};
 let recipes = [];
@@ -8755,6 +9046,26 @@ let selectedProfileId = null;
 let selectedProfileTitle = null;
 let beans = [];
 let profiles = [];
+let equipmentSelIds = [];
+let equipmentSelNames = [];
+let equipmentCustomOverrides = {};   // per-recipe value overrides, keyed by equipment id
+
+const reEquipmentField = {
+  textElId: 're-equipment-text',
+  expandElId: 're-equipment-expand',
+  getSelected: () => ({ ids: equipmentSelIds, names: equipmentSelNames }),
+  toggle: (item) => {
+    const idx = equipmentSelIds.indexOf(item.id);
+    if (idx >= 0) { equipmentSelIds.splice(idx, 1); equipmentSelNames.splice(idx, 1); }
+    else { equipmentSelIds.push(item.id); equipmentSelNames.push(item.name); }
+  },
+  getCustomOverrides: () => equipmentCustomOverrides,
+  setCustomOverride: (id, arr) => { equipmentCustomOverrides[id] = arr; },
+  goToNewEquipment: () => {
+    sessionStorage.setItem('dye_editShotReturn', '1');   // tells the equipment page to auto-open "add" and hand the new row back
+    goToPicker('/api/v1/plugins/dye2.reaplugin/equipment');
+  },
+};
 
 function set(id, val) {
   const el = document.getElementById(id);
@@ -8866,6 +9177,11 @@ function renderRecipe(recipe) {
   if (dv.basketId) selectedBasketId = dv.basketId;
   renderBasketChips();
 
+  equipmentSelIds = Array.isArray(dv.equipmentIds) ? dv.equipmentIds.slice() : [];
+  equipmentSelNames = Array.isArray(dv.equipmentNames) ? dv.equipmentNames.slice() : [];
+  equipmentCustomOverrides = (dv.equipmentCustom && typeof dv.equipmentCustom === 'object') ? { ...dv.equipmentCustom } : {};
+  refreshEquipmentField(reEquipmentField);
+
   syncPresetActive('re-dose',   set => {});
 }
 
@@ -8915,6 +9231,9 @@ function favouriteToRecipePatch(fav) {
       grinderId: s.grinderId,
       basketId:   s.basketId,
       basketName: s.basketName,
+      equipmentIds:   s.equipmentIds,
+      equipmentNames: s.equipmentNames,
+      equipmentCustom: s.equipmentCustom,
     },
   };
 }
@@ -9034,7 +9353,11 @@ function renderBasketChips() {
 
 function updateStreamlineBtn() {
   const btn = document.getElementById('re-show-streamline-btn');
-  if (btn) btn.style.opacity = showOnStreamline ? '1' : '0.4';
+  if (!btn) return;
+  btn.classList.toggle('on', showOnStreamline);
+  btn.classList.toggle('off', !showOnStreamline);
+  const icon = document.getElementById('re-show-streamline-icon');
+  if (icon) icon.innerHTML = showOnStreamline ? STREAMLINE_ON_SVG : STREAMLINE_OFF_SVG;
 }
 
 function getCurrentRecipeData() {
@@ -9076,6 +9399,9 @@ function getCurrentRecipeData() {
       grinderId: selectedGrinderId,
       basketId:   selectedBasketId,
       basketName: (baskets.find(b => b.id === selectedBasketId) || {}).name,
+      equipmentIds:    equipmentSelIds.slice(),
+      equipmentNames:  equipmentSelNames.slice(),
+      equipmentCustom: { ...equipmentCustomOverrides },
     },
   };
 }
@@ -9270,6 +9596,9 @@ async function initRecipeEdit() {
   setupNameCombo('re-drinker',  () => distinctNames('drinkerName'));
   setupNameCombo('re-beverage', distinctBeverages);
   setupFooter();
+  initEquipmentField(reEquipmentField);
+  wireEquipmentValuesModal();
+  loadEquipmentCache();
 
   wireAdjuster('re-dose-minus',  're-dose-plus',  're-dose-value',  0.5, 0, null, v => v + 'g');
   wireAdjuster('re-drink-minus', 're-drink-plus', 're-drink-value', 1,   0, null, v => v + 'g');
@@ -9337,6 +9666,18 @@ async function initRecipeEdit() {
         cur.profileTitle = sessionStorage.getItem('dye_selectedProfileTitle') || '';
         ['dye_selectedProfileId','dye_selectedProfileTitle'].forEach(k => sessionStorage.removeItem(k));
       }
+      // Returning from the equipment manage page's "+ New…" round trip — add it to
+      // whatever was already selected, same as toggling an existing row on.
+      const eqId = sessionStorage.getItem('dye_selectedEquipmentId');
+      if (eqId) {
+        cur.dashboardVariables = cur.dashboardVariables || {};
+        const dvIds = Array.isArray(cur.dashboardVariables.equipmentIds) ? cur.dashboardVariables.equipmentIds.slice() : [];
+        const dvNames = Array.isArray(cur.dashboardVariables.equipmentNames) ? cur.dashboardVariables.equipmentNames.slice() : [];
+        if (!dvIds.includes(eqId)) { dvIds.push(eqId); dvNames.push(sessionStorage.getItem('dye_selectedEquipmentName') || ''); }
+        cur.dashboardVariables.equipmentIds = dvIds;
+        cur.dashboardVariables.equipmentNames = dvNames;
+      }
+      ['dye_selectedEquipmentId','dye_selectedEquipmentName','dye_editShotReturn'].forEach(k => sessionStorage.removeItem(k));
     } catch (e) { console.warn('recipe draft restore failed:', e); }
   }
   // Returning from the Auto Favourites picker: load the chosen favourite into this recipe.
