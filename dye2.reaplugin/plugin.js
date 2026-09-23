@@ -70,11 +70,29 @@ var createPlugin = (function() {
   // modal ends up underneath it. Shift just that modal up by however much the keyboard
   // covers the focused field. The overlay is a child of the scaled <body>, so its own
   // translate is in design px -> divide the on-screen overlap by the current scale.
-  // ponytail: modal overlays only (nearest position:fixed ancestor). Inline page fields
-  // are not moved; wire the same shift to a wrapper if one ever sits under the keyboard.
+  // A field with no fixed-position ancestor (i.e. inline in the page, not a modal) has no
+  // wrapper worth translating -- instead scroll its nearest scrollable ancestor so the
+  // field clears the keyboard, same goal via the mechanism that already fits inline content.
   var kbTarget = null;
+  var kbScroller = null, kbScrollerPrevTop = 0;
   function kbReset() {
     if (kbTarget) { kbTarget.style.transform = kbTarget.__kbPrev || ''; kbTarget = null; }
+    if (kbScroller) { kbScroller.scrollTop = kbScrollerPrevTop; kbScroller = null; }
+  }
+  function fixedAncestor(node) {
+    while (node && node !== document.body) {
+      if (getComputedStyle(node).position === 'fixed') return node;
+      node = node.parentElement;
+    }
+    return null;
+  }
+  function scrollableAncestor(node) {
+    while (node && node !== document.body) {
+      var cs = getComputedStyle(node);
+      if (/(auto|scroll)/.test(cs.overflowY) && node.scrollHeight > node.clientHeight) return node;
+      node = node.parentElement;
+    }
+    return null;
   }
   function kbAdjust() {
     var vv = window.visualViewport;
@@ -88,16 +106,19 @@ var createPlugin = (function() {
     var box = el.getBoundingClientRect();
     var overlap = box.bottom + 24 - (vv.offsetTop + vv.height);
     if (overlap <= 0) return;
-    var node = el.parentElement;
-    while (node && node !== document.body) {
-      if (getComputedStyle(node).position === 'fixed') break;
-      node = node.parentElement;
+    var modal = fixedAncestor(el.parentElement);
+    if (modal) {
+      kbTarget = modal;
+      modal.__kbPrev = modal.style.transform;
+      modal.style.transform = (modal.__kbPrev ? modal.__kbPrev + ' ' : '') +
+        'translateY(' + (-overlap / lastSy) + 'px)';
+      return;
     }
-    if (!node || node === document.body) return;
-    kbTarget = node;
-    node.__kbPrev = node.style.transform;
-    node.style.transform = (node.__kbPrev ? node.__kbPrev + ' ' : '') +
-      'translateY(' + (-overlap / lastSy) + 'px)';
+    var scroller = scrollableAncestor(el.parentElement);
+    if (!scroller) return;
+    kbScroller = scroller;
+    kbScrollerPrevTop = scroller.scrollTop;
+    scroller.scrollTop += overlap / lastSy;
   }
   // The WebView fires the viewport resize while the keyboard animates in, often before
   // focus has landed -- so re-check on focus changes too, one frame late so the field is
