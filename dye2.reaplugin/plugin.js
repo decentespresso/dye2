@@ -4019,10 +4019,15 @@ function enjoymentToStars(enjoyment) {
   if (enjoyment == null || enjoyment === '') return 0;
   const n = parseFloat(enjoyment);
   if (isNaN(n)) return 0;
-  if (n >= 1 && n <= 5 && Number.isInteger(n)) return n;   // legacy buggy DYE2 write — see issue #7
-  return Math.round(n / 20);
+  const canonical = Math.min(Math.max(n, 0), 10);
+  return Math.round(canonical / 2);
 }
-function starsToEnjoyment(stars) { return stars * 20; }
+function starsToEnjoyment(stars) {
+  const n = Number(stars);
+  if (!Number.isFinite(n)) return 0;
+  const clampedStars = Math.min(Math.max(Math.round(n), 0), 5);
+  return clampedStars * 2;
+}
 `;
 	var segmentControlScript = `
 function setupSegmentControls() {

@@ -105,12 +105,21 @@ coffeeRoaster, search})`; `getLatestShot()`, `getShot(id)`, `updateShot(id, data
 `deleteShot(id)`. Paging logic is `src/utils/shot-paging.ts`, covered by
 `test/shot-paging.test.mjs`.
 
-**`annotations.enjoyment` is 0–100**, matching `espresso_enjoyment` in
-de1app/visualizer.coffee and Decaid's legacy importer — not 0–5. Stars convert at ×20
-(`shared-components.ts:312`). DYE2 briefly wrote the raw 1–5 star index instead (issue #7),
-so `enjoymentToStars` treats an integer in [1,5] as that buggy write and returns it as-is
-rather than dividing by 20. Keep that branch; removing it silently re-reads old shots as
-near-zero ratings.
+**`annotations.enjoyment` is 0–10**, Decaid's own field — not de1app's or
+visualizer.coffee's 0–100 `espresso_enjoyment`, and not a 0–5 star index. Decaid converts at
+those two boundaries itself (decentespresso/decaid#887): its importer rescales on the way in,
+its Visualizer plugin multiplies by 10 on the way out, and `PUT /api/v1/shots/<id>` rejects
+anything outside 0–10. So DYE2's only job is 0–10 ↔ 5 stars, a halving and a doubling
+(`shared-components.ts`), with both directions clamped.
+
+This replaced an earlier 0–100 reading. Two rules are now gone and should not come back:
+
+- **No ×20 / ÷20.** Writing `stars * 20` sends 80 for four stars, which Decaid rejects with
+  HTTP 400; reading `enjoyment / 20` renders a stored 8 as zero stars.
+- **No "an integer in [1,5] is a raw star index" branch** (issue #7). Under 0–10 those are
+  ordinary canonical ratings, so that branch misreads normal data: a stored 4 is 2 stars,
+  not 4. Rows written by the old raw-star bug are now indistinguishable from valid values,
+  so repairing them needs a version or provenance marker, never a guess from the number.
 
 Basket also has no schema field and lives in `annotations.extras`, same as RPM.
 
@@ -142,7 +151,8 @@ models, and scope the claim to the schema you checked.
 | Clearing a workflow field does nothing | `deepMergeJson` — omitted ≠ null; send explicit `null` |
 | Equipment shows on the shot but not the favourite | Different paths; see the three-homes table |
 | Equipment change works on one page only | `edit-shot.ts` keeps its own copy of the field |
-| Ratings read back near zero | `enjoymentToStars` legacy [1,5] branch removed |
+| Ratings read back near zero, or a star click 400s | ×20/÷20 crept back in; the scale is 0–10 |
+| Every rating reads two stars too high | The old [1,5] pass-through branch came back |
 | KV read returns an object, code expects array | `kvGetArray` coerces; a direct `fetch` does not |
 | Visualizer calls throw | They are meant to fail soft — plugin may be absent |
 | Field exists in one schema, missing in another | `WorkflowContext` vs `BeanBatch` — name the schema |
@@ -151,7 +161,7 @@ models, and scope the claim to the schema you checked.
 
 ```sh
 cd dye2-plugin
-npm test                       # bc-map, shot-paging, equipment suites
+npm test                       # bc-map, shot-paging, equipment, enjoyment-scale suites
 ```
 
 Against a running bridge:
