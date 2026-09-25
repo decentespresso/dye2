@@ -1,6 +1,7 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
 import { favDateScript } from "../utils/fav-date";
+import { favCardTapScript } from "../utils/fav-card-tap";
 import {
   sortSidebarCss, sortSidebarHtml, sortSidebarScript,
   pickerCardCss, pickerHeaderHtml,
@@ -104,6 +105,7 @@ const content = `
 const pageScript = `
 ${sortSidebarScript}
 ${favDateScript}
+${favCardTapScript}
 
 let favsCache = [];    // saved favourites
 let recentsCache = []; // auto: true entries computed from shot history; shown in the same grid
@@ -150,6 +152,16 @@ function selectCard(card, fav) {
   if (confirmBtn) confirmBtn.classList.remove('opacity-50');
 }
 
+function openEditPage(favId) {
+  sessionStorage.setItem('dye_editAutoFavId', favId);
+  window.location.href = 'auto-fav-edit';
+}
+
+function syncConfirmButton() {
+  const confirmBtn = document.getElementById('dye-confirm-btn');
+  if (confirmBtn) confirmBtn.classList.toggle('opacity-50', !selectedFavId);
+}
+
 function renderCards(favs) {
   const grid = document.getElementById('dye-cards-grid');
   if (!grid) return;
@@ -180,13 +192,13 @@ function renderCards(favs) {
         '<div class="fav-card-head"><div class="fav-card-title">' + esc(title) + '</div>' +
         (sub ? '<div class="fav-card-sub">' + esc(sub) + '</div>' : '') + '</div>' +
         (dateStr ? '<hr class="dye-card-divider"><div class="fav-card-date">' + esc(dateStr) + '</div>' : '');
-      card.addEventListener('click', () => selectCard(card, fav));
-      // Recents (auto) have no edit page and an unstable id, so tap-to-select only.
-      if (fav.auto) { grid.appendChild(card); return; }
-      // Long-press to edit this favourite; a plain tap still just selects it. Double-tap is
-      // a poor fit on the tablet — it competes with the WebView's own double-tap handling
-      // and gives no feedback that a second tap is expected. Same 500ms press and
-      // click-swallowing as the preset chips (attachPresetLongPress in shared-components).
+      // First tap selects; tapping the selected card again, or a 500ms long-press, opens
+      // auto-fav-edit. For a recent (auto) that page opens pre-filled and SAVE creates a
+      // new saved favourite. Same press and click-swallowing as attachPresetLongPress.
+      card.addEventListener('click', () => {
+        if (decideCardTap(selectedFavId, fav.id) === 'edit') openEditPage(fav.id);
+        else selectCard(card, fav);
+      });
       let editTimer = null, longFired = false;
       const clearEdit = () => { if (editTimer) { clearTimeout(editTimer); editTimer = null; } };
       card.addEventListener('pointerdown', () => {
@@ -195,8 +207,7 @@ function renderCards(favs) {
         editTimer = setTimeout(() => {
           editTimer = null;
           longFired = true;
-          sessionStorage.setItem('dye_editAutoFavId', fav.id);
-          window.location.href = 'auto-fav-edit';
+          openEditPage(fav.id);
         }, 500);
       });
       ['pointerup','pointerleave','pointercancel'].forEach(ev => card.addEventListener(ev, clearEdit));
@@ -232,7 +243,11 @@ function groupKeyOf(fav) {
 }
 
 function render() {
-  renderCards(sortFavs([...recentsCache, ...favsCache], currentSort));
+  const all = [...recentsCache, ...favsCache];
+  // A recent's id embeds its newest shot, so a refresh can retire the selected one.
+  if (selectedFavId && !all.some(f => f.id === selectedFavId)) selectedFavId = null;
+  renderCards(sortFavs(all, currentSort));
+  syncConfirmButton();
 }
 
 function setupTabs() {

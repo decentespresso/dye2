@@ -83,7 +83,9 @@ offline and pages are single self-contained documents.
 ## Touch And Selection
 
 `body` sets `user-select: none` and kills the long-press callout, because this is a tablet
-app and long-press belongs to DYE2's own gestures (long-press-to-edit on favourite cards).
+app and long-press belongs to DYE2's own gestures. On the auto-favs page a first tap selects a card,
+tapping the selected card again (or a 500ms long-press) opens its edit page — for a recent, pre-filled,
+with SAVE creating a new saved favourite.
 Inputs, textareas and `[contenteditable]` opt back in. If you add a control that needs text
 selection or a caret, it must be one of those or carry the same opt-in.
 

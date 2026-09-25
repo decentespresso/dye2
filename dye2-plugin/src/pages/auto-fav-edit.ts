@@ -717,10 +717,10 @@ async function initAutoFavEdit() {
   // A recent (auto: true) is computed and rewritten wholesale by the plugin runtime,
   // not something this page owns — editing and re-saving it under its own id would
   // just get clobbered (or would itself get treated as a recent) on the next refresh.
-  // Keep only what a fresh favourite should start from — its snapshot and copyMask —
+  // Keep only what a fresh favourite should start from — its title, snapshot and copyMask —
   // and drop id/auto/recentRank/sourceShotId/workflow so SAVE creates a real one.
   if (fav && fav.auto) {
-    fav = { snapshot: fav.snapshot || {}, copyMask: fav.copyMask, alwaysOnDashboard: true };
+    fav = { title: fav.title, snapshot: fav.snapshot || {}, copyMask: fav.copyMask, alwaysOnDashboard: true };
   }
   // New favourite, or the requested one is gone: seed a fresh one from the workflow so
   // renderFav always runs (populating defaults + disabling off-row pencils).

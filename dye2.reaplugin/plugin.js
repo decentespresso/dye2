@@ -7817,6 +7817,18 @@ function resolveRoastDate(id, batches) {
 }
 `;
 	//#endregion
+	//#region src/utils/fav-card-tap.ts
+	/**
+	* What a tap on a favourite card does, as a browser-side script string (no local imports,
+	* so test/fav-card-tap.test.mjs can eval it directly): the first tap selects, tapping the
+	* card that is already selected opens its edit page.
+	*/
+	var favCardTapScript = `
+function decideCardTap(selectedId, favId) {
+  return selectedId && favId && selectedId === favId ? 'edit' : 'select';
+}
+`;
+	//#endregion
 	//#region src/pages/auto-favs.ts
 	var TAB_KEYS = [
 		"beans",
@@ -7923,6 +7935,7 @@ function resolveRoastDate(id, batches) {
 	var pageScript$3 = `
 ${sortSidebarScript}
 ${favDateScript}
+${favCardTapScript}
 
 let favsCache = [];    // saved favourites
 let recentsCache = []; // auto: true entries computed from shot history; shown in the same grid
@@ -7969,6 +7982,16 @@ function selectCard(card, fav) {
   if (confirmBtn) confirmBtn.classList.remove('opacity-50');
 }
 
+function openEditPage(favId) {
+  sessionStorage.setItem('dye_editAutoFavId', favId);
+  window.location.href = 'auto-fav-edit';
+}
+
+function syncConfirmButton() {
+  const confirmBtn = document.getElementById('dye-confirm-btn');
+  if (confirmBtn) confirmBtn.classList.toggle('opacity-50', !selectedFavId);
+}
+
 function renderCards(favs) {
   const grid = document.getElementById('dye-cards-grid');
   if (!grid) return;
@@ -7999,13 +8022,13 @@ function renderCards(favs) {
         '<div class="fav-card-head"><div class="fav-card-title">' + esc(title) + '</div>' +
         (sub ? '<div class="fav-card-sub">' + esc(sub) + '</div>' : '') + '</div>' +
         (dateStr ? '<hr class="dye-card-divider"><div class="fav-card-date">' + esc(dateStr) + '</div>' : '');
-      card.addEventListener('click', () => selectCard(card, fav));
-      // Recents (auto) have no edit page and an unstable id, so tap-to-select only.
-      if (fav.auto) { grid.appendChild(card); return; }
-      // Long-press to edit this favourite; a plain tap still just selects it. Double-tap is
-      // a poor fit on the tablet — it competes with the WebView's own double-tap handling
-      // and gives no feedback that a second tap is expected. Same 500ms press and
-      // click-swallowing as the preset chips (attachPresetLongPress in shared-components).
+      // First tap selects; tapping the selected card again, or a 500ms long-press, opens
+      // auto-fav-edit. For a recent (auto) that page opens pre-filled and SAVE creates a
+      // new saved favourite. Same press and click-swallowing as attachPresetLongPress.
+      card.addEventListener('click', () => {
+        if (decideCardTap(selectedFavId, fav.id) === 'edit') openEditPage(fav.id);
+        else selectCard(card, fav);
+      });
       let editTimer = null, longFired = false;
       const clearEdit = () => { if (editTimer) { clearTimeout(editTimer); editTimer = null; } };
       card.addEventListener('pointerdown', () => {
@@ -8014,8 +8037,7 @@ function renderCards(favs) {
         editTimer = setTimeout(() => {
           editTimer = null;
           longFired = true;
-          sessionStorage.setItem('dye_editAutoFavId', fav.id);
-          window.location.href = 'auto-fav-edit';
+          openEditPage(fav.id);
         }, 500);
       });
       ['pointerup','pointerleave','pointercancel'].forEach(ev => card.addEventListener(ev, clearEdit));
@@ -8051,7 +8073,11 @@ function groupKeyOf(fav) {
 }
 
 function render() {
-  renderCards(sortFavs([...recentsCache, ...favsCache], currentSort));
+  const all = [...recentsCache, ...favsCache];
+  // A recent's id embeds its newest shot, so a refresh can retire the selected one.
+  if (selectedFavId && !all.some(f => f.id === selectedFavId)) selectedFavId = null;
+  renderCards(sortFavs(all, currentSort));
+  syncConfirmButton();
 }
 
 function setupTabs() {
@@ -9028,10 +9054,10 @@ async function initAutoFavEdit() {
   // A recent (auto: true) is computed and rewritten wholesale by the plugin runtime,
   // not something this page owns — editing and re-saving it under its own id would
   // just get clobbered (or would itself get treated as a recent) on the next refresh.
-  // Keep only what a fresh favourite should start from — its snapshot and copyMask —
+  // Keep only what a fresh favourite should start from — its title, snapshot and copyMask —
   // and drop id/auto/recentRank/sourceShotId/workflow so SAVE creates a real one.
   if (fav && fav.auto) {
-    fav = { snapshot: fav.snapshot || {}, copyMask: fav.copyMask, alwaysOnDashboard: true };
+    fav = { title: fav.title, snapshot: fav.snapshot || {}, copyMask: fav.copyMask, alwaysOnDashboard: true };
   }
   // New favourite, or the requested one is gone: seed a fresh one from the workflow so
   // renderFav always runs (populating defaults + disabling off-row pencils).
