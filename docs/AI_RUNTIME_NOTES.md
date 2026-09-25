@@ -25,9 +25,14 @@ Consequences that bite:
   compiles fine and fails at runtime on the tablet.
 - `${...}` inside a browser-code string is evaluated by the **plugin**, at render time, not
   by the browser. To emit a literal `${` for the browser, escape it (`\${`).
-- The plugin **does** have a global `fetch`, gated by the `api` permission (Decaid's
-  `plugin_manager.dart:921-963` injects it; `:3134` rejects a call when the manifest lacks
-  `api`). Most bridge access is still browser-side by convention (`AI_DATA_NOTES.md`),
+- The plugin **does** have a `fetch`, but not the `globalThis.fetch` Decaid defines at
+  `plugin_manager.dart:921-963` — that one always rejects with a null bridge token
+  (`:943`), a shared baseline stub, not what plugin code actually gets. The real one is a
+  local `const fetch` the plugin wrapper shadows it with, bound to that plugin's own
+  bridge token and gated by the `api` permission (`:2033-2035`), in scope where the
+  plugin's own source is evaluated (`:2229-2230`). (Cross-plugin HTTP calls —
+  `/api/v1/plugins/<id>/<endpoint>` — are gated by the same permission separately, at
+  `:3134`.) Most bridge access is still browser-side by convention (`AI_DATA_NOTES.md`),
   but plugin-runtime code that needs the bridge itself — `recent-favs.ts` is the first
   example — can call `fetch` directly. The dev-server's vm sandbox does not provide it
   (`dev-server.mjs`'s `loadPlugin()`), so guard with `typeof fetch === 'function'`.

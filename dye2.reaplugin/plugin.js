@@ -6205,13 +6205,21 @@ function applyAutoFavourite(fav) {
   // A recent's own workflow.context is the source shot's actual recorded values,
   // including an explicit null where the shot had none — unlike a saved favourite's
   // snapshot, where the truthy checks above intentionally leave a field untouched
-  // when the favourite never captured it. So a recent overrides beanBatchId/grinderId
-  // outright, clearing a stale selection rather than keeping it just because this
-  // recent's shot happened to have none.
+  // when the favourite never captured it. So a recent overrides its bean/grinder
+  // fields outright (matching the Streamline skin's own applyFavourite merge),
+  // clearing a stale selection rather than keeping it just because this recent's
+  // shot happened to have none.
   if (fav.auto && fav.workflow && fav.workflow.context) {
     const fctx = fav.workflow.context;
-    if (on('beans'))   ctx.beanBatchId = fctx.beanBatchId != null ? fctx.beanBatchId : null;
-    if (on('grinder')) ctx.grinderId   = fctx.grinderId   != null ? fctx.grinderId   : null;
+    if (on('beans')) {
+      ctx.beanBatchId   = fctx.beanBatchId   != null ? fctx.beanBatchId   : null;
+      ctx.coffeeName    = fctx.coffeeName    != null ? fctx.coffeeName    : null;
+      ctx.coffeeRoaster = fctx.coffeeRoaster != null ? fctx.coffeeRoaster : null;
+    }
+    if (on('grinder')) {
+      ctx.grinderId    = fctx.grinderId    != null ? fctx.grinderId    : null;
+      ctx.grinderModel = fctx.grinderModel != null ? fctx.grinderModel : null;
+    }
   }
   currentWorkflow.context = ctx;
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
@@ -6664,10 +6672,6 @@ async function initializeDyeDashboard() {
     } catch (e) { console.warn('Could not apply selected auto-favourite:', e); }
   }
 
-  // Recompute recents from the latest shot history before reading them for the pill
-  // row — same round trip the Auto Favourites picker takes. Errors are swallowed:
-  // worst case the pills show whatever recents the last refresh already wrote.
-  await fetch('/api/v1/plugins/dye2.reaplugin/recent-favs', { method: 'POST' }).catch(() => {});
   try {
     const autoResult = await getAutoFavourites();
     const allFavs = Array.isArray(autoResult) ? autoResult : (autoResult && autoResult.items ? autoResult.items : []);
@@ -6677,6 +6681,18 @@ async function initializeDyeDashboard() {
   initChart();
   await renderLastShot();
   renderNextShot();
+
+  // Recompute recents from the latest shot history in the background — same round
+  // trip the Auto Favourites picker takes — then refresh just the pill row once it
+  // lands. Never blocks first paint on this round trip.
+  fetch('/api/v1/plugins/dye2.reaplugin/recent-favs', { method: 'POST' })
+    .then(() => getAutoFavourites())
+    .then(result => {
+      const allFavs = Array.isArray(result) ? result : (result && result.items ? result.items : []);
+      autoFavs = allFavs.filter(f => f && f.auto);
+      if (currentWorkflow) renderRecipePills(currentWorkflow);
+    })
+    .catch(e => console.warn('Could not refresh recent auto-favourites:', e));
 }
 
 function showTransientMessage(text) {
@@ -7781,7 +7797,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   /* Recent auto-favourites — computed from shot history, not saved by hand.
      Full-width strip above the tab/grid picker so it never competes with the
      Beans/Recipe/Profile/Grinder grouping below. */
-  .dye-recent-section { padding: 20px 37px 0; shrink: 0; }
+  .dye-recent-section { padding: 20px 37px 0; flex-shrink: 0; }
   .dye-recent-heading {
     font-family: 'Inter', sans-serif; font-weight: 700; font-size: 22px;
     color: var(--mimoja-blue); margin-bottom: 10px;
@@ -7831,6 +7847,11 @@ function sortFavs(favs, sortKey) {
   return s;
 }
 
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function formatFavDate(capturedAt) {
   if (!capturedAt) return '';
   const d = new Date(capturedAt);
@@ -7854,7 +7875,7 @@ function renderRecents(recents) {
   if (!grid) return;
   grid.innerHTML = '';
   if (recents.length === 0) {
-    grid.innerHTML = '<div class="dye-recent-empty">No recent shots yet — pull a few and your most-used combos will show up here.</div>';
+    grid.innerHTML = '<div class="dye-recent-empty">No recent shots yet — pull a few and your most recent combos will show up here.</div>';
     return;
   }
   recents.forEach(fav => {
@@ -7863,9 +7884,9 @@ function renderRecents(recents) {
     card.className = 'dye-card' + (isSelected ? ' dye-card-selected' : '');
     const dateStr = formatFavDate(fav.capturedAt);
     card.innerHTML =
-      '<div class="fav-card-title">' + (fav.title || 'Untitled') + '</div>' +
-      (fav.subtitle ? '<div class="dye-card-sub">' + fav.subtitle + '</div>' : '') +
-      (dateStr ? '<hr class="dye-card-divider"><div class="fav-card-date">' + dateStr + '</div>' : '');
+      '<div class="fav-card-title">' + esc(fav.title || 'Untitled') + '</div>' +
+      (fav.subtitle ? '<div class="dye-card-sub">' + esc(fav.subtitle) + '</div>' : '') +
+      (dateStr ? '<hr class="dye-card-divider"><div class="fav-card-date">' + esc(dateStr) + '</div>' : '');
     // Tap selects, same as any other favourite card. No long-press-to-edit here — a
     // recent has no dedicated edit page, and its id is not stable (a newer shot in
     // the same group replaces it on the next refresh), so there is nothing sensible
@@ -7912,9 +7933,9 @@ function renderCards(favs) {
       const sub = fav.snapshot?.coffeeRoaster || '';
       const dateStr = formatFavDate(fav.capturedAt);
       card.innerHTML =
-        '<div class="fav-card-title">' + title + '</div>' +
-        (sub ? '<div class="dye-card-sub">' + sub + '</div>' : '') +
-        (dateStr ? '<hr class="dye-card-divider"><div class="fav-card-date">' + dateStr + '</div>' : '');
+        '<div class="fav-card-title">' + esc(title) + '</div>' +
+        (sub ? '<div class="dye-card-sub">' + esc(sub) + '</div>' : '') +
+        (dateStr ? '<hr class="dye-card-divider"><div class="fav-card-date">' + esc(dateStr) + '</div>' : '');
       card.addEventListener('click', () => selectCard(card, fav));
       // Long-press to edit this favourite; a plain tap still just selects it. Double-tap is
       // a poor fit on the tablet — it competes with the WebView's own double-tap handling
@@ -7981,12 +8002,6 @@ async function initAutoFavs() {
     window.history.back();
   });
 
-  // Recompute recents from the latest shot history before reading the store — same
-  // round trip the dashboard and auto-fav-edit take. Errors are swallowed: worst
-  // case this page shows whatever recents the last refresh (onLoad/onEvent, or an
-  // earlier page) already wrote.
-  await fetch('/api/v1/plugins/dye2.reaplugin/recent-favs', { method: 'POST' }).catch(() => {});
-
   try {
     const result = await getAutoFavourites().catch(() => []);
     const all = Array.isArray(result) ? result : (result && result.items ? result.items : []);
@@ -7999,6 +8014,19 @@ async function initAutoFavs() {
   }
 
   render();
+
+  // Recompute recents from the latest shot history in the background — same round
+  // trip the dashboard and auto-fav-edit take — then re-render just the RECENT grid
+  // once it lands. Never blocks the first paint on this round trip; worst case the
+  // page briefly shows whatever recents the last refresh already wrote.
+  fetch('/api/v1/plugins/dye2.reaplugin/recent-favs', { method: 'POST' })
+    .then(() => getAutoFavourites())
+    .then(result => {
+      const all = Array.isArray(result) ? result : (result && result.items ? result.items : []);
+      recentsCache = all.filter(f => f && f.auto).sort((a, b) => (a.recentRank || 0) - (b.recentRank || 0));
+      renderRecents(sortFavs(recentsCache, 'recent'));
+    })
+    .catch(e => console.warn('Could not refresh recent auto-favourites:', e));
 }
 
 initAutoFavs().catch(e => console.error('initAutoFavs failed:', e));
@@ -10517,6 +10545,10 @@ bcInit();
 	function norm(v) {
 		return String(v == null ? "" : v).trim().toLowerCase();
 	}
+	function isExecutableRecordedProfile(profile) {
+		if (!profile) return false;
+		return (typeof profile.title === "string" ? profile.title.trim() : "").length > 0 && Array.isArray(profile.steps) && profile.steps.length > 0 && profile.tank_temperature != null && profile.target_volume_count_start != null;
+	}
 	/**
 	* The grouping key for a shot: bean (batch id, else roaster+name) + profile title +
 	* grinder (id, else model). Returns null for a shot that should never form its own
@@ -10621,10 +10653,10 @@ bcInit();
 				drink: ctx.targetYield != null ? ctx.targetYield : null
 			},
 			capturedAt: shot.timestamp,
-			workflow: {
+			workflow: isExecutableRecordedProfile(profile) ? {
 				context,
 				profile
-			}
+			} : { context }
 		};
 	}
 	/** Two same-titled recents get the profile title appended; if that still collides

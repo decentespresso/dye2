@@ -33,6 +33,24 @@ function norm(v: unknown): string {
   return String(v == null ? "" : v).trim().toLowerCase();
 }
 
+// PUT /workflow parses context.profile with Profile.fromJson, which requires a
+// non-empty title, a non-empty steps array, tank_temperature and
+// target_volume_count_start (reaprime profile.dart:59-71) — and rejects the WHOLE
+// request, context included, if any are missing. A shot's own recorded profile can
+// lack them (e.g. an imported shot), so this must be checked before ever attaching
+// one to an auto-favourite.
+export function isExecutableRecordedProfile(profile: AnyRecord): boolean {
+  if (!profile) return false;
+  const title = typeof profile.title === "string" ? profile.title.trim() : "";
+  return (
+    title.length > 0 &&
+    Array.isArray(profile.steps) &&
+    profile.steps.length > 0 &&
+    profile.tank_temperature != null &&
+    profile.target_volume_count_start != null
+  );
+}
+
 /**
  * The grouping key for a shot: bean (batch id, else roaster+name) + profile title +
  * grinder (id, else model). Returns null for a shot that should never form its own
@@ -145,10 +163,9 @@ export function toRecentFavourite(shot: AnyRecord, rank: number): AnyRecord {
       drink: ctx.targetYield != null ? ctx.targetYield : null,
     },
     capturedAt: shot.timestamp,
-    workflow: {
-      context: context,
-      profile: profile,
-    },
+    workflow: isExecutableRecordedProfile(profile)
+      ? { context: context, profile: profile }
+      : { context: context },
   };
 }
 

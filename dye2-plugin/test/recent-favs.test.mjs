@@ -11,6 +11,7 @@ import {
   recentGroupKey,
   pickRecentShots,
   toRecentFavourite,
+  isExecutableRecordedProfile,
   applyTitleDisambiguation,
   assignSlots,
   refreshRecentFavourites,
@@ -28,7 +29,13 @@ function makeShot(id, timestamp, overrides) {
     targetDoseWeight: 18,
     targetYield: 36,
   }, overrides.context || {});
-  const profile = Object.assign({ title: 'Profile A' }, overrides.profile || {});
+  // Executable by default (PUT /workflow's Profile.fromJson requirement — see
+  // isExecutableRecordedProfile) so tests that don't care about this get a profile
+  // attached, same as a normally-run shot.
+  const profile = Object.assign({
+    title: 'Profile A', steps: [{ name: 'step-1' }],
+    tank_temperature: 90, target_volume_count_start: 0,
+  }, overrides.profile || {});
   return { id: id, timestamp: timestamp, workflow: { context: context, profile: profile } };
 }
 
@@ -155,6 +162,34 @@ console.log('ok   pickRecentShots: newest-group-first ordering, page/group caps,
 }
 
 console.log('ok   toRecentFavourite: target values, explicit nulls, omitted-when-absent, full profile');
+
+// --- isExecutableRecordedProfile / toRecentFavourite profile omission -------------------------------------------------------------
+
+{
+  const full = { title: 'D-Flow', steps: [{ name: 's1' }], tank_temperature: 90, target_volume_count_start: 0 };
+  assert.equal(isExecutableRecordedProfile(full), true);
+  assert.equal(isExecutableRecordedProfile(null), false);
+  assert.equal(isExecutableRecordedProfile({ ...full, title: '' }), false, 'empty title fails PUT /workflow');
+  assert.equal(isExecutableRecordedProfile({ ...full, title: '   ' }), false, 'whitespace-only title fails PUT /workflow');
+  assert.equal(isExecutableRecordedProfile({ ...full, steps: [] }), false, 'empty steps array fails PUT /workflow');
+  assert.equal(isExecutableRecordedProfile({ ...full, steps: undefined }), false, 'missing steps fails PUT /workflow');
+  assert.equal(isExecutableRecordedProfile({ ...full, tank_temperature: null }), false);
+  assert.equal(isExecutableRecordedProfile({ ...full, target_volume_count_start: null }), false);
+  // target_volume_count_start: 0 is a valid value, not "missing" — must not be treated as falsy.
+  assert.equal(isExecutableRecordedProfile({ ...full, target_volume_count_start: 0 }), true);
+}
+
+{
+  // An imported shot can carry an incomplete recorded profile (missing the fields
+  // PUT /workflow's Profile.fromJson requires). Attaching it anyway would fail the
+  // WHOLE apply PUT, context included — see doc-cited profile.dart:59-71.
+  const shot = makeShot('incomplete', 't1', { profile: { steps: [] } });
+  const fav = toRecentFavourite(shot, 1);
+  assert.equal('profile' in fav.workflow, false, 'an unexecutable recorded profile is omitted, not attached');
+  assert.ok(fav.workflow.context, 'context is still present — only profile is dropped');
+}
+
+console.log('ok   isExecutableRecordedProfile: PUT /workflow\'s Profile.fromJson requirements, profile omitted when unmet');
 
 // --- applyTitleDisambiguation -------------------------------------------------------------
 
