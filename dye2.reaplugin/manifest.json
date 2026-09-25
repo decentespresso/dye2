@@ -3,7 +3,7 @@
   "author": "Streamline",
   "name": "Streamline/DYE2",
   "description": "Beans, grinders, and shot workflow for Decent Espresso. Track roast batches and freshness, pick a bean and grinder before pulling, edit and rate shots afterwards, and manage auto-favourite recipes. Dashboard: http://localhost:8080/api/v1/plugins/dye2.reaplugin/dashboard",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "apiVersion": 1,
   "permissions": [
     "log",
