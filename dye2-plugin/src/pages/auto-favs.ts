@@ -103,18 +103,17 @@ function esc(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// batchId -> roastDate ('' = looked up, none). Filled by loadRoastDates(); cards render
-// first with the plain date and are redrawn once it lands.
-let roastDateByBatch = {};
+// Bean batches, fetched once per page load by loadRoastDates(); cards render first with
+// the plain date and are redrawn once it lands.
+let allBatches = [];
 function favRoastDate(fav) {
-  const id = fav && fav.snapshot && fav.snapshot.beanBatchId;
-  return (id && roastDateByBatch[id]) || '';
+  return resolveRoastDate(fav && fav.snapshot && fav.snapshot.beanBatchId, allBatches);
 }
 function favDateLine(fav) { return formatFavDate(fav.capturedAt, favRoastDate(fav)); }
 
 async function loadRoastDates() {
   const batches = await fetch(API_BASE_URL + '/bean-batches').then(r => r.ok ? r.json() : []);
-  (Array.isArray(batches) ? batches : []).forEach(b => { if (b && b.id) roastDateByBatch[b.id] = b.roastDate || ''; });
+  allBatches = Array.isArray(batches) ? batches : [];
 }
 
 function selectCard(card, fav) {
