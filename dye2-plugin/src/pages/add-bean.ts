@@ -1,5 +1,6 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
+import { beanDeleteScript } from "../utils/bean-delete";
 import { datePickerCss, datePickerScript } from "../utils/date-picker";
 import { lucideIcon } from "../utils/lucide";
 import { toggleCss, toggleRowScript } from "../utils/shared-components";
@@ -188,6 +189,9 @@ const content = `
   <div class="flex justify-between items-center px-[37px] border-b border-[var(--profile-button-outline-color)] bg-[var(--box-color)] h-[165px]">
     <h1 id="dye-add-bean-title" class="text-[38px] font-bold text-[var(--text-primary)] no-select">Add New Beans</h1>
     <div class="flex items-center gap-[16px]">
+      <button id="dye-delete-btn" style="display:none" class="flex justify-center items-center w-[240px] h-[82px] py-[27px] rounded-[68px] font-bold text-[24px] text-[#C0392B]">
+        DELETE
+      </button>
       <button id="dye-cancel-btn" class="flex justify-center items-center w-[240px] h-[82px] py-[27px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)]">
         CANCEL
       </button>
@@ -196,6 +200,7 @@ const content = `
       </button>
     </div>
   </div>
+  <div id="dye-delete-error" style="display:none" class="px-[37px] py-[12px] text-[20px] text-[#C0392B]"></div>
   <div class="flex-1 overflow-y-auto flex justify-center">
     <div id="dye-add-bean-form" class="flex flex-col gap-[30px] w-[1200px] py-[40px]">
       <div class="flex gap-[30px] items-center">
@@ -260,6 +265,7 @@ const content = `
 `;
 
 const pageScript = `
+${beanDeleteScript}
 let beansCache = null;
 
 function setupDropdown(inputId, dropdownId, items) {
@@ -470,6 +476,27 @@ async function initializeDyeAddBean() {
 
   if (cancelBtn) {
     cancelBtn.addEventListener('click', () => { window.location.href = 'bean-picker'; });
+  }
+
+  const deleteBtn = document.getElementById('dye-delete-btn');
+  if (deleteBtn && editBeanId) {
+    deleteBtn.style.display = '';
+    deleteBtn.addEventListener('click', async () => {
+      if (!confirm('Delete this bean and all its batches? Shots that used it keep their saved name, but the bean is gone.')) return;
+      const errEl = document.getElementById('dye-delete-error');
+      try {
+        const batchIds = await deleteBeanWithBatches(editBeanId, { getBeanBatches, deleteBeanBatch, deleteBean });
+        if (sessionStorage.getItem('dye_selectedBeanId') === editBeanId || batchIds.includes(sessionStorage.getItem('dye_selectedBatchId'))) {
+          ['dye_selectedBeanId','dye_selectedBeanName','dye_selectedBeanRoaster','dye_selectedBatchId','dye_selectedRoastDate']
+            .forEach(k => sessionStorage.removeItem(k));
+        }
+        beansCache = null;
+        window.location.href = 'bean-picker';
+      } catch (e) {
+        console.error('Failed to delete bean:', e);
+        if (errEl) { errEl.textContent = 'Delete failed: ' + e.message + '. Some batches may already be deleted.'; errEl.style.display = ''; }
+      }
+    });
   }
 
   if (confirmBtn) {

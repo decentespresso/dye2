@@ -102,6 +102,9 @@ accepts and drops it from workflow context, which is why `dashboard.ts` reads a 
 `ctx.roastDate` only as a fallback before going to the linked batch. Name the schema when you
 make a claim about a field.
 
+Bean deletion: `DELETE /beans/{id}` removes only the bean row, and batches reference it with no cascade
+while the host enforces foreign keys, so delete every batch first, archived included (`bean-delete.ts`).
+
 ## Shots
 
 Paging via `getShots({limit, offset, order, grinderId, beanId, beanBatchId, coffeeName,

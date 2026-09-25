@@ -46,6 +46,16 @@ async function updateBean(id, data) {
   return res.json();
 }
 
+async function deleteBeanBatch(batchId) {
+  const res = await fetch(API_BASE_URL + '/bean-batches/' + batchId, { method: 'DELETE' });
+  if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + await res.text().catch(() => ''));
+}
+
+async function deleteBean(beanId) {
+  const res = await fetch(API_BASE_URL + '/beans/' + beanId, { method: 'DELETE' });
+  if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + await res.text().catch(() => ''));
+}
+
 async function createBeanBatch(beanId, data) {
   const res = await fetch(API_BASE_URL + '/beans/' + beanId + '/batches', {
     method: 'POST',
