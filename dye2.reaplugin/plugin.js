@@ -7746,6 +7746,37 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 		};
 	}
 	//#endregion
+	//#region src/utils/fav-date.ts
+	/**
+	* Date line for a favourite card, as a browser-side script string (no local imports, so
+	* test/fav-date.test.mjs can eval it directly).
+	*
+	* With a known roast date: "15 Jul 2025 (30 days off-roast)", the days measured to today —
+	* the same convention as the dashboard, edit-shot and bean-picker. roastDate is a BeanBatch
+	* field, not a WorkflowContext one, so the caller resolves it from fav.snapshot.beanBatchId
+	* (see auto-favs.ts) and passes it in. Without one (no batch, fetch failed, unparseable
+	* date): the plain favourite date and time, "21 Aug 2025, 2:30pm", with no off-roast text.
+	*/
+	var favDateScript = `
+function formatFavDate(capturedAt, roastDate, now) {
+  const today = now ? new Date(now) : new Date();
+  if (roastDate) {
+    const rd = new Date(roastDate);
+    if (!isNaN(rd.getTime())) {
+      const days = Math.max(0, Math.floor((today - rd) / 86400000));
+      return rd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) +
+        ' (' + days + ' days off-roast)';
+    }
+  }
+  if (!capturedAt) return '';
+  const d = new Date(capturedAt);
+  if (isNaN(d.getTime())) return '';
+  const h = d.getHours();
+  const time = ((h % 12) || 12) + ':' + String(d.getMinutes()).padStart(2, '0') + (h < 12 ? 'am' : 'pm');
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + time;
+}
+`;
+	//#endregion
 	//#region src/pages/auto-favs.ts
 	var TAB_KEYS = [
 		"beans",
@@ -7825,6 +7856,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 `;
 	var pageScript$3 = `
 ${sortSidebarScript}
+${favDateScript}
 
 let favsCache = [];    // saved favourites
 let recentsCache = []; // auto: true entries computed from shot history; shown in the same grid
@@ -7850,14 +7882,18 @@ function esc(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function formatFavDate(capturedAt) {
-  if (!capturedAt) return '';
-  const d = new Date(capturedAt);
-  const now = new Date();
-  const diff = Math.floor((now - d) / 86400000);
-  const h = d.getHours(), time = ((h % 12) || 12) + ':' + String(d.getMinutes()).padStart(2, '0') + (h < 12 ? 'am' : 'pm');
-  const date = d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-  return date + ', ' + time + (diff > 0 ? '  ·  ' + diff + ' days off-roast' : '');
+// batchId -> roastDate ('' = looked up, none). Filled by loadRoastDates(); cards render
+// first with the plain date and are redrawn once it lands.
+let roastDateByBatch = {};
+function favRoastDate(fav) {
+  const id = fav && fav.snapshot && fav.snapshot.beanBatchId;
+  return (id && roastDateByBatch[id]) || '';
+}
+function favDateLine(fav) { return formatFavDate(fav.capturedAt, favRoastDate(fav)); }
+
+async function loadRoastDates() {
+  const batches = await fetch(API_BASE_URL + '/bean-batches').then(r => r.ok ? r.json() : []);
+  (Array.isArray(batches) ? batches : []).forEach(b => { if (b && b.id) roastDateByBatch[b.id] = b.roastDate || ''; });
 }
 
 function selectCard(card, fav) {
@@ -7903,7 +7939,7 @@ function renderCards(favs) {
       card.className = 'dye-card' + (isSelected ? ' dye-card-selected' : '');
       const title = fav.title || fav.snapshot?.coffeeName || 'Untitled Favourite';
       const sub = fav.auto ? (fav.subtitle || '') : (fav.snapshot?.coffeeRoaster || '');
-      const dateStr = formatFavDate(fav.capturedAt);
+      const dateStr = favDateLine(fav);
       card.innerHTML =
         '<div class="fav-card-head"><div class="fav-card-title">' + esc(title) + '</div>' +
         (sub ? '<div class="fav-card-sub">' + esc(sub) + '</div>' : '') + '</div>' +
@@ -7987,6 +8023,10 @@ async function initAutoFavs() {
   }
 
   render();
+
+  // Roast dates come from the bean batches the favourites point at; fetched once, and
+  // the cards are redrawn only if any came back. A failure just keeps the plain date.
+  loadRoastDates().then(() => render()).catch(e => console.warn('Could not load roast dates:', e));
 
   // Recompute recents from the latest shot history in the background — same round
   // trip the dashboard and auto-fav-edit take — then re-render the grid
