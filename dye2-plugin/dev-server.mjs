@@ -142,6 +142,51 @@ function handlePluginPage(endpoint, req, res) {
   }
 }
 
+// ── Recent auto-favourites ──────────────────────────────────────────
+//
+// Pages call this at an absolute cross-plugin path (same convention as the
+// Visualizer plugin's /api/v1/plugins/visualizer.reaplugin/*), never a bare
+// PLUGIN_ROUTES entry — so it needs its own case, ahead of the generic /api/
+// proxy below.
+const RECENT_FAVS_PATH = "/api/v1/plugins/dye2.reaplugin/recent-favs";
+
+async function handleRecentFavs(req, res) {
+  if (plugin) {
+    try {
+      const response = await plugin.__httpRequestHandler({
+        requestId: `dev-${Date.now()}`,
+        endpoint: "recent-favs",
+        method: req.method,
+        headers: req.headers,
+        body: null,
+        query: {},
+      });
+      if (response && response.status >= 200 && response.status < 300) {
+        res.writeHead(response.status, response.headers);
+        res.end(response.body);
+        return;
+      }
+      console.warn(`recent-favs: plugin handler returned ${response && response.status}, falling back to the store`);
+    } catch (err) {
+      console.warn(`recent-favs: plugin handler failed (${err.message}), falling back to the store`);
+    }
+  }
+
+  // The plugin can't run this itself here — the vm context has no fetch (see
+  // loadPlugin()), so refreshRecentFavourites always 503s in dev. Rather than fail
+  // the request outright, hand back whatever auto entries are already in the store.
+  try {
+    const storeRes = await fetch(`${BRIDGE_URL}/api/v1/store/dye2.reaplugin/autoFavourites`);
+    const val = storeRes.ok ? await storeRes.json() : null;
+    const autos = (Array.isArray(val) ? val : []).filter((x) => x && x.auto);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(autos));
+  } catch (err) {
+    res.writeHead(502, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: err.message }));
+  }
+}
+
 // ── HTTP server ─────────────────────────────────────────────────────
 
 const PLUGIN_ROUTES = ["grinders", "baskets", "equipment", "bean-picker", "grinder-picker", "basket-picker", "profile-picker", "roasters", "add-bean", "dashboard", "edit-shot", "auto-favs", "auto-fav-edit", "recipe-edit", "bc-import", "plotly"];
@@ -156,6 +201,11 @@ const server = createServer((req, res) => {
       handlePluginPage(route, req, res);
       return;
     }
+  }
+
+  if (pathname === RECENT_FAVS_PATH) {
+    handleRecentFavs(req, res);
+    return;
   }
 
   // Proxy API calls to Streamline Bridge

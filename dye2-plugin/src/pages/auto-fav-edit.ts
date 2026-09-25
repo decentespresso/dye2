@@ -653,6 +653,10 @@ function setupControls() {
     try {
       if (currentFav && currentFav.id) await updateAutoFavourite(currentFav.id, data);
       else await createAutoFavourite(data);
+      // A saved favourite can claim a dashboard slot a recent would otherwise have
+      // filled (or free one up) — recompute so the pill row / picker reflect it
+      // immediately rather than waiting for the next shot or plugin reload.
+      fetch('/api/v1/plugins/dye2.reaplugin/recent-favs', { method: 'POST' }).catch(() => {});
       window.history.back();
     } catch (e) { console.error('Failed to save auto-favourite:', e); }
   });
@@ -709,6 +713,14 @@ async function initAutoFavEdit() {
   if (favId) {
     try { fav = await getAutoFavourite(favId); }
     catch (e) { console.warn('Could not load auto-favourite:', e); }
+  }
+  // A recent (auto: true) is computed and rewritten wholesale by the plugin runtime,
+  // not something this page owns — editing and re-saving it under its own id would
+  // just get clobbered (or would itself get treated as a recent) on the next refresh.
+  // Keep only what a fresh favourite should start from — its snapshot and copyMask —
+  // and drop id/auto/recentRank/sourceShotId/workflow so SAVE creates a real one.
+  if (fav && fav.auto) {
+    fav = { snapshot: fav.snapshot || {}, copyMask: fav.copyMask, alwaysOnDashboard: true };
   }
   // New favourite, or the requested one is gone: seed a fresh one from the workflow so
   // renderFav always runs (populating defaults + disabling off-row pencils).

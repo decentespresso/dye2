@@ -25,14 +25,23 @@ Consequences that bite:
   compiles fine and fails at runtime on the tablet.
 - `${...}` inside a browser-code string is evaluated by the **plugin**, at render time, not
   by the browser. To emit a literal `${` for the browser, escape it (`\${`).
-- The plugin cannot `fetch`. All bridge access happens browser-side — see
-  `AI_DATA_NOTES.md`.
+- The plugin **does** have a global `fetch`, gated by the `api` permission (Decaid's
+  `plugin_manager.dart:921-963` injects it; `:3134` rejects a call when the manifest lacks
+  `api`). Most bridge access is still browser-side by convention (`AI_DATA_NOTES.md`),
+  but plugin-runtime code that needs the bridge itself — `recent-favs.ts` is the first
+  example — can call `fetch` directly. The dev-server's vm sandbox does not provide it
+  (`dev-server.mjs`'s `loadPlugin()`), so guard with `typeof fetch === 'function'`.
+- `onEvent` receives `shotStored` / `shotUpdated` only with the `events.shots` permission
+  (`plugin_manager.dart:2478`); the dev server never dispatches either, so anything gated on
+  them needs another trigger for local dev (a page's own explicit call, for instance).
 - Do not import browser APIs into plugin-runtime code, and do not expect a script string to
   see any module-scope value except through interpolation.
 
 Browser code shared across pages lives as exported string constants:
 `dev-api.ts`, `shot-paging.ts`, `chart.ts`, `shared-components.ts`, `equipment-field.ts`,
-`bc-map.ts`. Pages pass them to the shell as a script list.
+`bc-map.ts`. Pages pass them to the shell as a script list. Plugin-runtime code that is not
+a page (`plotly-asset.ts`, `recent-favs.ts`) is instead plain, real, type-checked TypeScript,
+imported normally by `plugin.ts` — no template-literal string, no browser runtime involved.
 
 ## Routing
 

@@ -71,6 +71,7 @@ const styles = `
 
   .dye-recipe-pill {
     box-sizing: border-box;
+    position: relative;
     width: 225px;
     height: 60px;
     border-radius: 15px;
@@ -88,6 +89,15 @@ const styles = `
     transition: background 0.15s, color 0.15s;
   }
   .dye-recipe-pill.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  /* Recent (computed from shot history) vs a saved recipe — a small dot, not a whole
+     second visual language, since the pill is only 60px tall. */
+  .dye-recipe-pill.dye-pill-recent::after {
+    content: '';
+    position: absolute; top: 8px; right: 10px;
+    width: 8px; height: 8px; border-radius: 9999px;
+    background: var(--mimoja-blue);
+  }
+  .dye-recipe-pill.dye-pill-recent.active::after { background: #fff; }
   .dye-recipe-pill-label {
     min-width: 0;
     max-width: 100%;
@@ -495,6 +505,7 @@ const pageScript = `
 ${enjoymentScaleScript}
 let grinders = [];
 let recipes = [];
+let autoFavs = [];   // auto: true entries from autoFavourites — recent shot combos, see recent-favs.ts
 let currentWorkflow = null;
 let currentStarRating = 0;
 let currentShotNote = '';
@@ -1080,17 +1091,20 @@ function renderRecipePills(workflow) {
   // recipe-edit's "Show on Streamline Dashboard" toggle writes showOnStreamlineDashboard,
   // so honour it here too — absent means shown. The workflow-string fallback carries no
   // flag, so it is never filtered.
-  const items = recipes.length
+  const recentItems = autoFavs.slice().sort((a, b) => (a.recentRank || 0) - (b.recentRank || 0));
+  const recipeItems = recipes.length
     ? recipes.filter(r => r && r.showOnStreamlineDashboard !== false)
     : (workflow.favorites || workflow.recipes || []);
+  const items = [...recentItems, ...recipeItems];
   container.innerHTML = '';
   if (items.length === 0) { container.innerHTML = '<span style="color:var(--low-contrast-white);font-size:21px;">No recipes yet</span>'; return; }
   const activeTitle = workflow.profile && workflow.profile.title;
   items.forEach((item, i) => {
+    const isRecent = typeof item === 'object' && item && item.auto === true;
     const title = typeof item === 'string' ? item : (item.name || item.title || ('Recipe ' + (i + 1)));
     const pill = document.createElement('button');
-    pill.className = 'dye-recipe-pill' + (title === activeTitle ? ' active' : '');
-    pill.title = title;
+    pill.className = 'dye-recipe-pill' + (isRecent ? ' dye-pill-recent' : '') + (title === activeTitle ? ' active' : '');
+    pill.title = isRecent ? title + ' (recent)' : title;
     const label = document.createElement('span');
     label.className = 'dye-recipe-pill-label';
     label.textContent = title;
@@ -1098,7 +1112,13 @@ function renderRecipePills(workflow) {
     pill.addEventListener('click', () => {
       document.querySelectorAll('.dye-recipe-pill').forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
-      if (typeof item === 'object') applyRecipe(item);
+      if (typeof item !== 'object') return;
+      if (isRecent) {
+        applyAutoFavourite(item);
+        updateWorkflow(currentWorkflow).catch(e => console.warn(e));
+      } else {
+        applyRecipe(item);
+      }
     });
     container.appendChild(pill);
   });
@@ -1174,9 +1194,25 @@ function applyAutoFavourite(fav) {
   if (on('barista')   && snp.barista)   ctx.baristaName = snp.barista;
   if (on('drinker')   && snp.drinker)   ctx.drinkerName = snp.drinker;
   if (on('note')      && snp.note)      ctx.extras = { ...(ctx.extras || {}), note: snp.note };
+  // A recent's own workflow.context is the source shot's actual recorded values,
+  // including an explicit null where the shot had none — unlike a saved favourite's
+  // snapshot, where the truthy checks above intentionally leave a field untouched
+  // when the favourite never captured it. So a recent overrides beanBatchId/grinderId
+  // outright, clearing a stale selection rather than keeping it just because this
+  // recent's shot happened to have none.
+  if (fav.auto && fav.workflow && fav.workflow.context) {
+    const fctx = fav.workflow.context;
+    if (on('beans'))   ctx.beanBatchId = fctx.beanBatchId != null ? fctx.beanBatchId : null;
+    if (on('grinder')) ctx.grinderId   = fctx.grinderId   != null ? fctx.grinderId   : null;
+  }
   currentWorkflow.context = ctx;
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
     currentWorkflow.profile = { id: snp.profileId, title: snp.profileTitle };
+  }
+  // Recents carry the FULL recorded profile (not just {id, title}), so reapplying one
+  // reproduces the exact steps that ran instead of just a reference by id/title.
+  if (fav.auto && fav.workflow && fav.workflow.profile) {
+    currentWorkflow.profile = fav.workflow.profile;
   }
   renderNextShot();
 }
@@ -1608,13 +1644,42 @@ async function initializeDyeDashboard() {
     sessionStorage.removeItem('dye_selectedAutoFavId');
     try {
       const fav = await getAutoFavourite(selFavId);
-      if (fav) { applyAutoFavourite(fav); await updateWorkflow(currentWorkflow).catch(e => console.warn(e)); }
+      if (fav) {
+        applyAutoFavourite(fav);
+        await updateWorkflow(currentWorkflow).catch(e => console.warn(e));
+      } else if (selFavId.indexOf('recent:') === 0) {
+        // A recent's id is not stable — it changes as soon as a newer shot takes over
+        // its group — so the one the picker sent back can already be gone by the time
+        // we get here. No shot-based fallback (see recent-favs spec); just say so.
+        showTransientMessage('Favourite no longer available');
+      }
     } catch (e) { console.warn('Could not apply selected auto-favourite:', e); }
   }
+
+  // Recompute recents from the latest shot history before reading them for the pill
+  // row — same round trip the Auto Favourites picker takes. Errors are swallowed:
+  // worst case the pills show whatever recents the last refresh already wrote.
+  await fetch('/api/v1/plugins/dye2.reaplugin/recent-favs', { method: 'POST' }).catch(() => {});
+  try {
+    const autoResult = await getAutoFavourites();
+    const allFavs = Array.isArray(autoResult) ? autoResult : (autoResult && autoResult.items ? autoResult.items : []);
+    autoFavs = allFavs.filter(f => f && f.auto);
+  } catch (e) { console.warn('Could not load recent auto-favourites:', e); autoFavs = []; }
 
   initChart();
   await renderLastShot();
   renderNextShot();
+}
+
+function showTransientMessage(text) {
+  const el = document.createElement('div');
+  el.textContent = text;
+  el.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);' +
+    'background:var(--mimoja-blue);color:#fff;padding:14px 28px;border-radius:12px;' +
+    'font-family:Inter,sans-serif;font-size:20px;font-weight:600;z-index:999;' +
+    'box-shadow:0 4px 16px rgba(0,0,0,0.2)';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
 }
 
 initializeDyeDashboard().catch(e => console.error('initializeDyeDashboard failed:', e));

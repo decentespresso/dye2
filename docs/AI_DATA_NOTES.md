@@ -9,9 +9,11 @@ detail here — go read that file.
 
 ## Where Data Access Lives
 
-All bridge access is **browser-side**. The plugin runtime has no `fetch`
-(`AI_RUNTIME_NOTES.md`). `src/utils/dev-api.ts` is one large string of plain `async function`
-declarations that become page globals when inlined — `getBeans()`, `updateShot()`,
+Almost all bridge access is **browser-side**, by convention rather than necessity — the
+plugin runtime does have a permission-gated `fetch` (`AI_RUNTIME_NOTES.md`), but only
+`recent-favs.ts` uses it so far, because it must run on `shotStored`/`shotUpdated` and on
+plugin load, not on a page open. `src/utils/dev-api.ts` is one large string of plain `async
+function` declarations that become page globals when inlined — `getBeans()`, `updateShot()`,
 `getWorkflow()` and so on, called directly with no namespace.
 
 There is **no fetch wrapper, no retry, no caching, no request dedupe**. Every helper is
@@ -94,9 +96,11 @@ Fields with no schema slot ride in `context.extras` — `rpm`, `basketId`, `bask
 `note`. Note that `extras` is rebuilt by spread on each branch, so it merges rather than
 clobbers within a single build.
 
-`WorkflowContext` and `BeanBatch` are different schemas that share field names. `roastDate`
-exists on both paths but they are not the same store — name the schema when you make a claim
-about a field.
+`WorkflowContext` and `BeanBatch` are different schemas that share some field names, and not
+all of them: `roastDate` is a `BeanBatch` field, not a `WorkflowContext` one — the bridge
+accepts and drops it from workflow context, which is why `dashboard.ts` reads a shot's
+`ctx.roastDate` only as a fallback before going to the linked batch. Name the schema when you
+make a claim about a field.
 
 ## Shots
 

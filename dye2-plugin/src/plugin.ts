@@ -16,10 +16,21 @@ import { renderAutoFavsPage } from "./pages/auto-favs";
 import { renderAutoFavEditPage } from "./pages/auto-fav-edit";
 import { renderRecipeEditPage } from "./pages/recipe-edit";
 import { renderBcImportPage } from "./pages/bc-import";
+import { refreshRecentFavourites } from "./utils/recent-favs";
 
 export default function createPlugin(host: PluginHost): PluginInstance {
   function log(msg: string) {
     host.log(`[dye2] ${msg}`);
+  }
+
+  // The dev-server vm context has no fetch (see dev-server.mjs); the real plugin
+  // runtime does, gated by the "api" permission. Guard so a dev-server load never
+  // throws trying to reference it.
+  function refreshRecents(): void {
+    if (typeof fetch !== "function") return;
+    refreshRecentFavourites(fetch).catch((e: unknown) => {
+      log(`recent-favs refresh failed: ${e instanceof Error ? e.message : String(e)}`);
+    });
   }
 
   return {
@@ -28,17 +39,20 @@ export default function createPlugin(host: PluginHost): PluginInstance {
 
     onLoad(_settings: Record<string, unknown>) {
       log("DYE2 plugin loaded");
+      refreshRecents();
     },
 
     onUnload() {
       log("DYE2 plugin unloaded");
     },
 
-    onEvent(_event: PluginEvent) {
-      // MVP: no event processing
+    onEvent(event: PluginEvent) {
+      if (event.name === "shotStored" || event.name === "shotUpdated") {
+        refreshRecents();
+      }
     },
 
-    __httpRequestHandler(request: HttpRequest): HttpResponse {
+    __httpRequestHandler(request: HttpRequest): HttpResponse | Promise<HttpResponse> {
       log(`HTTP ${request.method} ${request.endpoint}`);
 
       switch (request.endpoint) {
@@ -86,6 +100,36 @@ export default function createPlugin(host: PluginHost): PluginInstance {
 
         case "bc-import":
           return renderBcImportPage(request);
+
+        // Not a page: recomputes recent auto-favourites and returns them. Called by
+        // pages on load (belt-and-braces alongside onLoad/onEvent) since the dev
+        // server never dispatches shotStored/shotUpdated.
+        case "recent-favs":
+          if (typeof fetch !== "function") {
+            return {
+              requestId: request.requestId,
+              status: 503,
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ error: "fetch is not available in this runtime" }),
+            };
+          }
+          return refreshRecentFavourites(fetch)
+            .then((autos) => ({
+              requestId: request.requestId,
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(autos),
+            }))
+            .catch((e: unknown) => {
+              const message = e instanceof Error ? e.message : String(e);
+              log(`recent-favs refresh failed: ${message}`);
+              return {
+                requestId: request.requestId,
+                status: 502,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ error: message }),
+              };
+            });
 
         // Not a page: the local Plotly bundle for the dashboard chart.
         case "plotly":

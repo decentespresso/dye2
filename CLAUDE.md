@@ -6,8 +6,11 @@ editing.
 
 ## Two runtimes — read this before editing `dye2-plugin/src/`
 
-`dye2-plugin/src/` is TypeScript that runs inside `flutter_js`: **no DOM, no `fetch`**. It
-answers `__httpRequestHandler` calls by returning HTML strings — a server-side renderer.
+`dye2-plugin/src/` is TypeScript that runs inside `flutter_js`: no DOM, and no `fetch`
+**unless** the plugin declares the `api` permission (dye2's manifest does) — then `fetch` is
+a real, permission-gated global (`plugin_manager.dart:921-963`). Most code still answers
+`__httpRequestHandler` calls by returning HTML strings — a server-side renderer — but plugin
+code that isn't a page (`recent-favs.ts`) can and does call `fetch` itself.
 
 The browser-side JavaScript lives in those same files as exported **template-literal
 strings**, inlined as `<script>` tags. Those strings are inert text to the compiler, so they
@@ -22,7 +25,7 @@ cd dye2-plugin
 npm run build    # build:css + vite → ../dye2.reaplugin/plugin.js
 npm run dev      # vite watch (run alongside serve)
 npm run serve    # dev server on :4444, proxies /api/v1/* to localhost:8080
-npm test         # bc-map, shot-paging, equipment
+npm test         # bc-map, shot-paging, equipment, enjoyment-scale, grinder edit, recent-favs
 ```
 
 `dye2.reaplugin/` is generated **and committed** — rebuild and commit it with any source

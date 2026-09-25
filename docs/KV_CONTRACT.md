@@ -202,6 +202,19 @@ CONFIRM handler in `basket-picker.ts`), not a full context replacement.
 }
 ```
 
+**Auto (recent) entries.** Entries with `auto: true` are computed by DYE2 from shot
+history (up to 5, the most recently used bean-batch + profile + grinder combinations,
+newest first by `recentRank`) and are rewritten wholesale by DYE2's plugin runtime
+after every stored or edited shot and on DYE2 page loads. They fill the dashboard
+slots (1–5) that saved favourites don't claim; entries that don't fit have
+`alwaysOnDashboard: false`. Their `workflow.profile` is the full recorded profile of
+the source shot, and `workflow.context` carries explicit `null` for bean/grinder
+fields the source shot lacked. Consumers read them like any favourite; never edit or
+write them, and don't key UI state on their `id` (it changes when a newer shot takes
+over the group). Note: the host store is last-write-wins, so DYE2 is now two writers
+(plugin runtime + pages) on this key — both only replace their own entries, but a
+write at the same instant can lose one side's change.
+
 ### `recipes[]`
 
 ```

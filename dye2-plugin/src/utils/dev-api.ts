@@ -328,7 +328,9 @@ async function updateRecipe(id, data) {
   return item;
 }
 
-// Auto-favourites (F mode)
+// Auto-favourites (F mode). Rows with auto: true ("recent" entries, see recent-favs.ts)
+// belong to the plugin runtime, not this browser-side file — it only ever reads them.
+
 async function getAutoFavourites() { return kvGetArray('autoFavourites'); }
 
 async function getAutoFavourite(id) {
