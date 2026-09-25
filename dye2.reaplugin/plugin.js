@@ -5097,15 +5097,6 @@ function plotHistoricalShot(measurements, workflow) {
     transition: background 0.15s, color 0.15s;
   }
   .dye-recipe-pill.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
-  /* Recent (computed from shot history) vs a saved recipe — a small dot, not a whole
-     second visual language, since the pill is only 60px tall. */
-  .dye-recipe-pill.dye-pill-recent::after {
-    content: '';
-    position: absolute; top: 8px; right: 10px;
-    width: 8px; height: 8px; border-radius: 9999px;
-    background: var(--mimoja-blue);
-  }
-  .dye-recipe-pill.dye-pill-recent.active::after { background: #fff; }
   .dye-recipe-pill-label {
     min-width: 0;
     max-width: 100%;
@@ -6111,8 +6102,8 @@ function renderRecipePills(workflow) {
     const isRecent = typeof item === 'object' && item && item.auto === true;
     const title = typeof item === 'string' ? item : (item.name || item.title || ('Recipe ' + (i + 1)));
     const pill = document.createElement('button');
-    pill.className = 'dye-recipe-pill' + (isRecent ? ' dye-pill-recent' : '') + (title === activeTitle ? ' active' : '');
-    pill.title = isRecent ? title + ' (recent)' : title;
+    pill.className = 'dye-recipe-pill' + (title === activeTitle ? ' active' : '');
+    pill.title = title;
     const label = document.createElement('span');
     label.className = 'dye-recipe-pill-label';
     label.textContent = title;
@@ -7771,52 +7762,59 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 	var styles$3 = `
   ${sortSidebarCss()}
   ${pickerCardCss()}
+  /* Figma 2386:669 (x0.75): "Group recent favourites by" label left, four 225x60 tabs right. */
   .dye-tab-strip {
-    display: flex; gap: 8px; padding: 18px 0 0;
+    display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 0 0;
   }
+  .dye-tab-label {
+    font-family: 'Inter', sans-serif; font-weight: 700; font-size: 24px;
+    color: var(--mimoja-blue); white-space: nowrap;
+  }
+  .dye-tab-group { display: flex; gap: 15px; }
   .dye-tab-btn {
-    padding: 10px 28px; border-radius: 23px;
+    width: 225px; height: 60px; border-radius: 15px;
     font-family: 'Inter', sans-serif; font-weight: 600; font-size: 21px;
     border: 2px solid var(--profile-button-outline-color);
-    background: transparent; color: var(--text-primary-disabled);
+    background: var(--box-color); color: var(--text-primary-disabled);
     cursor: pointer; white-space: nowrap;
   }
   .dye-tab-btn.active {
     background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff;
   }
-  .fav-card-title { font-size: 22px; font-weight: 700; color: var(--text-primary); }
-  .fav-card-date  { font-size: 18px; font-weight: 400; color: var(--low-contrast-white); margin-top: 4px; }
-  .dye-card.dye-card-selected .fav-card-title { color: #fff; }
-  .dye-card.dye-card-selected .fav-card-date  { color: rgba(255,255,255,0.7); }
+  /* Figma cards: surface fill, 1px border, centred title / sub / divider / date, no side padding
+     so the divider runs edge to edge. */
+  #dye-cards-grid .dye-card {
+    background: var(--dye-surface); padding: 0; min-height: 225px;
+    justify-content: flex-start; align-items: stretch; text-align: center;
+    border-radius: 15px; overflow: hidden;
+  }
+  #dye-cards-grid .dye-card.dye-card-add { background: var(--box-color); justify-content: center; align-items: center; }
+  #dye-cards-grid .dye-card.dye-card-selected { background: var(--mimoja-blue); }
+  .fav-card-head { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 8px 16px; }
+  .fav-card-title { font-size: 24px; font-weight: 600; line-height: 1.2; color: var(--text-primary); }
+  .fav-card-sub   { font-size: 24px; font-weight: 400; line-height: 1.2; color: var(--text-primary); margin-top: 12px; }
+  .fav-card-date  { font-size: 24px; font-weight: 400; line-height: 1.2; color: var(--text-primary); padding: 12px 16px; }
+  #dye-cards-grid .dye-card-divider { margin: 0; }
+  .dye-card.dye-card-selected .fav-card-title,
+  .dye-card.dye-card-selected .fav-card-sub,
+  .dye-card.dye-card-selected .fav-card-date { color: #fff; }
   .fav-group-header {
     grid-column: 1 / -1;
-    font-family: 'Inter', sans-serif; font-weight: 700; font-size: 22px;
+    font-family: 'Inter', sans-serif; font-weight: 700; font-size: 24px;
     color: var(--mimoja-blue); padding: 10px 2px 0;
   }
-
-  /* Recent auto-favourites — computed from shot history, not saved by hand.
-     Full-width strip above the tab/grid picker so it never competes with the
-     Beans/Recipe/Profile/Grinder grouping below. */
-  .dye-recent-section { padding: 20px 37px 0; flex-shrink: 0; }
-  .dye-recent-heading {
-    font-family: 'Inter', sans-serif; font-weight: 700; font-size: 22px;
-    color: var(--mimoja-blue); margin-bottom: 10px;
-  }
-  .dye-recent-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; }
-  .dye-recent-empty { font-size: 19px; color: var(--text-primary-disabled); padding-bottom: 4px; }
 `;
 	var content$1 = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
   ${pickerHeaderHtml("DYE Auto Favourites", "CONFIRM")}
-  <div id="dye-recent-section" class="dye-recent-section">
-    <div class="dye-recent-heading">RECENT</div>
-    <div id="dye-recent-grid" class="dye-recent-grid"></div>
-  </div>
   <div class="flex flex-1 overflow-hidden">
     ${sortSidebarHtml()}
     <div class="flex flex-col flex-1 overflow-hidden px-[20px]">
       <div class="dye-tab-strip shrink-0" id="dye-tab-strip">
-        ${TAB_KEYS.map((k, i) => `<button class="dye-tab-btn${i === 0 ? " active" : ""}" data-tab="${k}">${TAB_LABELS[i]}</button>`).join("")}
+        <div class="dye-tab-label">Group recent favourites by</div>
+        <div class="dye-tab-group">
+          ${TAB_KEYS.map((k, i) => `<button class="dye-tab-btn${i === 0 ? " active" : ""}" data-tab="${k}">${TAB_LABELS[i]}</button>`).join("")}
+        </div>
       </div>
       <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[20px] pr-[20px]">
         <div id="dye-cards-grid" class="grid grid-cols-3 gap-[30px]"></div>
@@ -7828,8 +7826,8 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 	var pageScript$3 = `
 ${sortSidebarScript}
 
-let favsCache = [];    // saved favourites only (auto entries live in recentsCache)
-let recentsCache = [];
+let favsCache = [];    // saved favourites
+let recentsCache = []; // auto: true entries computed from shot history; shown in the same grid
 let selectedFavId = null;
 let currentSort = 'recent';
 let currentTab  = 'beans';
@@ -7857,7 +7855,7 @@ function formatFavDate(capturedAt) {
   const d = new Date(capturedAt);
   const now = new Date();
   const diff = Math.floor((now - d) / 86400000);
-  const time = d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', hour12:false });
+  const h = d.getHours(), time = ((h % 12) || 12) + ':' + String(d.getMinutes()).padStart(2, '0') + (h < 12 ? 'am' : 'pm');
   const date = d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
   return date + ', ' + time + (diff > 0 ? '  ·  ' + diff + ' days off-roast' : '');
 }
@@ -7868,32 +7866,6 @@ function selectCard(card, fav) {
   selectedFavId = fav.id;
   const confirmBtn = document.getElementById('dye-confirm-btn');
   if (confirmBtn) confirmBtn.classList.remove('opacity-50');
-}
-
-function renderRecents(recents) {
-  const grid = document.getElementById('dye-recent-grid');
-  if (!grid) return;
-  grid.innerHTML = '';
-  if (recents.length === 0) {
-    grid.innerHTML = '<div class="dye-recent-empty">No recent shots yet — pull a few and your most recent combos will show up here.</div>';
-    return;
-  }
-  recents.forEach(fav => {
-    const card = document.createElement('div');
-    const isSelected = fav.id === selectedFavId;
-    card.className = 'dye-card' + (isSelected ? ' dye-card-selected' : '');
-    const dateStr = formatFavDate(fav.capturedAt);
-    card.innerHTML =
-      '<div class="fav-card-title">' + esc(fav.title || 'Untitled') + '</div>' +
-      (fav.subtitle ? '<div class="dye-card-sub">' + esc(fav.subtitle) + '</div>' : '') +
-      (dateStr ? '<hr class="dye-card-divider"><div class="fav-card-date">' + esc(dateStr) + '</div>' : '');
-    // Tap selects, same as any other favourite card. No long-press-to-edit here — a
-    // recent has no dedicated edit page, and its id is not stable (a newer shot in
-    // the same group replaces it on the next refresh), so there is nothing sensible
-    // to hold a long-press-to-edit session open against.
-    card.addEventListener('click', () => selectCard(card, fav));
-    grid.appendChild(card);
-  });
 }
 
 function renderCards(favs) {
@@ -7930,13 +7902,15 @@ function renderCards(favs) {
       const isSelected = fav.id === selectedFavId;
       card.className = 'dye-card' + (isSelected ? ' dye-card-selected' : '');
       const title = fav.title || fav.snapshot?.coffeeName || 'Untitled Favourite';
-      const sub = fav.snapshot?.coffeeRoaster || '';
+      const sub = fav.auto ? (fav.subtitle || '') : (fav.snapshot?.coffeeRoaster || '');
       const dateStr = formatFavDate(fav.capturedAt);
       card.innerHTML =
-        '<div class="fav-card-title">' + esc(title) + '</div>' +
-        (sub ? '<div class="dye-card-sub">' + esc(sub) + '</div>' : '') +
+        '<div class="fav-card-head"><div class="fav-card-title">' + esc(title) + '</div>' +
+        (sub ? '<div class="fav-card-sub">' + esc(sub) + '</div>' : '') + '</div>' +
         (dateStr ? '<hr class="dye-card-divider"><div class="fav-card-date">' + esc(dateStr) + '</div>' : '');
       card.addEventListener('click', () => selectCard(card, fav));
+      // Recents (auto) have no edit page and an unstable id, so tap-to-select only.
+      if (fav.auto) { grid.appendChild(card); return; }
       // Long-press to edit this favourite; a plain tap still just selects it. Double-tap is
       // a poor fit on the tablet — it competes with the WebView's own double-tap handling
       // and gives no feedback that a second tap is expected. Same 500ms press and
@@ -7976,8 +7950,7 @@ function groupKeyOf(fav) {
 }
 
 function render() {
-  renderRecents(sortFavs(recentsCache, 'recent'));
-  renderCards(sortFavs(favsCache, currentSort));
+  renderCards(sortFavs([...recentsCache, ...favsCache], currentSort));
 }
 
 function setupTabs() {
@@ -8016,7 +7989,7 @@ async function initAutoFavs() {
   render();
 
   // Recompute recents from the latest shot history in the background — same round
-  // trip the dashboard and auto-fav-edit take — then re-render just the RECENT grid
+  // trip the dashboard and auto-fav-edit take — then re-render the grid
   // once it lands. Never blocks the first paint on this round trip; worst case the
   // page briefly shows whatever recents the last refresh already wrote.
   fetch('/api/v1/plugins/dye2.reaplugin/recent-favs', { method: 'POST' })
@@ -8024,7 +7997,7 @@ async function initAutoFavs() {
     .then(result => {
       const all = Array.isArray(result) ? result : (result && result.items ? result.items : []);
       recentsCache = all.filter(f => f && f.auto).sort((a, b) => (a.recentRank || 0) - (b.recentRank || 0));
-      renderRecents(sortFavs(recentsCache, 'recent'));
+      render();
     })
     .catch(e => console.warn('Could not refresh recent auto-favourites:', e));
 }

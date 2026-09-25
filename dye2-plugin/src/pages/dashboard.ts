@@ -89,15 +89,6 @@ const styles = `
     transition: background 0.15s, color 0.15s;
   }
   .dye-recipe-pill.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
-  /* Recent (computed from shot history) vs a saved recipe — a small dot, not a whole
-     second visual language, since the pill is only 60px tall. */
-  .dye-recipe-pill.dye-pill-recent::after {
-    content: '';
-    position: absolute; top: 8px; right: 10px;
-    width: 8px; height: 8px; border-radius: 9999px;
-    background: var(--mimoja-blue);
-  }
-  .dye-recipe-pill.dye-pill-recent.active::after { background: #fff; }
   .dye-recipe-pill-label {
     min-width: 0;
     max-width: 100%;
@@ -1103,8 +1094,8 @@ function renderRecipePills(workflow) {
     const isRecent = typeof item === 'object' && item && item.auto === true;
     const title = typeof item === 'string' ? item : (item.name || item.title || ('Recipe ' + (i + 1)));
     const pill = document.createElement('button');
-    pill.className = 'dye-recipe-pill' + (isRecent ? ' dye-pill-recent' : '') + (title === activeTitle ? ' active' : '');
-    pill.title = isRecent ? title + ' (recent)' : title;
+    pill.className = 'dye-recipe-pill' + (title === activeTitle ? ' active' : '');
+    pill.title = title;
     const label = document.createElement('span');
     label.className = 'dye-recipe-pill-label';
     label.textContent = title;
