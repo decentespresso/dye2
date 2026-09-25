@@ -89,6 +89,14 @@ const styles = `
     transition: background 0.15s, color 0.15s;
   }
   .dye-recipe-pill.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  /* Recent labels lead with the profile and may wrap to two lines: several recents share a
+     bean, and one-line truncation made them identical ("Colombia El Par..."). There is no
+     hover on the tablet, so the distinguishing part has to be visible in the pill itself. */
+  .dye-recipe-pill.dye-pill-recent .dye-recipe-pill-label {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    white-space: normal; text-overflow: clip; line-height: 1.15; font-size: 19px;
+    word-break: break-word;
+  }
   .dye-recipe-pill-label {
     min-width: 0;
     max-width: 100%;
@@ -1093,12 +1101,15 @@ function renderRecipePills(workflow) {
   items.forEach((item, i) => {
     const isRecent = typeof item === 'object' && item && item.auto === true;
     const title = typeof item === 'string' ? item : (item.name || item.title || ('Recipe ' + (i + 1)));
+    // Pill label only (fav.title is stored and read by the Streamline skin): profile first.
+    const snap = (isRecent && item.snapshot) || {};
+    const pillLabel = isRecent ? ([snap.profileTitle, snap.coffeeName].filter(Boolean).join(' · ') || title) : title;
     const pill = document.createElement('button');
-    pill.className = 'dye-recipe-pill' + (title === activeTitle ? ' active' : '');
+    pill.className = 'dye-recipe-pill' + (isRecent ? ' dye-pill-recent' : '') + (title === activeTitle ? ' active' : '');
     pill.title = title;
     const label = document.createElement('span');
     label.className = 'dye-recipe-pill-label';
-    label.textContent = title;
+    label.textContent = pillLabel;
     pill.appendChild(label);
     pill.addEventListener('click', () => {
       document.querySelectorAll('.dye-recipe-pill').forEach(p => p.classList.remove('active'));

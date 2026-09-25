@@ -10,11 +10,17 @@
  * resolves it (see auto-favs.ts).
  */
 export const favDateScript = `
+// en-GB prints "Sept" for September in current engines; the design uses three letters.
+const FAV_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function favDay(d) {
+  return String(d.getDate()).padStart(2, '0') + ' ' + FAV_MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+}
+
 function formatFavDate(capturedAt, roastDate) {
   if (!capturedAt) return '';
   const d = new Date(capturedAt);
   if (isNaN(d.getTime())) return '';
-  const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const dateStr = favDay(d);
   if (roastDate) {
     const rd = new Date(roastDate);
     if (!isNaN(rd.getTime())) {

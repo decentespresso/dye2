@@ -5097,6 +5097,14 @@ function plotHistoricalShot(measurements, workflow) {
     transition: background 0.15s, color 0.15s;
   }
   .dye-recipe-pill.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  /* Recent labels lead with the profile and may wrap to two lines: several recents share a
+     bean, and one-line truncation made them identical ("Colombia El Par..."). There is no
+     hover on the tablet, so the distinguishing part has to be visible in the pill itself. */
+  .dye-recipe-pill.dye-pill-recent .dye-recipe-pill-label {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    white-space: normal; text-overflow: clip; line-height: 1.15; font-size: 19px;
+    word-break: break-word;
+  }
   .dye-recipe-pill-label {
     min-width: 0;
     max-width: 100%;
@@ -6101,12 +6109,15 @@ function renderRecipePills(workflow) {
   items.forEach((item, i) => {
     const isRecent = typeof item === 'object' && item && item.auto === true;
     const title = typeof item === 'string' ? item : (item.name || item.title || ('Recipe ' + (i + 1)));
+    // Pill label only (fav.title is stored and read by the Streamline skin): profile first.
+    const snap = (isRecent && item.snapshot) || {};
+    const pillLabel = isRecent ? ([snap.profileTitle, snap.coffeeName].filter(Boolean).join(' · ') || title) : title;
     const pill = document.createElement('button');
-    pill.className = 'dye-recipe-pill' + (title === activeTitle ? ' active' : '');
+    pill.className = 'dye-recipe-pill' + (isRecent ? ' dye-pill-recent' : '') + (title === activeTitle ? ' active' : '');
     pill.title = title;
     const label = document.createElement('span');
     label.className = 'dye-recipe-pill-label';
-    label.textContent = title;
+    label.textContent = pillLabel;
     pill.appendChild(label);
     pill.addEventListener('click', () => {
       document.querySelectorAll('.dye-recipe-pill').forEach(p => p.classList.remove('active'));
@@ -7759,11 +7770,17 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 	* resolves it (see auto-favs.ts).
 	*/
 	var favDateScript = `
+// en-GB prints "Sept" for September in current engines; the design uses three letters.
+const FAV_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function favDay(d) {
+  return String(d.getDate()).padStart(2, '0') + ' ' + FAV_MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+}
+
 function formatFavDate(capturedAt, roastDate) {
   if (!capturedAt) return '';
   const d = new Date(capturedAt);
   if (isNaN(d.getTime())) return '';
-  const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const dateStr = favDay(d);
   if (roastDate) {
     const rd = new Date(roastDate);
     if (!isNaN(rd.getTime())) {
@@ -7816,38 +7833,64 @@ function resolveRoastDate(id, batches) {
 	var styles$3 = `
   ${sortSidebarCss()}
   ${pickerCardCss()}
+  /* Figma 2386:669 colours. Page-scoped values so the shared picker helpers and other pages
+     are untouched: page = Background.Primary (white, the host's --box-color), header and
+     cards = Background.Secondary (--bgmain-color), the rest have no host variable that
+     resolves to them so they carry the Figma hex directly. */
+  .afav {
+    --af-page: var(--box-color, #FFFFFF);
+    --af-surface: var(--bgmain-color, #F6F8FA);
+    --af-border: #C9C9C9;
+    --af-text: #121212;
+    --af-action: var(--mimoja-blue, #385A92);
+    --af-tab-stroke: #C5CDDA;
+    --af-tab-text: #5F7BA8;
+  }
+  html, body { background: var(--box-color, #FFFFFF); }
+  .afav { background: var(--af-page); }
+  .afav-header > div { background: var(--af-surface); border-bottom: 1px solid var(--af-border); }
+  .afav-header h1, .afav-header #dye-cancel-btn { color: var(--af-text); }
+  .afav-header #dye-confirm-btn { background: var(--af-action); color: #fff; }
+  /* "Sort by" label and the 1px divider between the sort rail and the grid. */
+  #dye-sort-sidebar { border-right: 1px solid var(--af-border); align-items: center; width: 302px; padding: 30px 0 0; }
+  #dye-sort-sidebar::before {
+    content: 'Sort by'; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 24px;
+    color: var(--af-action); text-align: center; padding-bottom: 10px;
+  }
   /* Figma 2386:669 (x0.75): "Group recent favourites by" label left, four 225x60 tabs right. */
   .dye-tab-strip {
     display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 0 0;
   }
   .dye-tab-label {
     font-family: 'Inter', sans-serif; font-weight: 700; font-size: 24px;
-    color: var(--mimoja-blue); white-space: nowrap;
+    color: var(--af-action); white-space: nowrap;
   }
   .dye-tab-group { display: flex; gap: 15px; }
   .dye-tab-btn {
     width: 225px; height: 60px; border-radius: 15px;
     font-family: 'Inter', sans-serif; font-weight: 600; font-size: 21px;
-    border: 2px solid var(--profile-button-outline-color);
-    background: var(--box-color); color: var(--text-primary-disabled);
+    border: 2px solid var(--af-tab-stroke);
+    background: var(--af-page); color: var(--af-tab-text);
     cursor: pointer; white-space: nowrap;
   }
   .dye-tab-btn.active {
-    background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff;
+    background: var(--af-action); border-color: var(--af-action); color: #fff;
   }
   /* Figma cards: surface fill, 1px border, centred title / sub / divider / date, no side padding
      so the divider runs edge to edge. */
   #dye-cards-grid .dye-card {
-    background: var(--dye-surface); padding: 0; min-height: 225px;
+    background: var(--af-surface); border-color: var(--af-border); padding: 0; min-height: 225px;
     justify-content: flex-start; align-items: stretch; text-align: center;
     border-radius: 15px; overflow: hidden;
   }
-  #dye-cards-grid .dye-card.dye-card-add { background: var(--box-color); justify-content: center; align-items: center; }
-  #dye-cards-grid .dye-card.dye-card-selected { background: var(--mimoja-blue); }
+  #dye-cards-grid .dye-card.dye-card-add { background: var(--af-page); border-color: var(--af-action); justify-content: center; align-items: center; }
+  #dye-cards-grid .dye-card.dye-card-selected { background: var(--af-action); border-color: var(--af-action); }
+  #dye-cards-grid .dye-card-divider { border-top-color: var(--af-border); }
+  #dye-cards-container::-webkit-scrollbar-thumb { background: var(--af-border); }
   .fav-card-head { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 8px 16px; }
-  .fav-card-title { font-size: 24px; font-weight: 600; line-height: 1.2; color: var(--text-primary); }
-  .fav-card-sub   { font-size: 24px; font-weight: 400; line-height: 1.2; color: var(--text-primary); margin-top: 12px; }
-  .fav-card-date  { font-size: 24px; font-weight: 400; line-height: 1.2; color: var(--text-primary); padding: 12px 16px; }
+  .fav-card-title { font-size: 24px; font-weight: 600; line-height: 1.2; color: var(--af-text); }
+  .fav-card-sub   { font-size: 24px; font-weight: 400; line-height: 1.2; color: var(--af-text); margin-top: 12px; }
+  .fav-card-date  { font-size: 24px; font-weight: 400; line-height: 1.2; color: var(--af-text); padding: 12px 16px; }
   #dye-cards-grid .dye-card-divider { margin: 0; }
   .dye-card.dye-card-selected .fav-card-title,
   .dye-card.dye-card-selected .fav-card-sub,
@@ -7855,12 +7898,12 @@ function resolveRoastDate(id, batches) {
   .fav-group-header {
     grid-column: 1 / -1;
     font-family: 'Inter', sans-serif; font-weight: 700; font-size: 24px;
-    color: var(--mimoja-blue); padding: 10px 2px 0;
+    color: var(--af-action); padding: 10px 2px 0;
   }
 `;
 	var content$1 = `
-<div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
-  ${pickerHeaderHtml("DYE Auto Favourites", "CONFIRM")}
+<div class="afav overflow-hidden flex-grow flex flex-col">
+  <div class="afav-header">${pickerHeaderHtml("DYE Auto Favourites", "CONFIRM")}</div>
   <div class="flex flex-1 overflow-hidden">
     ${sortSidebarHtml()}
     <div class="flex flex-col flex-1 overflow-hidden px-[20px]">
@@ -7931,16 +7974,6 @@ function renderCards(favs) {
   if (!grid) return;
   grid.innerHTML = '';
 
-  // ADD NEW auto-fav card
-  const addCard = document.createElement('div');
-  addCard.className = 'dye-card dye-card-add';
-  addCard.innerHTML = '<span>ADD NEW FAVOURITE</span><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
-  addCard.addEventListener('click', () => {
-    sessionStorage.removeItem('dye_editAutoFavId');
-    window.location.href = '/api/v1/plugins/dye2.reaplugin/auto-fav-edit';
-  });
-  grid.appendChild(addCard);
-
   // Group by the active tab dimension; one full-width header per group.
   const groups = new Map();
   favs.forEach(fav => {
@@ -7993,6 +8026,16 @@ function renderCards(favs) {
       grid.appendChild(card);
     });
   });
+
+  // ADD NEW auto-fav card — not in Figma; kept, but last so it never displaces a favourite.
+  const addCard = document.createElement('div');
+  addCard.className = 'dye-card dye-card-add';
+  addCard.innerHTML = '<span>ADD NEW FAVOURITE</span><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
+  addCard.addEventListener('click', () => {
+    sessionStorage.removeItem('dye_editAutoFavId');
+    window.location.href = '/api/v1/plugins/dye2.reaplugin/auto-fav-edit';
+  });
+  grid.appendChild(addCard);
 }
 
 // Which snapshot field the tab strip groups by.
