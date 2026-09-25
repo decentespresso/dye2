@@ -1117,7 +1117,8 @@ function applyRecipe(recipe) {
   if (dv.grind != null) ctx.grinderSetting = dv.grind;
   if (dv.rpm != null)   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm };
   const grinder = dv.grinderId ? grinders.find(g => g.id === dv.grinderId) : null;
-  if (grinder) ctx.grinderModel = grinder.model || grinder.name;
+  // Write id and name together: tabs match by id, shots record the name.
+  if (grinder) { ctx.grinderId = grinder.id; ctx.grinderModel = grinder.model || grinder.name; }
   if (recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe.drinker) ctx.drinkerName = recipe.drinker;
   currentWorkflow.context = ctx;

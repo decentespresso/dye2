@@ -213,7 +213,7 @@ CONFIRM handler in `basket-picker.ts`), not a full context replacement.
   dashboardVariables: {
     dose, drink, brewC, steamMode, steamTimeS, steamFlowMls,
     flushS, hotWaterMode, hotWaterMl, hotWaterTempC, grind, rpm, grinderId,
-    basketId, basketName,
+    grinderModel, basketId, basketName,
     equipmentIds, equipmentNames,   // arrays in lockstep — see equipment[] below
     equipmentCustom,                // { [equipmentId]: [{key,value}, ...] } — per-value overrides, optional
   },

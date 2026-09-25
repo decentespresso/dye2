@@ -292,6 +292,8 @@ function buildRecipeWorkflow(recipe) {
   if (dv.grind != null) ctx.grinderSetting = String(dv.grind);
   if (dv.rpm != null)   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm };
   if (dv.grinderId) ctx.grinderId = dv.grinderId;
+  // PUT /workflow deep-merges, so omitting grinderModel would leave the previous grinder's name.
+  if (dv.grinderModel) ctx.grinderModel = dv.grinderModel;
   if (dv.basketId)   ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId };
   if (dv.basketName) ctx.extras = { ...(ctx.extras || {}), basketName: dv.basketName };
   if (recipe && recipe.beanName) ctx.coffeeName = recipe.beanName;

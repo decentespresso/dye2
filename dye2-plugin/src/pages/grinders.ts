@@ -1,5 +1,6 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
+import { buildGrinderBodyScript } from "../utils/grinder-form";
 
 const styles = `
   .dye-sort-btn {
@@ -109,6 +110,7 @@ const styles = `
   }
   .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
+  .dye-btn-danger { background: transparent; color: #C0392B; margin-right: auto; }
   .dye-modal-error { color: #C0392B; font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
@@ -214,6 +216,7 @@ const content = `
         </div>
         <div id="dye-modal-error" class="dye-modal-error dye-hidden"></div>
         <div class="dye-modal-actions">
+          <button type="button" id="dye-modal-delete" class="dye-btn dye-btn-danger dye-hidden">DELETE</button>
           <button type="button" id="dye-modal-cancel" class="dye-btn dye-btn-ghost">CANCEL</button>
           <button type="submit" id="dye-modal-save" class="dye-btn dye-btn-primary">SAVE</button>
         </div>
@@ -324,6 +327,7 @@ function openModal(g) {
     setField('settingType', 'numeric');
   }
   toggleSettingSections();
+  document.getElementById('dye-modal-delete').classList.toggle('dye-hidden', !g);
   document.getElementById('dye-modal-backdrop').classList.add('open');
 }
 
@@ -334,17 +338,10 @@ function closeModal() {
 
 async function submitForm() {
   const fd = new FormData(form());
-  const body = { model: fd.get('model') || '' };
-  ['burrs','burrType','notes'].forEach(k => { const v = fd.get(k); if (v) body[k] = v; });
-  ['burrSize','rpmSmallStep','rpmBigStep'].forEach(k => { const v = fd.get(k); if (v !== '' && v != null) body[k] = parseFloat(v); });
-  const st = fd.get('settingType') || 'numeric';
-  body.settingType = st;
-  if (st === 'numeric') {
-    ['settingSmallStep','settingBigStep'].forEach(k => { const v = fd.get(k); if (v !== '' && v != null) body[k] = parseFloat(v); });
-  } else {
-    const sv = fd.get('settingValues');
-    if (sv) body.settingValues = sv.split(',').map(s => s.trim()).filter(Boolean);
-  }
+  const fields = {};
+  ['model','burrs','burrType','burrSize','notes','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','settingValues']
+    .forEach(k => { fields[k] = fd.get(k); });
+  const body = buildGrinderBody(fields, !!editingId);
 
   try {
     const url = editingId ? '/api/v1/grinders/' + editingId : '/api/v1/grinders';
@@ -359,6 +356,21 @@ async function submitForm() {
   } catch (err) {
     const errEl = document.getElementById('dye-modal-error');
     errEl.textContent = 'Save failed: ' + err.message;
+    errEl.classList.remove('dye-hidden');
+  }
+}
+
+async function deleteGrinder() {
+  if (!editingId) return;
+  if (!confirm('Delete this grinder? Shots that used it keep their saved name, but the grinder itself is gone.')) return;
+  try {
+    const res = await fetch('/api/v1/grinders/' + editingId, { method: 'DELETE' });
+    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + await res.text());
+    closeModal();
+    await reload();
+  } catch (err) {
+    const errEl = document.getElementById('dye-modal-error');
+    errEl.textContent = 'Delete failed: ' + err.message;
     errEl.classList.remove('dye-hidden');
   }
 }
@@ -388,6 +400,7 @@ async function initializeDyeGrinders() {
 
   document.getElementById('dye-done-btn')?.addEventListener('click', () => window.history.back());
   document.getElementById('dye-modal-cancel')?.addEventListener('click', closeModal);
+  document.getElementById('dye-modal-delete')?.addEventListener('click', deleteGrinder);
   document.getElementById('dye-modal-backdrop')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeModal();
   });
@@ -403,6 +416,6 @@ export function renderGrindersPage(request: HttpRequest): HttpResponse {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Grinders", content, styles, [devApiScript, pageScript]),
+    body: devPageShell("Grinders", content, styles, [devApiScript, buildGrinderBodyScript, pageScript]),
   };
 }

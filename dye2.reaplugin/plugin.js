@@ -514,6 +514,8 @@ function buildRecipeWorkflow(recipe) {
   if (dv.grind != null) ctx.grinderSetting = String(dv.grind);
   if (dv.rpm != null)   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm };
   if (dv.grinderId) ctx.grinderId = dv.grinderId;
+  // PUT /workflow deep-merges, so omitting grinderModel would leave the previous grinder's name.
+  if (dv.grinderModel) ctx.grinderModel = dv.grinderModel;
   if (dv.basketId)   ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId };
   if (dv.basketName) ctx.extras = { ...(ctx.extras || {}), basketName: dv.basketName };
   if (recipe && recipe.beanName) ctx.coffeeName = recipe.beanName;
@@ -633,6 +635,41 @@ async function uploadShotToVisualizer(shotId) {
 }
 `;
 	//#endregion
+	//#region src/utils/grinder-form.ts
+	/**
+	* Pure request-body builder for the grinder add/edit form.
+	*
+	* Exported as a browser-side script string (same pattern as dev-api.ts / shot-paging.ts):
+	* grinders.ts inlines it as a <script> block ahead of its own page script, and
+	* test/grinder-edit-clear-field.test.mjs evals it directly — it has no local imports, so
+	* (unlike a page module) Node can load it straight under --experimental-strip-types.
+	*
+	* PUT /api/v1/grinders/:id merges by key presence (rea_restapi.yml; reaprime's
+	* grinders_handler.dart `_updateGrinder` spreads {...existing.toJson(), ...json}): an
+	* omitted key preserves the current value, and only an explicit `null` clears a nullable
+	* field. So on an edit, a field the user emptied must be sent as null, not left out, or
+	* the old value silently survives the "save" (issue #9 — clearing Burrs reverted to the
+	* old burr name). Creating a grinder has no old value to preserve, so empty fields are
+	* simply left out of that request instead.
+	*/
+	var buildGrinderBodyScript = `
+function buildGrinderBody(fields, isEdit) {
+  const body = { model: fields.model || '' };
+  ['burrs','burrType','notes'].forEach(k => { const v = fields[k]; if (v) body[k] = v; else if (isEdit) body[k] = null; });
+  ['burrSize','rpmSmallStep','rpmBigStep'].forEach(k => { const v = fields[k]; if (v !== '' && v != null) body[k] = parseFloat(v); else if (isEdit) body[k] = null; });
+  const st = fields.settingType || 'numeric';
+  body.settingType = st;
+  if (st === 'numeric') {
+    ['settingSmallStep','settingBigStep'].forEach(k => { const v = fields[k]; if (v !== '' && v != null) body[k] = parseFloat(v); else if (isEdit) body[k] = null; });
+  } else {
+    const sv = fields.settingValues;
+    if (sv) body.settingValues = sv.split(',').map(s => s.trim()).filter(Boolean);
+    else if (isEdit) body.settingValues = null;
+  }
+  return body;
+}
+`;
+	//#endregion
 	//#region src/pages/grinders.ts
 	var styles$14 = `
   .dye-sort-btn {
@@ -742,6 +779,7 @@ async function uploadShotToVisualizer(shotId) {
   }
   .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
+  .dye-btn-danger { background: transparent; color: #C0392B; margin-right: auto; }
   .dye-modal-error { color: #C0392B; font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
@@ -846,6 +884,7 @@ async function uploadShotToVisualizer(shotId) {
         </div>
         <div id="dye-modal-error" class="dye-modal-error dye-hidden"></div>
         <div class="dye-modal-actions">
+          <button type="button" id="dye-modal-delete" class="dye-btn dye-btn-danger dye-hidden">DELETE</button>
           <button type="button" id="dye-modal-cancel" class="dye-btn dye-btn-ghost">CANCEL</button>
           <button type="submit" id="dye-modal-save" class="dye-btn dye-btn-primary">SAVE</button>
         </div>
@@ -955,6 +994,7 @@ function openModal(g) {
     setField('settingType', 'numeric');
   }
   toggleSettingSections();
+  document.getElementById('dye-modal-delete').classList.toggle('dye-hidden', !g);
   document.getElementById('dye-modal-backdrop').classList.add('open');
 }
 
@@ -965,17 +1005,10 @@ function closeModal() {
 
 async function submitForm() {
   const fd = new FormData(form());
-  const body = { model: fd.get('model') || '' };
-  ['burrs','burrType','notes'].forEach(k => { const v = fd.get(k); if (v) body[k] = v; });
-  ['burrSize','rpmSmallStep','rpmBigStep'].forEach(k => { const v = fd.get(k); if (v !== '' && v != null) body[k] = parseFloat(v); });
-  const st = fd.get('settingType') || 'numeric';
-  body.settingType = st;
-  if (st === 'numeric') {
-    ['settingSmallStep','settingBigStep'].forEach(k => { const v = fd.get(k); if (v !== '' && v != null) body[k] = parseFloat(v); });
-  } else {
-    const sv = fd.get('settingValues');
-    if (sv) body.settingValues = sv.split(',').map(s => s.trim()).filter(Boolean);
-  }
+  const fields = {};
+  ['model','burrs','burrType','burrSize','notes','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','settingValues']
+    .forEach(k => { fields[k] = fd.get(k); });
+  const body = buildGrinderBody(fields, !!editingId);
 
   try {
     const url = editingId ? '/api/v1/grinders/' + editingId : '/api/v1/grinders';
@@ -990,6 +1023,21 @@ async function submitForm() {
   } catch (err) {
     const errEl = document.getElementById('dye-modal-error');
     errEl.textContent = 'Save failed: ' + err.message;
+    errEl.classList.remove('dye-hidden');
+  }
+}
+
+async function deleteGrinder() {
+  if (!editingId) return;
+  if (!confirm('Delete this grinder? Shots that used it keep their saved name, but the grinder itself is gone.')) return;
+  try {
+    const res = await fetch('/api/v1/grinders/' + editingId, { method: 'DELETE' });
+    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + await res.text());
+    closeModal();
+    await reload();
+  } catch (err) {
+    const errEl = document.getElementById('dye-modal-error');
+    errEl.textContent = 'Delete failed: ' + err.message;
     errEl.classList.remove('dye-hidden');
   }
 }
@@ -1019,6 +1067,7 @@ async function initializeDyeGrinders() {
 
   document.getElementById('dye-done-btn')?.addEventListener('click', () => window.history.back());
   document.getElementById('dye-modal-cancel')?.addEventListener('click', closeModal);
+  document.getElementById('dye-modal-delete')?.addEventListener('click', deleteGrinder);
   document.getElementById('dye-modal-backdrop')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeModal();
   });
@@ -1033,7 +1082,11 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Grinders", content$10, styles$14, [devApiScript, pageScript$14])
+			body: devPageShell("Grinders", content$10, styles$14, [
+				devApiScript,
+				buildGrinderBodyScript,
+				pageScript$14
+			])
 		};
 	}
 	//#endregion
@@ -6070,7 +6123,8 @@ function applyRecipe(recipe) {
   if (dv.grind != null) ctx.grinderSetting = dv.grind;
   if (dv.rpm != null)   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm };
   const grinder = dv.grinderId ? grinders.find(g => g.id === dv.grinderId) : null;
-  if (grinder) ctx.grinderModel = grinder.model || grinder.name;
+  // Write id and name together: tabs match by id, shots record the name.
+  if (grinder) { ctx.grinderId = grinder.id; ctx.grinderModel = grinder.model || grinder.name; }
   if (recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe.drinker) ctx.drinkerName = recipe.drinker;
   currentWorkflow.context = ctx;
@@ -9387,7 +9441,7 @@ function renderRecipe(recipe) {
 async function readFromWorkflow() {
   const wf = await getWorkflow().catch(() => null);
   const ctx = (wf && wf.context) || {};
-  const g = grinders.find(x => (x.model || x.name) === ctx.grinderModel);
+  const g = grinders.find(x => ctx.grinderId ? x.id === ctx.grinderId : (x.model || x.name) === ctx.grinderModel);
   const extras = ctx.extras || {};
   return {
     barista: ctx.baristaName || ctx.barista || '',
@@ -9595,6 +9649,7 @@ function getCurrentRecipeData() {
       grind:   num('re-grind-value'),
       rpm:     num('re-rpm-value'),
       grinderId: selectedGrinderId,
+      grinderModel: (grinders.find(g => g.id === selectedGrinderId) || {}).model,
       basketId:   selectedBasketId,
       basketName: (baskets.find(b => b.id === selectedBasketId) || {}).name,
       equipmentIds:    equipmentSelIds.slice(),

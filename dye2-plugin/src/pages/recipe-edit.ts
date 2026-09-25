@@ -509,7 +509,7 @@ function renderRecipe(recipe) {
 async function readFromWorkflow() {
   const wf = await getWorkflow().catch(() => null);
   const ctx = (wf && wf.context) || {};
-  const g = grinders.find(x => (x.model || x.name) === ctx.grinderModel);
+  const g = grinders.find(x => ctx.grinderId ? x.id === ctx.grinderId : (x.model || x.name) === ctx.grinderModel);
   const extras = ctx.extras || {};
   return {
     barista: ctx.baristaName || ctx.barista || '',
@@ -717,6 +717,7 @@ function getCurrentRecipeData() {
       grind:   num('re-grind-value'),
       rpm:     num('re-rpm-value'),
       grinderId: selectedGrinderId,
+      grinderModel: (grinders.find(g => g.id === selectedGrinderId) || {}).model,
       basketId:   selectedBasketId,
       basketName: (baskets.find(b => b.id === selectedBasketId) || {}).name,
       equipmentIds:    equipmentSelIds.slice(),
