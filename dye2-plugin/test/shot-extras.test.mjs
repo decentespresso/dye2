@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { shotExtrasScript } from '../src/utils/shot-extras.ts';
 
-const { shotExtras } = new Function(shotExtrasScript + '\nreturn { shotExtras };')();
+const { shotExtras, shotWorkflowExtras } =
+  new Function(shotExtrasScript + '\nreturn { shotExtras, shotWorkflowExtras };')();
 
 // The reported shot: basket picked on the dashboard, so it lives only in the saved workflow.
 const workflow = {
@@ -30,4 +31,20 @@ assert.equal(shotExtras({ workflow: { grinderData: { rpm: 400 } } }).rpm, 400, '
 assert.equal(shotExtras({ workflow, annotations: { extras: { rpm: 0 } } }).rpm, 0, 'an RPM of 0 is still an RPM');
 assert.deepEqual(shotExtras({}), { basketId: null, basketName: null, rpm: null }, 'old shot with no extras');
 assert.deepEqual(shotExtras(null), { basketId: null, basketName: null, rpm: null }, 'no shot');
-console.log('ok   shot-extras: Edit Shot falls back to the shot\'s workflow basket and RPM');
+
+// Clipboard paste copies a shot back into the live workflow: the rest of the shot's
+// context.extras rides along, with basket and RPM resolved the same way edit-shot shows them.
+assert.deepEqual(shotWorkflowExtras({ workflow, annotations }),
+  { rpm: null, basketId: 'bskt-1790543325397', basketName: 'Decent 18g Ridgeless', note: null },
+  'paste: workflow extras copied as-is when nothing was edited after the shot');
+assert.deepEqual(
+  shotWorkflowExtras({
+    workflow: { context: { extras: { rpm: 600, basketId: 'b1', basketName: 'IMS 18g', note: 'n' } } },
+    annotations: { extras: { basketId: 'b2', basketName: 'VST 20g', rpm: 900, visualizerId: 'v' } },
+  }),
+  { rpm: 900, basketId: 'b2', basketName: 'VST 20g', note: 'n' },
+  'paste: basket and RPM edited after the shot win; other annotation extras stay out');
+assert.deepEqual(shotWorkflowExtras({ workflow: { grinderData: { rpm: 400 } } }), { rpm: 400 },
+  'paste: legacy grinderData RPM');
+assert.equal(shotWorkflowExtras({ workflow: { context: {} } }), undefined, 'paste: nothing to copy');
+console.log('ok   shot-extras: edited basket/RPM win over the shot\'s workflow, which wins over legacy grinderData');

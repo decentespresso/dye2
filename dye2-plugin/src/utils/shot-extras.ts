@@ -22,4 +22,18 @@ function shotExtras(shot) {
     rpm:        rpm != null ? rpm : null,
   };
 }
+
+// The shot's context.extras with the resolved basket and RPM folded in, for copying the shot
+// back into the live workflow. undefined when the shot has nothing to copy.
+function shotWorkflowExtras(shot) {
+  const wf = (shot && shot.workflow) || {};
+  const src = wf.context && wf.context.extras;
+  const r = shotExtras(shot);
+  const hasBasket = r.basketId != null || r.basketName != null;
+  if (!src && r.rpm == null && !hasBasket) return undefined;
+  const out = { ...(src || {}) };
+  if (r.rpm != null) out.rpm = r.rpm;
+  if (hasBasket) { out.basketId = r.basketId; out.basketName = r.basketName; }
+  return out;
+}
 `;

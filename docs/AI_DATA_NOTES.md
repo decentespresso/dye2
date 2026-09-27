@@ -133,7 +133,10 @@ sets them before the shot in the live workflow's `context.extras`, which Decaid 
 the shot's `workflow.context.extras`. Edit Shot writes later changes to
 `annotations.extras`. Read them through `shotExtras()` (`src/utils/shot-extras.ts`), which
 prefers the annotation and falls back to the shot's workflow. Never read
-`annotations.extras` alone, or a basket picked on the dashboard shows as "—".
+`annotations.extras` alone, or a basket picked on the dashboard shows as "—". To copy a
+shot back into the live workflow (the dashboard's clipboard paste), use
+`shotWorkflowExtras()`, which folds the same resolved values into the shot's
+`context.extras`.
 
 ## Cross-Plugin Calls
 

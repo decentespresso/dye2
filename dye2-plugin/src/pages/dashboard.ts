@@ -4,6 +4,7 @@ import { shotPagingScript } from "../utils/shot-paging";
 import { chartScript } from "../utils/chart";
 import { iconHistory, iconClipboard } from "../utils/icons";
 import { enjoymentScaleScript } from "../utils/shared-components";
+import { shotExtrasScript } from "../utils/shot-extras";
 
 const styles = `
   /* Navy popup menu, matches Figma 2345:1613 */
@@ -502,6 +503,7 @@ function buildContent(): string { return `
 
 const pageScript = `
 ${enjoymentScaleScript}
+${shotExtrasScript}
 let grinders = [];
 let recipes = [];
 let autoFavs = [];   // auto: true entries from autoFavourites — recent shot combos, see recent-favs.ts
@@ -819,9 +821,9 @@ async function renderLastShot() {
 
   const grinderModel = ctx.grinderModel || grinderData.model || grinderData.name || '—';
   const grindSetting = ctx.grinderSetting != null ? ctx.grinderSetting : (grinderData.setting !== undefined ? grinderData.setting : '—');
-  // RPM is saved onto the shot by the edit-shot page at annotations.extras.rpm
-  const shotAnn = shot.annotations || {};
-  const grindRpm = (shotAnn.extras && shotAnn.extras.rpm != null) ? shotAnn.extras.rpm : (grinderData.rpm != null ? grinderData.rpm : null);
+  // An RPM edited on the edit-shot page (annotations.extras) wins over the one set here
+  // before the shot (the shot's workflow.context.extras).
+  const grindRpm = shotExtras(shot).rpm;
   if (grinderEl) {
     let grinderHtml = 'Grinder <strong>' + grinderModel + '</strong> &bull; Setting <strong>' + grindSetting + '</strong>';
     if (grindRpm != null) grinderHtml += ' &bull; RPM <strong>' + grindRpm + '</strong>';
@@ -1471,10 +1473,6 @@ function setupClipboardPaste() {
     const srcCtx = wf.context || {};
     const dd = wf.doseData || {};      // legacy shape, only on old shots
     const gd = wf.grinderData || {};
-    const ann = shot.annotations || {};
-    const srcRpm = (srcCtx.extras && srcCtx.extras.rpm != null) ? srcCtx.extras.rpm
-      : (ann.extras && ann.extras.rpm != null) ? ann.extras.rpm
-      : (gd.rpm != null ? gd.rpm : undefined);
     currentWorkflow = currentWorkflow || {};
     // PUT /workflow only accepts context/profile as of v0.5.2 (doseData/grinderData rejected),
     // so map everything into context, falling back to legacy fields for old shots.
@@ -1484,7 +1482,8 @@ function setupClipboardPaste() {
       targetYield:      srcCtx.targetYield      != null ? srcCtx.targetYield      : dd.doseOut,
       grinderModel:     srcCtx.grinderModel  || gd.model || gd.name,
       grinderSetting:   srcCtx.grinderSetting != null ? srcCtx.grinderSetting : (gd.setting != null ? String(gd.setting) : undefined),
-      extras:           srcRpm != null ? { ...(srcCtx.extras || {}), rpm: srcRpm } : srcCtx.extras,
+      // Basket and RPM as edit-shot shows them: an edit made after the shot wins.
+      extras:           shotWorkflowExtras(shot),
     };
     if (wf.profile) currentWorkflow.profile = { ...wf.profile };
     renderNextShot();
