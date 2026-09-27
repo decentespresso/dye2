@@ -128,7 +128,12 @@ This replaced an earlier 0–100 reading. Two rules are now gone and should not 
   not 4. Rows written by the old raw-star bug are now indistinguishable from valid values,
   so repairing them needs a version or provenance marker, never a guess from the number.
 
-Basket also has no schema field and lives in `annotations.extras`, same as RPM.
+Basket and RPM have no schema field, so they live in two places on a shot. The dashboard
+sets them before the shot in the live workflow's `context.extras`, which Decaid saves as
+the shot's `workflow.context.extras`. Edit Shot writes later changes to
+`annotations.extras`. Read them through `shotExtras()` (`src/utils/shot-extras.ts`), which
+prefers the annotation and falls back to the shot's workflow. Never read
+`annotations.extras` alone, or a basket picked on the dashboard shows as "—".
 
 ## Cross-Plugin Calls
 

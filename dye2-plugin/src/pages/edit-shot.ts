@@ -7,6 +7,7 @@ import {
   enjoymentScaleScript,
   expandFieldHtml,
 } from "../utils/shared-components";
+import { shotExtrasScript } from "../utils/shot-extras";
 
 const styles = `
   ${stepperCss()}
@@ -254,6 +255,7 @@ const equipPencilSvgJs = JSON.stringify(lucideIcon('pencil', 20, 'currentColor',
 
 const pageScript = `
 ${enjoymentScaleScript}
+${shotExtrasScript}
 const PENCIL_SVG = ${equipPencilSvgJs};
 let currentShot = null;
 let currentStarRating = 0;
@@ -678,11 +680,12 @@ function renderShot(shot) {
   if (grinderEl) grinderEl.textContent = grinderName || '—';
 
   set('es-setting-value', ctx.grinderSetting != null ? ctx.grinderSetting : (gd.setting != null ? gd.setting : '—'));
-  set('es-rpm-value',     (ann.extras && ann.extras.rpm != null) ? ann.extras.rpm : (gd.rpm != null ? gd.rpm : '—'));
-
-  // Basket has no schema field, same as RPM — lives in annotations.extras.
+  // RPM and basket have no schema field: an edit made here (annotations.extras) wins over
+  // what the dashboard set before the shot (the shot's workflow.context.extras).
+  const extras = shotExtras(shot);
+  set('es-rpm-value', extras.rpm != null ? extras.rpm : '—');
   const basketEl = document.getElementById('es-basket-text');
-  if (basketEl) basketEl.textContent = (ann.extras && ann.extras.basketName) || '—';
+  if (basketEl) basketEl.textContent = extras.basketName || '—';
 
   // Equipment, same annotations.extras home as basket/RPM. Multi-select: a shot can carry
   // several rows (RDT, WDT, dosing ring, ...), joined for display.
@@ -737,13 +740,14 @@ function shotDialing(shot) {
   const wf  = (shot && shot.workflow) || {};
   const ctx = wf.context || {}, dd = wf.doseData || {}, gd = wf.grinderData || {};
   const equip = equipmentArrays(ann.extras);
+  const extras = shotExtras(shot);
   return {
     dose:  ann.actualDoseWeight != null ? ann.actualDoseWeight : dd.doseIn,
     yield: ann.actualYield      != null ? ann.actualYield      : dd.doseOut,
     grind: ctx.grinderSetting   != null ? ctx.grinderSetting   : gd.setting,
-    rpm:   (ann.extras && ann.extras.rpm != null) ? ann.extras.rpm : gd.rpm,
-    basketId:   ann.extras && ann.extras.basketId,
-    basketName: ann.extras && ann.extras.basketName,
+    rpm:   extras.rpm,
+    basketId:   extras.basketId,
+    basketName: extras.basketName,
     equipmentIds:   equip.ids,
     equipmentNames: equip.names,
     equipmentCustom: (ann.extras && ann.extras.equipmentCustom) || null,
