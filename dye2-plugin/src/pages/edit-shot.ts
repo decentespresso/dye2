@@ -7,7 +7,7 @@ import {
   enjoymentScaleScript,
   expandFieldHtml,
 } from "../utils/shared-components";
-import { shotExtrasScript } from "../utils/shot-extras";
+import { shotBasketRpmScript } from "../utils/shot-basket-rpm";
 
 const styles = `
   ${stepperCss()}
@@ -255,7 +255,7 @@ const equipPencilSvgJs = JSON.stringify(lucideIcon('pencil', 20, 'currentColor',
 
 const pageScript = `
 ${enjoymentScaleScript}
-${shotExtrasScript}
+${shotBasketRpmScript}
 const PENCIL_SVG = ${equipPencilSvgJs};
 let currentShot = null;
 let currentStarRating = 0;
@@ -682,10 +682,10 @@ function renderShot(shot) {
   set('es-setting-value', ctx.grinderSetting != null ? ctx.grinderSetting : (gd.setting != null ? gd.setting : '—'));
   // RPM and basket have no schema field: an edit made here (annotations.extras) wins over
   // what the dashboard set before the shot (the shot's workflow.context.extras).
-  const extras = shotExtras(shot);
-  set('es-rpm-value', extras.rpm != null ? extras.rpm : '—');
+  const basketRpm = shotBasketRpm(shot);
+  set('es-rpm-value', basketRpm.rpm != null ? basketRpm.rpm : '—');
   const basketEl = document.getElementById('es-basket-text');
-  if (basketEl) basketEl.textContent = extras.basketName || '—';
+  if (basketEl) basketEl.textContent = basketRpm.basketName || '—';
 
   // Equipment, same annotations.extras home as basket/RPM. Multi-select: a shot can carry
   // several rows (RDT, WDT, dosing ring, ...), joined for display.
@@ -696,7 +696,9 @@ function renderShot(shot) {
   const drinkerEl = document.getElementById('es-drinker-text');
   if (drinkerEl) drinkerEl.textContent = ctx.drinkerName || ctx.drinker || '—';
 
-  const notes = ann.espressoNotes || '';
+  // The drinker note (annotations.espressoNotes), falling back to a note attached pre-shot
+  // via the workflow (context.extras.note) — the same as the dashboard's Read Note.
+  const notes = shotNote(shot);
   set('es-notes-preview', notes ? notes.slice(0, 60) + (notes.length > 60 ? '…' : '') : '—');
 
   // Beans
@@ -726,6 +728,11 @@ function renderShot(shot) {
   updateStars(rating);
 }
 
+function shotNote(shot) {
+  const ctx = (shot && shot.workflow && shot.workflow.context) || {};
+  return (shot && shot.annotations && shot.annotations.espressoNotes) || (ctx.extras && ctx.extras.note) || '';
+}
+
 function updateStars(rating) {
   document.querySelectorAll('#es-stars .dye-star').forEach(s => {
     const idx = parseInt(s.getAttribute('data-index'));
@@ -740,14 +747,14 @@ function shotDialing(shot) {
   const wf  = (shot && shot.workflow) || {};
   const ctx = wf.context || {}, dd = wf.doseData || {}, gd = wf.grinderData || {};
   const equip = equipmentArrays(ann.extras);
-  const extras = shotExtras(shot);
+  const basketRpm = shotBasketRpm(shot);
   return {
     dose:  ann.actualDoseWeight != null ? ann.actualDoseWeight : dd.doseIn,
     yield: ann.actualYield      != null ? ann.actualYield      : dd.doseOut,
     grind: ctx.grinderSetting   != null ? ctx.grinderSetting   : gd.setting,
-    rpm:   extras.rpm,
-    basketId:   extras.basketId,
-    basketName: extras.basketName,
+    rpm:   basketRpm.rpm,
+    basketId:   basketRpm.basketId,
+    basketName: basketRpm.basketName,
     equipmentIds:   equip.ids,
     equipmentNames: equip.names,
     equipmentCustom: (ann.extras && ann.extras.equipmentCustom) || null,
@@ -899,7 +906,7 @@ function setupControls() {
   // Drinker notes → editable modal (writes annotations.espressoNotes)
   const openDrinkerNotes = () => {
     const ta = document.getElementById('es-drinker-notes-input');
-    if (ta) ta.value = (currentShot && currentShot.annotations && currentShot.annotations.espressoNotes) || '';
+    if (ta) ta.value = shotNote(currentShot);
     document.getElementById('es-drinker-notes-overlay')?.classList.add('open');
     ta?.focus();
   };

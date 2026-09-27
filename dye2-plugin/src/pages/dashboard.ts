@@ -4,7 +4,7 @@ import { shotPagingScript } from "../utils/shot-paging";
 import { chartScript } from "../utils/chart";
 import { iconHistory, iconClipboard } from "../utils/icons";
 import { enjoymentScaleScript } from "../utils/shared-components";
-import { shotExtrasScript } from "../utils/shot-extras";
+import { shotBasketRpmScript } from "../utils/shot-basket-rpm";
 
 const styles = `
   /* Navy popup menu, matches Figma 2345:1613 */
@@ -503,7 +503,7 @@ function buildContent(): string { return `
 
 const pageScript = `
 ${enjoymentScaleScript}
-${shotExtrasScript}
+${shotBasketRpmScript}
 let grinders = [];
 let recipes = [];
 let autoFavs = [];   // auto: true entries from autoFavourites — recent shot combos, see recent-favs.ts
@@ -823,7 +823,7 @@ async function renderLastShot() {
   const grindSetting = ctx.grinderSetting != null ? ctx.grinderSetting : (grinderData.setting !== undefined ? grinderData.setting : '—');
   // An RPM edited on the edit-shot page (annotations.extras) wins over the one set here
   // before the shot (the shot's workflow.context.extras).
-  const grindRpm = shotExtras(shot).rpm;
+  const grindRpm = shotBasketRpm(shot).rpm;
   if (grinderEl) {
     let grinderHtml = 'Grinder <strong>' + grinderModel + '</strong> &bull; Setting <strong>' + grindSetting + '</strong>';
     if (grindRpm != null) grinderHtml += ' &bull; RPM <strong>' + grindRpm + '</strong>';

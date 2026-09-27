@@ -131,12 +131,16 @@ This replaced an earlier 0–100 reading. Two rules are now gone and should not 
 Basket and RPM have no schema field, so they live in two places on a shot. The dashboard
 sets them before the shot in the live workflow's `context.extras`, which Decaid saves as
 the shot's `workflow.context.extras`. Edit Shot writes later changes to
-`annotations.extras`. Read them through `shotExtras()` (`src/utils/shot-extras.ts`), which
-prefers the annotation and falls back to the shot's workflow. Never read
+`annotations.extras`. Read them through `shotBasketRpm()` (`src/utils/shot-basket-rpm.ts`),
+which prefers the annotation and falls back to the shot's workflow. Never read
 `annotations.extras` alone, or a basket picked on the dashboard shows as "—". To copy a
 shot back into the live workflow (the dashboard's clipboard paste), use
 `shotWorkflowExtras()`, which folds the same resolved values into the shot's
 `context.extras`.
+
+The drinker note follows the same rule with a schema field: `annotations.espressoNotes`,
+falling back to a note attached before the shot in `workflow.context.extras.note` (the
+dashboard's Read Note and Edit Shot's `shotNote()`).
 
 ## Cross-Plugin Calls
 
