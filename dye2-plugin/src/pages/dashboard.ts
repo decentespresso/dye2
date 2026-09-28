@@ -4,6 +4,7 @@ import { shotPagingScript } from "../utils/shot-paging";
 import { chartScript } from "../utils/chart";
 import { iconHistory, iconClipboard } from "../utils/icons";
 import { enjoymentScaleScript } from "../utils/shared-components";
+import { shotWeightsScript } from "../utils/shot-weights";
 
 const styles = `
   /* Navy popup menu, matches Figma 2345:1613 */
@@ -502,6 +503,7 @@ function buildContent(): string { return `
 
 const pageScript = `
 ${enjoymentScaleScript}
+${shotWeightsScript}
 let grinders = [];
 let recipes = [];
 let autoFavs = [];   // auto: true entries from autoFavourites — recent shot combos, see recent-favs.ts
@@ -763,21 +765,14 @@ async function renderLastShot() {
 
   const wf = shot.workflow || {};
   const ctx = wf.context || {};
-  const doseData = wf.doseData || {};
   const grinderData = wf.grinderData || {};
   const profile = wf.profile || {};
 
   if (profileEl) profileEl.textContent = profile.title || '—';
 
-  // Dose: from context.targetDoseWeight
-  // Drink: last scale.weight value in measurements
+  // Prefers the saved actual dose/yield (what edit-shot shows) over the last scale sample.
   const measurements = shot.measurements || [];
-  const doseInRaw = ctx.targetDoseWeight != null ? ctx.targetDoseWeight : (doseData.doseIn != null ? doseData.doseIn : null);
-  let doseOutRaw = null;
-  for (let mi = measurements.length - 1; mi >= 0; mi--) {
-    const sc = measurements[mi].scale;
-    if (sc && sc.weight != null) { doseOutRaw = sc.weight; break; }
-  }
+  const { doseIn: doseInRaw, doseOut: doseOutRaw } = shotWeights(shot);
 
   const doseIn = doseInRaw != null ? doseInRaw + 'g' : '—';
   const doseOut = doseOutRaw != null ? doseOutRaw.toFixed(1) + 'g' : '—';
