@@ -128,13 +128,13 @@ This replaced an earlier 0–100 reading. Two rules are now gone and should not 
   not 4. Rows written by the old raw-star bug are now indistinguishable from valid values,
   so repairing them needs a version or provenance marker, never a guess from the number.
 
-Basket and RPM have no schema field, so they live in two places on a shot. The dashboard
-sets them before the shot in the live workflow's `context.extras`, which Decaid saves as
-the shot's `workflow.context.extras`. Edit Shot writes later changes to
-`annotations.extras`. Read them through `shotBasketRpm()` (`src/utils/recorded-shot.ts`),
-which prefers the annotation and falls back to the shot's workflow. Never read
-`annotations.extras` alone, or a basket picked on the dashboard shows as "—". To copy a
-shot back into the live workflow (the dashboard's clipboard paste), use
+Basket and RPM have no field on `WorkflowContext` or `ShotAnnotations`, so they live in two
+places on a shot. The dashboard sets them before the shot in the live workflow's
+`context.extras`, which Decaid saves as the shot's `workflow.context.extras`. Edit Shot
+writes later changes to `annotations.extras`. Read them through `shotBasketRpm()`
+(`src/utils/recorded-shot.ts`), which prefers the annotation and falls back to the shot's
+workflow. Never read `annotations.extras` alone, or a basket picked on the dashboard shows
+as "—". To copy a shot back into the live workflow (the dashboard's clipboard paste), use
 `shotWorkflowExtras()`, which folds the same resolved values into the shot's
 `context.extras`.
 
@@ -142,7 +142,14 @@ The drinker note follows the same rule with a schema field: `annotations.espress
 falling back to a note attached before the shot in `workflow.context.extras.note`. Read it
 through `shotNote()` in the same file (the dashboard's Read Note and Edit Shot both do).
 Only a missing or null annotation falls back; an empty string means the note was
-explicitly cleared and stays empty.
+explicitly cleared and stays empty, so the note editor saves `''` (`noteToSave()`).
+
+This disagrees with `rea_restapi.yml`, where a `null` `espressoNotes` on update clears the
+note. Decaid drops null fields when it saves (`ShotAnnotations.toJson`), so a note cleared
+with `null` is stored exactly like one never written, and DYE2 shows the pre-shot note
+again. DYE2's editor and Decaid's own history editor both clear with `''`, so only other
+clients that follow the contract hit this. The fix is to copy the pre-shot
+note into `annotations.espressoNotes` when the shot is stored, then drop the fallback.
 
 ## Cross-Plugin Calls
 
