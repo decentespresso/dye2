@@ -7,7 +7,7 @@ import {
   enjoymentScaleScript,
   expandFieldHtml,
 } from "../utils/shared-components";
-import { shotBasketRpmScript } from "../utils/shot-basket-rpm";
+import { recordedShotScript } from "../utils/recorded-shot";
 
 const styles = `
   ${stepperCss()}
@@ -255,7 +255,7 @@ const equipPencilSvgJs = JSON.stringify(lucideIcon('pencil', 20, 'currentColor',
 
 const pageScript = `
 ${enjoymentScaleScript}
-${shotBasketRpmScript}
+${recordedShotScript}
 const PENCIL_SVG = ${equipPencilSvgJs};
 let currentShot = null;
 let currentStarRating = 0;
@@ -696,8 +696,7 @@ function renderShot(shot) {
   const drinkerEl = document.getElementById('es-drinker-text');
   if (drinkerEl) drinkerEl.textContent = ctx.drinkerName || ctx.drinker || '—';
 
-  // The drinker note (annotations.espressoNotes), falling back to a note attached pre-shot
-  // via the workflow (context.extras.note) — the same as the dashboard's Read Note.
+  // The drinker note, or the pre-shot note when none was saved (recorded-shot.ts).
   const notes = shotNote(shot);
   set('es-notes-preview', notes ? notes.slice(0, 60) + (notes.length > 60 ? '…' : '') : '—');
 
@@ -726,12 +725,6 @@ function renderShot(shot) {
   const rating = enjoymentToStars(ann.enjoyment);
   currentStarRating = rating;
   updateStars(rating);
-}
-
-function shotNote(shot) {
-  const ctx = (shot && shot.workflow && shot.workflow.context) || {};
-  // An empty annotation is an intentional clear, not a missing note.
-  return (shot && shot.annotations && shot.annotations.espressoNotes) ?? (ctx.extras && ctx.extras.note) ?? '';
 }
 
 function updateStars(rating) {
@@ -918,7 +911,7 @@ function setupControls() {
   });
   document.getElementById('es-drinker-notes-save')?.addEventListener('click', () => {
     const ta = document.getElementById('es-drinker-notes-input');
-    const v = ta ? ta.value.trim() : '';
+    const v = noteToSave(ta && ta.value);
     if (currentShot) ann().espressoNotes = v;
     set('es-notes-preview', v ? v.slice(0, 60) + (v.length > 60 ? '…' : '') : '—');
     document.getElementById('es-drinker-notes-overlay')?.classList.remove('open');

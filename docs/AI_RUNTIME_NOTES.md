@@ -43,7 +43,7 @@ Consequences that bite:
   see any module-scope value except through interpolation.
 
 Browser code shared across pages lives as exported string constants:
-`dev-api.ts`, `shot-paging.ts`, `shot-basket-rpm.ts`, `chart.ts`, `shared-components.ts`,
+`dev-api.ts`, `shot-paging.ts`, `recorded-shot.ts`, `chart.ts`, `shared-components.ts`,
 `equipment-field.ts`, `bc-map.ts`. Pages pass them to the shell as a script list.
 Plugin-runtime code that is not a page (`plotly-asset.ts`, `recent-favs.ts`) is instead
 plain, real, type-checked TypeScript, imported normally by `plugin.ts` — no

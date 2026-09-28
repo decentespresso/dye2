@@ -5069,18 +5069,21 @@ function plotHistoricalShot(measurements, workflow) {
 	var iconHistory = "data:image/png;base64,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";
 	var iconClipboard = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHIAAAByCAYAAACP3YV9AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAABPhJREFUeAHt3btS20AUBuCDY4aYgvFwGSj1COEJYt6AlKkIXbokVSZVTJcO0qXDfgLyBjgdHbxBlI6Ci2IKZwBDzglLIsvyRR55z67yfzMeXxJj4Z9drXa1KyIAAAAAAAAAAAAAAAAAAAAAAADIbIY8sry8XLu/v//It2f8tEo5mZmZafFd8/z8vEGeekKeWFxclAAb/DDg21PKV8C3zUqlQp1O5xt5yIsSKSXx7u7ukCwolUobZ2dnLfJMiTwg1SlZYvOz8lQmD5h94l+8T3vB+7OvlINqtfqMS+HxoM/yhRdVK+8f7+PPLy4uct3uaf98G9RLZBAE1Xa7/YYfbtJDoyO31uikksEaEdcEJ3zfnJ2dbZ2enobkENW/PP7CJMA6ZQxv2iVyDCGHuuPS4YpaY0cOJ/hujxwogRMIeF+6b34HJ6gEab6AOvmvvrS0tEkOsF61rq2tBdfX19JKjJfEiG87fKzYiFjyPS40drh1G3DrVkKTP8L4tocLCwvrYRhGpMh6iby5ualR4ovgANf5y9tLC9EVvGmhbCNv60bin4Krqyv1UqlRtW7Fn0ijQb6kEe/pCXhlZSW3Yz2pIYZ9Vt+GRJG0XHfir/H+8jkps374kTzg7na7rVHvkWY/v68We88xV4eUB67m+z5r1Hu4im1xyYw3dGqkTKNE9rRSxyiNf0ot2dMc9R9ub29DcowXfa2mE9tGmE4dG2bhRZCCGxp1LpnbZuwwV/Iz5WfLZ5CnvOg0f2RKS4OgjzclEoZDkAWBIAsCQU4moljHATeUQlKGICcgXYnSyuWHJ9Li5Q6KbVJmvdO8CKPxLkKJLAgEWRAIMgUPFm/xLuCSb9/lMXkAQabgkZY6PXTuyykdDR/CRJDpekZoJEw5250chiBT8CHFu+RrPP54kOeAdt4QZArTOZ8Ms8rHi4euhokgB5Dzc6h/DNTZMBHkEGZ8Mi3Mg5RzfVQhyBEGhCmndB66FCaCHIMPYSLIMbkeJoLMwIT5OfGyE2EiyIw4zLd8nJk8ZVI9TK9OvhrGrPgh0/S0Znc9hrmhMXeyEEFWmfS8kP4UPQlTtmOdLCtK1Vold+ZZqnQWFCJImXaQst9SwduRyyIVmT+XLJvmqR6yQke5XLZSMrkq36X+0nci0+40pgcWprEjzJS3qePxyX3qD1Hmeb7QmuOJw4+MzFJqrxIvh6YkhqQEQWYwYO0D9RAFghyTyyEKBDkG10MUCHIEH0IUCHKIASFGroUoEOQAseXV4pwMUSDIFOY81r3Ey48hWjlWzQpBpjAnKPeQ2VeuhigQZLqebj4JMa+FfqcFQaYwJyiH9LBG67YPS7ZgfmRBoEQWRKFGP2ySJbzNqpCRC/tPlMgJtdvtY1lFmW8HvLuokzIEOQFZhJceFtJ/pD5/UiPInoFXqaLIM+VyOUi8pL5gsPUgk+uhchX1ljzD1elW4vkPUmY9SP6lkxcRe+PazKZhZEpd8gyBUqmk3tixfrW6ubk5WWToNf274tzTbre7OT8//3N1dTXkbrBf5CDZBXBg7znEL9R7tTxZ6/z/WzBJcCtPqtNdKgBXen5Urh/Z6XSOKpWK/BHVyG87ZmazOrULgXKYLY/DlFbqBw7xEzlC9YquEibvM5tcPUmgst9ZI3dJB/oR3zd5XPLl5eVliwAAAAAAAAAAAAAAAAAAAAAAAAAAAACK6DftkSw8YeTq4wAAAABJRU5ErkJggg==";
 	//#endregion
-	//#region src/utils/shot-basket-rpm.ts
+	//#region src/utils/recorded-shot.ts
 	/**
-	* A recorded shot's basket and grinder RPM, as a browser-side script string (no local imports,
-	* so test/shot-basket-rpm.test.mjs can eval it directly).
+	* Values a recorded shot can carry in two places — set before the shot, or edited after it —
+	* as a browser-side script string (no local imports, so test/recorded-shot.test.mjs can eval
+	* it directly). Every page reading a recorded shot's basket, RPM or drinker note goes through
+	* these, so the dashboard and Edit Shot never disagree.
 	*
-	* Neither has a schema field. Before the shot, the dashboard writes them into the live
-	* workflow's context.extras, and Decaid saves that workflow onto the shot. Edit Shot writes
-	* later changes into annotations.extras. So a value edited after the shot wins, and the
-	* shot's own workflow.context.extras is the fallback (legacy grinderData.rpm last). Basket id
-	* and name are taken as a pair from one source, never mixed.
+	* Before the shot, the dashboard writes into the live workflow's context.extras, and Decaid
+	* saves that workflow onto the shot. Edit Shot writes later changes into annotations. So a
+	* value edited after the shot wins, and the shot's own workflow.context.extras is the fallback.
+	*
+	* Basket and RPM have no schema field (annotations.extras; legacy grinderData.rpm last).
+	* Basket id and name are taken as a pair from one source, never mixed.
 	*/
-	var shotBasketRpmScript = `
+	var recordedShotScript = `
 function shotBasketRpm(shot) {
   const wf = (shot && shot.workflow) || {};
   const cx = (wf.context && wf.context.extras) || {};
@@ -5107,6 +5110,21 @@ function shotWorkflowExtras(shot) {
   if (r.rpm != null) out.rpm = r.rpm;
   if (hasBasket) { out.basketId = r.basketId; out.basketName = r.basketName; }
   return out;
+}
+
+// The drinker note (annotations.espressoNotes), falling back to a note attached before the
+// shot (workflow.context.extras.note). Only a missing or null annotation falls back: an empty
+// string is an intentional clear, not a missing note.
+function shotNote(shot) {
+  const ctx = (shot && shot.workflow && shot.workflow.context) || {};
+  return (shot && shot.annotations && shot.annotations.espressoNotes) ?? (ctx.extras && ctx.extras.note) ?? '';
+}
+
+// The annotations.espressoNotes value to save from the note editor. An emptied editor saves
+// '', never null or an omitted key: shotNote() falls back past null, so the pre-shot note
+// would come back. (Grinder fields clear with null instead — a different resource.)
+function noteToSave(text) {
+  return (text || '').trim();
 }
 `;
 	//#endregion
@@ -5608,7 +5626,7 @@ function shotWorkflowExtras(shot) {
 	}
 	var pageScript$5 = `
 ${enjoymentScaleScript}
-${shotBasketRpmScript}
+${recordedShotScript}
 let grinders = [];
 let recipes = [];
 let autoFavs = [];   // auto: true entries from autoFavourites — recent shot combos, see recent-favs.ts
@@ -5950,10 +5968,8 @@ async function renderLastShot() {
   currentStarRating = rating;
   updateStarDisplay(rating);
 
-  // Read Note reflects the shot's drinker note (annotations.espressoNotes),
-  // falling back to a pre-shot note only when the annotation is missing/null, not cleared.
-  const wfNote = ctx.extras && ctx.extras.note;
-  currentShotNote = (shot.annotations && shot.annotations.espressoNotes) ?? wfNote ?? '';
+  // Read Note shows the same note as Edit Shot (recorded-shot.ts).
+  currentShotNote = shotNote(shot);
   const noteBtn = document.getElementById('dye-read-note-btn');
   if (noteBtn) noteBtn.style.opacity = currentShotNote.trim() ? '' : '0.4';
 }
@@ -7092,7 +7108,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 	}
 	var pageScript$4 = `
 ${enjoymentScaleScript}
-${shotBasketRpmScript}
+${recordedShotScript}
 const PENCIL_SVG = ${JSON.stringify(lucideIcon("pencil", 20, "currentColor", 2))};
 let currentShot = null;
 let currentStarRating = 0;
@@ -7533,8 +7549,7 @@ function renderShot(shot) {
   const drinkerEl = document.getElementById('es-drinker-text');
   if (drinkerEl) drinkerEl.textContent = ctx.drinkerName || ctx.drinker || '—';
 
-  // The drinker note (annotations.espressoNotes), falling back to a note attached pre-shot
-  // via the workflow (context.extras.note) — the same as the dashboard's Read Note.
+  // The drinker note, or the pre-shot note when none was saved (recorded-shot.ts).
   const notes = shotNote(shot);
   set('es-notes-preview', notes ? notes.slice(0, 60) + (notes.length > 60 ? '…' : '') : '—');
 
@@ -7563,12 +7578,6 @@ function renderShot(shot) {
   const rating = enjoymentToStars(ann.enjoyment);
   currentStarRating = rating;
   updateStars(rating);
-}
-
-function shotNote(shot) {
-  const ctx = (shot && shot.workflow && shot.workflow.context) || {};
-  // An empty annotation is an intentional clear, not a missing note.
-  return (shot && shot.annotations && shot.annotations.espressoNotes) ?? (ctx.extras && ctx.extras.note) ?? '';
 }
 
 function updateStars(rating) {
@@ -7755,7 +7764,7 @@ function setupControls() {
   });
   document.getElementById('es-drinker-notes-save')?.addEventListener('click', () => {
     const ta = document.getElementById('es-drinker-notes-input');
-    const v = ta ? ta.value.trim() : '';
+    const v = noteToSave(ta && ta.value);
     if (currentShot) ann().espressoNotes = v;
     set('es-notes-preview', v ? v.slice(0, 60) + (v.length > 60 ? '…' : '') : '—');
     document.getElementById('es-drinker-notes-overlay')?.classList.remove('open');

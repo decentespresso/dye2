@@ -31,7 +31,7 @@ If you are about to edit anything under `dye2-plugin/src/`, read `AI_RUNTIME_NOT
 | Equipment on a shot / favourite / recipe | `src/utils/equipment-field.ts`, `pages/edit-shot.ts` | `AI_DATA_NOTES.md` |
 | Workflow, applying a favourite or recipe | `dev-api.ts` `buildFavouriteWorkflow`, `pages/dashboard.ts` | `AI_DATA_NOTES.md` |
 | Shot history, paging, ratings | `src/utils/shot-paging.ts`, `pages/edit-shot.ts` | `AI_DATA_NOTES.md` |
-| A shot's basket, RPM or note (set before the shot vs edited after) | `src/utils/shot-basket-rpm.ts`, `pages/edit-shot.ts` | `AI_DATA_NOTES.md` |
+| A shot's basket, RPM or note (set before the shot vs edited after) | `src/utils/recorded-shot.ts`, `pages/edit-shot.ts` | `AI_DATA_NOTES.md` |
 | Beanconqueror import | `src/utils/bc-map.ts`, `pages/bc-import.ts`, `test/bc-map.test.mjs` | `AI_DATA_NOTES.md` |
 | A control, stepper, toggle, star rating | `src/utils/shared-components.ts` | `AI_UI_NOTES.md` |
 | A dropdown, combo or picker | `.afe-combo*` in `pages/auto-fav-edit.ts` | `AI_UI_NOTES.md` |

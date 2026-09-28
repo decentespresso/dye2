@@ -4,7 +4,7 @@ import { shotPagingScript } from "../utils/shot-paging";
 import { chartScript } from "../utils/chart";
 import { iconHistory, iconClipboard } from "../utils/icons";
 import { enjoymentScaleScript } from "../utils/shared-components";
-import { shotBasketRpmScript } from "../utils/shot-basket-rpm";
+import { recordedShotScript } from "../utils/recorded-shot";
 
 const styles = `
   /* Navy popup menu, matches Figma 2345:1613 */
@@ -503,7 +503,7 @@ function buildContent(): string { return `
 
 const pageScript = `
 ${enjoymentScaleScript}
-${shotBasketRpmScript}
+${recordedShotScript}
 let grinders = [];
 let recipes = [];
 let autoFavs = [];   // auto: true entries from autoFavourites — recent shot combos, see recent-favs.ts
@@ -845,10 +845,8 @@ async function renderLastShot() {
   currentStarRating = rating;
   updateStarDisplay(rating);
 
-  // Read Note reflects the shot's drinker note (annotations.espressoNotes),
-  // falling back to a pre-shot note only when the annotation is missing/null, not cleared.
-  const wfNote = ctx.extras && ctx.extras.note;
-  currentShotNote = (shot.annotations && shot.annotations.espressoNotes) ?? wfNote ?? '';
+  // Read Note shows the same note as Edit Shot (recorded-shot.ts).
+  currentShotNote = shotNote(shot);
   const noteBtn = document.getElementById('dye-read-note-btn');
   if (noteBtn) noteBtn.style.opacity = currentShotNote.trim() ? '' : '0.4';
 }
