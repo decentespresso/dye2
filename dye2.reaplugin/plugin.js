@@ -5951,9 +5951,9 @@ async function renderLastShot() {
   updateStarDisplay(rating);
 
   // Read Note reflects the shot's drinker note (annotations.espressoNotes),
-  // falling back to a note attached pre-shot via the workflow (context.extras.note).
+  // falling back to a pre-shot note only when the annotation is missing/null, not cleared.
   const wfNote = ctx.extras && ctx.extras.note;
-  currentShotNote = (shot.annotations && shot.annotations.espressoNotes) || wfNote || '';
+  currentShotNote = (shot.annotations && shot.annotations.espressoNotes) ?? wfNote ?? '';
   const noteBtn = document.getElementById('dye-read-note-btn');
   if (noteBtn) noteBtn.style.opacity = currentShotNote.trim() ? '' : '0.4';
 }
@@ -7567,7 +7567,8 @@ function renderShot(shot) {
 
 function shotNote(shot) {
   const ctx = (shot && shot.workflow && shot.workflow.context) || {};
-  return (shot && shot.annotations && shot.annotations.espressoNotes) || (ctx.extras && ctx.extras.note) || '';
+  // An empty annotation is an intentional clear, not a missing note.
+  return (shot && shot.annotations && shot.annotations.espressoNotes) ?? (ctx.extras && ctx.extras.note) ?? '';
 }
 
 function updateStars(rating) {

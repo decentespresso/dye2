@@ -730,7 +730,8 @@ function renderShot(shot) {
 
 function shotNote(shot) {
   const ctx = (shot && shot.workflow && shot.workflow.context) || {};
-  return (shot && shot.annotations && shot.annotations.espressoNotes) || (ctx.extras && ctx.extras.note) || '';
+  // An empty annotation is an intentional clear, not a missing note.
+  return (shot && shot.annotations && shot.annotations.espressoNotes) ?? (ctx.extras && ctx.extras.note) ?? '';
 }
 
 function updateStars(rating) {

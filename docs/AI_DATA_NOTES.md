@@ -140,7 +140,8 @@ shot back into the live workflow (the dashboard's clipboard paste), use
 
 The drinker note follows the same rule with a schema field: `annotations.espressoNotes`,
 falling back to a note attached before the shot in `workflow.context.extras.note` (the
-dashboard's Read Note and Edit Shot's `shotNote()`).
+dashboard's Read Note and Edit Shot's `shotNote()`). Only a missing or null annotation
+falls back; an empty string means the note was explicitly cleared and stays empty.
 
 ## Cross-Plugin Calls
 
