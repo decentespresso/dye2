@@ -311,8 +311,12 @@ async function buildFavouriteWorkflow(fav) {
   if (on('drinker')   && snp.drinker)   ctx.drinkerName = snp.drinker;
   if (on('note')      && snp.note)      ctx.extras = { ...(ctx.extras || {}), note: snp.note };
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
-    const full = snp.profileId ? await resolveFullProfileById(snp.profileId) : null;
-    wf.profile = full || { id: snp.profileId, title: snp.profileTitle };
+    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps)) {
+      wf.profile = snp.profileSnapshot;
+    } else {
+      const full = snp.profileId ? await resolveFullProfileById(snp.profileId) : null;
+      wf.profile = full || { id: snp.profileId, title: snp.profileTitle };
+    }
   }
   return wf;
 }

@@ -1247,8 +1247,12 @@ async function applyAutoFavourite(fav) {
   }
   currentWorkflow.context = ctx;
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
-    const full = snp.profileId ? await resolveFullProfile(snp.profileId) : null;
-    currentWorkflow.profile = full || { id: snp.profileId, title: snp.profileTitle };
+    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps)) {
+      currentWorkflow.profile = snp.profileSnapshot;
+    } else {
+      const full = snp.profileId ? await resolveFullProfile(snp.profileId) : null;
+      currentWorkflow.profile = full || { id: snp.profileId, title: snp.profileTitle };
+    }
   }
   // Recents carry the FULL recorded profile (not just {id, title}), so reapplying one
   // reproduces the exact steps that ran instead of just a reference by id/title.

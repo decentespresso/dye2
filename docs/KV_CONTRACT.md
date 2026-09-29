@@ -188,7 +188,12 @@ CONFIRM handler in `basket-picker.ts`), not a full context replacement.
   copyMask: { profile, beans, roastDate, grinder, basket, equipment, grindSetting,
               dose, drink, barista, drinker, note },   // booleans; absent ⇒ on
   snapshot: {
-    profileId, profileTitle, beanBatchId, coffeeName, coffeeRoaster,
+    profileId, profileTitle,
+    profileSnapshot,           // optional, full recorded Profile (steps included) captured when the
+                                // source profile might not be in the library — apply this directly
+                                // instead of resolving profileId when it's set (nested under snapshot
+                                // here, unlike the recipe's top-level field)
+    beanBatchId, coffeeName, coffeeRoaster,
     roastDate, grinderId, grinderModel, basketId, basketName, grindSetting, rpm,
     dose, drink, barista, drinker, note,
     equipmentIds, equipmentNames,   // arrays in lockstep — see equipment[] below
