@@ -335,8 +335,12 @@ async function buildRecipeWorkflow(recipe) {
   if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;
   if (recipe && (recipe.profileId || recipe.profileTitle)) {
-    const full = recipe.profileId ? await resolveFullProfileById(recipe.profileId) : null;
-    wf.profile = full || { id: recipe.profileId, title: recipe.profileTitle };
+    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps)) {
+      wf.profile = recipe.profileSnapshot;
+    } else {
+      const full = recipe.profileId ? await resolveFullProfileById(recipe.profileId) : null;
+      wf.profile = full || { id: recipe.profileId, title: recipe.profileTitle };
+    }
   }
   return wf;
 }

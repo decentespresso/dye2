@@ -1170,8 +1170,12 @@ async function applyRecipe(recipe) {
   if (recipe.drinker) ctx.drinkerName = recipe.drinker;
   currentWorkflow.context = ctx;
   if (recipe.profileId || recipe.profileTitle) {
-    const full = recipe.profileId ? await resolveFullProfile(recipe.profileId) : null;
-    currentWorkflow.profile = full || { id: recipe.profileId, title: recipe.profileTitle };
+    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps)) {
+      currentWorkflow.profile = recipe.profileSnapshot;
+    } else {
+      const full = recipe.profileId ? await resolveFullProfile(recipe.profileId) : null;
+      currentWorkflow.profile = full || { id: recipe.profileId, title: recipe.profileTitle };
+    }
   }
   // Steam / hot-water / flush: override only the recipe's fields on the live sub-objects
   // (which already carry the required targetTemperature/flow). Guarded so we never send a partial.
