@@ -619,9 +619,17 @@ function profileLabel(p) {
 }
 
 function renderProfileChips() {
+  // selectedProfileId is frequently captured straight off a favourite's/recipe's snapshot
+  // (an ad-hoc profile that was never saved into the library), so it may not appear in
+  // the profiles array at all. When that happens, synthesize a virtual chip so it still
+  // shows — profileLabel() already falls back to .title on a plain {id, title} object.
+  let list = profiles;
+  if (selectedProfileId != null && !profiles.some(p => String(p.id) === String(selectedProfileId))) {
+    list = [{ id: selectedProfileId, title: selectedProfileTitle || 'Profile' }, ...profiles];
+  }
   renderChipGrid(
     're-profile-chips',
-    orderedChips(profiles, selectedProfileId, 5),
+    orderedChips(list, selectedProfileId, 5),
     p => String(p.id) === String(selectedProfileId),
     p => profileLabel(p),
     p => { selectedProfileId = p.id; selectedProfileTitle = profileLabel(p); renderProfileChips(); },
