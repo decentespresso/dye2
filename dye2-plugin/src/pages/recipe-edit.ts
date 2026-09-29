@@ -535,14 +535,20 @@ async function readFromWorkflow() {
 function favouriteToRecipePatch(fav) {
   const s = fav.snapshot || {};
   const bean = s.coffeeName ? beans.find(b => b.name === s.coffeeName) : null;
+  // Auto/recent favourites (recent-favs.ts) never set snapshot.profileId -- only
+  // snapshot.profileTitle. Their fav.workflow.profile carries the full recorded
+  // profile from the source shot (when isExecutableRecordedProfile allowed it), so
+  // fall back to its id/title rather than leaving profileId null and the profile
+  // chip unable to show anything.
+  const wfProfile = fav.workflow && fav.workflow.profile;
   return {
     beverage:     fav.beverage || '',
     barista:      s.barista || '',
     drinker:      s.drinker || '',
     beanId:       bean ? bean.id : null,
     beanName:     s.coffeeName || null,
-    profileId:    s.profileId || null,
-    profileTitle: s.profileTitle || null,
+    profileId:    s.profileId || (wfProfile && wfProfile.id) || null,
+    profileTitle: s.profileTitle || (wfProfile && wfProfile.title) || null,
     dashboardVariables: {
       dose:  s.dose,
       drink: s.drink,
