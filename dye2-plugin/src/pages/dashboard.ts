@@ -1115,6 +1115,7 @@ function renderRecipePills(workflow) {
         updateWorkflow(currentWorkflow).catch(e => console.warn(e));
       } else {
         applyRecipe(item);
+        updateWorkflow(currentWorkflow).catch(e => console.warn(e));
       }
     });
     container.appendChild(pill);
