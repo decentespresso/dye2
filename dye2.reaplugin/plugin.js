@@ -474,12 +474,36 @@ async function deleteEquipment(id) {
   await kvSetArray('equipment', arr.filter(x => !(x && x.id === id)));
 }
 
+/* PUT /api/v1/workflow deep-merges its body onto whatever workflow is already
+   loaded on the machine (reaprime workflow_handler.dart _applyUpdate) rather
+   than replacing it, so a profile field of only { id, title } overwrites just
+   those two keys on the profile ALREADY loaded -- the steps array (the actual
+   brew recipe) stays whatever was there before, and the machine keeps brewing
+   the old profile mislabeled with the new one's name. Resolve a stored
+   profileId to its full Profile record (steps included) via GET /profiles so
+   the WorkflowRequest embeds the real thing. Returns null (never throws) when
+   the id can't be resolved -- an ad-hoc/deleted profile with no library record
+   has nothing else to load; callers fall back to the thin { id, title } stub
+   and a warning is logged. */
+async function resolveFullProfileById(id) {
+  if (!id) return null;
+  try {
+    const records = await getProfiles({ includeHidden: true });
+    const record = Array.isArray(records) ? records.find(r => r && r.id === id) : null;
+    if (record && record.profile) return record.profile;
+  } catch (e) {
+    console.warn('resolveFullProfileById: failed to fetch profiles while resolving ' + id, e);
+  }
+  console.warn('resolveFullProfileById: could not resolve profile ' + id + ' to a full record (deleted/ad-hoc profile?) -- saving id/title only, brew steps will not change on apply');
+  return null;
+}
+
 /* ── Denormalised fields written for the Streamline dashboard (read-only consumer).
    Both builders return a ready-to-PUT WorkflowRequest body { context, profile? }.
    They mirror dashboard.ts applyAutoFavourite/applyRecipe, but build a fresh ctx
    and RETURN it instead of mutating currentWorkflow. Legacy fields are kept; these
    are additive and consumers MUST treat them as optional. See ../../../docs/KV_CONTRACT.md. */
-function buildFavouriteWorkflow(fav) {
+async function buildFavouriteWorkflow(fav) {
   const snp = (fav && fav.snapshot) || {};
   const mask = (fav && fav.copyMask) || {};
   const on = k => mask[k] !== false;
@@ -509,12 +533,17 @@ function buildFavouriteWorkflow(fav) {
   if (on('drinker')   && snp.drinker)   ctx.drinkerName = snp.drinker;
   if (on('note')      && snp.note)      ctx.extras = { ...(ctx.extras || {}), note: snp.note };
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
-    wf.profile = { id: snp.profileId, title: snp.profileTitle };
+    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps)) {
+      wf.profile = snp.profileSnapshot;
+    } else {
+      const full = snp.profileId ? await resolveFullProfileById(snp.profileId) : null;
+      wf.profile = full || { id: snp.profileId, title: snp.profileTitle };
+    }
   }
   return wf;
 }
 
-function buildRecipeWorkflow(recipe) {
+async function buildRecipeWorkflow(recipe) {
   const dv = (recipe && recipe.dashboardVariables) || {};
   const ctx = {};
   const wf = { context: ctx };
@@ -532,7 +561,12 @@ function buildRecipeWorkflow(recipe) {
   if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;
   if (recipe && (recipe.profileId || recipe.profileTitle)) {
-    wf.profile = { id: recipe.profileId, title: recipe.profileTitle };
+    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps)) {
+      wf.profile = recipe.profileSnapshot;
+    } else {
+      const full = recipe.profileId ? await resolveFullProfileById(recipe.profileId) : null;
+      wf.profile = full || { id: recipe.profileId, title: recipe.profileTitle };
+    }
   }
   return wf;
 }
@@ -554,7 +588,7 @@ async function updateRecipe(id, data) {
   const item = { ...data, id, capturedAt: new Date().toISOString() };
   item.title = item.name || ('Recipe ' + id);
   item.subtitle = recipeSubtitle(item);
-  item.workflow = buildRecipeWorkflow(item);
+  item.workflow = await buildRecipeWorkflow(item);
   kvUpsert(arr, item);
   await kvSetArray('recipes', arr);
   return item;
@@ -574,7 +608,7 @@ async function createAutoFavourite(data) {
   const arr = await kvGetArray('autoFavourites');
   const fav = { ...data, id: newId('af'), capturedAt: new Date().toISOString() };
   fav.subtitle = favSubtitle(fav);
-  fav.workflow = buildFavouriteWorkflow(fav);
+  fav.workflow = await buildFavouriteWorkflow(fav);
   arr.push(fav);
   await kvSetArray('autoFavourites', arr);
   return fav;
@@ -585,7 +619,7 @@ async function updateAutoFavourite(id, data) {
   const existing = arr.find(x => x && x.id === id);
   const item = { ...data, id, capturedAt: data.capturedAt ?? (existing && existing.capturedAt) ?? new Date().toISOString() };
   item.subtitle = favSubtitle(item);
-  item.workflow = buildFavouriteWorkflow(item);
+  item.workflow = await buildFavouriteWorkflow(item);
   kvUpsert(arr, item);
   await kvSetArray('autoFavourites', arr);
   return item;
@@ -5128,6 +5162,34 @@ function noteToSave(text) {
 }
 `;
 	//#endregion
+	//#region src/utils/shot-weights.ts
+	/**
+	* A recorded shot's dose in and drink out, as a browser-side script string (no local imports,
+	* so test/shot-weights.test.mjs can eval it directly).
+	*
+	* Shot annotations are the canonical measured/entered values — the fields the edit-shot page
+	* shows and saves. The last scale sample in measurements is only a fallback for shots without
+	* an actual yield: it's taken before the final drips land, so it can read several grams low.
+	*/
+	var shotWeightsScript = `
+function shotWeights(shot) {
+  const wf = shot.workflow || {};
+  const ctx = wf.context || {};
+  const doseData = wf.doseData || {};
+  const ann = shot.annotations || {};
+  const doseIn = ann.actualDoseWeight != null ? ann.actualDoseWeight
+    : ctx.targetDoseWeight != null ? ctx.targetDoseWeight
+    : (doseData.doseIn != null ? doseData.doseIn : null);
+  let doseOut = ann.actualYield != null ? ann.actualYield : null;
+  const measurements = shot.measurements || [];
+  for (let mi = measurements.length - 1; doseOut == null && mi >= 0; mi--) {
+    const sc = measurements[mi].scale;
+    if (sc && sc.weight != null) doseOut = sc.weight;
+  }
+  return { doseIn, doseOut };
+}
+`;
+	//#endregion
 	//#region src/pages/dashboard.ts
 	var styles$5 = `
   /* Navy popup menu, matches Figma 2345:1613 */
@@ -5627,7 +5689,9 @@ function noteToSave(text) {
 	var pageScript$5 = `
 ${enjoymentScaleScript}
 ${recordedShotScript}
+${shotWeightsScript}
 let grinders = [];
+let profiles = [];
 let recipes = [];
 let autoFavs = [];   // auto: true entries from autoFavourites — recent shot combos, see recent-favs.ts
 let currentWorkflow = null;
@@ -5888,21 +5952,14 @@ async function renderLastShot() {
 
   const wf = shot.workflow || {};
   const ctx = wf.context || {};
-  const doseData = wf.doseData || {};
   const grinderData = wf.grinderData || {};
   const profile = wf.profile || {};
 
   if (profileEl) profileEl.textContent = profile.title || '—';
 
-  // Dose: from context.targetDoseWeight
-  // Drink: last scale.weight value in measurements
+  // Prefers the saved actual dose/yield (what edit-shot shows) over the last scale sample.
   const measurements = shot.measurements || [];
-  const doseInRaw = ctx.targetDoseWeight != null ? ctx.targetDoseWeight : (doseData.doseIn != null ? doseData.doseIn : null);
-  let doseOutRaw = null;
-  for (let mi = measurements.length - 1; mi >= 0; mi--) {
-    const sc = measurements[mi].scale;
-    if (sc && sc.weight != null) { doseOutRaw = sc.weight; break; }
-  }
+  const { doseIn: doseInRaw, doseOut: doseOutRaw } = shotWeights(shot);
 
   const doseIn = doseInRaw != null ? doseInRaw + 'g' : '—';
   const doseOut = doseOutRaw != null ? doseOutRaw.toFixed(1) + 'g' : '—';
@@ -6234,24 +6291,53 @@ function renderRecipePills(workflow) {
     label.className = 'dye-recipe-pill-label';
     label.textContent = pillLabel;
     pill.appendChild(label);
-    pill.addEventListener('click', () => {
+    pill.addEventListener('click', async () => {
       document.querySelectorAll('.dye-recipe-pill').forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
       if (typeof item !== 'object') return;
       if (isRecent) {
-        applyAutoFavourite(item);
+        await applyAutoFavourite(item);
         updateWorkflow(currentWorkflow).catch(e => console.warn(e));
       } else {
-        applyRecipe(item);
+        await applyRecipe(item);
+        updateWorkflow(currentWorkflow).catch(e => console.warn(e));
       }
     });
     container.appendChild(pill);
   });
 }
 
+// PUT /api/v1/workflow deep-merges its body onto whatever workflow is already
+// loaded on the machine (reaprime workflow_handler.dart _applyUpdate) rather
+// than replacing it, so a profile field of only {id, title} overwrites just
+// those two keys on the profile ALREADY loaded -- the steps array (the actual
+// brew recipe) stays whatever was there before, and the machine keeps brewing
+// the old profile mislabeled with the new one's name. Resolve to the full
+// Profile record (steps included) instead: check the profiles list already
+// loaded at init first (mirrors the grinders.find(...) pattern above), then
+// fall back to a fresh GET /profiles for an id that arrived after that load.
+// Returns null (never throws) when the id can't be resolved -- an ad-hoc/
+// deleted profile with no library record has nothing else to load; callers
+// fall back to the thin {id, title} stub and a warning is logged.
+async function resolveFullProfile(id) {
+  if (!id) return null;
+  const cached = profiles.find(p => p && p.id === id);
+  if (cached && cached.profile) return cached.profile;
+  try {
+    const fresh = await getProfiles({ includeHidden: true });
+    const list = Array.isArray(fresh) ? fresh : (fresh && fresh.items ? fresh.items : []);
+    const record = list.find(p => p && p.id === id);
+    if (record && record.profile) return record.profile;
+  } catch (e) {
+    console.warn('resolveFullProfile: failed to fetch profiles while resolving ' + id, e);
+  }
+  console.warn('resolveFullProfile: could not resolve profile ' + id + ' to a full record (deleted/ad-hoc profile?) -- applying id/title only, brew steps will not change');
+  return null;
+}
+
 // Map a recipe's dashboardVariables/metadata into currentWorkflow.context, then re-render.
 // PUT /workflow only accepts context/profile (see setupClipboardPaste), so everything lands in context.
-function applyRecipe(recipe) {
+async function applyRecipe(recipe) {
   snapshotWorkflow();
   const dv = recipe.dashboardVariables || {};
   currentWorkflow = currentWorkflow || {};
@@ -6268,7 +6354,12 @@ function applyRecipe(recipe) {
   if (recipe.drinker) ctx.drinkerName = recipe.drinker;
   currentWorkflow.context = ctx;
   if (recipe.profileId || recipe.profileTitle) {
-    currentWorkflow.profile = { id: recipe.profileId, title: recipe.profileTitle };
+    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps)) {
+      currentWorkflow.profile = recipe.profileSnapshot;
+    } else {
+      const full = recipe.profileId ? await resolveFullProfile(recipe.profileId) : null;
+      currentWorkflow.profile = full || { id: recipe.profileId, title: recipe.profileTitle };
+    }
   }
   // Steam / hot-water / flush: override only the recipe's fields on the live sub-objects
   // (which already carry the required targetTemperature/flow). Guarded so we never send a partial.
@@ -6292,7 +6383,7 @@ function applyRecipe(recipe) {
 
 // Apply a saved auto-favourite's snapshot into currentWorkflow, honouring its copyMask
 // (a field with mask === false is skipped; absent mask defaults to on). Mirrors applyRecipe.
-function applyAutoFavourite(fav) {
+async function applyAutoFavourite(fav) {
   if (!fav) return;
   snapshotWorkflow();
   const snp = fav.snapshot || {};
@@ -6340,7 +6431,12 @@ function applyAutoFavourite(fav) {
   }
   currentWorkflow.context = ctx;
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
-    currentWorkflow.profile = { id: snp.profileId, title: snp.profileTitle };
+    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps)) {
+      currentWorkflow.profile = snp.profileSnapshot;
+    } else {
+      const full = snp.profileId ? await resolveFullProfile(snp.profileId) : null;
+      currentWorkflow.profile = full || { id: snp.profileId, title: snp.profileTitle };
+    }
   }
   // Recents carry the FULL recorded profile (not just {id, title}), so reapplying one
   // reproduces the exact steps that ran instead of just a reference by id/title.
@@ -6747,10 +6843,11 @@ async function initializeDyeDashboard() {
   wireDashboardControls();
 
   try {
-    const [shotsResult, workflowResult, grindersResult, recipesResult] = await Promise.all([
+    const [shotsResult, workflowResult, grindersResult, profilesResult, recipesResult] = await Promise.all([
       fetchShotPage(0),
       getWorkflow().catch(() => null),
       getGrinders().catch(() => []),
+      getProfiles({ includeHidden: true }).catch(() => []),
       getRecipes().catch(() => []),
     ]);
     shots = shotsResult.items;
@@ -6762,6 +6859,7 @@ async function initializeDyeDashboard() {
     currentShotIndex = editedIdx >= 0 ? editedIdx : 0;
     currentWorkflow = workflowResult;
     grinders = Array.isArray(grindersResult) ? grindersResult : (grindersResult && grindersResult.items ? grindersResult.items : []);
+    profiles = Array.isArray(profilesResult) ? profilesResult : (profilesResult && profilesResult.items ? profilesResult.items : []);
     recipes = Array.isArray(recipesResult) ? recipesResult : [];
   } catch (e) {
     console.error('DYE Dashboard: Failed to load data:', e);
@@ -6775,7 +6873,7 @@ async function initializeDyeDashboard() {
     try {
       const fav = await getAutoFavourite(selFavId);
       if (fav) {
-        applyAutoFavourite(fav);
+        await applyAutoFavourite(fav);
         await updateWorkflow(currentWorkflow).catch(e => console.warn(e));
       } else if (selFavId.indexOf('recent:') === 0) {
         // A recent's id is not stable — it changes as soon as a newer shot takes over
@@ -9031,7 +9129,11 @@ function renderFav(fav) {
 function collectFavData() {
   if (editing) endEdit(editing);   // flush any in-progress edit
   const snapshot = { ...((currentFav && currentFav.snapshot) || {}) };
-  const p = lookupState['afe-profile']; if (p) { snapshot.profileTitle = p.label; snapshot.profileId = p.id; }
+  // Picking a different profile via the lookup means picking a library profile (whose id
+  // will always resolve fine later) or retyping a plain label — either way any previously
+  // captured ad-hoc profileSnapshot is now stale and must be cleared, or it would wrongly
+  // shadow the newly chosen profile (mirrors recipe-edit.ts's chip-pick handler).
+  const p = lookupState['afe-profile']; if (p) { snapshot.profileTitle = p.label; snapshot.profileId = p.id; snapshot.profileSnapshot = null; }
   const b = lookupState['afe-beans'];   if (b) { snapshot.coffeeName = b.label; if (b.id) snapshot.beanBatchId = b.id; }
   const g = lookupState['afe-grinder']; if (g) { snapshot.grinderModel = g.label; snapshot.grinderId = g.id; }
   const bk = lookupState['afe-basket']; if (bk) { snapshot.basketName = bk.label; snapshot.basketId = bk.id; }
@@ -9121,6 +9223,7 @@ function snapshotFromWorkflow(wf) {
   const extras = ctx.extras || {};
   return {
     profileId: profile.id || null, profileTitle: profile.title || null,
+    profileSnapshot: Array.isArray(profile.steps) ? profile : null,
     beanBatchId: ctx.beanBatchId || null, coffeeName: ctx.coffeeName || null, coffeeRoaster: ctx.coffeeRoaster || null,
     roastDate: ctx.roastDate || null, grinderId: ctx.grinderId || null, grinderModel: ctx.grinderModel || null,
     basketId: extras.basketId || null, basketName: extras.basketName || null,
@@ -9581,6 +9684,7 @@ let selectedBeanId = null;
 let selectedBeanName = null;
 let selectedProfileId = null;
 let selectedProfileTitle = null;
+let selectedProfileSnapshot = null;
 let beans = [];
 let profiles = [];
 let equipmentSelIds = [];
@@ -9706,6 +9810,7 @@ function renderRecipe(recipe) {
   selectedBeanName    = recipe.beanName || null;
   selectedProfileId   = recipe.profileId || null;
   selectedProfileTitle = recipe.profileTitle || null;
+  selectedProfileSnapshot = recipe.profileSnapshot || null;
   renderBeanChips();
   renderProfileChips();
 
@@ -9731,6 +9836,13 @@ async function readFromWorkflow() {
   return {
     barista: ctx.baristaName || ctx.barista || '',
     drinker: ctx.drinkerName || ctx.drinker || '',
+    // getWorkflow().profile is a required, non-nullable field on Decaid's Workflow model
+    // (workflow.dart) whenever a workflow is loaded at all, so it's always a full Profile
+    // object when present -- capture it as a snapshot so applying this recipe later doesn't
+    // depend on the profile still being resolvable by id in the library.
+    profileId:    (wf && wf.profile && wf.profile.id) || null,
+    profileTitle: (wf && wf.profile && wf.profile.title) || null,
+    profileSnapshot: (wf && wf.profile && Array.isArray(wf.profile.steps)) ? wf.profile : null,
     dashboardVariables: {
       dose:  ctx.targetDoseWeight,
       drink: ctx.targetYield,
@@ -9752,14 +9864,24 @@ async function readFromWorkflow() {
 function favouriteToRecipePatch(fav) {
   const s = fav.snapshot || {};
   const bean = s.coffeeName ? beans.find(b => b.name === s.coffeeName) : null;
+  // Auto/recent favourites (recent-favs.ts) never set snapshot.profileId -- only
+  // snapshot.profileTitle. Their fav.workflow.profile carries the full recorded
+  // profile from the source shot (when isExecutableRecordedProfile allowed it), so
+  // fall back to its id/title rather than leaving profileId null and the profile
+  // chip unable to show anything.
+  const wfProfile = fav.workflow && fav.workflow.profile;
+  // Only treat wfProfile as a real captured profile (not a thin {id,title} stub the same
+  // field can otherwise hold) when it actually carries brew steps.
+  const profileSnapshot = (wfProfile && Array.isArray(wfProfile.steps)) ? wfProfile : null;
   return {
     beverage:     fav.beverage || '',
     barista:      s.barista || '',
     drinker:      s.drinker || '',
     beanId:       bean ? bean.id : null,
     beanName:     s.coffeeName || null,
-    profileId:    s.profileId || null,
-    profileTitle: s.profileTitle || null,
+    profileId:    s.profileId || (wfProfile && wfProfile.id) || null,
+    profileTitle: s.profileTitle || (wfProfile && wfProfile.title) || null,
+    profileSnapshot,
     dashboardVariables: {
       dose:  s.dose,
       drink: s.drink,
@@ -9836,12 +9958,20 @@ function profileLabel(p) {
 }
 
 function renderProfileChips() {
+  // selectedProfileId is frequently captured straight off a favourite's/recipe's snapshot
+  // (an ad-hoc profile that was never saved into the library), so it may not appear in
+  // the profiles array at all. When that happens, synthesize a virtual chip so it still
+  // shows — profileLabel() already falls back to .title on a plain {id, title} object.
+  let list = profiles;
+  if (selectedProfileId != null && !profiles.some(p => String(p.id) === String(selectedProfileId))) {
+    list = [{ id: selectedProfileId, title: selectedProfileTitle || 'Profile' }, ...profiles];
+  }
   renderChipGrid(
     're-profile-chips',
-    orderedChips(profiles, selectedProfileId, 5),
+    orderedChips(list, selectedProfileId, 5),
     p => String(p.id) === String(selectedProfileId),
     p => profileLabel(p),
-    p => { selectedProfileId = p.id; selectedProfileTitle = profileLabel(p); renderProfileChips(); },
+    p => { selectedProfileId = p.id; selectedProfileTitle = profileLabel(p); selectedProfileSnapshot = null; renderProfileChips(); },
     { beans: false, url: '/api/v1/plugins/dye2.reaplugin/profile-picker?return=/api/v1/plugins/dye2.reaplugin/recipe-edit' }
   );
 }
@@ -9918,6 +10048,7 @@ function getCurrentRecipeData() {
     beanName:  selectedBeanName,
     profileId: selectedProfileId,
     profileTitle: selectedProfileTitle,
+    profileSnapshot: selectedProfileSnapshot,
     showOnStreamlineDashboard: showOnStreamline,
     dashboardVariables: {
       dose:    num('re-dose-value'),
@@ -10227,6 +10358,7 @@ async function initRecipeEdit() {
       if (profileId) {
         cur.profileId = profileId;
         cur.profileTitle = sessionStorage.getItem('dye_selectedProfileTitle') || '';
+        cur.profileSnapshot = null;   // fresh library pick; its id will always resolve, don't let a stale ad-hoc snapshot shadow it
         ['dye_selectedProfileId','dye_selectedProfileTitle'].forEach(k => sessionStorage.removeItem(k));
       }
       // Returning from the equipment manage page's "+ New…" round trip — add it to

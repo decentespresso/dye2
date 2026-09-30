@@ -5,6 +5,7 @@ import { chartScript } from "../utils/chart";
 import { iconHistory, iconClipboard } from "../utils/icons";
 import { enjoymentScaleScript } from "../utils/shared-components";
 import { recordedShotScript } from "../utils/recorded-shot";
+import { shotWeightsScript } from "../utils/shot-weights";
 
 const styles = `
   /* Navy popup menu, matches Figma 2345:1613 */
@@ -504,7 +505,9 @@ function buildContent(): string { return `
 const pageScript = `
 ${enjoymentScaleScript}
 ${recordedShotScript}
+${shotWeightsScript}
 let grinders = [];
+let profiles = [];
 let recipes = [];
 let autoFavs = [];   // auto: true entries from autoFavourites — recent shot combos, see recent-favs.ts
 let currentWorkflow = null;
@@ -765,21 +768,14 @@ async function renderLastShot() {
 
   const wf = shot.workflow || {};
   const ctx = wf.context || {};
-  const doseData = wf.doseData || {};
   const grinderData = wf.grinderData || {};
   const profile = wf.profile || {};
 
   if (profileEl) profileEl.textContent = profile.title || '—';
 
-  // Dose: from context.targetDoseWeight
-  // Drink: last scale.weight value in measurements
+  // Prefers the saved actual dose/yield (what edit-shot shows) over the last scale sample.
   const measurements = shot.measurements || [];
-  const doseInRaw = ctx.targetDoseWeight != null ? ctx.targetDoseWeight : (doseData.doseIn != null ? doseData.doseIn : null);
-  let doseOutRaw = null;
-  for (let mi = measurements.length - 1; mi >= 0; mi--) {
-    const sc = measurements[mi].scale;
-    if (sc && sc.weight != null) { doseOutRaw = sc.weight; break; }
-  }
+  const { doseIn: doseInRaw, doseOut: doseOutRaw } = shotWeights(shot);
 
   const doseIn = doseInRaw != null ? doseInRaw + 'g' : '—';
   const doseOut = doseOutRaw != null ? doseOutRaw.toFixed(1) + 'g' : '—';
@@ -1111,24 +1107,53 @@ function renderRecipePills(workflow) {
     label.className = 'dye-recipe-pill-label';
     label.textContent = pillLabel;
     pill.appendChild(label);
-    pill.addEventListener('click', () => {
+    pill.addEventListener('click', async () => {
       document.querySelectorAll('.dye-recipe-pill').forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
       if (typeof item !== 'object') return;
       if (isRecent) {
-        applyAutoFavourite(item);
+        await applyAutoFavourite(item);
         updateWorkflow(currentWorkflow).catch(e => console.warn(e));
       } else {
-        applyRecipe(item);
+        await applyRecipe(item);
+        updateWorkflow(currentWorkflow).catch(e => console.warn(e));
       }
     });
     container.appendChild(pill);
   });
 }
 
+// PUT /api/v1/workflow deep-merges its body onto whatever workflow is already
+// loaded on the machine (reaprime workflow_handler.dart _applyUpdate) rather
+// than replacing it, so a profile field of only {id, title} overwrites just
+// those two keys on the profile ALREADY loaded -- the steps array (the actual
+// brew recipe) stays whatever was there before, and the machine keeps brewing
+// the old profile mislabeled with the new one's name. Resolve to the full
+// Profile record (steps included) instead: check the profiles list already
+// loaded at init first (mirrors the grinders.find(...) pattern above), then
+// fall back to a fresh GET /profiles for an id that arrived after that load.
+// Returns null (never throws) when the id can't be resolved -- an ad-hoc/
+// deleted profile with no library record has nothing else to load; callers
+// fall back to the thin {id, title} stub and a warning is logged.
+async function resolveFullProfile(id) {
+  if (!id) return null;
+  const cached = profiles.find(p => p && p.id === id);
+  if (cached && cached.profile) return cached.profile;
+  try {
+    const fresh = await getProfiles({ includeHidden: true });
+    const list = Array.isArray(fresh) ? fresh : (fresh && fresh.items ? fresh.items : []);
+    const record = list.find(p => p && p.id === id);
+    if (record && record.profile) return record.profile;
+  } catch (e) {
+    console.warn('resolveFullProfile: failed to fetch profiles while resolving ' + id, e);
+  }
+  console.warn('resolveFullProfile: could not resolve profile ' + id + ' to a full record (deleted/ad-hoc profile?) -- applying id/title only, brew steps will not change');
+  return null;
+}
+
 // Map a recipe's dashboardVariables/metadata into currentWorkflow.context, then re-render.
 // PUT /workflow only accepts context/profile (see setupClipboardPaste), so everything lands in context.
-function applyRecipe(recipe) {
+async function applyRecipe(recipe) {
   snapshotWorkflow();
   const dv = recipe.dashboardVariables || {};
   currentWorkflow = currentWorkflow || {};
@@ -1145,7 +1170,12 @@ function applyRecipe(recipe) {
   if (recipe.drinker) ctx.drinkerName = recipe.drinker;
   currentWorkflow.context = ctx;
   if (recipe.profileId || recipe.profileTitle) {
-    currentWorkflow.profile = { id: recipe.profileId, title: recipe.profileTitle };
+    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps)) {
+      currentWorkflow.profile = recipe.profileSnapshot;
+    } else {
+      const full = recipe.profileId ? await resolveFullProfile(recipe.profileId) : null;
+      currentWorkflow.profile = full || { id: recipe.profileId, title: recipe.profileTitle };
+    }
   }
   // Steam / hot-water / flush: override only the recipe's fields on the live sub-objects
   // (which already carry the required targetTemperature/flow). Guarded so we never send a partial.
@@ -1169,7 +1199,7 @@ function applyRecipe(recipe) {
 
 // Apply a saved auto-favourite's snapshot into currentWorkflow, honouring its copyMask
 // (a field with mask === false is skipped; absent mask defaults to on). Mirrors applyRecipe.
-function applyAutoFavourite(fav) {
+async function applyAutoFavourite(fav) {
   if (!fav) return;
   snapshotWorkflow();
   const snp = fav.snapshot || {};
@@ -1217,7 +1247,12 @@ function applyAutoFavourite(fav) {
   }
   currentWorkflow.context = ctx;
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
-    currentWorkflow.profile = { id: snp.profileId, title: snp.profileTitle };
+    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps)) {
+      currentWorkflow.profile = snp.profileSnapshot;
+    } else {
+      const full = snp.profileId ? await resolveFullProfile(snp.profileId) : null;
+      currentWorkflow.profile = full || { id: snp.profileId, title: snp.profileTitle };
+    }
   }
   // Recents carry the FULL recorded profile (not just {id, title}), so reapplying one
   // reproduces the exact steps that ran instead of just a reference by id/title.
@@ -1624,10 +1659,11 @@ async function initializeDyeDashboard() {
   wireDashboardControls();
 
   try {
-    const [shotsResult, workflowResult, grindersResult, recipesResult] = await Promise.all([
+    const [shotsResult, workflowResult, grindersResult, profilesResult, recipesResult] = await Promise.all([
       fetchShotPage(0),
       getWorkflow().catch(() => null),
       getGrinders().catch(() => []),
+      getProfiles({ includeHidden: true }).catch(() => []),
       getRecipes().catch(() => []),
     ]);
     shots = shotsResult.items;
@@ -1639,6 +1675,7 @@ async function initializeDyeDashboard() {
     currentShotIndex = editedIdx >= 0 ? editedIdx : 0;
     currentWorkflow = workflowResult;
     grinders = Array.isArray(grindersResult) ? grindersResult : (grindersResult && grindersResult.items ? grindersResult.items : []);
+    profiles = Array.isArray(profilesResult) ? profilesResult : (profilesResult && profilesResult.items ? profilesResult.items : []);
     recipes = Array.isArray(recipesResult) ? recipesResult : [];
   } catch (e) {
     console.error('DYE Dashboard: Failed to load data:', e);
@@ -1652,7 +1689,7 @@ async function initializeDyeDashboard() {
     try {
       const fav = await getAutoFavourite(selFavId);
       if (fav) {
-        applyAutoFavourite(fav);
+        await applyAutoFavourite(fav);
         await updateWorkflow(currentWorkflow).catch(e => console.warn(e));
       } else if (selFavId.indexOf('recent:') === 0) {
         // A recent's id is not stable — it changes as soon as a newer shot takes over

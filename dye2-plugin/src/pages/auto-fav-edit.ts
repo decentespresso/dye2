@@ -578,7 +578,11 @@ function renderFav(fav) {
 function collectFavData() {
   if (editing) endEdit(editing);   // flush any in-progress edit
   const snapshot = { ...((currentFav && currentFav.snapshot) || {}) };
-  const p = lookupState['afe-profile']; if (p) { snapshot.profileTitle = p.label; snapshot.profileId = p.id; }
+  // Picking a different profile via the lookup means picking a library profile (whose id
+  // will always resolve fine later) or retyping a plain label — either way any previously
+  // captured ad-hoc profileSnapshot is now stale and must be cleared, or it would wrongly
+  // shadow the newly chosen profile (mirrors recipe-edit.ts's chip-pick handler).
+  const p = lookupState['afe-profile']; if (p) { snapshot.profileTitle = p.label; snapshot.profileId = p.id; snapshot.profileSnapshot = null; }
   const b = lookupState['afe-beans'];   if (b) { snapshot.coffeeName = b.label; if (b.id) snapshot.beanBatchId = b.id; }
   const g = lookupState['afe-grinder']; if (g) { snapshot.grinderModel = g.label; snapshot.grinderId = g.id; }
   const bk = lookupState['afe-basket']; if (bk) { snapshot.basketName = bk.label; snapshot.basketId = bk.id; }
@@ -668,6 +672,7 @@ function snapshotFromWorkflow(wf) {
   const extras = ctx.extras || {};
   return {
     profileId: profile.id || null, profileTitle: profile.title || null,
+    profileSnapshot: Array.isArray(profile.steps) ? profile : null,
     beanBatchId: ctx.beanBatchId || null, coffeeName: ctx.coffeeName || null, coffeeRoaster: ctx.coffeeRoaster || null,
     roastDate: ctx.roastDate || null, grinderId: ctx.grinderId || null, grinderModel: ctx.grinderModel || null,
     basketId: extras.basketId || null, basketName: extras.basketName || null,

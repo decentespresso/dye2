@@ -252,12 +252,36 @@ async function deleteEquipment(id) {
   await kvSetArray('equipment', arr.filter(x => !(x && x.id === id)));
 }
 
+/* PUT /api/v1/workflow deep-merges its body onto whatever workflow is already
+   loaded on the machine (reaprime workflow_handler.dart _applyUpdate) rather
+   than replacing it, so a profile field of only { id, title } overwrites just
+   those two keys on the profile ALREADY loaded -- the steps array (the actual
+   brew recipe) stays whatever was there before, and the machine keeps brewing
+   the old profile mislabeled with the new one's name. Resolve a stored
+   profileId to its full Profile record (steps included) via GET /profiles so
+   the WorkflowRequest embeds the real thing. Returns null (never throws) when
+   the id can't be resolved -- an ad-hoc/deleted profile with no library record
+   has nothing else to load; callers fall back to the thin { id, title } stub
+   and a warning is logged. */
+async function resolveFullProfileById(id) {
+  if (!id) return null;
+  try {
+    const records = await getProfiles({ includeHidden: true });
+    const record = Array.isArray(records) ? records.find(r => r && r.id === id) : null;
+    if (record && record.profile) return record.profile;
+  } catch (e) {
+    console.warn('resolveFullProfileById: failed to fetch profiles while resolving ' + id, e);
+  }
+  console.warn('resolveFullProfileById: could not resolve profile ' + id + ' to a full record (deleted/ad-hoc profile?) -- saving id/title only, brew steps will not change on apply');
+  return null;
+}
+
 /* ── Denormalised fields written for the Streamline dashboard (read-only consumer).
    Both builders return a ready-to-PUT WorkflowRequest body { context, profile? }.
    They mirror dashboard.ts applyAutoFavourite/applyRecipe, but build a fresh ctx
    and RETURN it instead of mutating currentWorkflow. Legacy fields are kept; these
    are additive and consumers MUST treat them as optional. See ../../../docs/KV_CONTRACT.md. */
-function buildFavouriteWorkflow(fav) {
+async function buildFavouriteWorkflow(fav) {
   const snp = (fav && fav.snapshot) || {};
   const mask = (fav && fav.copyMask) || {};
   const on = k => mask[k] !== false;
@@ -287,12 +311,17 @@ function buildFavouriteWorkflow(fav) {
   if (on('drinker')   && snp.drinker)   ctx.drinkerName = snp.drinker;
   if (on('note')      && snp.note)      ctx.extras = { ...(ctx.extras || {}), note: snp.note };
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
-    wf.profile = { id: snp.profileId, title: snp.profileTitle };
+    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps)) {
+      wf.profile = snp.profileSnapshot;
+    } else {
+      const full = snp.profileId ? await resolveFullProfileById(snp.profileId) : null;
+      wf.profile = full || { id: snp.profileId, title: snp.profileTitle };
+    }
   }
   return wf;
 }
 
-function buildRecipeWorkflow(recipe) {
+async function buildRecipeWorkflow(recipe) {
   const dv = (recipe && recipe.dashboardVariables) || {};
   const ctx = {};
   const wf = { context: ctx };
@@ -310,7 +339,12 @@ function buildRecipeWorkflow(recipe) {
   if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;
   if (recipe && (recipe.profileId || recipe.profileTitle)) {
-    wf.profile = { id: recipe.profileId, title: recipe.profileTitle };
+    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps)) {
+      wf.profile = recipe.profileSnapshot;
+    } else {
+      const full = recipe.profileId ? await resolveFullProfileById(recipe.profileId) : null;
+      wf.profile = full || { id: recipe.profileId, title: recipe.profileTitle };
+    }
   }
   return wf;
 }
@@ -332,7 +366,7 @@ async function updateRecipe(id, data) {
   const item = { ...data, id, capturedAt: new Date().toISOString() };
   item.title = item.name || ('Recipe ' + id);
   item.subtitle = recipeSubtitle(item);
-  item.workflow = buildRecipeWorkflow(item);
+  item.workflow = await buildRecipeWorkflow(item);
   kvUpsert(arr, item);
   await kvSetArray('recipes', arr);
   return item;
@@ -352,7 +386,7 @@ async function createAutoFavourite(data) {
   const arr = await kvGetArray('autoFavourites');
   const fav = { ...data, id: newId('af'), capturedAt: new Date().toISOString() };
   fav.subtitle = favSubtitle(fav);
-  fav.workflow = buildFavouriteWorkflow(fav);
+  fav.workflow = await buildFavouriteWorkflow(fav);
   arr.push(fav);
   await kvSetArray('autoFavourites', arr);
   return fav;
@@ -363,7 +397,7 @@ async function updateAutoFavourite(id, data) {
   const existing = arr.find(x => x && x.id === id);
   const item = { ...data, id, capturedAt: data.capturedAt ?? (existing && existing.capturedAt) ?? new Date().toISOString() };
   item.subtitle = favSubtitle(item);
-  item.workflow = buildFavouriteWorkflow(item);
+  item.workflow = await buildFavouriteWorkflow(item);
   kvUpsert(arr, item);
   await kvSetArray('autoFavourites', arr);
   return item;
