@@ -10945,14 +10945,29 @@ bcInit();
 		}
 		return order.map((k) => shotByKey.get(k));
 	}
+	/**
+	* RPM as corrected in Edit Shot wins over the pre-shot value, same precedence as
+	* shotBasketRpm() in src/utils/recorded-shot.ts (annotations.extras, then
+	* workflow.context.extras, then legacy grinderData). Restated here rather than
+	* shared because this file runs in the plugin runtime and can't import that
+	* browser-side script string (AI_RUNTIME_NOTES.md).
+	*/
+	function resolveRpm(shot) {
+		const wf = shot.workflow || {};
+		const extras = wf.context && wf.context.extras || {};
+		const gd = wf.grinderData || {};
+		const ax = shot.annotations && shot.annotations.extras || {};
+		const rpm = ax.rpm != null ? ax.rpm : extras.rpm != null ? extras.rpm : gd.rpm;
+		return rpm != null ? rpm : null;
+	}
 	/** Builds one auto-favourite from a representative shot. No title de-duplication yet
 	*  — that depends on the other recents in the batch, see applyTitleDisambiguation. */
 	function toRecentFavourite(shot, rank) {
 		const wf = shot.workflow || {};
 		const ctx = wf.context || {};
 		const profile = wf.profile || {};
-		const extras = ctx.extras || {};
 		const grinderModel = ctx.grinderModel != null ? ctx.grinderModel : null;
+		const rpm = resolveRpm(shot);
 		const context = {
 			beanBatchId: ctx.beanBatchId != null ? ctx.beanBatchId : null,
 			coffeeName: ctx.coffeeName != null ? ctx.coffeeName : null,
@@ -10963,7 +10978,7 @@ bcInit();
 		if (ctx.grinderSetting != null) context.grinderSetting = ctx.grinderSetting;
 		if (ctx.targetDoseWeight != null) context.targetDoseWeight = ctx.targetDoseWeight;
 		if (ctx.targetYield != null) context.targetYield = ctx.targetYield;
-		if (extras.rpm != null) context.extras = { rpm: extras.rpm };
+		if (rpm != null) context.extras = { rpm };
 		return {
 			id: "recent:" + shot.id,
 			auto: true,
@@ -11000,7 +11015,7 @@ bcInit();
 				grinderId: ctx.grinderId || null,
 				grinderModel,
 				grindSetting: ctx.grinderSetting != null ? ctx.grinderSetting : null,
-				rpm: extras.rpm != null ? extras.rpm : null,
+				rpm,
 				dose: ctx.targetDoseWeight != null ? ctx.targetDoseWeight : null,
 				drink: ctx.targetYield != null ? ctx.targetYield : null
 			},

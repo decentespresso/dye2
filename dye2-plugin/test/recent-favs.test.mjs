@@ -163,6 +163,47 @@ console.log('ok   pickRecentShots: newest-group-first ordering, page/group caps,
 
 console.log('ok   toRecentFavourite: target values, explicit nulls, omitted-when-absent, full profile');
 
+// --- toRecentFavourite RPM precedence (issue #15) ----------------------------------
+
+{
+  // annotations.extras.rpm (an Edit Shot correction) wins over the pre-shot
+  // workflow.context.extras.rpm, same precedence as shotBasketRpm() in recorded-shot.ts.
+  const shot = makeShot('rpm-1', 't1');
+  shot.workflow.context.extras = { rpm: 600 };
+  shot.annotations = { extras: { rpm: 900 } };
+  const fav = toRecentFavourite(shot, 0);
+  assert.equal(fav.workflow.context.extras.rpm, 900, 'corrected RPM wins in the workflow to apply');
+  assert.equal(fav.snapshot.rpm, 900, 'corrected RPM wins in the snapshot too');
+}
+
+{
+  // No annotation correction: falls back to the pre-shot workflow.context.extras.rpm.
+  const shot = makeShot('rpm-2', 't1');
+  shot.workflow.context.extras = { rpm: 600 };
+  const fav = toRecentFavourite(shot, 0);
+  assert.equal(fav.workflow.context.extras.rpm, 600);
+  assert.equal(fav.snapshot.rpm, 600);
+}
+
+{
+  // No extras anywhere: legacy workflow.grinderData.rpm is the last resort.
+  const shot = makeShot('rpm-3', 't1');
+  shot.workflow.grinderData = { rpm: 450 };
+  const fav = toRecentFavourite(shot, 0);
+  assert.equal(fav.workflow.context.extras.rpm, 450);
+  assert.equal(fav.snapshot.rpm, 450);
+}
+
+{
+  // No RPM anywhere: omitted from the workflow to apply, null in the snapshot.
+  const shot = makeShot('rpm-4', 't1');
+  const fav = toRecentFavourite(shot, 0);
+  assert.equal('extras' in fav.workflow.context, false);
+  assert.equal(fav.snapshot.rpm, null);
+}
+
+console.log('ok   toRecentFavourite: RPM prefers an Edit Shot correction over the pre-shot value (issue #15)');
+
 // --- isExecutableRecordedProfile / toRecentFavourite profile omission -------------------------------------------------------------
 
 {
