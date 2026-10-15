@@ -78,7 +78,9 @@ class Dye2BeanPicker extends HTMLElement {
       await fetch('/api/v1/workflow', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ context: detail }),
+        // extras.dye marks these fields as written by DYE2, so Streamline's post-shot
+        // clean-up clears them and nothing another plugin set (see dev-api.ts).
+        body: JSON.stringify({ context: { ...detail, extras: { dye: { v: 1, beanBatchId: true, coffeeName: true, coffeeRoaster: true } } } }),
       });
     } catch (err) {
       console.error('[dye2-bean-picker] Workflow update failed:', err);

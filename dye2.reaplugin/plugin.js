@@ -325,19 +325,48 @@ async function updateGrinder(id, data) {
   return res.json();
 }
 
+/* Which context fields this plugin wrote. Streamline clears bean/grinder/barista
+   identity after each persisted shot so it does not label the next one; with this
+   marker (context.extras.dye = { v: 1, <field>: true, ... }) it clears only what DYE2
+   set and leaves a value another plugin or the user put there on purpose. The map
+   merges with what is already there (PUT /workflow deep-merges), so flags accumulate
+   until Streamline clears them. A field counts as written when its value differs
+   from the context this page last read or sent -- the dashboard PUTs the whole
+   workflow back, and that must not claim every field it merely carried along. */
+const DYE_OWNED_TOP = ['beanBatchId', 'coffeeName', 'coffeeRoaster', 'grinderId', 'grinderModel', 'baristaName', 'drinkerName'];
+const DYE_OWNED_EXTRAS = ['basketId', 'basketName', 'rpm', 'note'];
+let lastWorkflowContext = {};
+
+function withDyeMarker(data) {
+  if (!data || !data.context || typeof data.context !== 'object') return data;
+  const ctx = data.context;
+  const prev = lastWorkflowContext || {};
+  const prevExtras = prev.extras || {};
+  const extras = ctx.extras || {};
+  const flags = {};
+  const changed = (v, p) => v != null && v !== '' && String(v) !== String(p);
+  DYE_OWNED_TOP.forEach(k => { if (changed(ctx[k], prev[k])) flags[k] = true; });
+  DYE_OWNED_EXTRAS.forEach(k => { if (changed(extras[k], prevExtras[k])) flags[k] = true; });
+  return { ...data, context: { ...ctx, extras: { ...extras, dye: { ...(extras.dye || {}), v: 1, ...flags } } } };
+}
+
 async function getWorkflow() {
   const res = await fetch(API_BASE_URL + '/workflow');
   if (!res.ok) throw new Error('HTTP ' + res.status);
-  return res.json();
+  const wf = await res.json();
+  lastWorkflowContext = JSON.parse(JSON.stringify((wf && wf.context) || {}));
+  return wf;
 }
 
 async function updateWorkflow(data) {
+  const body = withDyeMarker(data);
   const res = await fetch(API_BASE_URL + '/workflow', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error('HTTP ' + res.status);
+  if (body && body.context) lastWorkflowContext = JSON.parse(JSON.stringify({ ...lastWorkflowContext, ...body.context }));
   return res.json();
 }
 
