@@ -105,6 +105,34 @@ make a claim about a field.
 Bean deletion: `DELETE /beans/{id}` removes only the bean row, and batches reference it with no cascade
 while the host enforces foreign keys, so delete every batch first, archived included (`bean-delete.ts`).
 
+### Dial-in recording: the plugin runtime watches the workflow
+
+`src/utils/workflow-record.ts` (plugin runtime, DOM-free, node-tested) folds dashboard
+dial-in edits back into whichever recipe or favourite is **armed**. It is the only place
+DYE2 reacts to a workflow change it did not make.
+
+- The host pushes `workflowUpdated` with the **whole** workflow on every revision change
+  (`events.workflow` permission; `plugin_manager.dart:3091`). There is no per-write payload,
+  so "which field did the user touch" is not knowable — the recorder diffs instead, and only
+  against fields the item already holds.
+- **Only record what apply writes.** `applyRecipe` never pushes `brewC` (KV_CONTRACT: display
+  only) and writes only the active mode's steam/hot-water field, so diffing those would
+  overwrite stored intent with whatever the machine held. `brewC` is therefore gated on a
+  baseline captured when the item was armed, and the inactive mode's field is skipped. Add a
+  field to `recipeFields` only after checking apply actually writes it.
+- **The echo guard** suppresses DYE2's own apply (the event arrives asynchronously, so it is
+  matched by value within a 3 s window, not by a call-scoped flag).
+- Armed state is set through the `selection` endpoint (`POST {kind,id}`, `{}` clears) and
+  mirrored to `host.storage`, which lands in the ordinary KV store — so a consumer reads it
+  at `GET /store/dye2.reaplugin/selection`. Storage reads cannot be awaited; the value comes
+  back as a `storageRead` event.
+- `host.emit('changed', ...)` on the `changed` websocket endpoint is what tells Streamline to
+  re-read. A payload of `{"what":"skin"}` refreshes only its surfaces, so KV changes push
+  something else or the DYE strip stays stale.
+
+Streamline gates its own legacy write-back on the `selection` endpoint being declared, which
+is what restores the single-writer rule; see `dyeStrip.js` / `dye-selection.js` in the skin.
+
 ## Shots
 
 Paging via `getShots({limit, offset, order, grinderId, beanId, beanBatchId, coffeeName,
