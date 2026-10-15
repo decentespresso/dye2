@@ -5700,6 +5700,15 @@ let currentShotNote = '';
 let vizLoggedIn = false;
 let vizUsername = '';
 let lastEditSnapshot = null;
+// What this visit applied to the Workflow, reported to Streamline on the way
+// back so its strip can highlight (and auto-save to) the right item:
+// '' nothing, 'recipe:<id>' / 'favourite:<id>', or 'other' for an item with no
+// stable id (a recent shot combination).
+let lastApplied = '';
+function noteApplied(kind, item) {
+  const id = item && item.id;
+  lastApplied = (id != null && String(id).indexOf('recent:') !== 0) ? kind + ':' + id : 'other';
+}
 
 // One-level undo for Next Shot Planning: every edit first saves the state it is
 // replacing, and the history button swaps back to it (press again to re-apply).
@@ -6297,9 +6306,11 @@ function renderRecipePills(workflow) {
       if (typeof item !== 'object') return;
       if (isRecent) {
         await applyAutoFavourite(item);
+        noteApplied('favourite', item);
         updateWorkflow(currentWorkflow).catch(e => console.warn(e));
       } else {
         await applyRecipe(item);
+        noteApplied('recipe', item);
         updateWorkflow(currentWorkflow).catch(e => console.warn(e));
       }
     });
@@ -6721,8 +6732,17 @@ function setupClipboardPaste() {
 // to win nearly always and the REA fallback below rarely ran.
 function leaveDashboard() {
   const ret = new URLSearchParams(location.search).get('return');
-  if (ret) { window.location.href = ret; return; }
-  window.location.href = 'http://' + window.location.hostname + ':3000/?_=' + Date.now();
+  if (ret) {
+    // dyeApplied tells Streamline which item this visit applied (see lastApplied);
+    // its presence also marks a DYE2 that reports it. Streamline reads and strips it.
+    try {
+      const u = new URL(ret, window.location.href);
+      u.searchParams.set('dyeApplied', lastApplied);
+      window.location.href = u.toString();
+    } catch (e) { window.location.href = ret; }
+    return;
+  }
+  window.location.href = 'http://' + window.location.hostname + ':3000/?_=' + Date.now() + '&dyeApplied=' + encodeURIComponent(lastApplied);
 }
 
 function setupReadNote() {
@@ -6874,6 +6894,7 @@ async function initializeDyeDashboard() {
       const fav = await getAutoFavourite(selFavId);
       if (fav) {
         await applyAutoFavourite(fav);
+        noteApplied('favourite', fav);
         await updateWorkflow(currentWorkflow).catch(e => console.warn(e));
       } else if (selFavId.indexOf('recent:') === 0) {
         // A recent's id is not stable — it changes as soon as a newer shot takes over
