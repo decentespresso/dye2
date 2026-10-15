@@ -70,14 +70,19 @@ POST /api/v1/plugins/dye2.reaplugin/selection {}           -> clears
 ```
 
 The selection is persisted in plugin storage, so it survives page navigation and
-reloads.
+reloads. Plugin storage shares the KV namespace, so a consumer can also read the armed
+item directly at `GET /api/v1/store/dye2.reaplugin/selection` (`null` when none).
+`brewC` is recorded only if the live brew temperature moves after arming (apply never
+pushes it); a recipe's inactive steam/hot-water mode value is never recorded, and the
+mode fields themselves are never written by dial-in.
 
 ## Freshness
 
 DYE2 exposes a push channel: the `changed` websocket endpoint,
 `ws://<bridge-host>:8080/api/v1/plugins/dye2.reaplugin/changed`. It emits
-`{ "what": "skin" }` after DYE2's plugin runtime writes a KV key and
-`{ "what": "workflow" }` after a recipe/favourite is applied. A push means "something
+`{ "what": "workflow" }` after DYE2's plugin runtime writes a KV key and after a
+recipe/favourite is applied (not `"skin"`: the skin only re-reads its DYE strip's KV
+data for pushes other than `{"what":"skin"}`). A push means "something
 changed, re-read"; it carries no data. Streamline discovers it through the `skin`
 endpoint (`{"version":1,"surfaces":[],"live":{"endpoint":"changed"}}`).
 

@@ -11240,19 +11240,21 @@ bcInit();
 	* only those whose value differs. The paired *Mode fields follow whichever of their
 	* two values moved.
 	*/
-	function itemPatch(kind, item, wf) {
+	function itemPatch(kind, item, wf, armedBrewC = null) {
 		const stored = item[TARGETS[kind].field] || {};
 		const all = kind === "recipe" ? recipeFields(wf) : favouriteFields(wf);
+		const skip = /* @__PURE__ */ new Set();
+		if (stored.steamMode === "time") skip.add("steamFlowMls");
+		else if (stored.steamMode === "flow") skip.add("steamTimeS");
+		if (stored.hotWaterMode === "vol") skip.add("hotWaterTempC");
+		else if (stored.hotWaterMode === "temp") skip.add("hotWaterMl");
 		const known = {};
-		for (const k of Object.keys(all)) if (stored[k] != null) known[k] = all[k];
-		const patch = changedFields(known, stored);
-		if (kind === "recipe") {
-			if ("steamTimeS" in patch && !("steamFlowMls" in patch)) patch.steamMode = "time";
-			if ("steamFlowMls" in patch && !("steamTimeS" in patch)) patch.steamMode = "flow";
-			if ("hotWaterMl" in patch && !("hotWaterTempC" in patch)) patch.hotWaterMode = "vol";
-			if ("hotWaterTempC" in patch && !("hotWaterMl" in patch)) patch.hotWaterMode = "temp";
+		for (const k of Object.keys(all)) {
+			if (stored[k] == null || skip.has(k)) continue;
+			if (k === "brewC" && (armedBrewC == null || all.brewC === armedBrewC)) continue;
+			known[k] = all[k];
 		}
-		return patch;
+		return changedFields(known, stored);
 	}
 	function getSelection() {
 		return selection;
@@ -11270,6 +11272,14 @@ bcInit();
 		selection = next;
 		if (onSelectionChange) onSelectionChange(next);
 	}
+	function liveBrewC(wf) {
+		const v = recipeFields(wf).brewC;
+		return v === void 0 ? null : v;
+	}
+	function updateSelection(sel, changes) {
+		Object.assign(sel, changes);
+		if (selection === sel && onSelectionChange) onSelectionChange(sel);
+	}
 	function clearSelection() {
 		setSel(null);
 	}
@@ -11279,7 +11289,8 @@ bcInit();
 		selection = s && (s.kind === "recipe" || s.kind === "favourite") && s.id != null && String(s.id).indexOf("recent:") !== 0 ? {
 			kind: s.kind,
 			id: String(s.id),
-			profileFingerprint: s.profileFingerprint || null
+			profileFingerprint: s.profileFingerprint || null,
+			armedBrewC: typeof s.armedBrewC === "number" ? s.armedBrewC : null
 		} : null;
 	}
 	/**
@@ -11298,7 +11309,8 @@ bcInit();
 		setSel({
 			kind,
 			id: String(id),
-			profileFingerprint: profileFingerprint(wf && wf.profile)
+			profileFingerprint: profileFingerprint(wf && wf.profile),
+			armedBrewC: wf ? liveBrewC(wf) : null
 		});
 		if (wf) suppress(wf, now);
 		return selection;
@@ -11331,7 +11343,9 @@ bcInit();
 		const idx = list.findIndex((x) => x && String(x.id) === armed.id);
 		if (idx === -1) return false;
 		const item = list[idx];
-		const patch = itemPatch(armed.kind, item, wf);
+		const patch = itemPatch(armed.kind, item, wf, armed.armedBrewC);
+		const live = liveBrewC(wf);
+		if (live !== armed.armedBrewC) updateSelection(armed, { armedBrewC: live });
 		if (Object.keys(patch).length === 0) return false;
 		const next = {
 			...item,
@@ -11373,7 +11387,7 @@ bcInit();
 			return;
 		}
 		if (isEcho(wf, now)) return;
-		if (!selection.profileFingerprint) selection.profileFingerprint = profileFingerprint(wf.profile);
+		if (!selection.profileFingerprint) updateSelection(selection, { profileFingerprint: profileFingerprint(wf.profile) });
 		cancelPending();
 		const armed = selection;
 		timer = setTimeout(() => {
@@ -11395,7 +11409,7 @@ bcInit();
 		}
 		function refreshRecents() {
 			if (typeof fetch !== "function") return;
-			refreshRecentFavourites(fetch).then(() => announce({ what: "skin" })).catch((e) => {
+			refreshRecentFavourites(fetch).then(() => announce({ what: "workflow" })).catch((e) => {
 				log(`recent-favs refresh failed: ${e instanceof Error ? e.message : String(e)}`);
 			});
 		}
@@ -11468,7 +11482,7 @@ bcInit();
 					if (event.payload && event.payload.key === SELECTION_STORAGE_KEY && !getSelection()) restoreSelection(event.payload.value);
 				} else if (event.name === "workflowUpdated") {
 					if (typeof fetch !== "function") return;
-					scheduleWorkflowRecord(event.payload, fetch, () => announce({ what: "skin" }), (e) => log(`workflow record failed: ${e instanceof Error ? e.message : String(e)}`));
+					scheduleWorkflowRecord(event.payload, fetch, () => announce({ what: "workflow" }), (e) => log(`workflow record failed: ${e instanceof Error ? e.message : String(e)}`));
 				}
 			},
 			__httpRequestHandler(request) {

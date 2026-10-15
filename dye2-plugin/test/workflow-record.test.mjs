@@ -41,11 +41,19 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   const p = itemPatch('recipe', recipe(), wf({ context: { targetDoseWeight: 19, targetYield: 36, grinderSetting: '4.2' } }));
   assert.deepEqual(p, { dose: 19 });
   const t = itemPatch('recipe', recipe(), wf({ steamSettings: { duration: 40, flow: 1.5 } }));
-  assert.deepEqual(t, { steamTimeS: 40, steamMode: 'time' }, 'mode follows the moved value; absent steamFlowMls not stamped');
+  assert.deepEqual(t, { steamTimeS: 40 }, 'steam time recorded, mode never written');
   const g = itemPatch('recipe', recipe(), wf({ context: { targetDoseWeight: 18, targetYield: 36, grinderSetting: '4.20' } }));
   assert.deepEqual(g, {}, 'numeric compare: 4.20 == 4.2');
-  const b = itemPatch('recipe', recipe(), wf({ profile: profile(95) }));
-  assert.deepEqual(b, { brewC: 95 });
+  // brewC: apply never pushes it, so a profile that merely differs from the stored value is not an edit
+  assert.deepEqual(itemPatch('recipe', recipe(), wf({ profile: profile(95) }), 95), {}, 'live == armed baseline: no brewC');
+  assert.deepEqual(itemPatch('recipe', recipe(), wf({ profile: profile(95) }), null), {}, 'unknown baseline: no brewC');
+  assert.deepEqual(itemPatch('recipe', recipe(), wf({ profile: profile(96) }), 95), { brewC: 96 }, 'moved after arming: recorded');
+
+  // both modes' values stored: only the active mode's field is the user's
+  const both = recipe();
+  Object.assign(both.dashboardVariables, { steamFlowMls: 2, hotWaterMode: 'vol', hotWaterMl: 120, hotWaterTempC: 80 });
+  const bp = itemPatch('recipe', both, wf({ steamSettings: { duration: 30, flow: 1.5 }, hotWaterData: { volume: 120, targetTemperature: 85 } }));
+  assert.deepEqual(bp, {}, 'inactive-mode values are not recorded and the mode does not flip');
 }
 
 // --- a favourite gets dose/drink/grindSetting only ---------------------------------

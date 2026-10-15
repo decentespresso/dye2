@@ -25,6 +25,13 @@ export interface Selection {
   id: string;
   /** Fingerprint of the profile the item was armed on; null until first seen. */
   profileFingerprint: string | null;
+  /**
+   * Live step-0 temperature when armed (then rebased after each record). apply never
+   * pushes a recipe's brewC (docs/KV_CONTRACT.md: display only), so the live profile
+   * may legitimately differ from the stored value; brewC is recorded only when the
+   * live value moves off this baseline, i.e. a real brew-temp edit. Null = unknown.
+   */
+  armedBrewC: number | null;
 }
 
 const DEBOUNCE_MS = 1500;
@@ -126,19 +133,28 @@ export function changedFields(patch: AnyRecord, stored: AnyRecord | undefined): 
  * only those whose value differs. The paired *Mode fields follow whichever of their
  * two values moved.
  */
-export function itemPatch(kind: Selection["kind"], item: AnyRecord, wf: AnyRecord): AnyRecord {
+export function itemPatch(
+  kind: Selection["kind"],
+  item: AnyRecord,
+  wf: AnyRecord,
+  armedBrewC: number | null = null
+): AnyRecord {
   const stored = item[TARGETS[kind].field] || {};
   const all = kind === "recipe" ? recipeFields(wf) : favouriteFields(wf);
+  // apply only writes the active mode's field (the other keeps whatever the machine
+  // last had), so only that one is the user's; the mode itself is never written.
+  const skip = new Set<string>();
+  if (stored.steamMode === "time") skip.add("steamFlowMls");
+  else if (stored.steamMode === "flow") skip.add("steamTimeS");
+  if (stored.hotWaterMode === "vol") skip.add("hotWaterTempC");
+  else if (stored.hotWaterMode === "temp") skip.add("hotWaterMl");
   const known: AnyRecord = {};
-  for (const k of Object.keys(all)) if (stored[k] != null) known[k] = all[k];
-  const patch = changedFields(known, stored);
-  if (kind === "recipe") {
-    if ("steamTimeS" in patch && !("steamFlowMls" in patch)) patch.steamMode = "time";
-    if ("steamFlowMls" in patch && !("steamTimeS" in patch)) patch.steamMode = "flow";
-    if ("hotWaterMl" in patch && !("hotWaterTempC" in patch)) patch.hotWaterMode = "vol";
-    if ("hotWaterTempC" in patch && !("hotWaterMl" in patch)) patch.hotWaterMode = "temp";
+  for (const k of Object.keys(all)) {
+    if (stored[k] == null || skip.has(k)) continue;
+    if (k === "brewC" && (armedBrewC == null || all.brewC === armedBrewC)) continue;
+    known[k] = all[k];
   }
-  return patch;
+  return changedFields(known, stored);
 }
 
 // ── selection ───────────────────────────────────────────────────────────────
@@ -164,6 +180,18 @@ function setSel(next: Selection | null) {
   if (onSelectionChange) onSelectionChange(next);
 }
 
+function liveBrewC(wf: AnyRecord): number | null {
+  const v = recipeFields(wf).brewC;
+  return v === undefined ? null : v;
+}
+
+// Mutates the armed selection in place (identity is what the debounce timer checks)
+// and tells the persistence listener, so a reload does not lose the baseline.
+function updateSelection(sel: Selection, changes: Partial<Selection>) {
+  Object.assign(sel, changes);
+  if (selection === sel && onSelectionChange) onSelectionChange(sel);
+}
+
 export function clearSelection() {
   setSel(null);
 }
@@ -173,7 +201,12 @@ export function restoreSelection(raw: unknown) {
   const s = raw as AnyRecord | null;
   selection =
     s && (s.kind === "recipe" || s.kind === "favourite") && s.id != null && String(s.id).indexOf("recent:") !== 0
-      ? { kind: s.kind, id: String(s.id), profileFingerprint: s.profileFingerprint || null }
+      ? {
+          kind: s.kind,
+          id: String(s.id),
+          profileFingerprint: s.profileFingerprint || null,
+          armedBrewC: typeof s.armedBrewC === "number" ? s.armedBrewC : null,
+        }
       : null;
 }
 
@@ -190,7 +223,12 @@ export function armSelection(req: AnyRecord | null | undefined, wf?: AnyRecord |
     clearSelection();
     return null;
   }
-  setSel({ kind, id: String(id), profileFingerprint: profileFingerprint(wf && wf.profile) });
+  setSel({
+    kind,
+    id: String(id),
+    profileFingerprint: profileFingerprint(wf && wf.profile),
+    armedBrewC: wf ? liveBrewC(wf) : null,
+  });
   if (wf) suppress(wf, now);
   return selection;
 }
@@ -235,7 +273,9 @@ export async function recordWorkflow(
   const idx = list.findIndex((x) => x && String(x.id) === armed.id);
   if (idx === -1) return false;
   const item = list[idx];
-  const patch = itemPatch(armed.kind, item, wf);
+  const patch = itemPatch(armed.kind, item, wf, armed.armedBrewC);
+  const live = liveBrewC(wf);
+  if (live !== armed.armedBrewC) updateSelection(armed, { armedBrewC: live });
   if (Object.keys(patch).length === 0) return false;
 
   const next: AnyRecord = { ...item, [field]: { ...(item[field] || {}), ...patch } };
@@ -280,7 +320,9 @@ export function scheduleWorkflowRecord(
   }
   if (isEcho(wf, now)) return;
   // The skin armed us before the profile was known (no fetch at arm time): adopt it now.
-  if (!selection.profileFingerprint) selection.profileFingerprint = profileFingerprint(wf.profile);
+  if (!selection.profileFingerprint) {
+    updateSelection(selection, { profileFingerprint: profileFingerprint(wf.profile) });
+  }
 
   cancelPending();
   const armed = selection;

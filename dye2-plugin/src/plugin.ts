@@ -39,14 +39,15 @@ export default function createPlugin(host: PluginHost): PluginInstance {
   function refreshRecents(): void {
     if (typeof fetch !== "function") return;
     refreshRecentFavourites(fetch)
-      .then(() => announce({ what: "skin" }))
+      .then(() => announce({ what: "workflow" }))
       .catch((e: unknown) => {
       log(`recent-favs refresh failed: ${e instanceof Error ? e.message : String(e)}`);
     });
   }
 
-  // Push on the `changed` websocket endpoint (manifest api). Streamline's `skin` live
-  // plumbing re-reads on any push; a non-"skin" push also makes the DYE strip re-read KV.
+  // Push on the `changed` websocket endpoint (manifest api). The skin re-reads its
+  // surfaces on any push but only the DYE strip's KV data when the push is NOT
+  // {"what":"skin"} (plugin-surfaces-ui.js onPush), so KV changes push "workflow".
   function announce(payload: Record<string, unknown>): void {
     try {
       host.emit("changed", payload);
@@ -137,7 +138,7 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         scheduleWorkflowRecord(
           event.payload,
           fetch,
-          () => announce({ what: "skin" }),
+          () => announce({ what: "workflow" }),
           (e) => log(`workflow record failed: ${e instanceof Error ? e.message : String(e)}`)
         );
       }
