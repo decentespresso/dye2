@@ -525,6 +525,18 @@ function noteApplied(kind, item) {
   const id = item && item.id;
   lastApplied = (id != null && String(id).indexOf('recent:') !== 0) ? kind + ':' + id : 'other';
 }
+// Tell the plugin runtime which item was just applied so it records later dial-in
+// edits onto it (workflow-record.ts). Call AFTER the apply's PUT /workflow: the plugin
+// reads the live workflow to fingerprint the profile. A recent: id clears the selection.
+function postSelection(kind, item) {
+  const id = item && item.id;
+  const body = (id != null && String(id).indexOf('recent:') !== 0) ? { kind: kind, id: String(id) } : {};
+  return fetch('/api/v1/plugins/dye2.reaplugin/selection', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).catch(e => console.warn('selection post failed', e));
+}
 
 // One-level undo for Next Shot Planning: every edit first saves the state it is
 // replacing, and the history button swaps back to it (press again to re-apply).
@@ -1123,11 +1135,11 @@ function renderRecipePills(workflow) {
       if (isRecent) {
         await applyAutoFavourite(item);
         noteApplied('favourite', item);
-        updateWorkflow(currentWorkflow).catch(e => console.warn(e));
+        updateWorkflow(currentWorkflow).then(() => postSelection('favourite', item)).catch(e => console.warn(e));
       } else {
         await applyRecipe(item);
         noteApplied('recipe', item);
-        updateWorkflow(currentWorkflow).catch(e => console.warn(e));
+        updateWorkflow(currentWorkflow).then(() => postSelection('recipe', item)).catch(e => console.warn(e));
       }
     });
     container.appendChild(pill);
@@ -1712,6 +1724,7 @@ async function initializeDyeDashboard() {
         await applyAutoFavourite(fav);
         noteApplied('favourite', fav);
         await updateWorkflow(currentWorkflow).catch(e => console.warn(e));
+        await postSelection('favourite', fav);
       } else if (selFavId.indexOf('recent:') === 0) {
         // A recent's id is not stable — it changes as soon as a newer shot takes over
         // its group — so the one the picker sent back can already be gone by the time

@@ -10,7 +10,8 @@
     "api",
     "emit",
     "pluginStorage",
-    "events.shots"
+    "events.shots",
+    "events.workflow"
   ],
   "settings": {},
   "api": [
@@ -92,6 +93,21 @@
     {
       "id": "recent-favs",
       "type": "http",
+      "data": {}
+    },
+    {
+      "id": "selection",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "skin",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "changed",
+      "type": "websocket",
       "data": {}
     },
     {

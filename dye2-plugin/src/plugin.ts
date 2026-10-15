@@ -17,6 +17,16 @@ import { renderAutoFavEditPage } from "./pages/auto-fav-edit";
 import { renderRecipeEditPage } from "./pages/recipe-edit";
 import { renderBcImportPage } from "./pages/bc-import";
 import { refreshRecentFavourites } from "./utils/recent-favs";
+import {
+  armSelection,
+  clearSelection,
+  getSelection,
+  restoreSelection,
+  scheduleWorkflowRecord,
+  setSelectionListener,
+} from "./utils/workflow-record";
+
+const SELECTION_STORAGE_KEY = "selection";
 
 export default function createPlugin(host: PluginHost): PluginInstance {
   function log(msg: string) {
@@ -28,9 +38,75 @@ export default function createPlugin(host: PluginHost): PluginInstance {
   // throws trying to reference it.
   function refreshRecents(): void {
     if (typeof fetch !== "function") return;
-    refreshRecentFavourites(fetch).catch((e: unknown) => {
+    refreshRecentFavourites(fetch)
+      .then(() => announce({ what: "skin" }))
+      .catch((e: unknown) => {
       log(`recent-favs refresh failed: ${e instanceof Error ? e.message : String(e)}`);
     });
+  }
+
+  // Push on the `changed` websocket endpoint (manifest api). Streamline's `skin` live
+  // plumbing re-reads on any push; a non-"skin" push also makes the DYE strip re-read KV.
+  function announce(payload: Record<string, unknown>): void {
+    try {
+      host.emit("changed", payload);
+    } catch (e: unknown) {
+      log(`emit failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  // The armed selection lives in workflow-record.ts memory and is mirrored to plugin
+  // storage so it survives a reload. Storage reads cannot be awaited: host.storage()
+  // returns void and the value comes back later as a `storageRead` event (handled in
+  // onEvent), so it is requested once in onLoad.
+  function persistSelection(): void {
+    if (typeof host.storage !== "function") return;
+    host.storage({
+      type: "write",
+      key: SELECTION_STORAGE_KEY,
+      namespace: "dye2.reaplugin",
+      data: getSelection(),
+    });
+  }
+  setSelectionListener(persistSelection);
+
+  function json(request: HttpRequest, status: number, body: unknown): HttpResponse {
+    return {
+      requestId: request.requestId,
+      status,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    };
+  }
+
+  async function handleSelection(request: HttpRequest): Promise<HttpResponse> {
+    if (request.method === "GET") return json(request, 200, getSelection());
+    let body: any = request.body;
+    if (typeof body === "string") {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        body = null;
+      }
+    }
+    if (!body || !body.kind) {
+      clearSelection();
+      return json(request, 200, null);
+    }
+    // The dashboard posts this right after its PUT /workflow, so the live workflow is
+    // the applied one: fingerprint its profile and record it as the apply's echo.
+    let wf: any = null;
+    if (typeof fetch === "function") {
+      try {
+        const res = await fetch("http://localhost:8080/api/v1/workflow");
+        if (res.ok) wf = await res.json();
+      } catch (e) {
+        log(`selection: could not read workflow: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+    const sel = armSelection(body, wf);
+    if (sel) announce({ what: "workflow" });
+    return json(request, 200, sel);
   }
 
   return {
@@ -39,6 +115,9 @@ export default function createPlugin(host: PluginHost): PluginInstance {
 
     onLoad(_settings: Record<string, unknown>) {
       log("DYE2 plugin loaded");
+      if (typeof host.storage === "function") {
+        host.storage({ type: "read", key: SELECTION_STORAGE_KEY, namespace: "dye2.reaplugin" });
+      }
       refreshRecents();
     },
 
@@ -49,6 +128,18 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     onEvent(event: PluginEvent) {
       if (event.name === "shotStored" || event.name === "shotUpdated") {
         refreshRecents();
+      } else if (event.name === "storageRead") {
+        if (event.payload && event.payload.key === SELECTION_STORAGE_KEY && !getSelection()) {
+          restoreSelection(event.payload.value);
+        }
+      } else if (event.name === "workflowUpdated") {
+        if (typeof fetch !== "function") return;
+        scheduleWorkflowRecord(
+          event.payload,
+          fetch,
+          () => announce({ what: "skin" }),
+          (e) => log(`workflow record failed: ${e instanceof Error ? e.message : String(e)}`)
+        );
       }
     },
 
@@ -130,6 +221,15 @@ export default function createPlugin(host: PluginHost): PluginInstance {
                 body: JSON.stringify({ error: message }),
               };
             });
+
+        // Not pages: arm/clear/read the recipe or favourite being dialled in.
+        case "selection":
+          return handleSelection(request);
+
+        // Streamline surface discovery: no surfaces (the F/R strip is the skin's own
+        // code), just the live socket so the skin re-reads when `changed` pushes.
+        case "skin":
+          return json(request, 200, { version: 1, surfaces: [], live: { endpoint: "changed" } });
 
         // Not a page: the local Plotly bundle for the dashboard chart.
         case "plotly":

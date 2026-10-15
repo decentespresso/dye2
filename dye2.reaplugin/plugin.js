@@ -5709,6 +5709,18 @@ function noteApplied(kind, item) {
   const id = item && item.id;
   lastApplied = (id != null && String(id).indexOf('recent:') !== 0) ? kind + ':' + id : 'other';
 }
+// Tell the plugin runtime which item was just applied so it records later dial-in
+// edits onto it (workflow-record.ts). Call AFTER the apply's PUT /workflow: the plugin
+// reads the live workflow to fingerprint the profile. A recent: id clears the selection.
+function postSelection(kind, item) {
+  const id = item && item.id;
+  const body = (id != null && String(id).indexOf('recent:') !== 0) ? { kind: kind, id: String(id) } : {};
+  return fetch('/api/v1/plugins/dye2.reaplugin/selection', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).catch(e => console.warn('selection post failed', e));
+}
 
 // One-level undo for Next Shot Planning: every edit first saves the state it is
 // replacing, and the history button swaps back to it (press again to re-apply).
@@ -6307,11 +6319,11 @@ function renderRecipePills(workflow) {
       if (isRecent) {
         await applyAutoFavourite(item);
         noteApplied('favourite', item);
-        updateWorkflow(currentWorkflow).catch(e => console.warn(e));
+        updateWorkflow(currentWorkflow).then(() => postSelection('favourite', item)).catch(e => console.warn(e));
       } else {
         await applyRecipe(item);
         noteApplied('recipe', item);
-        updateWorkflow(currentWorkflow).catch(e => console.warn(e));
+        updateWorkflow(currentWorkflow).then(() => postSelection('recipe', item)).catch(e => console.warn(e));
       }
     });
     container.appendChild(pill);
@@ -6896,6 +6908,7 @@ async function initializeDyeDashboard() {
         await applyAutoFavourite(fav);
         noteApplied('favourite', fav);
         await updateWorkflow(currentWorkflow).catch(e => console.warn(e));
+        await postSelection('favourite', fav);
       } else if (selFavId.indexOf('recent:') === 0) {
         // A recent's id is not stable — it changes as soon as a newer shot takes over
         // its group — so the one the picker sent back can already be gone by the time
@@ -11144,22 +11157,306 @@ bcInit();
 		return refreshInFlight;
 	}
 	//#endregion
+	//#region src/utils/workflow-record.ts
+	var DEBOUNCE_MS = 1500;
+	var ECHO_WINDOW_MS = 3e3;
+	var TARGETS = {
+		recipe: {
+			key: "recipes",
+			field: "dashboardVariables"
+		},
+		favourite: {
+			key: "autoFavourites",
+			field: "snapshot"
+		}
+	};
+	var selection = null;
+	var onSelectionChange = null;
+	var timer = null;
+	var suppressed = null;
+	function profileFingerprint(profile) {
+		if (!profile) return null;
+		const steps = Array.isArray(profile.steps) ? profile.steps.map(({ temperature, ...rest }) => rest) : profile.steps;
+		return JSON.stringify({
+			title: profile.title,
+			target_weight: profile.target_weight,
+			target_volume: profile.target_volume,
+			tank_temperature: profile.tank_temperature,
+			steps
+		});
+	}
+	/** Has the live workflow's profile moved away from the one the selection was armed on? */
+	function profileDrifted(sel, workflow) {
+		if (!sel) return false;
+		const fp = profileFingerprint(workflow && workflow.profile);
+		return !!(sel.profileFingerprint && fp && fp !== sel.profileFingerprint);
+	}
+	function num(v) {
+		if (v == null || v === "") return void 0;
+		const n = parseFloat(String(v));
+		return Number.isFinite(n) ? n : void 0;
+	}
+	function put(out, k, v) {
+		if (v !== void 0 && v !== null) out[k] = v;
+	}
+	/** Everything the live workflow says that a recipe could hold, in dashboardVariables names. */
+	function recipeFields(wf) {
+		const out = {};
+		const ctx = wf && wf.context || {};
+		put(out, "dose", ctx.targetDoseWeight);
+		put(out, "drink", ctx.targetYield);
+		put(out, "grind", num(ctx.grinderSetting));
+		const steps = wf && wf.profile && wf.profile.steps;
+		put(out, "brewC", num(steps && steps[0] && steps[0].temperature));
+		put(out, "steamTimeS", wf && wf.steamSettings && wf.steamSettings.duration);
+		put(out, "steamFlowMls", wf && wf.steamSettings && wf.steamSettings.flow);
+		put(out, "hotWaterMl", wf && wf.hotWaterData && wf.hotWaterData.volume);
+		put(out, "hotWaterTempC", wf && wf.hotWaterData && wf.hotWaterData.targetTemperature);
+		put(out, "flushS", wf && wf.rinseData && wf.rinseData.duration);
+		return out;
+	}
+	/** A favourite's snapshot has no brew-temp/steam/hot-water/flush field: dose/drink/grind only. */
+	function favouriteFields(wf) {
+		const out = {};
+		const ctx = wf && wf.context || {};
+		put(out, "dose", ctx.targetDoseWeight);
+		put(out, "drink", ctx.targetYield);
+		put(out, "grindSetting", num(ctx.grinderSetting));
+		return out;
+	}
+	/** The entries of `patch` that differ from `stored`, compared numerically where both are numbers. */
+	function changedFields(patch, stored) {
+		const out = {};
+		for (const [k, v] of Object.entries(patch || {})) {
+			const cur = stored ? stored[k] : void 0;
+			if (!(cur === v || cur != null && v != null && Number.isFinite(Number(cur)) && Number(cur) === Number(v))) out[k] = v;
+		}
+		return out;
+	}
+	/**
+	* What to write onto `item` for the live workflow `wf`: only fields the item already
+	* holds (a workflow always has a value for steam/hot water/flush, so diffing against an
+	* absent field would stamp the whole workflow onto the item — a blanket resync) and
+	* only those whose value differs. The paired *Mode fields follow whichever of their
+	* two values moved.
+	*/
+	function itemPatch(kind, item, wf) {
+		const stored = item[TARGETS[kind].field] || {};
+		const all = kind === "recipe" ? recipeFields(wf) : favouriteFields(wf);
+		const known = {};
+		for (const k of Object.keys(all)) if (stored[k] != null) known[k] = all[k];
+		const patch = changedFields(known, stored);
+		if (kind === "recipe") {
+			if ("steamTimeS" in patch && !("steamFlowMls" in patch)) patch.steamMode = "time";
+			if ("steamFlowMls" in patch && !("steamTimeS" in patch)) patch.steamMode = "flow";
+			if ("hotWaterMl" in patch && !("hotWaterTempC" in patch)) patch.hotWaterMode = "vol";
+			if ("hotWaterTempC" in patch && !("hotWaterMl" in patch)) patch.hotWaterMode = "temp";
+		}
+		return patch;
+	}
+	function getSelection() {
+		return selection;
+	}
+	/** plugin.ts registers this to persist the selection whenever it changes. */
+	function setSelectionListener(fn) {
+		onSelectionChange = fn;
+	}
+	function cancelPending() {
+		if (timer != null && typeof clearTimeout === "function") clearTimeout(timer);
+		timer = null;
+	}
+	function setSel(next) {
+		cancelPending();
+		selection = next;
+		if (onSelectionChange) onSelectionChange(next);
+	}
+	function clearSelection() {
+		setSel(null);
+	}
+	/** Restore a persisted selection at load; does not notify the persistence listener. */
+	function restoreSelection(raw) {
+		const s = raw;
+		selection = s && (s.kind === "recipe" || s.kind === "favourite") && s.id != null && String(s.id).indexOf("recent:") !== 0 ? {
+			kind: s.kind,
+			id: String(s.id),
+			profileFingerprint: s.profileFingerprint || null
+		} : null;
+	}
+	/**
+	* Arm `{kind,id}` on the live workflow `wf` (used for the profile fingerprint). A
+	* `recent:` id is not stable (docs/KV_CONTRACT.md, "Auto (recent) entries"), so arming
+	* one clears the selection instead. Arming happens right after the dashboard's apply,
+	* so it also records that apply as an echo (see suppress).
+	*/
+	function armSelection(req, wf, now = Date.now()) {
+		const kind = req && req.kind;
+		const id = req && req.id;
+		if (kind !== "recipe" && kind !== "favourite" || id == null || id === "" || String(id).indexOf("recent:") === 0) {
+			clearSelection();
+			return null;
+		}
+		setSel({
+			kind,
+			id: String(id),
+			profileFingerprint: profileFingerprint(wf && wf.profile)
+		});
+		if (wf) suppress(wf, now);
+		return selection;
+	}
+	function echoKey(wf) {
+		return JSON.stringify([recipeFields(wf), favouriteFields(wf)]);
+	}
+	function suppress(wf, now = Date.now()) {
+		suppressed = {
+			values: echoKey(wf),
+			at: now
+		};
+	}
+	function isEcho(wf, now) {
+		return !!suppressed && now - suppressed.at < ECHO_WINDOW_MS && suppressed.values === echoKey(wf);
+	}
+	/**
+	* Patch the armed item for workflow `wf`. Returns true if it wrote. Re-reads the KV
+	* array right before writing, touches only the armed item's changed fields, and is a
+	* no-op if the item has since been deleted.
+	*/
+	async function recordWorkflow(wf, fetchFn, armed = selection, base = "http://localhost:8080/api/v1") {
+		if (!armed || !wf) return false;
+		const { key, field } = TARGETS[armed.kind];
+		const url = base + "/store/dye2.reaplugin/" + key;
+		const res = await fetchFn(url);
+		if (!res.ok) throw new Error("HTTP " + res.status + " reading " + key);
+		const val = await res.json();
+		const list = Array.isArray(val) ? val : [];
+		const idx = list.findIndex((x) => x && String(x.id) === armed.id);
+		if (idx === -1) return false;
+		const item = list[idx];
+		const patch = itemPatch(armed.kind, item, wf);
+		if (Object.keys(patch).length === 0) return false;
+		const next = {
+			...item,
+			[field]: {
+				...item[field] || {},
+				...patch
+			}
+		};
+		if (item.workflow && item.workflow.context) {
+			const c = { ...item.workflow.context };
+			if ("dose" in patch) c.targetDoseWeight = patch.dose;
+			if ("drink" in patch) c.targetYield = patch.drink;
+			const g = "grind" in patch ? patch.grind : patch.grindSetting;
+			if (g !== void 0) c.grinderSetting = String(g);
+			next.workflow = {
+				...item.workflow,
+				context: c
+			};
+		}
+		const out = list.slice();
+		out[idx] = next;
+		const put = await fetchFn(url, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(out)
+		});
+		if (!put.ok) throw new Error("HTTP " + put.status + " writing " + key);
+		return true;
+	}
+	/**
+	* Entry point for a `workflowUpdated` event. Drift disarms immediately; our own apply
+	* is ignored; anything else is debounced (latest workflow wins) then recorded.
+	* `onWrote` runs after a successful write (plugin.ts emits `changed` there).
+	*/
+	function scheduleWorkflowRecord(wf, fetchFn, onWrote, onError, now = Date.now(), delay = DEBOUNCE_MS) {
+		if (!selection || !wf) return;
+		if (profileDrifted(selection, wf)) {
+			clearSelection();
+			return;
+		}
+		if (isEcho(wf, now)) return;
+		if (!selection.profileFingerprint) selection.profileFingerprint = profileFingerprint(wf.profile);
+		cancelPending();
+		const armed = selection;
+		timer = setTimeout(() => {
+			timer = null;
+			if (selection !== armed) return;
+			recordWorkflow(wf, fetchFn, armed).then((wrote) => {
+				if (wrote && onWrote) onWrote();
+			}).catch((e) => {
+				if (onError) onError(e);
+			});
+		}, delay);
+	}
+	//#endregion
 	//#region src/plugin.ts
+	var SELECTION_STORAGE_KEY = "selection";
 	function createPlugin(host) {
 		function log(msg) {
 			host.log(`[dye2] ${msg}`);
 		}
 		function refreshRecents() {
 			if (typeof fetch !== "function") return;
-			refreshRecentFavourites(fetch).catch((e) => {
+			refreshRecentFavourites(fetch).then(() => announce({ what: "skin" })).catch((e) => {
 				log(`recent-favs refresh failed: ${e instanceof Error ? e.message : String(e)}`);
 			});
+		}
+		function announce(payload) {
+			try {
+				host.emit("changed", payload);
+			} catch (e) {
+				log(`emit failed: ${e instanceof Error ? e.message : String(e)}`);
+			}
+		}
+		function persistSelection() {
+			if (typeof host.storage !== "function") return;
+			host.storage({
+				type: "write",
+				key: SELECTION_STORAGE_KEY,
+				namespace: "dye2.reaplugin",
+				data: getSelection()
+			});
+		}
+		setSelectionListener(persistSelection);
+		function json(request, status, body) {
+			return {
+				requestId: request.requestId,
+				status,
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body)
+			};
+		}
+		async function handleSelection(request) {
+			if (request.method === "GET") return json(request, 200, getSelection());
+			let body = request.body;
+			if (typeof body === "string") try {
+				body = JSON.parse(body);
+			} catch (e) {
+				body = null;
+			}
+			if (!body || !body.kind) {
+				clearSelection();
+				return json(request, 200, null);
+			}
+			let wf = null;
+			if (typeof fetch === "function") try {
+				const res = await fetch("http://localhost:8080/api/v1/workflow");
+				if (res.ok) wf = await res.json();
+			} catch (e) {
+				log(`selection: could not read workflow: ${e instanceof Error ? e.message : String(e)}`);
+			}
+			const sel = armSelection(body, wf);
+			if (sel) announce({ what: "workflow" });
+			return json(request, 200, sel);
 		}
 		return {
 			id: "dye2.reaplugin",
 			version: "0.1.0",
 			onLoad(_settings) {
 				log("DYE2 plugin loaded");
+				if (typeof host.storage === "function") host.storage({
+					type: "read",
+					key: SELECTION_STORAGE_KEY,
+					namespace: "dye2.reaplugin"
+				});
 				refreshRecents();
 			},
 			onUnload() {
@@ -11167,6 +11464,12 @@ bcInit();
 			},
 			onEvent(event) {
 				if (event.name === "shotStored" || event.name === "shotUpdated") refreshRecents();
+				else if (event.name === "storageRead") {
+					if (event.payload && event.payload.key === SELECTION_STORAGE_KEY && !getSelection()) restoreSelection(event.payload.value);
+				} else if (event.name === "workflowUpdated") {
+					if (typeof fetch !== "function") return;
+					scheduleWorkflowRecord(event.payload, fetch, () => announce({ what: "skin" }), (e) => log(`workflow record failed: ${e instanceof Error ? e.message : String(e)}`));
+				}
 			},
 			__httpRequestHandler(request) {
 				log(`HTTP ${request.method} ${request.endpoint}`);
@@ -11208,6 +11511,12 @@ bcInit();
 								body: JSON.stringify({ error: message })
 							};
 						});
+					case "selection": return handleSelection(request);
+					case "skin": return json(request, 200, {
+						version: 1,
+						surfaces: [],
+						live: { endpoint: "changed" }
+					});
 					case "plotly": return renderPlotlyAsset(request);
 					default: return {
 						requestId: request.requestId,

@@ -46,11 +46,44 @@ against instead of reverse-engineering it.
 consumer (skin/dashboard) is **read-only**: `GET` these keys, never `POST` them.
 Do not merge, dedupe, or write back — you will clobber concurrent DYE2 edits.
 
+This includes "dialling in" from the Streamline dashboard. DYE2's plugin runtime
+records edits to the live workflow onto the armed recipe/favourite itself (below);
+a skin must not read-modify-write the arrays to do the same. (Older skin builds that
+still do are being retired; until they are, the host store's last-write-wins applies.)
+
+### Selection: which item is being dialled in
+
+DYE2 tracks one **armed** item, `{ kind: 'recipe' | 'favourite', id }`. DYE2's own
+dashboard arms it whenever the user applies a recipe or favourite. While armed, each
+host `workflowUpdated` event (debounced ~1.5 s) patches **only the changed fields of
+that one item**: dose, drink, grind and — for a recipe only — brew temperature,
+steam, hot-water and flush values in `dashboardVariables`; a favourite's `snapshot`
+gets dose, drink and grindSetting only. The item's embedded `workflow.context` is kept
+in step. The selection clears when the profile changes (fingerprint drift), when a
+`recent:` entry is applied (unstable id), or when the item is deleted. DYE2's own
+apply is not recorded back (echo guard).
+
+```
+GET  /api/v1/plugins/dye2.reaplugin/selection              -> { kind, id, profileFingerprint } | null
+POST /api/v1/plugins/dye2.reaplugin/selection {kind, id}   -> arms (call after the PUT /workflow that applied it)
+POST /api/v1/plugins/dye2.reaplugin/selection {}           -> clears
+```
+
+The selection is persisted in plugin storage, so it survives page navigation and
+reloads.
+
 ## Freshness
 
-There is **no push channel** for the KV store. A consumer must **poll** — re-`GET`
-the key on page focus and on `visibilitychange` (and/or a light interval) to pick
-up changes DYE2 made while the consumer was idle.
+DYE2 exposes a push channel: the `changed` websocket endpoint,
+`ws://<bridge-host>:8080/api/v1/plugins/dye2.reaplugin/changed`. It emits
+`{ "what": "skin" }` after DYE2's plugin runtime writes a KV key and
+`{ "what": "workflow" }` after a recipe/favourite is applied. A push means "something
+changed, re-read"; it carries no data. Streamline discovers it through the `skin`
+endpoint (`{"version":1,"surfaces":[],"live":{"endpoint":"changed"}}`).
+
+Writes made by DYE2's *browser pages* (editing a recipe, say) are not pushed — they
+don't pass through the plugin runtime — so a consumer should still re-`GET` the key on
+page focus and `visibilitychange`.
 
 ## Querying the data
 
