@@ -3439,8 +3439,15 @@ async function initializeDyeProfiles() {
       // Return-target flow (recipe-edit): leave the pick in sessionStorage, hand control back.
       if (returnTo) { window.location.href = returnTo; return; }
       const p = profilesCache.find(x => x.id === selectedProfileId);
+      // A profile of only { id, title } would merely RENAME the loaded profile: PUT
+      // /workflow deep-merges, so the old steps survive and the machine keeps brewing
+      // the previous profile under the new name (issue #10). getProfiles() already gave
+      // us the full record, so send its Profile; the thin stub stays as the fallback for
+      // a record with no usable steps, with a warning, as resolveFullProfileById does.
+      const full = p && p.profile && Array.isArray(p.profile.steps) && p.profile.steps.length ? p.profile : null;
+      if (!full) console.warn('profile-picker: no full record for ' + selectedProfileId + ' -- sending id/title only, brew steps will not change');
       try {
-        await updateWorkflow({ profile: { id: selectedProfileId, title: p ? profileName(p) : '' } });
+        await updateWorkflow({ profile: full || { id: selectedProfileId, title: p ? profileName(p) : '' } });
       } catch (e) { console.warn('workflow update failed:', e); }
       leaveProfilePicker(null);
     });
