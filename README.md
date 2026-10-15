@@ -116,22 +116,24 @@ DYE2's shape:
   "author": "Streamline",
   "name": "Streamline/DYE2",
   "description": "Beans, grinders, and shot workflow for Decent Espresso.",
-  "version": "0.1.9",
+  "version": "0.1.19",
   "apiVersion": 1,
-  "permissions": ["log", "api", "emit", "pluginStorage"],
+  "permissions": ["log", "api", "emit", "pluginStorage", "events.shots", "events.workflow"],
   "settings": {},
   "api": [
     { "id": "dashboard", "type": "http", "data": {} },
-    { "id": "bean-picker", "type": "http", "data": {} }
+    { "id": "bean-picker", "type": "http", "data": {} },
+    { "id": "changed", "type": "websocket", "data": {} }
   ]
 }
 ```
 
-DYE2 declares 15 `api` entries; two are shown. `author` and `description` are **required** — Decaid reads them into non-nullable fields, so omitting either fails the install with `Invalid manifest.json`.
+DYE2 declares 20 `api` entries, 19 http and one websocket; three are shown. `author` and `description` are **required** — Decaid reads them into non-nullable fields, so omitting either fails the install with `Invalid manifest.json`.
 
 - **`id`** becomes a directory name. Single safe path component — no `/`, `\`, `.`, `..`, no Windows-reserved names.
 - **`permissions`** are enforced. `host.log`, `host.emit` and `host.storage` **throw** `PluginPermissionError` when undeclared; `fetch` and `host.decentProxy` return a **rejected promise** instead. Declare the minimum: every added permission blocks automatic updates until a user approves it (see [Permission escalation](#permission-escalation)).
-- **`api`** entries each declare one endpoint. `type: "http"` is served at `/api/v1/plugins/<id>/<api-id>`; `type: "websocket"` at `/ws/v1/plugins/<id>/<api-id>`. Decaid calls `__httpRequestHandler` on your instance, aliasing `handleHttpRequest` onto it if that is what you defined — this repo defines `__httpRequestHandler` directly. DYE2's `dashboard` id means `GET /api/v1/plugins/dye2.reaplugin/dashboard` returns a full HTML page.
+  The `events.*` permissions decide which events reach `onEvent`: DYE2 takes `events.shots` for `shotStored`/`shotUpdated` (it recomputes recent auto-favourites) and `events.workflow` for `workflowUpdated`, which carries the **whole** workflow on every change and is the only push a plugin gets for it — `GET /workflow` has no revision and no socket.
+- **`api`** entries each declare one endpoint. `type: "http"` is served at `/api/v1/plugins/<id>/<api-id>`; `type: "websocket"` at `/ws/v1/plugins/<id>/<api-id>`, which streams whatever the plugin passes to `host.emit('<api-id>', payload)` — DYE2's `changed` endpoint is that, and a skin watching it re-reads instead of polling. Decaid calls `__httpRequestHandler` on your instance, aliasing `handleHttpRequest` onto it if that is what you defined — this repo defines `__httpRequestHandler` directly. DYE2's `dashboard` id means `GET /api/v1/plugins/dye2.reaplugin/dashboard` returns a full HTML page.
 - **`settings`** are rendered by skins straight from this schema. Give every setting a `label` and a `description` — without a `label` the user sees the raw storage key.
 
 ### Key patterns
@@ -140,6 +142,7 @@ DYE2 declares 15 `api` entries; two are shown. `author` and `description` are **
 - **Page assembly.** Every live page calls `devPageShell(title, content, styles, scripts, opts)` from `src/utils/dev-shell.ts`, passing the shared strings plus its own orchestration script. For example, `pages/grinders.ts` ends with `devPageShell("Grinders", content, styles, [devApiScript, pageScript])`.
 - **HTML safety.** The `html` tagged template in `src/utils/html.ts` does **not** escape. Wrap anything user-supplied in `escapeHtml()` from the same file.
 - **API base.** Browser code calls `/api/v1/*` directly. The dev server proxies it; Decaid routes it in production. No base-URL config anywhere.
+- **Not every module is a page.** `src/utils/recent-favs.ts` and `src/utils/workflow-record.ts` run in the plugin runtime as real TypeScript, not as exported strings: `plugin.ts` imports them, they touch no DOM, they take `fetch` as an argument, and so `node:test` imports them directly (`test/recent-favs.test.mjs`, `test/workflow-record.test.mjs`). That is where work belongs that has to happen without a page open — answering an event, or writing the store after a shot. Code shaped this way is type-checked and testable; the page strings are neither.
 
 Two directories are historical and wired to nothing: `src/components/` (a Web Component experiment, and the only place in the tree using `customElements.define` or `CustomEvent`) and `src/api/client.ts`. `pageShell()` in `pages/layout.ts` is the older three-argument shell they were built against; it has no remaining callers. Read them for context, but copy `devPageShell` and the `utils/` strings.
 
@@ -163,7 +166,17 @@ GET /api/v1/store/dye2.reaplugin/equipment
 
 No auth. Returns a JSON array, or `null` if the key was never written — treat `null` as `[]`. Full schemas, field-by-field, plus a worked query example: [`docs/KV_CONTRACT.md`](docs/KV_CONTRACT.md).
 
-> The KV route is **not** scoped to the owning plugin. Any skin can already read and write these keys. DYE2 is the sole writer by convention, not by enforcement — don't `POST`/`DELETE` keys you don't own.
+One more key is a single object rather than an array:
+
+```
+GET /api/v1/store/dye2.reaplugin/selection
+```
+
+the recipe or favourite currently being dialled in (`null` when none). A skin arms it with `POST /api/v1/plugins/dye2.reaplugin/selection` `{kind, id}` — `{}` clears — right after it applies an item. DYE2 then watches `workflowUpdated` and writes the dashboard's dose, yield and grind edits into that item itself, so a skin never has to touch the arrays. It is written through `host.storage`, which lands in this same KV store, which is why it is readable at the URL above.
+
+> The KV route is **not** scoped to the owning plugin. Any skin can already read and write these keys. DYE2 is the sole writer by convention, not by enforcement — don't `POST`/`DELETE` keys you don't own. There is no revision or ETag either, and every mutation rewrites a whole array, so a second writer races the entire collection rather than one row.
+
+A consumer does not have to poll: DYE2 `host.emit`s on its `changed` websocket endpoint after it writes, and Streamline's plugin-surface `live` channel re-reads on that push.
 
 Baskets are transitional: [decaid#727](https://github.com/decentespresso/decaid/pull/727) adds a real `/api/v1/equipment` resource to migrate onto.
 
