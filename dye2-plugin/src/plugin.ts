@@ -156,6 +156,11 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       } else if (event.name === "storageRead") {
         if (event.payload && event.payload.key === SELECTION_STORAGE_KEY && !getSelection()) {
           restoreSelection(event.payload.value);
+          // restoreSelection does not notify the listener, so record what the skin already
+          // believes: without this a clear right after a restart would match the initial
+          // null and push nothing.
+          const restored = getSelection();
+          announcedSelection = restored ? restored.kind + ":" + restored.id : null;
         }
       } else if (event.name === "workflowUpdated") {
         if (typeof fetch !== "function") return;

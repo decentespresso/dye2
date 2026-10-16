@@ -819,11 +819,13 @@ function goToPicker(route) {
 const MODE_CFG = {
   're-steam-mode': {
     valueId: 're-steam-value',
+    field:   { time: 'steamTimeS', flow: 'steamFlowMls' },
     unit:    { time: 's', flow: 'ml/s' },
     presets: { time: ['29s','15s','31s','28s'], flow: ['0.8ml/s','1ml/s','1.2ml/s','1.5ml/s'] },
   },
   're-hotwater-mode': {
     valueId: 're-hotwater-value',
+    field:   { vol: 'hotWaterMl', temp: 'hotWaterTempC' },
     unit:    { vol: 'ml', temp: '°c' },
     presets: { vol: ['75ml','120ml','180ml','200ml'], temp: ['80°c','85°c','90°c','95°c'] },
   },
@@ -848,7 +850,11 @@ function applyMode(cls) {
   }
   const valEl = document.getElementById(cfg.valueId);
   if (valEl) {
-    const n = parseFloat(valEl.textContent);
+    // A recipe holds both values of a pair (dye2#23), so each mode shows ITS field, blank when
+    // it has none. Relabelling the other mode's number would save 30s as 30 ml/s.
+    const held = (recipes[currentRecipeIdx] && recipes[currentRecipeIdx].dashboardVariables) || {};
+    const v = cfg.field ? held[cfg.field[mode]] : parseFloat(valEl.textContent);
+    const n = v == null ? NaN : parseFloat(v);
     valEl.textContent = isNaN(n) ? '—' : n + (cfg.unit[mode] || '');
     syncPresetActive(idPrefix, valEl.textContent);
   }
@@ -857,9 +863,23 @@ function setMode(cls, mode) {
   document.querySelectorAll('.' + cls).forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   applyMode(cls);
 }
+// What is on screen belongs to the mode now active: park it on the in-memory slot before the
+// toggle moves on, so an unsaved edit survives a mode switch and getCurrentRecipeData picks it
+// up (its 'held' fallback) for the mode that is no longer shown.
+function stashModeValue(cls) {
+  const cfg = MODE_CFG[cls];
+  const slot = recipes[currentRecipeIdx];
+  const valEl = cfg && document.getElementById(cfg.valueId);
+  const key = cfg && cfg.field && cfg.field[activeMode(cls)];
+  if (!key || !slot || !valEl) return;
+  const n = parseFloat(valEl.textContent);
+  slot.dashboardVariables = slot.dashboardVariables || {};
+  slot.dashboardVariables[key] = isNaN(n) ? null : n;
+}
+
 function setupModeToggle(cls) {
   document.querySelectorAll('.' + cls).forEach(btn => {
-    btn.addEventListener('click', () => setMode(cls, btn.dataset.mode));
+    btn.addEventListener('click', () => { stashModeValue(cls); setMode(cls, btn.dataset.mode); });
   });
   applyMode(cls);   // sync presets + unit to the default-active mode on load
 }

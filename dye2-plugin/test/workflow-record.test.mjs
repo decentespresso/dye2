@@ -219,6 +219,50 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   clearSelection();
 }
 
+// --- recipe editor: a mode switch shows that mode's own value (dye2#23) ---------------
+{
+  // Both values of a pair now persist, so relabelling one number into the other's unit would
+  // save 30s as 30 ml/s. Browser-side template string again: run the real source.
+  const src = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
+  const fn = (sig) => { const i = src.indexOf(sig); return src.slice(i, src.indexOf('\n}\n', i) + 2); };
+  const cfgStart = src.indexOf('const MODE_CFG = {');
+  const code = [
+    src.slice(cfgStart, src.indexOf('\n};\n', cfgStart) + 4),
+    fn('function activeMode(cls)'),
+    fn('function applyMode(cls)'),
+    fn('function stashModeValue(cls)'),
+  ].join('\n');
+
+  let active = 'time';
+  const el = { textContent: '30s' };
+  const doc = {
+    getElementById: (id) => (id === 're-steam-value' ? el : null),
+    querySelector: () => ({ dataset: { mode: active } }),
+  };
+  const slot = { dashboardVariables: { steamTimeS: 30, steamFlowMls: 1.2 } };
+  const api = new Function('document', 'recipes', 'currentRecipeIdx', 'syncPresetActive', 'wirePresetButtons',
+    code + '; return { stashModeValue, applyMode };')(doc, [slot], 0, () => {}, () => {});
+
+  api.stashModeValue('re-steam-mode');          // what is on screen belongs to `time`
+  active = 'flow';
+  api.applyMode('re-steam-mode');
+  assert.equal(el.textContent, '1.2ml/s', "the flow mode shows the recipe's flow, not 30 relabelled");
+  assert.equal(slot.dashboardVariables.steamTimeS, 30, 'the time value is parked, not lost');
+
+  el.textContent = '1.5ml/s';                   // edit in flow, then switch back
+  api.stashModeValue('re-steam-mode');
+  active = 'time';
+  api.applyMode('re-steam-mode');
+  assert.equal(el.textContent, '30s');
+  assert.equal(slot.dashboardVariables.steamFlowMls, 1.5, 'the unsaved flow edit survives the switch');
+
+  delete slot.dashboardVariables.steamFlowMls;  // a mode the recipe holds nothing for is blank
+  active = 'flow';
+  api.applyMode('re-steam-mode');
+  assert.equal(el.textContent, '—');
+  console.log('ok   a mode switch shows that mode\'s own value');
+}
+
 // --- a recorded brew temp moves the stored apply-body's profile (dye2#26) ---------
 {
   const steps = [{ temperature: 94 }, { temperature: 90 }, { temperature: 88 }];
