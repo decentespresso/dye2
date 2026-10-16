@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import {
-  armSelection, clearSelection, getSelection, setSelectionListener,
+  armSelection, clearSelection, getSelection, setSelectionListener, restoreSelection,
   profileFingerprint, profileDrifted, itemPatch, recordWorkflow, scheduleWorkflowRecord,
   suppress,
 } from '../src/utils/workflow-record.ts';
@@ -129,6 +129,17 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   await recordWorkflow(wf({ context: { targetDoseWeight: 25, targetYield: 36, grinderSetting: '4.2' } }), s2.fetchFn, { kind: 'recipe', id: '1', profileFingerprint: null });
   assert.equal(s2.store.recipes[0].dashboardVariables.dose, 25);
   assert.deepEqual(s2.store.recipes[1], other, 'other items are not touched');
+}
+
+// --- a cleared selection persists as `{}`, which must restore as no selection ----------
+{
+  // plugin.ts writes `getSelection() || {}` (storage drops a null, so the old value would survive)
+  armSelection({ kind: 'recipe', id: '1' }, wf());
+  assert.ok(getSelection());
+  restoreSelection({});
+  assert.equal(getSelection(), null, '{} sentinel restores as no selection');
+  restoreSelection(null);
+  assert.equal(getSelection(), null);
 }
 
 console.log('workflow-record tests passed');

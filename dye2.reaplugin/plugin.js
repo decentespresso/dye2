@@ -11433,7 +11433,7 @@ bcInit();
 				type: "write",
 				key: SELECTION_STORAGE_KEY,
 				namespace: "dye2.reaplugin",
-				data: getSelection()
+				data: getSelection() || {}
 			});
 		}
 		setSelectionListener(persistSelection);

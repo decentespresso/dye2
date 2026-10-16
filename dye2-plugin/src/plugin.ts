@@ -66,7 +66,10 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       type: "write",
       key: SELECTION_STORAGE_KEY,
       namespace: "dye2.reaplugin",
-      data: getSelection(),
+      // Never null: Decaid's plugin storage does not store a null, so a cleared selection
+      // would leave the old value in place and restoreSelection would re-arm it on reload.
+      // `{}` has no `kind`, which restoreSelection reads as "no selection".
+      data: getSelection() || {},
     });
   }
   setSelectionListener(persistSelection);
