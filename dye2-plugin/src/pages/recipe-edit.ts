@@ -481,13 +481,18 @@ function renderRecipe(recipe) {
   const drinkValEl = document.getElementById('re-drink-value');
   if (drinkValEl) { if (dv.ratio != null) drinkValEl.dataset.ratio = String(dv.ratio); else delete drinkValEl.dataset.ratio; }
   set('re-brew-c-value',dv.brewC    != null ? dv.brewC + '°c'        : '—');
-  set('re-steam-value', dv.steamTimeS  != null ? dv.steamTimeS + 's' : dv.steamFlowMls != null ? dv.steamFlowMls + 'ml/s' : '—');
+  // A recipe can hold both values of a pair, so the stored mode (or whichever is held) picks the one shown.
+  const steamMode = dv.steamMode    || (dv.steamFlowMls != null ? 'flow' : dv.steamTimeS != null ? 'time' : 'flow');
+  const hwMode    = dv.hotWaterMode || (dv.hotWaterTempC != null ? 'temp' : 'vol');
+  const steamShown = steamMode === 'time' ? (dv.steamTimeS != null ? dv.steamTimeS + 's' : null) : (dv.steamFlowMls != null ? dv.steamFlowMls + 'ml/s' : null);
+  const hwShown    = hwMode === 'vol' ? (dv.hotWaterMl != null ? dv.hotWaterMl + 'ml' : null) : (dv.hotWaterTempC != null ? dv.hotWaterTempC + '°C' : null);
+  set('re-steam-value', steamShown || '—');
   set('re-flush-value', dv.flushS   != null ? dv.flushS + 's'        : '—');
-  set('re-hotwater-value', dv.hotWaterMl != null ? dv.hotWaterMl + 'ml' : (dv.hotWaterTempC != null ? dv.hotWaterTempC + '°C' : '—'));
+  set('re-hotwater-value', hwShown || '—');
   set('re-hotwater-sub',   dv.hotWaterTempC != null ? dv.hotWaterTempC + '°C' : '');
   // Point the mode toggles at the recipe's stored mode so units + presets match the value shown.
-  setMode('re-steam-mode',    dv.steamMode    || (dv.steamFlowMls != null ? 'flow' : dv.steamTimeS != null ? 'time' : 'flow'));
-  setMode('re-hotwater-mode', dv.hotWaterMode || (dv.hotWaterTempC != null ? 'temp' : 'vol'));
+  setMode('re-steam-mode',    steamMode);
+  setMode('re-hotwater-mode', hwMode);
   set('re-grind-value', dv.grind    != null ? String(dv.grind)       : '—');
   set('re-rpm-value',   dv.rpm      != null ? String(dv.rpm)         : '—');
 
@@ -732,6 +737,9 @@ function getCurrentRecipeData() {
   const steamVal  = num('re-steam-value');
   const hwMode    = document.querySelector('.re-hotwater-mode.active')?.dataset.mode || 'vol';
   const hwVal     = num('re-hotwater-value');
+  // The mode only picks which value this editor shows. The other one is not on screen, so keep
+  // what the recipe holds rather than saving it as blank (which recipeChanges writes as null).
+  const held = (recipes[currentRecipeIdx] && recipes[currentRecipeIdx].dashboardVariables) || {};
   // Persist the drink ratio only while the yield still equals dose × ratio (i.e. not manually overridden).
   const doseVal = num('re-dose-value'), drinkVal = num('re-drink-value');
   const ratioAttr = document.getElementById('re-drink-value')?.dataset.ratio;
@@ -757,12 +765,12 @@ function getCurrentRecipeData() {
       ratio,
       brewC:   num('re-brew-c-value'),
       steamMode,
-      steamTimeS:   steamMode === 'time' ? steamVal : undefined,
-      steamFlowMls: steamMode === 'flow' ? steamVal : undefined,
+      steamTimeS:   steamMode === 'time' ? steamVal : held.steamTimeS,
+      steamFlowMls: steamMode === 'flow' ? steamVal : held.steamFlowMls,
       flushS:  num('re-flush-value'),
       hotWaterMode:  hwMode,
-      hotWaterMl:    hwMode === 'vol'  ? hwVal : undefined,
-      hotWaterTempC: hwMode === 'temp' ? hwVal : undefined,
+      hotWaterMl:    hwMode === 'vol'  ? hwVal : held.hotWaterMl,
+      hotWaterTempC: hwMode === 'temp' ? hwVal : held.hotWaterTempC,
       grind:   num('re-grind-value'),
       rpm:     num('re-rpm-value'),
       grinderId: selectedGrinderId,

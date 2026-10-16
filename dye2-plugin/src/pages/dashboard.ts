@@ -1224,22 +1224,12 @@ async function applyRecipe(recipe) {
   if (dv.brewC != null && currentWorkflow.profile) {
     currentWorkflow.profile = profileAtBrewTemp(currentWorkflow.profile, dv.brewC);
   }
-  // Steam / hot-water / flush: override only the recipe's fields on the live sub-objects
-  // (which already carry the required targetTemperature/flow). Guarded so we never send a partial.
-  if (currentWorkflow.steamSettings && (dv.steamTimeS != null || dv.steamFlowMls != null)) {
-    const ss = { ...currentWorkflow.steamSettings };
-    if (dv.steamMode === 'time' && dv.steamTimeS != null)  ss.duration = dv.steamTimeS;
-    if (dv.steamMode === 'flow' && dv.steamFlowMls != null) ss.flow = dv.steamFlowMls;
-    currentWorkflow.steamSettings = ss;
-  }
-  if (currentWorkflow.hotWaterData && (dv.hotWaterMl != null || dv.hotWaterTempC != null)) {
-    const hw = { ...currentWorkflow.hotWaterData };
-    if (dv.hotWaterMode === 'vol'  && dv.hotWaterMl != null)    hw.volume = dv.hotWaterMl;
-    if (dv.hotWaterMode === 'temp' && dv.hotWaterTempC != null) hw.targetTemperature = dv.hotWaterTempC;
-    currentWorkflow.hotWaterData = hw;
-  }
-  if (currentWorkflow.rinseData && dv.flushS != null) {
-    currentWorkflow.rinseData = { ...currentWorkflow.rinseData, duration: dv.flushS };
+  // Steam / hot-water / flush: every setting the recipe holds (recipeMachineSettings, not just the
+  // active mode's), laid over the live sub-objects, which already carry the required
+  // targetTemperature/flow. Guarded so we never send a partial.
+  const machine = recipeMachineSettings(dv);
+  for (const sub of Object.keys(machine)) {
+    if (currentWorkflow[sub]) currentWorkflow[sub] = { ...currentWorkflow[sub], ...machine[sub] };
   }
   renderNextShot();
 }

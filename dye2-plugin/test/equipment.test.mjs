@@ -16,7 +16,7 @@ const fakeFetch = async (url, opts) => {
 };
 
 const api = new Function('fetch', devApiScript +
-  '\nreturn { getEquipment, createEquipment, buildRecipeWorkflow, getRecipe, updateRecipe, recipeChanges, profileAtBrewTemp, buildFavouriteWorkflow, markDye, updateWorkflow };')(fakeFetch);
+  '\nreturn { getEquipment, createEquipment, buildRecipeWorkflow, getRecipe, updateRecipe, recipeChanges, profileAtBrewTemp, buildFavouriteWorkflow, markDye, updateWorkflow, recipeMachineSettings, recipeChanges };')(fakeFetch);
 
 assert.deepEqual(await api.getEquipment(), [], 'an unwritten key reads as an empty table');
 
@@ -148,4 +148,29 @@ console.log('ok   equipment KV table');
   await put({ context: { extras: { rpm: 1, dye: { v: 1, rpm: true, selection: { kind: 'recipe', id: '1' } } } } });
   assert.deepEqual(sent.context.extras.dye, { v: 1, rpm: true }, 'selection is stripped from the outgoing PUT');
   console.log('ok   workflow writes flag extras.dye');
+}
+
+// A recipe holds every steam / hot-water / flush setting, each optional (dye2#23): apply writes all
+// that are held, not just the active mode's, and only those.
+{
+  const dv = { steamMode: 'time', steamTimeS: 30, steamFlowMls: 1.2, steamTempC: 140, steamStopAtTempC: 0,
+    hotWaterMode: 'vol', hotWaterMl: 120, hotWaterTempC: 85, hotWaterTimeS: 20, hotWaterFlowMls: 6,
+    flushS: 5, flushTempC: 90, flushFlowMls: 4 };
+  assert.deepEqual(api.recipeMachineSettings(dv), {
+    steamSettings: { targetTemperature: 140, duration: 30, flow: 1.2, stopAtTemperature: 0 },
+    hotWaterData: { targetTemperature: 85, duration: 20, volume: 120, flow: 6 },
+    rinseData: { targetTemperature: 90, duration: 5, flow: 4 },
+  }, 'every held setting, both of a mode pair, and a real 0');
+  assert.deepEqual(api.recipeMachineSettings({ steamMode: 'time', steamTimeS: 30, hotWaterMl: null, flushS: undefined }),
+    { steamSettings: { duration: 30 } }, 'null / absent are left alone; modes are not settings');
+  assert.deepEqual(api.recipeMachineSettings({}), {});
+  const body = await api.buildRecipeWorkflow({ dashboardVariables: dv });
+  assert.deepEqual(body.steamSettings, { targetTemperature: 140, duration: 30, flow: 1.2, stopAtTemperature: 0 });
+  assert.deepEqual(body.rinseData, { targetTemperature: 90, duration: 5, flow: 4 });
+  const none = await api.buildRecipeWorkflow({ dashboardVariables: { dose: 18 } });
+  assert.ok(!('steamSettings' in none) && !('hotWaterData' in none) && !('rinseData' in none), 'a recipe holding none sends none');
+  // saving with only the shown value changed leaves the stored hidden value out of the patch
+  assert.deepEqual(api.recipeChanges({ dashboardVariables: dv }, { dashboardVariables: { ...dv, steamFlowMls: 1.5 } }),
+    { dashboardVariables: { steamFlowMls: 1.5 } });
+  console.log('ok   recipes hold every steam / hot-water / flush setting');
 }

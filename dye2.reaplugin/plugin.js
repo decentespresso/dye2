@@ -598,6 +598,29 @@ async function buildFavouriteWorkflow(fav) {
   return wf;
 }
 
+/* The machine settings a recipe can hold, dashboardVariables name -> Workflow field. Each is
+   optional: absent/null means leave the machine's value alone, and 0 is a real value
+   (stopAtTemperature 0 is "off"). steamMode/hotWaterMode are not here: they only choose which
+   value the recipe editor shows, so apply writes every setting held, not just the active mode's.
+   Decaid's SteamSettings / HotWaterData / RinseData (workflow.dart). */
+const RECIPE_MACHINE_FIELDS = {
+  steamSettings: { steamTempC: 'targetTemperature', steamTimeS: 'duration', steamFlowMls: 'flow', steamStopAtTempC: 'stopAtTemperature' },
+  hotWaterData:  { hotWaterTempC: 'targetTemperature', hotWaterTimeS: 'duration', hotWaterMl: 'volume', hotWaterFlowMls: 'flow' },
+  rinseData:     { flushTempC: 'targetTemperature', flushS: 'duration', flushFlowMls: 'flow' },
+};
+
+/* -> { steamSettings?: {...}, hotWaterData?: {...}, rinseData?: {...} } holding only the fields
+   \`dv\` (a recipe's dashboardVariables) holds, and only the sub-objects with at least one. */
+function recipeMachineSettings(dv) {
+  const out = {};
+  for (const [sub, names] of Object.entries(RECIPE_MACHINE_FIELDS)) {
+    for (const [name, field] of Object.entries(names)) {
+      if (dv && dv[name] != null) (out[sub] = out[sub] || {})[field] = dv[name];
+    }
+  }
+  return out;
+}
+
 async function buildRecipeWorkflow(recipe) {
   const dv = (recipe && recipe.dashboardVariables) || {};
   const ctx = {};
@@ -633,6 +656,10 @@ async function buildRecipeWorkflow(recipe) {
   // whatever is live at apply time, which this stored body cannot know: dashboard.ts applyRecipe
   // covers that case, and the body then carries no profile to shift (dye2#26).
   if (dv.brewC != null && wf.profile) wf.profile = profileAtBrewTemp(wf.profile, dv.brewC);
+  // Only the held fields, as partial sub-objects: PUT /workflow deep-merges them onto the live,
+  // complete ones and omitted fields keep their value (rea_restapi.yml), so nothing partial
+  // reaches the machine.
+  Object.assign(wf, recipeMachineSettings(dv));
   markDye(ctx);
   return wf;
 }
@@ -6514,22 +6541,12 @@ async function applyRecipe(recipe) {
   if (dv.brewC != null && currentWorkflow.profile) {
     currentWorkflow.profile = profileAtBrewTemp(currentWorkflow.profile, dv.brewC);
   }
-  // Steam / hot-water / flush: override only the recipe's fields on the live sub-objects
-  // (which already carry the required targetTemperature/flow). Guarded so we never send a partial.
-  if (currentWorkflow.steamSettings && (dv.steamTimeS != null || dv.steamFlowMls != null)) {
-    const ss = { ...currentWorkflow.steamSettings };
-    if (dv.steamMode === 'time' && dv.steamTimeS != null)  ss.duration = dv.steamTimeS;
-    if (dv.steamMode === 'flow' && dv.steamFlowMls != null) ss.flow = dv.steamFlowMls;
-    currentWorkflow.steamSettings = ss;
-  }
-  if (currentWorkflow.hotWaterData && (dv.hotWaterMl != null || dv.hotWaterTempC != null)) {
-    const hw = { ...currentWorkflow.hotWaterData };
-    if (dv.hotWaterMode === 'vol'  && dv.hotWaterMl != null)    hw.volume = dv.hotWaterMl;
-    if (dv.hotWaterMode === 'temp' && dv.hotWaterTempC != null) hw.targetTemperature = dv.hotWaterTempC;
-    currentWorkflow.hotWaterData = hw;
-  }
-  if (currentWorkflow.rinseData && dv.flushS != null) {
-    currentWorkflow.rinseData = { ...currentWorkflow.rinseData, duration: dv.flushS };
+  // Steam / hot-water / flush: every setting the recipe holds (recipeMachineSettings, not just the
+  // active mode's), laid over the live sub-objects, which already carry the required
+  // targetTemperature/flow. Guarded so we never send a partial.
+  const machine = recipeMachineSettings(dv);
+  for (const sub of Object.keys(machine)) {
+    if (currentWorkflow[sub]) currentWorkflow[sub] = { ...currentWorkflow[sub], ...machine[sub] };
   }
   renderNextShot();
 }
@@ -9973,13 +9990,18 @@ function renderRecipe(recipe) {
   const drinkValEl = document.getElementById('re-drink-value');
   if (drinkValEl) { if (dv.ratio != null) drinkValEl.dataset.ratio = String(dv.ratio); else delete drinkValEl.dataset.ratio; }
   set('re-brew-c-value',dv.brewC    != null ? dv.brewC + '°c'        : '—');
-  set('re-steam-value', dv.steamTimeS  != null ? dv.steamTimeS + 's' : dv.steamFlowMls != null ? dv.steamFlowMls + 'ml/s' : '—');
+  // A recipe can hold both values of a pair, so the stored mode (or whichever is held) picks the one shown.
+  const steamMode = dv.steamMode    || (dv.steamFlowMls != null ? 'flow' : dv.steamTimeS != null ? 'time' : 'flow');
+  const hwMode    = dv.hotWaterMode || (dv.hotWaterTempC != null ? 'temp' : 'vol');
+  const steamShown = steamMode === 'time' ? (dv.steamTimeS != null ? dv.steamTimeS + 's' : null) : (dv.steamFlowMls != null ? dv.steamFlowMls + 'ml/s' : null);
+  const hwShown    = hwMode === 'vol' ? (dv.hotWaterMl != null ? dv.hotWaterMl + 'ml' : null) : (dv.hotWaterTempC != null ? dv.hotWaterTempC + '°C' : null);
+  set('re-steam-value', steamShown || '—');
   set('re-flush-value', dv.flushS   != null ? dv.flushS + 's'        : '—');
-  set('re-hotwater-value', dv.hotWaterMl != null ? dv.hotWaterMl + 'ml' : (dv.hotWaterTempC != null ? dv.hotWaterTempC + '°C' : '—'));
+  set('re-hotwater-value', hwShown || '—');
   set('re-hotwater-sub',   dv.hotWaterTempC != null ? dv.hotWaterTempC + '°C' : '');
   // Point the mode toggles at the recipe's stored mode so units + presets match the value shown.
-  setMode('re-steam-mode',    dv.steamMode    || (dv.steamFlowMls != null ? 'flow' : dv.steamTimeS != null ? 'time' : 'flow'));
-  setMode('re-hotwater-mode', dv.hotWaterMode || (dv.hotWaterTempC != null ? 'temp' : 'vol'));
+  setMode('re-steam-mode',    steamMode);
+  setMode('re-hotwater-mode', hwMode);
   set('re-grind-value', dv.grind    != null ? String(dv.grind)       : '—');
   set('re-rpm-value',   dv.rpm      != null ? String(dv.rpm)         : '—');
 
@@ -10224,6 +10246,9 @@ function getCurrentRecipeData() {
   const steamVal  = num('re-steam-value');
   const hwMode    = document.querySelector('.re-hotwater-mode.active')?.dataset.mode || 'vol';
   const hwVal     = num('re-hotwater-value');
+  // The mode only picks which value this editor shows. The other one is not on screen, so keep
+  // what the recipe holds rather than saving it as blank (which recipeChanges writes as null).
+  const held = (recipes[currentRecipeIdx] && recipes[currentRecipeIdx].dashboardVariables) || {};
   // Persist the drink ratio only while the yield still equals dose × ratio (i.e. not manually overridden).
   const doseVal = num('re-dose-value'), drinkVal = num('re-drink-value');
   const ratioAttr = document.getElementById('re-drink-value')?.dataset.ratio;
@@ -10249,12 +10274,12 @@ function getCurrentRecipeData() {
       ratio,
       brewC:   num('re-brew-c-value'),
       steamMode,
-      steamTimeS:   steamMode === 'time' ? steamVal : undefined,
-      steamFlowMls: steamMode === 'flow' ? steamVal : undefined,
+      steamTimeS:   steamMode === 'time' ? steamVal : held.steamTimeS,
+      steamFlowMls: steamMode === 'flow' ? steamVal : held.steamFlowMls,
       flushS:  num('re-flush-value'),
       hotWaterMode:  hwMode,
-      hotWaterMl:    hwMode === 'vol'  ? hwVal : undefined,
-      hotWaterTempC: hwMode === 'temp' ? hwVal : undefined,
+      hotWaterMl:    hwMode === 'vol'  ? hwVal : held.hotWaterMl,
+      hotWaterTempC: hwMode === 'temp' ? hwVal : held.hotWaterTempC,
       grind:   num('re-grind-value'),
       rpm:     num('re-rpm-value'),
       grinderId: selectedGrinderId,
@@ -11382,11 +11407,20 @@ bcInit();
 		put(out, "basketName", extras.basketName);
 		const steps = wf && wf.profile && wf.profile.steps;
 		put(out, "brewC", num(steps && steps[0] && steps[0].temperature));
-		put(out, "steamTimeS", wf && wf.steamSettings && wf.steamSettings.duration);
-		put(out, "steamFlowMls", wf && wf.steamSettings && wf.steamSettings.flow);
-		put(out, "hotWaterMl", wf && wf.hotWaterData && wf.hotWaterData.volume);
-		put(out, "hotWaterTempC", wf && wf.hotWaterData && wf.hotWaterData.targetTemperature);
-		put(out, "flushS", wf && wf.rinseData && wf.rinseData.duration);
+		const steam = wf && wf.steamSettings || {};
+		const hotWater = wf && wf.hotWaterData || {};
+		const rinse = wf && wf.rinseData || {};
+		put(out, "steamTempC", steam.targetTemperature);
+		put(out, "steamTimeS", steam.duration);
+		put(out, "steamFlowMls", steam.flow);
+		put(out, "steamStopAtTempC", steam.stopAtTemperature);
+		put(out, "hotWaterTempC", hotWater.targetTemperature);
+		put(out, "hotWaterTimeS", hotWater.duration);
+		put(out, "hotWaterMl", hotWater.volume);
+		put(out, "hotWaterFlowMls", hotWater.flow);
+		put(out, "flushTempC", rinse.targetTemperature);
+		put(out, "flushS", rinse.duration);
+		put(out, "flushFlowMls", rinse.flow);
 		return out;
 	}
 	/** A favourite's snapshot has no brew-temp/steam/hot-water/flush field: dose/drink/grind/rpm only. */
@@ -11412,20 +11446,14 @@ bcInit();
 	* What to write onto `item` for the live workflow `wf`: only fields the item already
 	* holds (a workflow always has a value for steam/hot water/flush, so diffing against an
 	* absent field would stamp the whole workflow onto the item — a blanket resync) and
-	* only those whose value differs. The paired *Mode fields follow whichever of their
-	* two values moved.
+	* only those whose value differs. The *Mode fields are never written.
 	*/
 	function itemPatch(kind, item, wf, armedBrewC = null) {
 		const stored = item[TARGETS[kind].field] || {};
 		const all = kind === "recipe" ? recipeFields(wf) : favouriteFields(wf);
-		const skip = /* @__PURE__ */ new Set();
-		if (stored.steamMode === "time") skip.add("steamFlowMls");
-		else if (stored.steamMode === "flow") skip.add("steamTimeS");
-		if (stored.hotWaterMode === "vol") skip.add("hotWaterTempC");
-		else if (stored.hotWaterMode === "temp") skip.add("hotWaterMl");
 		const known = {};
 		for (const k of Object.keys(all)) {
-			if (stored[k] == null || skip.has(k)) continue;
+			if (stored[k] == null) continue;
 			if (k === "brewC" && (armedBrewC == null || all.brewC === armedBrewC)) continue;
 			known[k] = all[k];
 		}

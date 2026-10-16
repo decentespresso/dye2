@@ -131,11 +131,22 @@ export function recipeFields(wf: AnyRecord): AnyRecord {
   put(out, "basketName", extras.basketName);
   const steps = wf && wf.profile && wf.profile.steps;
   put(out, "brewC", num(steps && steps[0] && steps[0].temperature));
-  put(out, "steamTimeS", wf && wf.steamSettings && wf.steamSettings.duration);
-  put(out, "steamFlowMls", wf && wf.steamSettings && wf.steamSettings.flow);
-  put(out, "hotWaterMl", wf && wf.hotWaterData && wf.hotWaterData.volume);
-  put(out, "hotWaterTempC", wf && wf.hotWaterData && wf.hotWaterData.targetTemperature);
-  put(out, "flushS", wf && wf.rinseData && wf.rinseData.duration);
+  // Every machine setting a recipe can hold, under the dashboardVariables names (dev-api.ts
+  // RECIPE_MACHINE_FIELDS, which the plugin runtime cannot share).
+  const steam = (wf && wf.steamSettings) || {};
+  const hotWater = (wf && wf.hotWaterData) || {};
+  const rinse = (wf && wf.rinseData) || {};
+  put(out, "steamTempC", steam.targetTemperature);
+  put(out, "steamTimeS", steam.duration);
+  put(out, "steamFlowMls", steam.flow);
+  put(out, "steamStopAtTempC", steam.stopAtTemperature);
+  put(out, "hotWaterTempC", hotWater.targetTemperature);
+  put(out, "hotWaterTimeS", hotWater.duration);
+  put(out, "hotWaterMl", hotWater.volume);
+  put(out, "hotWaterFlowMls", hotWater.flow);
+  put(out, "flushTempC", rinse.targetTemperature);
+  put(out, "flushS", rinse.duration);
+  put(out, "flushFlowMls", rinse.flow);
   return out;
 }
 
@@ -170,8 +181,7 @@ export function changedFields(patch: AnyRecord, stored: AnyRecord | undefined): 
  * What to write onto `item` for the live workflow `wf`: only fields the item already
  * holds (a workflow always has a value for steam/hot water/flush, so diffing against an
  * absent field would stamp the whole workflow onto the item — a blanket resync) and
- * only those whose value differs. The paired *Mode fields follow whichever of their
- * two values moved.
+ * only those whose value differs. The *Mode fields are never written.
  */
 export function itemPatch(
   kind: Selection["kind"],
@@ -181,16 +191,11 @@ export function itemPatch(
 ): AnyRecord {
   const stored = item[TARGETS[kind].field] || {};
   const all = kind === "recipe" ? recipeFields(wf) : favouriteFields(wf);
-  // apply only writes the active mode's field (the other keeps whatever the machine
-  // last had), so only that one is the user's; the mode itself is never written.
-  const skip = new Set<string>();
-  if (stored.steamMode === "time") skip.add("steamFlowMls");
-  else if (stored.steamMode === "flow") skip.add("steamTimeS");
-  if (stored.hotWaterMode === "vol") skip.add("hotWaterTempC");
-  else if (stored.hotWaterMode === "temp") skip.add("hotWaterMl");
+  // apply writes every machine setting the item holds (the mode fields only choose what the
+  // editor shows, and are never written), so a held field's live value is the user's.
   const known: AnyRecord = {};
   for (const k of Object.keys(all)) {
-    if (stored[k] == null || skip.has(k)) continue;
+    if (stored[k] == null) continue;
     if (k === "brewC" && (armedBrewC == null || all.brewC === armedBrewC)) continue;
     known[k] = all[k];
   }

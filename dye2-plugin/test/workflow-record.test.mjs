@@ -50,11 +50,23 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.deepEqual(itemPatch('recipe', recipe(), wf({ profile: profile(95) }), null), {}, 'unknown baseline: no brewC');
   assert.deepEqual(itemPatch('recipe', recipe(), wf({ profile: profile(96) }), 95), { brewC: 96 }, 'moved after arming: recorded');
 
-  // both modes' values stored: only the active mode's field is the user's
+  // Apply writes every setting a recipe holds (dye2#23), so a change to the field the mode does
+  // NOT show is as much the user's as the one it shows; the mode itself is never written.
   const both = recipe();
-  Object.assign(both.dashboardVariables, { steamFlowMls: 2, hotWaterMode: 'vol', hotWaterMl: 120, hotWaterTempC: 80 });
-  const bp = itemPatch('recipe', both, wf({ steamSettings: { duration: 30, flow: 1.5 }, hotWaterData: { volume: 120, targetTemperature: 85 } }));
-  assert.deepEqual(bp, {}, 'inactive-mode values are not recorded and the mode does not flip');
+  Object.assign(both.dashboardVariables, { steamFlowMls: 2, hotWaterMode: 'vol', hotWaterMl: 120, hotWaterTempC: 80,
+    steamTempC: 150, steamStopAtTempC: 0, hotWaterTimeS: 30, hotWaterFlowMls: 6, flushTempC: 90, flushFlowMls: 4 });
+  const live = (over) => wf({
+    steamSettings: { targetTemperature: 150, duration: 30, flow: 2, stopAtTemperature: 0, ...(over && over.steam) },
+    hotWaterData: { targetTemperature: 80, duration: 30, volume: 120, flow: 6, ...(over && over.hw) },
+    rinseData: { targetTemperature: 90, duration: 5, flow: 4, ...(over && over.rinse) },
+  });
+  assert.deepEqual(itemPatch('recipe', both, live()), {}, 'live == held: nothing to record, mode does not flip');
+  assert.deepEqual(itemPatch('recipe', both, live({ steam: { flow: 1.2 }, hw: { targetTemperature: 85 } })),
+    { steamFlowMls: 1.2, hotWaterTempC: 85 }, 'the field the mode does not show is recorded too');
+  assert.deepEqual(itemPatch('recipe', both, live({ steam: { targetTemperature: 140, stopAtTemperature: 60 }, hw: { duration: 20, flow: 8 }, rinse: { targetTemperature: 80, flow: 5 } })),
+    { steamTempC: 140, steamStopAtTempC: 60, hotWaterTimeS: 20, hotWaterFlowMls: 8, flushTempC: 80, flushFlowMls: 5 }, 'every added setting is recorded');
+  // a setting the recipe does not hold is still left alone
+  assert.deepEqual(itemPatch('recipe', recipe(), live({ steam: { targetTemperature: 99 }, hw: { volume: 1 } })), {}, 'not held, not recorded');
 }
 
 // --- rpm and basket (context.extras) -----------------------------------------------------
@@ -101,11 +113,12 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   const src = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
   const start = src.indexOf('function getCurrentRecipeData()');
   const body = src.slice(start, src.indexOf('\n}\n', start) + 2);
-  const run = (texts, batch = null, roaster = null) => new Function('document', 'selectedBeanId', 'selectedBeanName', 'selectedBeanBatchId', 'selectedBeanRoaster', 'selectedProfileId', 'selectedProfileTitle',
+  const run = (texts, batch = null, roaster = null, held = null, modes = {}) => new Function('document', 'recipes', 'currentRecipeIdx', 'selectedBeanId', 'selectedBeanName', 'selectedBeanBatchId', 'selectedBeanRoaster', 'selectedProfileId', 'selectedProfileTitle',
     'selectedProfileSnapshot', 'showOnStreamline', 'grinders', 'selectedGrinderId', 'baskets', 'selectedBasketId',
     'equipmentSelIds', 'equipmentSelNames', 'equipmentCustomOverrides', body + '; return getCurrentRecipeData();')(
     { getElementById: (id) => ({ textContent: texts[id], dataset: id === 're-drink-value' ? { ratio: '2' } : {}, value: '' }),
-      querySelector: () => null },
+      querySelector: (sel) => { const m = Object.keys(modes).find((c) => sel.startsWith('.' + c)); return m ? { dataset: { mode: modes[m] } } : null; } },
+    held ? [{ dashboardVariables: held }] : [], 0,
     null, null, batch, roaster, null, null, null, false, [], null, [], null, [], [], {});
   const blank = run({ 're-dose-value': '—', 're-drink-value': '—', 're-brew-c-value': '—', 're-steam-value': '—',
     're-flush-value': '—', 're-hotwater-value': '—', 're-grind-value': '—', 're-rpm-value': '—' }).dashboardVariables;
@@ -115,6 +128,15 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(filled.dose, 18);
   assert.equal(filled.brewC, 0, 'a real 0 is kept, not replaced by 93');
   assert.equal(filled.ratio, 2, 'ratio still derived');
+  // the mode only picks which value shows: saving keeps the other one the recipe holds (dye2#23)
+  const kept = run({ 're-steam-value': '1.2ml/s', 're-hotwater-value': '85°C' },
+    null, null, { steamTimeS: 30, steamFlowMls: 2, hotWaterMl: 120, hotWaterTempC: 80, steamTempC: 150 },
+    { 're-steam-mode': 'flow', 're-hotwater-mode': 'temp' }).dashboardVariables;
+  assert.equal(kept.steamFlowMls, 1.2, 'the shown value is the edited one');
+  assert.equal(kept.steamTimeS, 30, 'the hidden steam value survives the save');
+  assert.equal(kept.hotWaterTempC, 85);
+  assert.equal(kept.hotWaterMl, 120, 'the hidden hot-water value survives the save');
+  assert.equal(run({}, null, null, null, { 're-steam-mode': 'flow' }).dashboardVariables.steamTimeS, undefined, 'nothing held, nothing invented');
   // the batch and roaster picked with the bean ride along on the saved record (dye2#27)
   const picked = run({}, 'b-9', 'Onyx');
   assert.equal(picked.beanBatchId, 'b-9');

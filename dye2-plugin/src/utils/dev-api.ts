@@ -376,6 +376,29 @@ async function buildFavouriteWorkflow(fav) {
   return wf;
 }
 
+/* The machine settings a recipe can hold, dashboardVariables name -> Workflow field. Each is
+   optional: absent/null means leave the machine's value alone, and 0 is a real value
+   (stopAtTemperature 0 is "off"). steamMode/hotWaterMode are not here: they only choose which
+   value the recipe editor shows, so apply writes every setting held, not just the active mode's.
+   Decaid's SteamSettings / HotWaterData / RinseData (workflow.dart). */
+const RECIPE_MACHINE_FIELDS = {
+  steamSettings: { steamTempC: 'targetTemperature', steamTimeS: 'duration', steamFlowMls: 'flow', steamStopAtTempC: 'stopAtTemperature' },
+  hotWaterData:  { hotWaterTempC: 'targetTemperature', hotWaterTimeS: 'duration', hotWaterMl: 'volume', hotWaterFlowMls: 'flow' },
+  rinseData:     { flushTempC: 'targetTemperature', flushS: 'duration', flushFlowMls: 'flow' },
+};
+
+/* -> { steamSettings?: {...}, hotWaterData?: {...}, rinseData?: {...} } holding only the fields
+   \`dv\` (a recipe's dashboardVariables) holds, and only the sub-objects with at least one. */
+function recipeMachineSettings(dv) {
+  const out = {};
+  for (const [sub, names] of Object.entries(RECIPE_MACHINE_FIELDS)) {
+    for (const [name, field] of Object.entries(names)) {
+      if (dv && dv[name] != null) (out[sub] = out[sub] || {})[field] = dv[name];
+    }
+  }
+  return out;
+}
+
 async function buildRecipeWorkflow(recipe) {
   const dv = (recipe && recipe.dashboardVariables) || {};
   const ctx = {};
@@ -411,6 +434,10 @@ async function buildRecipeWorkflow(recipe) {
   // whatever is live at apply time, which this stored body cannot know: dashboard.ts applyRecipe
   // covers that case, and the body then carries no profile to shift (dye2#26).
   if (dv.brewC != null && wf.profile) wf.profile = profileAtBrewTemp(wf.profile, dv.brewC);
+  // Only the held fields, as partial sub-objects: PUT /workflow deep-merges them onto the live,
+  // complete ones and omitted fields keep their value (rea_restapi.yml), so nothing partial
+  // reaches the machine.
+  Object.assign(wf, recipeMachineSettings(dv));
   markDye(ctx);
   return wf;
 }

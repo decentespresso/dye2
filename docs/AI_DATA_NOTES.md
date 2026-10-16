@@ -125,12 +125,12 @@ DYE2 reacts to a workflow change it did not make.
   (`events.workflow` permission; `plugin_manager.dart:3091`). There is no per-write payload,
   so "which field did the user touch" is not knowable — the recorder diffs instead, and only
   against fields the item already holds.
-- **Only record what apply writes.** `applyRecipe` writes only the active mode's steam/hot-water
-  field, so diffing the inactive one would overwrite stored intent with whatever the machine
-  held. `brewC` is written by shifting the loaded profile (`profileAtBrewTemp`), but a recipe
+- **Only record what apply writes.** `applyRecipe` writes every steam / hot-water / flush
+  setting the recipe holds (not just the active mode's; the `*Mode` fields only choose what the
+  editor shows), so all of them are recorded, but only those the item already holds.
+  `brewC` is written by shifting the loaded profile (`profileAtBrewTemp`), but a recipe
   naming no profile leaves the live one, so it is still gated on a baseline captured when the
-  item was armed, and the inactive mode's field is skipped. Add a field to `recipeFields` only
-  after checking apply actually writes it.
+  item was armed. Add a field to `recipeFields` only after checking apply actually writes it.
 - **The echo guard** suppresses DYE2's own apply (the event arrives asynchronously, so it is
   matched by value within a 3 s window, not by a call-scoped flag).
 - Armed state is set through the `selection` endpoint (`POST {kind,id}`, `{}` clears) and

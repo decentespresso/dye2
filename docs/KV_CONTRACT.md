@@ -73,8 +73,8 @@ The selection is persisted in plugin storage, so it survives page navigation and
 reloads. Plugin storage shares the KV namespace, so a consumer can also read the armed
 item directly at `GET /api/v1/store/dye2.reaplugin/selection` (`null` when none).
 `brewC` is recorded only if the live brew temperature moves after arming (apply sets it,
-so the baseline is the applied value); a recipe's inactive steam/hot-water mode value is never recorded, and the
-mode fields themselves are never written by dial-in.
+so the baseline is the applied value); apply writes every steam / hot-water / flush setting a recipe holds, so
+changes to any held one are recorded. The mode fields themselves are never written by dial-in.
 
 ## Freshness
 
@@ -166,29 +166,33 @@ No transformation needed. `PUT /api/v1/workflow` accepts
 `{ context, profile?, steamSettings?, hotWaterData?, rinseData? }`; the stored
 `workflow` only ever sets `context` and optionally `profile`.
 
-### Recipes: steam / hot-water / flush need a live merge (not in `workflow`)
+### Recipes: steam / hot-water / flush settings
 
-The embedded `workflow` deliberately **omits** `steamSettings` / `hotWaterData` /
-`rinseData`. Those schemas require `targetTemperature` + `flow` (and hot-water
-`volume`), which a recipe does not capture — so a complete, valid object can't be
-built at save time. A recipe only stores partial intent in `dashboardVariables`
-(`steamMode`/`steamTimeS`/`steamFlowMls`, `hotWaterMode`/`hotWaterMl`/`hotWaterTempC`,
-`flushS`).
-
-To apply these, **merge onto the live workflow** rather than blind-PUTting a partial:
+A recipe can hold **every** steam / hot-water / flush setting, each optional in
+`dashboardVariables`; absent or `null` means "leave the machine's value alone" and `0`
+is a real value:
 
 ```
-GET /api/v1/workflow                     // has complete steamSettings/hotWaterData/rinseData
-override only the recipe's fields:
-  steam  time → steamSettings.duration = steamTimeS
-  steam  flow → steamSettings.flow     = steamFlowMls
-  hw     vol  → hotWaterData.volume    = hotWaterMl
-  hw     temp → hotWaterData.targetTemperature = hotWaterTempC
-  flush       → rinseData.duration     = flushS
-PUT /api/v1/workflow  with the merged object
+steamTempC      steamSettings.targetTemperature     hotWaterTempC     hotWaterData.targetTemperature
+steamTimeS      steamSettings.duration              hotWaterTimeS     hotWaterData.duration
+steamFlowMls    steamSettings.flow                  hotWaterMl        hotWaterData.volume
+steamStopAtTempC steamSettings.stopAtTemperature    hotWaterFlowMls   hotWaterData.flow
+flushTempC      rinseData.targetTemperature         flushFlowMls      rinseData.flow
+flushS          rinseData.duration
 ```
 
-Only override when the base sub-object exists (it carries the required fields).
+`steamMode` (`time`|`flow`) and `hotWaterMode` (`vol`|`temp`) are **display-only**: they say
+which of a pair the recipe editor shows. Apply ignores them and writes every setting held.
+The editor has controls only for `steamTimeS`/`steamFlowMls`, `hotWaterMl`/`hotWaterTempC`
+and `flushS`; the rest (`steamTempC`, `steamStopAtTempC`, `hotWaterTimeS`, `hotWaterFlowMls`,
+`flushTempC`, `flushFlowMls`) are written by other clients and kept as is when the editor saves.
+
+The embedded `workflow` carries these as **partial** `steamSettings` / `hotWaterData` /
+`rinseData` holding only the fields the recipe holds (omitted entirely when it holds none).
+`PUT /workflow` deep-merges a partial sub-object onto the live, complete one and omitted fields
+keep their value (`rea_restapi.yml`; `workflow_handler.dart` `_applyUpdate`). DYE2's own
+dashboard apply does the merge itself: it lays the held fields over the live sub-object
+(`GET /api/v1/workflow`) and only when that sub-object exists.
 `brewC` has no workflow field of its own (brew temperature lives on the profile), so apply
 shifts the profile instead: the first step goes to `brewC` and every other step moves by the
 same amount (94/90/88 at 92 becomes 92/88/86); a profile with no steps is left alone. It applies
@@ -280,6 +284,8 @@ write at the same instant can lose one side's change.
   dashboardVariables: {
     dose, drink, brewC, steamMode, steamTimeS, steamFlowMls,
     flushS, hotWaterMode, hotWaterMl, hotWaterTempC, grind, rpm, grinderId,
+    steamTempC, steamStopAtTempC, hotWaterTimeS, hotWaterFlowMls,   // optional machine settings,
+    flushTempC, flushFlowMls,                                       // see "Recipes: steam / hot-water / flush"
     grinderModel, basketId, basketName,
     equipmentIds, equipmentNames,   // arrays in lockstep — see equipment[] below
     equipmentCustom,                // { [equipmentId]: [{key,value}, ...] } — per-value overrides, optional
