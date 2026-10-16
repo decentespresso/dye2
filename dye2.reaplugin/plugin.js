@@ -9497,6 +9497,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 	//#endregion
 	//#region src/pages/recipe-edit.ts
 	var NUM_RECIPES = 5;
+	var subLabel = (text) => `<div class="re-sub-label">${text}</div>`;
 	var styles$1 = `
   ${stepperCss()}
   ${presetStripCss()}
@@ -9630,6 +9631,13 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
     font-family: 'Inter', sans-serif;
   }
   .re-machine-count { font-size: 20px; font-weight: 600; color: var(--text-primary-disabled); }
+  .re-sub-label { margin-top: 4px; font-size: 19px; font-weight: 600; color: var(--mimoja-blue); }
+  /* The Machine Settings rows sit 20px apart rather than the 45px above. A stepper's value cell
+     grows with its text, and a 7-character value (4.5ml/s, reachable by stepping a flow) at 45px
+     pushed the row past the pane, which scrolls it sideways rather than wrapping. 20px also
+     leaves room for a classic vertical scrollbar, which takes layout width in desktop preview
+     even though the tablet's WebView overlays it. test/workflow-record.test.mjs does the
+     arithmetic for every row in the pane. */
   .re-machine-caret { display: flex; align-items: center; transition: transform 0.15s; }
   .re-machine-caret.open { transform: rotate(180deg); }
   /* Steam / Hot Water mode: compact inline text toggle under the label (matches Figma) */
@@ -9825,9 +9833,9 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
         </button>
         <div id="re-held-list" class="flex flex-wrap gap-x-[40px] gap-y-[6px] text-[20px] mt-[4px]"></div>
         <div id="re-machine-rows" style="display:none" class="flex flex-col gap-[30px] mt-[20px]">
-          <div class="flex gap-[45px]">
+          <div class="re-machine-row flex gap-[20px]">
             <div class="re-var-block flex-1">
-              ${stepperHtml("re-steam-temp", "Steam temp", "155px")}
+              ${stepperHtml("re-steam-temp", "Steam", "120px", false, subLabel("Temp"))}
               ${presetStripHtml("re-steam-temp", [
 			"135°c",
 			"150°c",
@@ -9837,7 +9845,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
             </div>
             <div class="re-vrule"></div>
             <div class="re-var-block flex-1">
-              ${stepperHtml("re-milk-stop", "Milk stop", "155px")}
+              ${stepperHtml("re-milk-stop", "Milk", "120px", false, subLabel("Stop"))}
               ${presetStripHtml("re-milk-stop", [
 			"55°c",
 			"60°c",
@@ -9847,9 +9855,9 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
             </div>
           </div>
           <div class="re-divider"></div>
-          <div class="flex gap-[45px]">
+          <div class="re-machine-row flex gap-[20px]">
             <div class="re-var-block flex-1">
-              ${stepperHtml("re-hw-time", "Hot water time", "155px")}
+              ${stepperHtml("re-hw-time", "Hot Water", "120px", false, subLabel("Time"))}
               ${presetStripHtml("re-hw-time", [
 			"10s",
 			"20s",
@@ -9859,7 +9867,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
             </div>
             <div class="re-vrule"></div>
             <div class="re-var-block flex-1">
-              ${stepperHtml("re-hw-flow", "Hot water flow", "155px")}
+              ${stepperHtml("re-hw-flow", "Hot Water", "120px", false, subLabel("Flow"))}
               ${presetStripHtml("re-hw-flow", [
 			"2ml/s",
 			"4ml/s",
@@ -9869,9 +9877,9 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
             </div>
           </div>
           <div class="re-divider"></div>
-          <div class="flex gap-[45px]">
+          <div class="re-machine-row flex gap-[20px]">
             <div class="re-var-block flex-1">
-              ${stepperHtml("re-flush-temp", "Flush temp", "155px")}
+              ${stepperHtml("re-flush-temp", "Flush", "120px", false, subLabel("Temp"))}
               ${presetStripHtml("re-flush-temp", [
 			"80°c",
 			"85°c",
@@ -9881,7 +9889,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
             </div>
             <div class="re-vrule"></div>
             <div class="re-var-block flex-1">
-              ${stepperHtml("re-flush-flow", "Flush flow", "155px")}
+              ${stepperHtml("re-flush-flow", "Flush", "120px", false, subLabel("Flow"))}
               ${presetStripHtml("re-flush-flow", [
 			"2ml/s",
 			"4ml/s",

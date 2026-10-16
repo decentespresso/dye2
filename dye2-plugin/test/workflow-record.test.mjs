@@ -358,6 +358,38 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   console.log('ok   the Machine Settings section: steppers, Off, and the held summary');
 }
 
+// --- recipe editor: the variables pane never scrolls sideways -----------------------
+{
+  // #re-right is overflow-y-auto, so a row wider than the pane scrolls it sideways instead of
+  // wrapping. The Machine Settings rows shipped with a 155px label column and did exactly that;
+  // this is the arithmetic that caught it.
+  const src = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
+  const design = Number(/var DESIGN_W = (\d+)/.exec(
+    readFileSync(new URL('../src/utils/dev-shell.ts', import.meta.url), 'utf8'))[1]);
+  // Half the design width, less the pane's px-[38px] and the width a classic vertical scrollbar
+  // takes in desktop preview (the tablet's WebView overlays its own, taking none).
+  const pane = design / 2 - 38 * 2 - 16;
+  const control = 72 + 15 + 72 + 15 + 72;      // minus, value, plus, and the 15px gaps between
+  const calls = [...src.matchAll(/stepperHtml\('([a-z0-9-]+)', '[^']*', '(\d+)px'/g)]
+    .map((m) => [m[1], Number(m[2])]);
+  assert.equal(calls.length, 14, 'every stepper in the page is measured');
+  for (const [prefix, label] of calls) {
+    // Two blocks side by side, the 45px gaps either side of the 2px rule between them.
+    const row = 2 * (label + 18 + control) + 45 * 2 + 2;
+    assert.ok(row <= pane, prefix + ': a ' + label + 'px label column makes a ' + row + 'px row in a ' + pane + 'px pane');
+  }
+  // The Machine Settings rows have to hold a 7-character value (4.5ml/s, 0.5ml/s by stepping
+  // the flows), which is why they sit 30px apart rather than 45px.
+  const machineRows = [...src.matchAll(/class="re-machine-row flex gap-\[(\d+)px\]"/g)].map((m) => Number(m[1]));
+  assert.equal(machineRows.length, 3, 'three rows behind the disclosure');
+  const wideValue = 96;   // '4.5ml/s' at the 26px bold value size
+  for (const gap of machineRows) {
+    const row = 2 * (120 + 18 + 72 + 15 + wideValue + 15 + 72) + gap * 2 + 2;
+    assert.ok(row <= pane, 'a machine row with a long value is ' + row + 'px in a ' + pane + 'px pane');
+  }
+  console.log('ok   no row is wider than the variables pane');
+}
+
 // --- flush temperature and flow: on the DE1, not the workflow (dye2#23) -------------
 {
   const de1 = { flushTemp: 88, flushFlow: 4, steamFlow: 1.5 };
