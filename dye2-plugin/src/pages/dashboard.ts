@@ -1189,6 +1189,11 @@ async function applyRecipe(recipe) {
   const grinder = dv.grinderId ? grinders.find(g => g.id === dv.grinderId) : null;
   // Write id and name together: tabs match by id, shots record the name.
   if (grinder) { ctx.grinderId = grinder.id; ctx.grinderModel = grinder.model || grinder.name; }
+  // Bean, roaster and batch are one pick (bean-picker): write what the recipe holds, so the
+  // workflow's beanBatchId follows its coffee name (dye2#27).
+  if (recipe.beanName) ctx.coffeeName = recipe.beanName;
+  if (recipe.beanRoaster) ctx.coffeeRoaster = recipe.beanRoaster;
+  if (recipe.beanBatchId) ctx.beanBatchId = recipe.beanBatchId;
   if (recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe.drinker) ctx.drinkerName = recipe.drinker;
   currentWorkflow.context = ctx;

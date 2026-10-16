@@ -16,7 +16,7 @@ const fakeFetch = async (url, opts) => {
 };
 
 const api = new Function('fetch', devApiScript +
-  '\nreturn { getEquipment, createEquipment };')(fakeFetch);
+  '\nreturn { getEquipment, createEquipment, buildRecipeWorkflow };')(fakeFetch);
 
 assert.deepEqual(await api.getEquipment(), [], 'an unwritten key reads as an empty table');
 
@@ -34,3 +34,15 @@ assert.equal(rows.length, 2, 'a genuinely new name adds a row');
 assert.equal(new Set(rows.map(r => r.id)).size, 2, 'ids are unique');
 
 console.log('ok   equipment KV table');
+
+// A recipe carries the batch/roaster picked with its bean; the embedded workflow applies
+// them together with the coffee name (dye2#27), and only the ones the recipe holds.
+{
+  const wf = (await api.buildRecipeWorkflow({ beanName: 'Ethiopia', beanRoaster: 'Onyx', beanBatchId: 'b-9' })).context;
+  assert.equal(wf.coffeeName, 'Ethiopia');
+  assert.equal(wf.coffeeRoaster, 'Onyx');
+  assert.equal(wf.beanBatchId, 'b-9');
+  const bare = (await api.buildRecipeWorkflow({ beanName: 'Ethiopia' })).context;
+  assert.ok(!('beanBatchId' in bare) && !('coffeeRoaster' in bare), 'a recipe without a batch writes none');
+  console.log('ok   recipe workflow carries the bean batch');
+}

@@ -558,6 +558,8 @@ async function buildRecipeWorkflow(recipe) {
   if (dv.basketId)   ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId };
   if (dv.basketName) ctx.extras = { ...(ctx.extras || {}), basketName: dv.basketName };
   if (recipe && recipe.beanName) ctx.coffeeName = recipe.beanName;
+  if (recipe && recipe.beanRoaster) ctx.coffeeRoaster = recipe.beanRoaster;
+  if (recipe && recipe.beanBatchId) ctx.beanBatchId = recipe.beanBatchId;
   if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;
   if (recipe && (recipe.profileId || recipe.profileTitle)) {
@@ -6380,6 +6382,11 @@ async function applyRecipe(recipe) {
   const grinder = dv.grinderId ? grinders.find(g => g.id === dv.grinderId) : null;
   // Write id and name together: tabs match by id, shots record the name.
   if (grinder) { ctx.grinderId = grinder.id; ctx.grinderModel = grinder.model || grinder.name; }
+  // Bean, roaster and batch are one pick (bean-picker): write what the recipe holds, so the
+  // workflow's beanBatchId follows its coffee name (dye2#27).
+  if (recipe.beanName) ctx.coffeeName = recipe.beanName;
+  if (recipe.beanRoaster) ctx.coffeeRoaster = recipe.beanRoaster;
+  if (recipe.beanBatchId) ctx.beanBatchId = recipe.beanBatchId;
   if (recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe.drinker) ctx.drinkerName = recipe.drinker;
   currentWorkflow.context = ctx;
@@ -9723,6 +9730,10 @@ let selectedGrinderId = null;
 let selectedBasketId = null;
 let selectedBeanId = null;
 let selectedBeanName = null;
+// The batch (and roaster) picked with the bean: a recipe is dialled in for one roast, and
+// apply needs the batch id to set the workflow's beanBatchId (dye2#27).
+let selectedBeanBatchId = null;
+let selectedBeanRoaster = null;
 let selectedProfileId = null;
 let selectedProfileTitle = null;
 let selectedProfileSnapshot = null;
@@ -9849,6 +9860,8 @@ function renderRecipe(recipe) {
 
   selectedBeanId      = recipe.beanId || null;
   selectedBeanName    = recipe.beanName || null;
+  selectedBeanBatchId = recipe.beanBatchId || null;
+  selectedBeanRoaster = recipe.beanRoaster || null;
   selectedProfileId   = recipe.profileId || null;
   selectedProfileTitle = recipe.profileTitle || null;
   selectedProfileSnapshot = recipe.profileSnapshot || null;
@@ -9920,6 +9933,8 @@ function favouriteToRecipePatch(fav) {
     drinker:      s.drinker || '',
     beanId:       bean ? bean.id : null,
     beanName:     s.coffeeName || null,
+    beanBatchId:  s.beanBatchId || null,
+    beanRoaster:  s.coffeeRoaster || null,
     profileId:    s.profileId || (wfProfile && wfProfile.id) || null,
     profileTitle: s.profileTitle || (wfProfile && wfProfile.title) || null,
     profileSnapshot,
@@ -9988,7 +10003,12 @@ function renderBeanChips() {
     orderedChips(beans, selectedBeanId, 5),
     b => String(b.id) === String(selectedBeanId),
     b => b.name || 'Unnamed bean',
-    b => { selectedBeanId = b.id; selectedBeanName = b.name || ''; renderBeanChips(); },
+    b => {
+      // A batch belongs to its bean: switching bean drops the old one rather than pairing
+      // the new bean with another bean's roast. Re-tapping the same bean keeps it.
+      if (String(b.id) !== String(selectedBeanId)) { selectedBeanBatchId = null; selectedBeanRoaster = b.roaster || null; }
+      selectedBeanId = b.id; selectedBeanName = b.name || ''; renderBeanChips();
+    },
     { beans: true, url: '/api/v1/plugins/dye2.reaplugin/bean-picker?return=/api/v1/plugins/dye2.reaplugin/recipe-edit' }
   );
 }
@@ -10089,6 +10109,8 @@ function getCurrentRecipeData() {
     drinker:   document.getElementById('re-drinker-input')?.value || '',
     beanId:    selectedBeanId,
     beanName:  selectedBeanName,
+    beanBatchId: selectedBeanBatchId,
+    beanRoaster: selectedBeanRoaster,
     profileId: selectedProfileId,
     profileTitle: selectedProfileTitle,
     profileSnapshot: selectedProfileSnapshot,
@@ -10394,6 +10416,9 @@ async function initRecipeEdit() {
       if (beanId) {
         cur.beanId = beanId;
         cur.beanName = sessionStorage.getItem('dye_selectedBeanName') || '';
+        // The picker writes '' for a bean picked without a batch; that must clear the old one.
+        cur.beanBatchId = sessionStorage.getItem('dye_selectedBatchId') || null;
+        cur.beanRoaster = sessionStorage.getItem('dye_selectedBeanRoaster') || null;
         ['dye_selectedBeanId','dye_selectedBeanName','dye_selectedBeanRoaster','dye_selectedBatchId','dye_selectedRoastDate']
           .forEach(k => sessionStorage.removeItem(k));
       }

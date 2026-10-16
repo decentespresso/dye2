@@ -265,6 +265,10 @@ write at the same instant can lose one side's change.
   id,                          // '1'..'5'
   name, beverage, barista, drinker,
   beanId, beanName, profileId, profileTitle,
+  beanBatchId, beanRoaster,    // optional — the batch/roaster picked with the bean; apply sets
+                                // context.beanBatchId / coffeeRoaster from them. Absent on older
+                                // recipes. Dial-in does not repoint them (a mid-dial-in batch
+                                // switch disarms the selection instead).
   profileSnapshot,             // optional, full recorded Profile (steps included) captured when the
                                 // source profile might not be in the library — apply this directly
                                 // instead of resolving profileId when it's set

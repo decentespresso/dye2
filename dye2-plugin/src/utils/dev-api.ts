@@ -336,6 +336,8 @@ async function buildRecipeWorkflow(recipe) {
   if (dv.basketId)   ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId };
   if (dv.basketName) ctx.extras = { ...(ctx.extras || {}), basketName: dv.basketName };
   if (recipe && recipe.beanName) ctx.coffeeName = recipe.beanName;
+  if (recipe && recipe.beanRoaster) ctx.coffeeRoaster = recipe.beanRoaster;
+  if (recipe && recipe.beanBatchId) ctx.beanBatchId = recipe.beanBatchId;
   if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;
   if (recipe && (recipe.profileId || recipe.profileTitle)) {

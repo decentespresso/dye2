@@ -101,12 +101,12 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   const src = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
   const start = src.indexOf('function getCurrentRecipeData()');
   const body = src.slice(start, src.indexOf('\n}\n', start) + 2);
-  const run = (texts) => new Function('document', 'selectedBeanId', 'selectedBeanName', 'selectedProfileId', 'selectedProfileTitle',
+  const run = (texts, batch = null, roaster = null) => new Function('document', 'selectedBeanId', 'selectedBeanName', 'selectedBeanBatchId', 'selectedBeanRoaster', 'selectedProfileId', 'selectedProfileTitle',
     'selectedProfileSnapshot', 'showOnStreamline', 'grinders', 'selectedGrinderId', 'baskets', 'selectedBasketId',
     'equipmentSelIds', 'equipmentSelNames', 'equipmentCustomOverrides', body + '; return getCurrentRecipeData();')(
     { getElementById: (id) => ({ textContent: texts[id], dataset: id === 're-drink-value' ? { ratio: '2' } : {}, value: '' }),
       querySelector: () => null },
-    null, null, null, null, null, false, [], null, [], null, [], [], {});
+    null, null, batch, roaster, null, null, null, false, [], null, [], null, [], [], {});
   const blank = run({ 're-dose-value': '—', 're-drink-value': '—', 're-brew-c-value': '—', 're-steam-value': '—',
     're-flush-value': '—', 're-hotwater-value': '—', 're-grind-value': '—', 're-rpm-value': '—' }).dashboardVariables;
   for (const k of ['dose', 'drink', 'brewC', 'flushS', 'grind', 'rpm']) assert.equal(blank[k], null, k + ' blank is null, not 0');
@@ -115,6 +115,11 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(filled.dose, 18);
   assert.equal(filled.brewC, 0, 'a real 0 is kept, not replaced by 93');
   assert.equal(filled.ratio, 2, 'ratio still derived');
+  // the batch and roaster picked with the bean ride along on the saved record (dye2#27)
+  const picked = run({}, 'b-9', 'Onyx');
+  assert.equal(picked.beanBatchId, 'b-9');
+  assert.equal(picked.beanRoaster, 'Onyx');
+  assert.equal(run({}).beanBatchId, null, 'no batch picked saves null');
   // a null field is skipped by record, as a missing one is
   const r = recipe();
   r.dashboardVariables.rpm = null;
