@@ -11220,6 +11220,10 @@ bcInit();
 		put(out, "dose", ctx.targetDoseWeight);
 		put(out, "drink", ctx.targetYield);
 		put(out, "grind", num(ctx.grinderSetting));
+		const extras = ctx.extras || {};
+		put(out, "rpm", num(extras.rpm));
+		put(out, "basketId", extras.basketId);
+		put(out, "basketName", extras.basketName);
 		const steps = wf && wf.profile && wf.profile.steps;
 		put(out, "brewC", num(steps && steps[0] && steps[0].temperature));
 		put(out, "steamTimeS", wf && wf.steamSettings && wf.steamSettings.duration);
@@ -11229,13 +11233,14 @@ bcInit();
 		put(out, "flushS", wf && wf.rinseData && wf.rinseData.duration);
 		return out;
 	}
-	/** A favourite's snapshot has no brew-temp/steam/hot-water/flush field: dose/drink/grind only. */
+	/** A favourite's snapshot has no brew-temp/steam/hot-water/flush field: dose/drink/grind/rpm only. */
 	function favouriteFields(wf) {
 		const out = {};
 		const ctx = wf && wf.context || {};
 		put(out, "dose", ctx.targetDoseWeight);
 		put(out, "drink", ctx.targetYield);
 		put(out, "grindSetting", num(ctx.grinderSetting));
+		put(out, "rpm", num(ctx.extras && ctx.extras.rpm));
 		return out;
 	}
 	/** The entries of `patch` that differ from `stored`, compared numerically where both are numbers. */
@@ -11243,7 +11248,7 @@ bcInit();
 		const out = {};
 		for (const [k, v] of Object.entries(patch || {})) {
 			const cur = stored ? stored[k] : void 0;
-			if (!(cur === v || cur != null && v != null && Number.isFinite(Number(cur)) && Number(cur) === Number(v))) out[k] = v;
+			if (!(cur === v || cur != null && v != null && !(typeof cur === "string" && typeof v === "string") && Number.isFinite(Number(cur)) && Number(cur) === Number(v))) out[k] = v;
 		}
 		return out;
 	}
@@ -11268,7 +11273,11 @@ bcInit();
 			if (k === "brewC" && (armedBrewC == null || all.brewC === armedBrewC)) continue;
 			known[k] = all[k];
 		}
-		return changedFields(known, stored);
+		const patch = changedFields(known, stored);
+		if ("basketId" in patch || "basketName" in patch) {
+			for (const k of ["basketId", "basketName"]) if (all[k] !== void 0) patch[k] = all[k];
+		}
+		return patch;
 	}
 	function getSelection() {
 		return selection;
@@ -11378,6 +11387,14 @@ bcInit();
 			if ("drink" in patch) c.targetYield = patch.drink;
 			const g = "grind" in patch ? patch.grind : patch.grindSetting;
 			if (g !== void 0) c.grinderSetting = String(g);
+			for (const k of [
+				"rpm",
+				"basketId",
+				"basketName"
+			]) if (k in patch) c.extras = {
+				...c.extras || {},
+				[k]: patch[k]
+			};
 			next.workflow = {
 				...item.workflow,
 				context: c

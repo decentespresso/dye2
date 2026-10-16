@@ -56,6 +56,43 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.deepEqual(bp, {}, 'inactive-mode values are not recorded and the mode does not flip');
 }
 
+// --- rpm and basket (context.extras) -----------------------------------------------------
+{
+  const ex = (e) => wf({ context: { targetDoseWeight: 18, targetYield: 36, grinderSetting: '4.2', extras: e } });
+  const withExtras = () => {
+    const r = recipe();
+    Object.assign(r.dashboardVariables, { rpm: 600, basketId: 'bk1', basketName: 'VST 18g' });
+    return r;
+  };
+  assert.deepEqual(itemPatch('recipe', withExtras(), ex({ rpm: 600, basketId: 'bk1', basketName: 'VST 18g' })), {}, 'unchanged extras patch nothing');
+  assert.deepEqual(itemPatch('recipe', withExtras(), ex({ rpm: 700, basketId: 'bk1', basketName: 'VST 18g' })), { rpm: 700 });
+  assert.deepEqual(
+    itemPatch('recipe', withExtras(), ex({ rpm: 600, basketId: 'bk2', basketName: 'VST 18g' })),
+    { basketId: 'bk2', basketName: 'VST 18g' }, 'id moved: name written too'
+  );
+  assert.deepEqual(
+    itemPatch('recipe', withExtras(), ex({ rpm: 600, basketId: 'bk1', basketName: 'IMS 20g' })),
+    { basketId: 'bk1', basketName: 'IMS 20g' }, 'name moved: id written too'
+  );
+  assert.deepEqual(itemPatch('recipe', recipe(), ex({ rpm: 700, basketId: 'bk2', basketName: 'X' })), {}, 'item holding none of them is left alone');
+  assert.deepEqual(itemPatch('recipe', withExtras(), wf()), {}, 'workflow without extras patches nothing');
+  // string names compare exactly, not numerically
+  assert.deepEqual(
+    itemPatch('recipe', { id: '1', dashboardVariables: { basketId: 'a', basketName: '' } }, ex({ basketId: 'a', basketName: '0' })),
+    { basketId: 'a', basketName: '0' }, "'' vs '0' is a change"
+  );
+
+  const f = fav();
+  f.snapshot.rpm = 600;
+  assert.deepEqual(itemPatch('favourite', f, ex({ rpm: 650 })), { rpm: 650 }, 'favourite records rpm');
+  assert.deepEqual(itemPatch('favourite', fav(), ex({ rpm: 650 })), {}, 'favourite not holding rpm is left alone');
+
+  // the embedded ready-to-PUT context follows
+  const s = fakeStore({ recipes: [{ ...withExtras(), workflow: { context: { extras: { note: 'n' } } } }] });
+  await recordWorkflow(ex({ rpm: 700, basketId: 'bk2', basketName: 'IMS' }), s.fetchFn, { kind: 'recipe', id: '1', profileFingerprint: null });
+  assert.deepEqual(s.store.recipes[0].workflow.context.extras, { note: 'n', rpm: 700, basketId: 'bk2', basketName: 'IMS' });
+}
+
 // --- a favourite gets dose/drink/grindSetting only ---------------------------------
 {
   const changed = wf({

@@ -118,6 +118,11 @@ export function recipeFields(wf: AnyRecord): AnyRecord {
   put(out, "dose", ctx.targetDoseWeight);
   put(out, "drink", ctx.targetYield);
   put(out, "grind", num(ctx.grinderSetting));
+  // apply writes these into context.extras (dev-api.ts buildFavouriteWorkflow / applyRecipe).
+  const extras = ctx.extras || {};
+  put(out, "rpm", num(extras.rpm));
+  put(out, "basketId", extras.basketId);
+  put(out, "basketName", extras.basketName);
   const steps = wf && wf.profile && wf.profile.steps;
   put(out, "brewC", num(steps && steps[0] && steps[0].temperature));
   put(out, "steamTimeS", wf && wf.steamSettings && wf.steamSettings.duration);
@@ -128,13 +133,14 @@ export function recipeFields(wf: AnyRecord): AnyRecord {
   return out;
 }
 
-/** A favourite's snapshot has no brew-temp/steam/hot-water/flush field: dose/drink/grind only. */
+/** A favourite's snapshot has no brew-temp/steam/hot-water/flush field: dose/drink/grind/rpm only. */
 export function favouriteFields(wf: AnyRecord): AnyRecord {
   const out: AnyRecord = {};
   const ctx = (wf && wf.context) || {};
   put(out, "dose", ctx.targetDoseWeight);
   put(out, "drink", ctx.targetYield);
   put(out, "grindSetting", num(ctx.grinderSetting));
+  put(out, "rpm", num(ctx.extras && ctx.extras.rpm));
   return out;
 }
 
@@ -143,8 +149,12 @@ export function changedFields(patch: AnyRecord, stored: AnyRecord | undefined): 
   const out: AnyRecord = {};
   for (const [k, v] of Object.entries(patch || {})) {
     const cur = stored ? stored[k] : undefined;
+    // Two strings (basket id/name) compare exactly: Number("") === Number("0") would
+    // call different names equal. Numeric compare is for 4.2 vs "4.20".
     const same =
-      cur === v || (cur != null && v != null && Number.isFinite(Number(cur)) && Number(cur) === Number(v));
+      cur === v ||
+      (cur != null && v != null && !(typeof cur === "string" && typeof v === "string") &&
+        Number.isFinite(Number(cur)) && Number(cur) === Number(v));
     if (!same) out[k] = v;
   }
   return out;
@@ -178,7 +188,13 @@ export function itemPatch(
     if (k === "brewC" && (armedBrewC == null || all.brewC === armedBrewC)) continue;
     known[k] = all[k];
   }
-  return changedFields(known, stored);
+  const patch = changedFields(known, stored);
+  // A basket's id and name are one change: if either moved write both, so an item never
+  // ends up with the id of one basket and the name of another.
+  if ("basketId" in patch || "basketName" in patch) {
+    for (const k of ["basketId", "basketName"]) if (all[k] !== undefined) patch[k] = all[k];
+  }
+  return patch;
 }
 
 // ── selection ───────────────────────────────────────────────────────────────
@@ -315,6 +331,9 @@ export async function recordWorkflow(
     if ("drink" in patch) c.targetYield = patch.drink;
     const g = "grind" in patch ? patch.grind : patch.grindSetting;
     if (g !== undefined) c.grinderSetting = String(g);
+    for (const k of ["rpm", "basketId", "basketName"]) {
+      if (k in patch) c.extras = { ...(c.extras || {}), [k]: patch[k] };
+    }
     next.workflow = { ...item.workflow, context: c };
   }
   const out = list.slice();
