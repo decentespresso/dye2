@@ -70,6 +70,11 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
 // --- drift ------------------------------------------------------------------------
 {
   assert.equal(profileFingerprint(profile(90)), profileFingerprint(profile(99)), 'temperature is not part of identity');
+  assert.equal(
+    profileFingerprint({ ...profile(93), target_weight: 36, target_volume: 0 }),
+    profileFingerprint({ ...profile(93), target_weight: 40, target_volume: 50 }),
+    'yield (target_weight/target_volume) is not part of identity'
+  );
   const sel = { kind: 'recipe', id: '1', profileFingerprint: profileFingerprint(profile(93)) };
   assert.equal(profileDrifted(sel, wf()), false);
   assert.equal(profileDrifted(sel, wf({ profile: { ...profile(93), title: 'Other' } })), true);

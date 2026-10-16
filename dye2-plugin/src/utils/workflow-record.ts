@@ -54,6 +54,9 @@ let suppressed: { values: string; at: number } | null = null;
 // fingerprint covers the fields a real profile switch changes. steps[*].temperature is
 // stripped because a brew-temp edit PUTs the same profile back with only that changed
 // — otherwise every temperature tweak would look like a new profile and disarm us.
+// target_weight/target_volume are left out for the same reason: they are the yield, and
+// Streamline's yield writes send the profile back with only those changed. Streamline's
+// own identity() in wake-profile.js excludes them too.
 export function profileFingerprint(profile: AnyRecord | null | undefined): string | null {
   if (!profile) return null;
   const steps = Array.isArray(profile.steps)
@@ -61,8 +64,6 @@ export function profileFingerprint(profile: AnyRecord | null | undefined): strin
     : profile.steps;
   return JSON.stringify({
     title: profile.title,
-    target_weight: profile.target_weight,
-    target_volume: profile.target_volume,
     tank_temperature: profile.tank_temperature,
     steps,
   });

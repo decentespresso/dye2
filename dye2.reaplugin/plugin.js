@@ -11186,8 +11186,6 @@ bcInit();
 		const steps = Array.isArray(profile.steps) ? profile.steps.map(({ temperature, ...rest }) => rest) : profile.steps;
 		return JSON.stringify({
 			title: profile.title,
-			target_weight: profile.target_weight,
-			target_volume: profile.target_volume,
 			tank_temperature: profile.tank_temperature,
 			steps
 		});
