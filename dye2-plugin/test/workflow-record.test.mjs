@@ -240,8 +240,10 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
     querySelector: () => ({ dataset: { mode: active } }),
   };
   const slot = { dashboardVariables: { steamTimeS: 30, steamFlowMls: 1.2 } };
-  const api = new Function('document', 'recipes', 'currentRecipeIdx', 'syncPresetActive', 'wirePresetButtons',
-    code + '; return { stashModeValue, applyMode };')(doc, [slot], 0, () => {}, () => {});
+  // renderHeld (the read-only 'Also held' list) is a no-op here: a stub in case the slices above
+  // stop carrying its declaration, and the real one finds no #re-held in this stub document.
+  const api = new Function('document', 'recipes', 'currentRecipeIdx', 'syncPresetActive', 'wirePresetButtons', 'renderHeld',
+    code + '; return { stashModeValue, applyMode };')(doc, [slot], 0, () => {}, () => {}, () => {});
 
   api.stashModeValue('re-steam-mode');          // what is on screen belongs to `time`
   active = 'flow';
@@ -261,6 +263,48 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   api.applyMode('re-steam-mode');
   assert.equal(el.textContent, '—');
   console.log('ok   a mode switch shows that mode\'s own value');
+}
+
+// --- recipe editor: the read-only 'Also held' list (dye2#23) -------------------------
+{
+  // The settings with no stepper are invisible otherwise: adopted from Streamline's settings
+  // page, applied on every apply, shown nowhere. Real source again.
+  const src = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
+  const i = src.indexOf('const HELD_ONLY = [');
+  const code = [
+    src.slice(i, src.indexOf('\n];\n', i) + 4),
+    src.slice(src.indexOf('function renderHeld()'), src.indexOf('\n}\n', src.indexOf('function renderHeld()')) + 2),
+  ].join('\n');
+
+  const el = () => ({ className: '', textContent: '', kids: [], appendChild(n) { this.kids.push(n); }, style: {} });
+  const box = el(), list = el();
+  let steam = 'flow', hw = 'vol';
+  const doc = {
+    getElementById: (id) => (id === 're-held' ? box : id === 're-held-list' ? list : null),
+    createElement: el,
+    createTextNode: (t) => ({ text: t }),
+  };
+  const text = () => list.kids.map((r) => r.kids.map((k) => k.textContent ?? k.text).join('')).sort();
+  const render = (dv) => {
+    list.kids = [];
+    new Function('document', 'recipes', 'currentRecipeIdx', 'activeMode', code + '; renderHeld();')(
+      doc, [{ dashboardVariables: dv }], 0, (cls) => (cls === 're-steam-mode' ? steam : hw));
+  };
+
+  render({ dose: 18, steamFlowMls: 1.5, hotWaterMl: 120 });
+  assert.deepEqual(text(), [], 'nothing held but what the steppers already show: the list stays empty');
+  assert.equal(box.style.display, 'none', 'and the panel is hidden');
+
+  render({ steamTempC: 150, flushFlowMls: 4, steamTimeS: 30, hotWaterTempC: 85, dose: 18, grind: 4.2 });
+  assert.deepEqual(text(), ['Flush flow 4ml/s', 'Hot water temp 85°c', 'Steam temp 150°c', 'Steam time 30s'],
+    "the six plus each pair's hidden member; dose and grind have their own steppers");
+  assert.equal(box.style.display, '', 'the panel shows');
+
+  steam = 'time'; hw = 'temp';
+  render({ steamTempC: 150, steamTimeS: 30, steamFlowMls: 1.5, hotWaterMl: 120, hotWaterTempC: 85 });
+  assert.deepEqual(text(), ['Hot water vol 120ml', 'Steam flow 1.5ml/s', 'Steam temp 150°c'],
+    'the other mode hides the other half of each pair');
+  console.log('ok   the read-only held list shows what has no stepper');
 }
 
 // --- a recorded brew temp moves the stored apply-body's profile (dye2#26) ---------

@@ -291,6 +291,15 @@ function buildContent(): string {
 
       <div class="re-divider"></div>
 
+      <!-- Settings a recipe holds that this editor has no stepper for, plus the pair member the
+           active mode hides. Read-only: they are edited on Streamline's own settings page and
+           recorded from there while this recipe is selected (dye2#23). Hidden when empty. -->
+      <div id="re-held" style="display:none">
+        <div class="text-[24px] font-bold text-[var(--mimoja-blue)]">Also held</div>
+        <div id="re-held-list" class="flex flex-wrap gap-x-[40px] gap-y-[6px] text-[20px] mt-[8px]"></div>
+        <div class="text-[16px] mt-[8px] opacity-60">Set on Streamline's settings page while this recipe is selected.</div>
+      </div>
+
       <!-- Grinder names as plain text tabs (Figma 2396:991 — no label above) -->
       <div class="re-grinder-chips" id="re-grinder-chips">
         <!-- populated by JS -->
@@ -831,6 +840,39 @@ const MODE_CFG = {
   },
 };
 function activeMode(cls) { return document.querySelector('.' + cls + '.active')?.dataset.mode; }
+
+// The settings a recipe can hold with no stepper of their own (dye2#23), read-only. DYE2 adopts
+// one once the barista moves it on Streamline's settings page while this recipe is armed, so
+// without this they would be invisible here — applied on every apply, shown nowhere.
+const HELD_ONLY = [
+  ['steamTempC', 'Steam temp', '°c'],
+  ['steamStopAtTempC', 'Milk stop', '°c'],
+  ['hotWaterTimeS', 'Hot water time', 's'],
+  ['hotWaterFlowMls', 'Hot water flow', 'ml/s'],
+  ['flushTempC', 'Flush temp', '°c'],
+  ['flushFlowMls', 'Flush flow', 'ml/s'],
+];
+function renderHeld() {
+  const box = document.getElementById('re-held'), list = document.getElementById('re-held-list');
+  if (!box || !list) return;
+  const dv = (recipes[currentRecipeIdx] && recipes[currentRecipeIdx].dashboardVariables) || {};
+  const rows = HELD_ONLY.concat(
+    activeMode('re-steam-mode') === 'time' ? [['steamFlowMls', 'Steam flow', 'ml/s']] : [['steamTimeS', 'Steam time', 's']],
+    activeMode('re-hotwater-mode') === 'vol' ? [['hotWaterTempC', 'Hot water temp', '°c']] : [['hotWaterMl', 'Hot water vol', 'ml']]
+  ).filter(([k]) => dv[k] != null);
+  list.innerHTML = '';
+  for (const [k, label, unit] of rows) {
+    const row = document.createElement('div');
+    const name = document.createElement('span');
+    name.className = 'font-semibold';
+    name.textContent = label + ' ';
+    row.appendChild(name);
+    // textContent, not markup: these come straight out of KV.
+    row.appendChild(document.createTextNode(dv[k] + unit));
+    list.appendChild(row);
+  }
+  box.style.display = rows.length ? '' : 'none';
+}
 // Wire preset buttons within one strip (setupPresetStrips only wires what exists at load).
 function wirePresetButtons(container) {
   container.querySelectorAll('.dye-preset').forEach(btn => {
@@ -858,6 +900,8 @@ function applyMode(cls) {
     valEl.textContent = isNaN(n) ? '—' : n + (cfg.unit[mode] || '');
     syncPresetActive(idPrefix, valEl.textContent);
   }
+  // The mode decides which of a pair is on screen, so the read-only list moves with it.
+  renderHeld();
 }
 function setMode(cls, mode) {
   document.querySelectorAll('.' + cls).forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
