@@ -453,3 +453,67 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
 }
 
 console.log('workflow-record tests passed');
+
+// --- machine settings the recipe does not hold yet (dye2#23) ------------------------
+// DYE2 has a control for brewC/steam/flush/hot-water only; the other settings are edited on
+// Streamline's own settings page. A setting is adopted once it moves off what was live when
+// the recipe was applied, which is what keeps the first event from stamping the machine's
+// whole steam/hot-water/flush state onto the recipe.
+{
+  const base = { steamTempC: 150, steamTimeS: 30, steamFlowMls: 1.5, hotWaterMl: 120, hotWaterTempC: 85, flushS: 5 };
+  const steam = (over) => wf({ steamSettings: { targetTemperature: 150, duration: 30, flow: 1.5, ...over } });
+  const r = recipe(); // holds steamTimeS and flushS, nothing else machine-side
+  assert.deepEqual(itemPatch('recipe', r, steam(), null, base), {}, 'live == arm-time baseline: nothing adopted');
+  assert.deepEqual(itemPatch('recipe', r, steam({ targetTemperature: 160 }), null, base), { steamTempC: 160 },
+    'moved after arming: adopted although the recipe held no steamTempC');
+  assert.deepEqual(itemPatch('recipe', r, steam({ targetTemperature: 160 }), null, null), {},
+    'no baseline: unchanged behaviour, nothing adopted');
+  assert.deepEqual(itemPatch('recipe', r, steam({ stopAtTemperature: 60 }), null, base), {},
+    'a setting the workflow had no value for at arm time is not adopted');
+  assert.deepEqual(itemPatch('recipe', r, steam({ targetTemperature: '150.0' }), null, base), {},
+    "numeric compare against the baseline: '150.0' == 150");
+  assert.deepEqual(itemPatch('recipe', { id: '1', dashboardVariables: {} }, steam({ targetTemperature: 160 }), null, base),
+    { steamTempC: 160 }, 'only machine settings are adopted: dose/drink/grind still need to be held');
+  assert.deepEqual(itemPatch('favourite', fav(), steam({ targetTemperature: 160 }), null, base), {},
+    'a favourite holds no machine setting at all');
+}
+
+// --- the baseline is armed, persisted and adopted -----------------------------------
+{
+  const armedLive = { steamTimeS: 30, steamFlowMls: 1.5, hotWaterTempC: 85, hotWaterMl: 120, flushS: 5 };
+  clearSelection();
+  const sel = armSelection({ kind: 'recipe', id: '1' }, wf(), 0);
+  assert.deepEqual(sel.armedMachine, armedLive, 'arm snapshots the live settings; ones the workflow lacks stay absent');
+  restoreSelection(JSON.parse(JSON.stringify(sel)));
+  assert.deepEqual(getSelection().armedMachine, armedLive, 'the baseline survives a reload');
+  restoreSelection({ kind: 'recipe', id: '1' });
+  assert.equal(getSelection().armedMachine, null, 'a selection persisted by an older build has none');
+
+  // Armed by the skin with no workflow in hand: adopt what is live on the first event, so
+  // only a LATER change counts as the barista's.
+  clearSelection();
+  armSelection({ kind: 'recipe', id: '1' });
+  assert.equal(getSelection().armedMachine, null);
+  const s = fakeStore({ recipes: [recipe()] });
+  // past any earlier test's echo window
+  scheduleWorkflowRecord(wf(), s.fetchFn, undefined, undefined, 50_000, 0);
+  assert.deepEqual(getSelection().armedMachine, armedLive, 'adopted from the first event');
+  clearSelection();
+}
+
+// --- an adopted setting moves the strip's ready-to-PUT copy too ---------------------
+{
+  const r = recipe();
+  r.workflow = { context: { targetDoseWeight: 18 }, steamSettings: { duration: 30 } };
+  const s = fakeStore({ recipes: [r] });
+  const armed = {
+    kind: 'recipe', id: '1', profileFingerprint: null, armedBrewC: null,
+    armedBeanBatchId: '', armedGrinderId: '', armedMachine: { steamTempC: 150, steamTimeS: 30 },
+  };
+  assert.equal(await recordWorkflow(wf({ steamSettings: { targetTemperature: 160, duration: 40 } }), s.fetchFn, armed), true);
+  const saved = s.store.recipes[0];
+  assert.equal(saved.dashboardVariables.steamTempC, 160, 'adopted');
+  assert.equal(saved.dashboardVariables.steamTimeS, 40, 'held and changed');
+  assert.deepEqual(saved.workflow.steamSettings, { duration: 40, targetTemperature: 160 },
+    "the embedded workflow the strip applies from follows, so a re-apply steams at the new setting");
+}

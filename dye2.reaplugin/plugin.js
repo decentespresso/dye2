@@ -11414,6 +11414,25 @@ bcInit();
 	function put(out, k, v) {
 		if (v !== void 0 && v !== null) out[k] = v;
 	}
+	/**
+	* Every machine setting a recipe can hold: dashboardVariables name -> the workflow sub-object
+	* and field it lives in. The same ground as dev-api.ts RECIPE_MACHINE_FIELDS, which the plugin
+	* runtime cannot share; keep the two in step. brewC is not here — it lives on the profile and
+	* has its own baseline.
+	*/
+	var MACHINE_MAP = {
+		steamTempC: ["steamSettings", "targetTemperature"],
+		steamTimeS: ["steamSettings", "duration"],
+		steamFlowMls: ["steamSettings", "flow"],
+		steamStopAtTempC: ["steamSettings", "stopAtTemperature"],
+		hotWaterTempC: ["hotWaterData", "targetTemperature"],
+		hotWaterTimeS: ["hotWaterData", "duration"],
+		hotWaterMl: ["hotWaterData", "volume"],
+		hotWaterFlowMls: ["hotWaterData", "flow"],
+		flushTempC: ["rinseData", "targetTemperature"],
+		flushS: ["rinseData", "duration"],
+		flushFlowMls: ["rinseData", "flow"]
+	};
 	/** Everything the live workflow says that a recipe could hold, in dashboardVariables names. */
 	function recipeFields(wf) {
 		const out = {};
@@ -11427,20 +11446,14 @@ bcInit();
 		put(out, "basketName", extras.basketName);
 		const steps = wf && wf.profile && wf.profile.steps;
 		put(out, "brewC", num(steps && steps[0] && steps[0].temperature));
-		const steam = wf && wf.steamSettings || {};
-		const hotWater = wf && wf.hotWaterData || {};
-		const rinse = wf && wf.rinseData || {};
-		put(out, "steamTempC", steam.targetTemperature);
-		put(out, "steamTimeS", steam.duration);
-		put(out, "steamFlowMls", steam.flow);
-		put(out, "steamStopAtTempC", steam.stopAtTemperature);
-		put(out, "hotWaterTempC", hotWater.targetTemperature);
-		put(out, "hotWaterTimeS", hotWater.duration);
-		put(out, "hotWaterMl", hotWater.volume);
-		put(out, "hotWaterFlowMls", hotWater.flow);
-		put(out, "flushTempC", rinse.targetTemperature);
-		put(out, "flushS", rinse.duration);
-		put(out, "flushFlowMls", rinse.flow);
+		for (const [k, [group, field]] of Object.entries(MACHINE_MAP)) put(out, k, (wf && wf[group] || {})[field]);
+		return out;
+	}
+	/** Those machine settings of `wf` that have a value: the baseline armSelection stores. */
+	function machineFields(wf) {
+		const all = recipeFields(wf);
+		const out = {};
+		for (const k of Object.keys(MACHINE_MAP)) if (all[k] !== void 0) out[k] = all[k];
 		return out;
 	}
 	/** A favourite's snapshot has no brew-temp/steam/hot-water/flush field: dose/drink/grind/rpm only. */
@@ -11454,13 +11467,25 @@ bcInit();
 		return out;
 	}
 	/** The entries of `patch` that differ from `stored`, compared numerically where both are numbers. */
+	function sameValue(cur, v) {
+		return cur === v || cur != null && v != null && !(typeof cur === "string" && typeof v === "string") && Number.isFinite(Number(cur)) && Number(cur) === Number(v);
+	}
 	function changedFields(patch, stored) {
 		const out = {};
-		for (const [k, v] of Object.entries(patch || {})) {
-			const cur = stored ? stored[k] : void 0;
-			if (!(cur === v || cur != null && v != null && !(typeof cur === "string" && typeof v === "string") && Number.isFinite(Number(cur)) && Number(cur) === Number(v))) out[k] = v;
-		}
+		for (const [k, v] of Object.entries(patch || {})) if (!sameValue(stored ? stored[k] : void 0, v)) out[k] = v;
 		return out;
+	}
+	/**
+	* Should a machine setting the item does not hold be adopted? Only once the barista has
+	* moved it off what was live when the item was applied. DYE2 has no control for most of
+	* these (dye2#23) — Streamline's settings page is where they are edited — so without this
+	* they could never be recorded at all. The baseline is what makes it safe: a workflow
+	* always has a value for every steam/hot-water/flush field, so adopting on presence alone
+	* would stamp the machine's whole current state onto the item on the first event.
+	*/
+	function movedSinceArming(k, live, armed) {
+		if (!armed || !(k in MACHINE_MAP)) return false;
+		return armed[k] !== void 0 && !sameValue(armed[k], live);
 	}
 	/**
 	* What to write onto `item` for the live workflow `wf`: only fields the item already
@@ -11468,12 +11493,12 @@ bcInit();
 	* absent field would stamp the whole workflow onto the item — a blanket resync) and
 	* only those whose value differs. The *Mode fields are never written.
 	*/
-	function itemPatch(kind, item, wf, armedBrewC = null) {
+	function itemPatch(kind, item, wf, armedBrewC = null, armedMachine = null) {
 		const stored = item[TARGETS[kind].field] || {};
 		const all = kind === "recipe" ? recipeFields(wf) : favouriteFields(wf);
 		const known = {};
 		for (const k of Object.keys(all)) {
-			if (stored[k] == null) continue;
+			if (stored[k] == null && !movedSinceArming(k, all[k], armedMachine)) continue;
 			if (k === "brewC" && (armedBrewC == null || all.brewC === armedBrewC)) continue;
 			known[k] = all[k];
 		}
@@ -11571,7 +11596,8 @@ bcInit();
 			profileFingerprint: s.profileFingerprint || null,
 			armedBrewC: typeof s.armedBrewC === "number" ? s.armedBrewC : null,
 			armedBeanBatchId: typeof s.armedBeanBatchId === "string" ? s.armedBeanBatchId : null,
-			armedGrinderId: typeof s.armedGrinderId === "string" ? s.armedGrinderId : null
+			armedGrinderId: typeof s.armedGrinderId === "string" ? s.armedGrinderId : null,
+			armedMachine: s.armedMachine && typeof s.armedMachine === "object" ? s.armedMachine : null
 		} : null;
 		markedKey = selectionKey(selection);
 	}
@@ -11594,7 +11620,8 @@ bcInit();
 			profileFingerprint: profileFingerprint(wf && wf.profile),
 			armedBrewC: wf ? liveBrewC(wf) : null,
 			armedBeanBatchId: wf ? idOf(wf.context && wf.context.beanBatchId) : null,
-			armedGrinderId: wf ? idOf(wf.context && wf.context.grinderId) : null
+			armedGrinderId: wf ? idOf(wf.context && wf.context.grinderId) : null,
+			armedMachine: wf ? machineFields(wf) : null
 		});
 		if (wf) suppress(wf, now);
 		return selection;
@@ -11627,7 +11654,7 @@ bcInit();
 		const idx = list.findIndex((x) => x && String(x.id) === armed.id);
 		if (idx === -1) return false;
 		const item = list[idx];
-		const patch = itemPatch(armed.kind, item, wf, armed.armedBrewC);
+		const patch = itemPatch(armed.kind, item, wf, armed.armedBrewC, armed.armedMachine);
 		const live = liveBrewC(wf);
 		if (live !== armed.armedBrewC) updateSelection(armed, { armedBrewC: live });
 		if (Object.keys(patch).length === 0) return false;
@@ -11655,6 +11682,16 @@ bcInit();
 			next.workflow = {
 				...item.workflow,
 				context: c
+			};
+		}
+		if (next.workflow) for (const [k, [group, field]] of Object.entries(MACHINE_MAP)) {
+			if (!(k in patch)) continue;
+			next.workflow = {
+				...next.workflow,
+				[group]: {
+					...next.workflow[group] || {},
+					[field]: patch[k]
+				}
 			};
 		}
 		if ("brewC" in patch && next.workflow) {
@@ -11687,6 +11724,7 @@ bcInit();
 		}
 		if (isEcho(wf, now)) return;
 		if (!selection.profileFingerprint) updateSelection(selection, { profileFingerprint: profileFingerprint(wf.profile) });
+		if (!selection.armedMachine) updateSelection(selection, { armedMachine: machineFields(wf) });
 		if (!selection.armedBeanBatchId || !selection.armedGrinderId) updateSelection(selection, {
 			armedBeanBatchId: selection.armedBeanBatchId || idOf(wf.context && wf.context.beanBatchId),
 			armedGrinderId: selection.armedGrinderId || idOf(wf.context && wf.context.grinderId)

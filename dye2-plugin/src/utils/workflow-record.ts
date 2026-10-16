@@ -41,6 +41,14 @@ export interface Selection {
    */
   armedBeanBatchId: string | null;
   armedGrinderId: string | null;
+  /**
+   * The live steam / hot-water / flush settings when armed (MACHINE_MAP's keys; absent =
+   * the workflow had no value). A setting the item does not hold yet is adopted once it
+   * moves off this baseline, which makes Streamline's own settings page the editor for
+   * them (dye2#23). Null = unknown (armed without a workflow), adopted from the first
+   * event like profileFingerprint.
+   */
+  armedMachine: AnyRecord | null;
 }
 
 const DEBOUNCE_MS = 1500;
@@ -117,6 +125,26 @@ function put(out: AnyRecord, k: string, v: unknown) {
   if (v !== undefined && v !== null) out[k] = v;
 }
 
+/**
+ * Every machine setting a recipe can hold: dashboardVariables name -> the workflow sub-object
+ * and field it lives in. The same ground as dev-api.ts RECIPE_MACHINE_FIELDS, which the plugin
+ * runtime cannot share; keep the two in step. brewC is not here — it lives on the profile and
+ * has its own baseline.
+ */
+const MACHINE_MAP: Record<string, [string, string]> = {
+  steamTempC: ["steamSettings", "targetTemperature"],
+  steamTimeS: ["steamSettings", "duration"],
+  steamFlowMls: ["steamSettings", "flow"],
+  steamStopAtTempC: ["steamSettings", "stopAtTemperature"],
+  hotWaterTempC: ["hotWaterData", "targetTemperature"],
+  hotWaterTimeS: ["hotWaterData", "duration"],
+  hotWaterMl: ["hotWaterData", "volume"],
+  hotWaterFlowMls: ["hotWaterData", "flow"],
+  flushTempC: ["rinseData", "targetTemperature"],
+  flushS: ["rinseData", "duration"],
+  flushFlowMls: ["rinseData", "flow"],
+};
+
 /** Everything the live workflow says that a recipe could hold, in dashboardVariables names. */
 export function recipeFields(wf: AnyRecord): AnyRecord {
   const out: AnyRecord = {};
@@ -131,22 +159,17 @@ export function recipeFields(wf: AnyRecord): AnyRecord {
   put(out, "basketName", extras.basketName);
   const steps = wf && wf.profile && wf.profile.steps;
   put(out, "brewC", num(steps && steps[0] && steps[0].temperature));
-  // Every machine setting a recipe can hold, under the dashboardVariables names (dev-api.ts
-  // RECIPE_MACHINE_FIELDS, which the plugin runtime cannot share).
-  const steam = (wf && wf.steamSettings) || {};
-  const hotWater = (wf && wf.hotWaterData) || {};
-  const rinse = (wf && wf.rinseData) || {};
-  put(out, "steamTempC", steam.targetTemperature);
-  put(out, "steamTimeS", steam.duration);
-  put(out, "steamFlowMls", steam.flow);
-  put(out, "steamStopAtTempC", steam.stopAtTemperature);
-  put(out, "hotWaterTempC", hotWater.targetTemperature);
-  put(out, "hotWaterTimeS", hotWater.duration);
-  put(out, "hotWaterMl", hotWater.volume);
-  put(out, "hotWaterFlowMls", hotWater.flow);
-  put(out, "flushTempC", rinse.targetTemperature);
-  put(out, "flushS", rinse.duration);
-  put(out, "flushFlowMls", rinse.flow);
+  for (const [k, [group, field]] of Object.entries(MACHINE_MAP)) {
+    put(out, k, ((wf && wf[group]) || {})[field]);
+  }
+  return out;
+}
+
+/** Those machine settings of `wf` that have a value: the baseline armSelection stores. */
+export function machineFields(wf: AnyRecord): AnyRecord {
+  const all = recipeFields(wf);
+  const out: AnyRecord = {};
+  for (const k of Object.keys(MACHINE_MAP)) if (all[k] !== undefined) out[k] = all[k];
   return out;
 }
 
@@ -162,19 +185,38 @@ export function favouriteFields(wf: AnyRecord): AnyRecord {
 }
 
 /** The entries of `patch` that differ from `stored`, compared numerically where both are numbers. */
+// Two strings (basket id/name) compare exactly: Number("") === Number("0") would call
+// different names equal. The numeric compare is for 4.2 vs "4.20".
+function sameValue(cur: unknown, v: unknown): boolean {
+  return (
+    cur === v ||
+    (cur != null &&
+      v != null &&
+      !(typeof cur === "string" && typeof v === "string") &&
+      Number.isFinite(Number(cur)) &&
+      Number(cur) === Number(v))
+  );
+}
+
 export function changedFields(patch: AnyRecord, stored: AnyRecord | undefined): AnyRecord {
   const out: AnyRecord = {};
   for (const [k, v] of Object.entries(patch || {})) {
-    const cur = stored ? stored[k] : undefined;
-    // Two strings (basket id/name) compare exactly: Number("") === Number("0") would
-    // call different names equal. Numeric compare is for 4.2 vs "4.20".
-    const same =
-      cur === v ||
-      (cur != null && v != null && !(typeof cur === "string" && typeof v === "string") &&
-        Number.isFinite(Number(cur)) && Number(cur) === Number(v));
-    if (!same) out[k] = v;
+    if (!sameValue(stored ? stored[k] : undefined, v)) out[k] = v;
   }
   return out;
+}
+
+/**
+ * Should a machine setting the item does not hold be adopted? Only once the barista has
+ * moved it off what was live when the item was applied. DYE2 has no control for most of
+ * these (dye2#23) — Streamline's settings page is where they are edited — so without this
+ * they could never be recorded at all. The baseline is what makes it safe: a workflow
+ * always has a value for every steam/hot-water/flush field, so adopting on presence alone
+ * would stamp the machine's whole current state onto the item on the first event.
+ */
+function movedSinceArming(k: string, live: unknown, armed: AnyRecord | null): boolean {
+  if (!armed || !(k in MACHINE_MAP)) return false;
+  return armed[k] !== undefined && !sameValue(armed[k], live);
 }
 
 /**
@@ -187,7 +229,8 @@ export function itemPatch(
   kind: Selection["kind"],
   item: AnyRecord,
   wf: AnyRecord,
-  armedBrewC: number | null = null
+  armedBrewC: number | null = null,
+  armedMachine: AnyRecord | null = null
 ): AnyRecord {
   const stored = item[TARGETS[kind].field] || {};
   const all = kind === "recipe" ? recipeFields(wf) : favouriteFields(wf);
@@ -195,7 +238,7 @@ export function itemPatch(
   // editor shows, and are never written), so a held field's live value is the user's.
   const known: AnyRecord = {};
   for (const k of Object.keys(all)) {
-    if (stored[k] == null) continue;
+    if (stored[k] == null && !movedSinceArming(k, all[k], armedMachine)) continue;
     if (k === "brewC" && (armedBrewC == null || all.brewC === armedBrewC)) continue;
     known[k] = all[k];
   }
@@ -326,6 +369,7 @@ export function restoreSelection(raw: unknown) {
           armedBrewC: typeof s.armedBrewC === "number" ? s.armedBrewC : null,
           armedBeanBatchId: typeof s.armedBeanBatchId === "string" ? s.armedBeanBatchId : null,
           armedGrinderId: typeof s.armedGrinderId === "string" ? s.armedGrinderId : null,
+          armedMachine: s.armedMachine && typeof s.armedMachine === "object" ? s.armedMachine : null,
         }
       : null;
   // The workflow was marked when this was armed, so a later clear has something to clear.
@@ -352,6 +396,7 @@ export function armSelection(req: AnyRecord | null | undefined, wf?: AnyRecord |
     armedBrewC: wf ? liveBrewC(wf) : null,
     armedBeanBatchId: wf ? idOf(wf.context && wf.context.beanBatchId) : null,
     armedGrinderId: wf ? idOf(wf.context && wf.context.grinderId) : null,
+    armedMachine: wf ? machineFields(wf) : null,
   });
   if (wf) suppress(wf, now);
   return selection;
@@ -397,7 +442,7 @@ export async function recordWorkflow(
   const idx = list.findIndex((x) => x && String(x.id) === armed.id);
   if (idx === -1) return false;
   const item = list[idx];
-  const patch = itemPatch(armed.kind, item, wf, armed.armedBrewC);
+  const patch = itemPatch(armed.kind, item, wf, armed.armedBrewC, armed.armedMachine);
   const live = liveBrewC(wf);
   if (live !== armed.armedBrewC) updateSelection(armed, { armedBrewC: live });
   if (Object.keys(patch).length === 0) return false;
@@ -415,6 +460,16 @@ export async function recordWorkflow(
       if (k in patch) c.extras = { ...(c.extras || {}), [k]: patch[k] };
     }
     next.workflow = { ...item.workflow, context: c };
+  }
+  // Same for the machine settings the strip applies from item.workflow (dev-api.ts
+  // buildRecipeWorkflow puts them there): a recorded steam/hot-water/flush change has to move
+  // its copy too, or re-applying would steam at the old setting. Partial sub-objects are what
+  // the builder sends too — PUT /workflow deep-merges key by key.
+  if (next.workflow) {
+    for (const [k, [group, field]] of Object.entries(MACHINE_MAP)) {
+      if (!(k in patch)) continue;
+      next.workflow = { ...next.workflow, [group]: { ...(next.workflow[group] || {}), [field]: patch[k] } };
+    }
   }
   // item.workflow is also what Streamline's strip PUTs, so a recorded brew-temp change has
   // to move its profile too — otherwise a strip apply would brew the old temperatures while
@@ -457,6 +512,10 @@ export function scheduleWorkflowRecord(
   if (!selection.profileFingerprint) {
     updateSelection(selection, { profileFingerprint: profileFingerprint(wf.profile) });
   }
+
+  // Armed without a workflow: take the machine settings live now as the baseline, so only a
+  // later change counts as the barista's.
+  if (!selection.armedMachine) updateSelection(selection, { armedMachine: machineFields(wf) });
 
   // No baseline yet (armed without a workflow) or an empty one (the workflow had no bean
   // or grinder when armed): adopt what the workflow says now, so the NEXT switch disarms.
