@@ -13,7 +13,7 @@ var createPlugin = (function() {
 	}
 	//#endregion
 	//#region src/styles/tailwind.generated.css?inline
-	var tailwind_generated_default = "*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:\"\"}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.\\!container{width:100%!important}.container{width:100%}@media (min-width:640px){.\\!container{max-width:640px!important}.container{max-width:640px}}@media (min-width:768px){.\\!container{max-width:768px!important}.container{max-width:768px}}@media (min-width:1024px){.\\!container{max-width:1024px!important}.container{max-width:1024px}}@media (min-width:1280px){.\\!container{max-width:1280px!important}.container{max-width:1280px}}@media (min-width:1536px){.\\!container{max-width:1536px!important}.container{max-width:1536px}}.visible{visibility:visible}.invisible{visibility:hidden}.collapse{visibility:collapse}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.mb-8{margin-bottom:2rem}.mb-\\[14px\\]{margin-bottom:14px}.ml-\\[16px\\]{margin-left:16px}.ml-auto{margin-left:auto}.mr-\\[24px\\]{margin-right:24px}.mt-16{margin-top:4rem}.mt-8{margin-top:2rem}.mt-\\[4px\\]{margin-top:4px}.mt-\\[6px\\]{margin-top:6px}.mt-\\[8px\\]{margin-top:8px}.mt-auto{margin-top:auto}.block{display:block}.inline{display:inline}.flex{display:flex}.table{display:table}.\\!grid{display:grid!important}.grid{display:grid}.hidden{display:none}.h-\\[110px\\]{height:110px}.h-\\[124px\\]{height:124px}.h-\\[134px\\]{height:134px}.h-\\[150px\\]{height:150px}.h-\\[165px\\]{height:165px}.h-\\[2px\\]{height:2px}.h-\\[40px\\]{height:40px}.h-\\[54px\\]{height:54px}.h-\\[60px\\]{height:60px}.h-\\[62px\\]{height:62px}.h-\\[70px\\]{height:70px}.h-\\[72px\\]{height:72px}.h-\\[76px\\]{height:76px}.h-\\[82px\\]{height:82px}.h-\\[90px\\]{height:90px}.h-full{height:100%}.min-h-0{min-height:0}.min-h-\\[330px\\]{min-height:330px}.w-1\\/2{width:50%}.w-\\[1200px\\]{width:1200px}.w-\\[150px\\]{width:150px}.w-\\[180px\\]{width:180px}.w-\\[1px\\]{width:1px}.w-\\[240px\\]{width:240px}.w-\\[2px\\]{width:2px}.w-\\[300px\\]{width:300px}.w-\\[310px\\]{width:310px}.w-\\[60px\\]{width:60px}.w-\\[69px\\]{width:69px}.w-\\[720px\\]{width:720px}.w-\\[72px\\]{width:72px}.w-\\[75px\\]{width:75px}.w-\\[820px\\]{width:820px}.w-\\[960px\\]{width:960px}.w-full{width:100%}.min-w-0{min-width:0}.flex-1{flex:1 1 0%}.flex-shrink{flex-shrink:1}.flex-shrink-0{flex-shrink:0}.shrink{flex-shrink:1}.shrink-0{flex-shrink:0}.flex-grow,.grow{flex-grow:1}.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.resize{resize:both}.auto-cols-\\[225px\\]{grid-auto-columns:225px}.grid-flow-col{grid-auto-flow:column}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-rows-\\[repeat\\(2\\2c 60px\\)\\]{grid-template-rows:repeat(2,60px)}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.items-baseline{align-items:baseline}.items-stretch{align-items:stretch}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0{gap:0}.gap-\\[10px\\]{gap:10px}.gap-\\[12px\\]{gap:12px}.gap-\\[14px\\]{gap:14px}.gap-\\[15px\\]{gap:15px}.gap-\\[16px\\]{gap:16px}.gap-\\[18px\\]{gap:18px}.gap-\\[20px\\]{gap:20px}.gap-\\[22px\\]{gap:22px}.gap-\\[24px\\]{gap:24px}.gap-\\[27px\\]{gap:27px}.gap-\\[28px\\]{gap:28px}.gap-\\[30px\\]{gap:30px}.gap-\\[45px\\]{gap:45px}.gap-\\[48px\\]{gap:48px}.gap-\\[60px\\]{gap:60px}.gap-\\[68px\\]{gap:68px}.gap-\\[8px\\]{gap:8px}.gap-\\[90px\\]{gap:90px}.gap-x-\\[40px\\]{-moz-column-gap:40px;column-gap:40px}.gap-y-\\[6px\\]{row-gap:6px}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded-\\[12px\\]{border-radius:12px}.rounded-\\[15px\\]{border-radius:15px}.rounded-\\[23px\\]{border-radius:23px}.rounded-\\[68px\\]{border-radius:68px}.rounded-\\[8px\\]{border-radius:8px}.rounded-\\[9999px\\]{border-radius:9999px}.border{border-width:1px}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\\[var\\(--mimoja-blue\\)\\]{border-color:var(--mimoja-blue)}.border-\\[var\\(--profile-button-outline-color\\)\\]{border-color:var(--profile-button-outline-color)}.bg-\\[\\#EDEDED\\]{--tw-bg-opacity:1;background-color:rgb(237 237 237/var(--tw-bg-opacity,1))}.bg-\\[var\\(--bgmain-color\\)\\]{background-color:var(--bgmain-color)}.bg-\\[var\\(--box-color\\)\\]{background-color:var(--box-color)}.bg-\\[var\\(--mimoja-blue\\)\\]{background-color:var(--mimoja-blue)}.bg-\\[var\\(--profile-button-outline-color\\)\\]{background-color:var(--profile-button-outline-color)}.bg-transparent{background-color:transparent}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.p-\\[30px\\]{padding:30px}.px-\\[14px\\]{padding-left:14px;padding-right:14px}.px-\\[16px\\]{padding-left:16px;padding-right:16px}.px-\\[20px\\]{padding-left:20px;padding-right:20px}.px-\\[24px\\]{padding-left:24px;padding-right:24px}.px-\\[30px\\]{padding-left:30px;padding-right:30px}.px-\\[37px\\]{padding-left:37px;padding-right:37px}.px-\\[38px\\]{padding-left:38px;padding-right:38px}.px-\\[40px\\]{padding-left:40px;padding-right:40px}.px-\\[48px\\]{padding-left:48px;padding-right:48px}.py-\\[12px\\]{padding-top:12px;padding-bottom:12px}.py-\\[1px\\]{padding-top:1px;padding-bottom:1px}.py-\\[27px\\]{padding-top:27px;padding-bottom:27px}.py-\\[28px\\]{padding-top:28px;padding-bottom:28px}.py-\\[32px\\]{padding-top:32px;padding-bottom:32px}.py-\\[36px\\]{padding-top:36px;padding-bottom:36px}.py-\\[40px\\]{padding-top:40px;padding-bottom:40px}.pb-\\[28px\\]{padding-bottom:28px}.pb-\\[40px\\]{padding-bottom:40px}.pl-\\[37px\\]{padding-left:37px}.pr-\\[20px\\]{padding-right:20px}.pr-\\[30px\\]{padding-right:30px}.pt-\\[20px\\]{padding-top:20px}.pt-\\[23px\\]{padding-top:23px}.pt-\\[28px\\]{padding-top:28px}.pt-\\[30px\\]{padding-top:30px}.pt-\\[32px\\]{padding-top:32px}.text-center{text-align:center}.font-\\[\\'Inter\\'\\2c sans-serif\\]{font-family:Inter,sans-serif}.text-\\[16px\\]{font-size:16px}.text-\\[18px\\]{font-size:18px}.text-\\[20px\\]{font-size:20px}.text-\\[21px\\]{font-size:21px}.text-\\[22px\\]{font-size:22px}.text-\\[24px\\]{font-size:24px}.text-\\[26px\\]{font-size:26px}.text-\\[30px\\]{font-size:30px}.text-\\[36px\\]{font-size:36px}.text-\\[38px\\]{font-size:38px}.font-bold{font-weight:700}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.italic{font-style:italic}.leading-\\[1\\.2\\]{line-height:1.2}.text-\\[\\#C0392B\\]{--tw-text-opacity:1;color:rgb(192 57 43/var(--tw-text-opacity,1))}.text-\\[var\\(--low-contrast-white\\)\\]{color:var(--low-contrast-white)}.text-\\[var\\(--mimoja-blue\\)\\]{color:var(--mimoja-blue)}.text-\\[var\\(--text-primary\\)\\]{color:var(--text-primary)}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.underline{text-decoration-line:underline}.opacity-40{opacity:.4}.opacity-50{opacity:.5}.opacity-60{opacity:.6}.shadow{--tw-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color),0 1px 2px -1px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.outline-none{outline:2px solid transparent;outline-offset:2px}.outline{outline-style:solid}.ring{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.blur{--tw-blur:blur(8px)}.blur,.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}";
+	var tailwind_generated_default = "*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:\"\"}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.\\!container{width:100%!important}.container{width:100%}@media (min-width:640px){.\\!container{max-width:640px!important}.container{max-width:640px}}@media (min-width:768px){.\\!container{max-width:768px!important}.container{max-width:768px}}@media (min-width:1024px){.\\!container{max-width:1024px!important}.container{max-width:1024px}}@media (min-width:1280px){.\\!container{max-width:1280px!important}.container{max-width:1280px}}@media (min-width:1536px){.\\!container{max-width:1536px!important}.container{max-width:1536px}}.visible{visibility:visible}.invisible{visibility:hidden}.collapse{visibility:collapse}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.mb-8{margin-bottom:2rem}.mb-\\[14px\\]{margin-bottom:14px}.ml-\\[16px\\]{margin-left:16px}.ml-auto{margin-left:auto}.mr-\\[24px\\]{margin-right:24px}.mt-16{margin-top:4rem}.mt-8{margin-top:2rem}.mt-\\[20px\\]{margin-top:20px}.mt-\\[4px\\]{margin-top:4px}.mt-\\[6px\\]{margin-top:6px}.mt-auto{margin-top:auto}.block{display:block}.inline{display:inline}.flex{display:flex}.table{display:table}.\\!grid{display:grid!important}.grid{display:grid}.hidden{display:none}.h-\\[110px\\]{height:110px}.h-\\[124px\\]{height:124px}.h-\\[134px\\]{height:134px}.h-\\[150px\\]{height:150px}.h-\\[165px\\]{height:165px}.h-\\[2px\\]{height:2px}.h-\\[40px\\]{height:40px}.h-\\[54px\\]{height:54px}.h-\\[60px\\]{height:60px}.h-\\[62px\\]{height:62px}.h-\\[70px\\]{height:70px}.h-\\[72px\\]{height:72px}.h-\\[76px\\]{height:76px}.h-\\[82px\\]{height:82px}.h-\\[90px\\]{height:90px}.h-full{height:100%}.min-h-0{min-height:0}.min-h-\\[330px\\]{min-height:330px}.w-1\\/2{width:50%}.w-\\[1200px\\]{width:1200px}.w-\\[150px\\]{width:150px}.w-\\[180px\\]{width:180px}.w-\\[1px\\]{width:1px}.w-\\[240px\\]{width:240px}.w-\\[2px\\]{width:2px}.w-\\[300px\\]{width:300px}.w-\\[310px\\]{width:310px}.w-\\[60px\\]{width:60px}.w-\\[69px\\]{width:69px}.w-\\[720px\\]{width:720px}.w-\\[72px\\]{width:72px}.w-\\[75px\\]{width:75px}.w-\\[820px\\]{width:820px}.w-\\[960px\\]{width:960px}.w-full{width:100%}.min-w-0{min-width:0}.flex-1{flex:1 1 0%}.flex-shrink{flex-shrink:1}.flex-shrink-0{flex-shrink:0}.shrink{flex-shrink:1}.shrink-0{flex-shrink:0}.flex-grow,.grow{flex-grow:1}.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.resize{resize:both}.auto-cols-\\[225px\\]{grid-auto-columns:225px}.grid-flow-col{grid-auto-flow:column}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-rows-\\[repeat\\(2\\2c 60px\\)\\]{grid-template-rows:repeat(2,60px)}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.items-baseline{align-items:baseline}.items-stretch{align-items:stretch}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0{gap:0}.gap-\\[10px\\]{gap:10px}.gap-\\[12px\\]{gap:12px}.gap-\\[14px\\]{gap:14px}.gap-\\[15px\\]{gap:15px}.gap-\\[16px\\]{gap:16px}.gap-\\[18px\\]{gap:18px}.gap-\\[20px\\]{gap:20px}.gap-\\[22px\\]{gap:22px}.gap-\\[24px\\]{gap:24px}.gap-\\[27px\\]{gap:27px}.gap-\\[28px\\]{gap:28px}.gap-\\[30px\\]{gap:30px}.gap-\\[45px\\]{gap:45px}.gap-\\[48px\\]{gap:48px}.gap-\\[60px\\]{gap:60px}.gap-\\[68px\\]{gap:68px}.gap-\\[8px\\]{gap:8px}.gap-\\[90px\\]{gap:90px}.gap-x-\\[40px\\]{-moz-column-gap:40px;column-gap:40px}.gap-y-\\[6px\\]{row-gap:6px}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded-\\[12px\\]{border-radius:12px}.rounded-\\[15px\\]{border-radius:15px}.rounded-\\[23px\\]{border-radius:23px}.rounded-\\[68px\\]{border-radius:68px}.rounded-\\[8px\\]{border-radius:8px}.rounded-\\[9999px\\]{border-radius:9999px}.border{border-width:1px}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\\[var\\(--mimoja-blue\\)\\]{border-color:var(--mimoja-blue)}.border-\\[var\\(--profile-button-outline-color\\)\\]{border-color:var(--profile-button-outline-color)}.bg-\\[\\#EDEDED\\]{--tw-bg-opacity:1;background-color:rgb(237 237 237/var(--tw-bg-opacity,1))}.bg-\\[var\\(--bgmain-color\\)\\]{background-color:var(--bgmain-color)}.bg-\\[var\\(--box-color\\)\\]{background-color:var(--box-color)}.bg-\\[var\\(--mimoja-blue\\)\\]{background-color:var(--mimoja-blue)}.bg-\\[var\\(--profile-button-outline-color\\)\\]{background-color:var(--profile-button-outline-color)}.bg-transparent{background-color:transparent}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.p-\\[30px\\]{padding:30px}.px-\\[14px\\]{padding-left:14px;padding-right:14px}.px-\\[16px\\]{padding-left:16px;padding-right:16px}.px-\\[20px\\]{padding-left:20px;padding-right:20px}.px-\\[24px\\]{padding-left:24px;padding-right:24px}.px-\\[30px\\]{padding-left:30px;padding-right:30px}.px-\\[37px\\]{padding-left:37px;padding-right:37px}.px-\\[38px\\]{padding-left:38px;padding-right:38px}.px-\\[40px\\]{padding-left:40px;padding-right:40px}.px-\\[48px\\]{padding-left:48px;padding-right:48px}.py-\\[12px\\]{padding-top:12px;padding-bottom:12px}.py-\\[1px\\]{padding-top:1px;padding-bottom:1px}.py-\\[27px\\]{padding-top:27px;padding-bottom:27px}.py-\\[28px\\]{padding-top:28px;padding-bottom:28px}.py-\\[32px\\]{padding-top:32px;padding-bottom:32px}.py-\\[36px\\]{padding-top:36px;padding-bottom:36px}.py-\\[40px\\]{padding-top:40px;padding-bottom:40px}.pb-\\[28px\\]{padding-bottom:28px}.pb-\\[40px\\]{padding-bottom:40px}.pl-\\[37px\\]{padding-left:37px}.pr-\\[20px\\]{padding-right:20px}.pr-\\[30px\\]{padding-right:30px}.pt-\\[20px\\]{padding-top:20px}.pt-\\[23px\\]{padding-top:23px}.pt-\\[28px\\]{padding-top:28px}.pt-\\[30px\\]{padding-top:30px}.pt-\\[32px\\]{padding-top:32px}.text-center{text-align:center}.font-\\[\\'Inter\\'\\2c sans-serif\\]{font-family:Inter,sans-serif}.text-\\[16px\\]{font-size:16px}.text-\\[18px\\]{font-size:18px}.text-\\[20px\\]{font-size:20px}.text-\\[21px\\]{font-size:21px}.text-\\[22px\\]{font-size:22px}.text-\\[24px\\]{font-size:24px}.text-\\[26px\\]{font-size:26px}.text-\\[30px\\]{font-size:30px}.text-\\[36px\\]{font-size:36px}.text-\\[38px\\]{font-size:38px}.font-bold{font-weight:700}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.italic{font-style:italic}.leading-\\[1\\.2\\]{line-height:1.2}.text-\\[\\#C0392B\\]{--tw-text-opacity:1;color:rgb(192 57 43/var(--tw-text-opacity,1))}.text-\\[var\\(--low-contrast-white\\)\\]{color:var(--low-contrast-white)}.text-\\[var\\(--mimoja-blue\\)\\]{color:var(--mimoja-blue)}.text-\\[var\\(--text-primary\\)\\]{color:var(--text-primary)}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.underline{text-decoration-line:underline}.opacity-40{opacity:.4}.opacity-50{opacity:.5}.opacity-60{opacity:.6}.shadow{--tw-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color),0 1px 2px -1px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.outline-none{outline:2px solid transparent;outline-offset:2px}.outline{outline-style:solid}.ring{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.blur{--tw-blur:blur(8px)}.blur,.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}";
 	//#endregion
 	//#region \0@oxc-project+runtime@0.124.0/helpers/taggedTemplateLiteral.js
 	function _taggedTemplateLiteral(e, t) {
@@ -9622,6 +9622,16 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   }
   .read-from-item + .read-from-item { border-top: 1px solid var(--profile-button-outline-color); }
   .read-from-item:hover { background: var(--mimoja-blue); color: #fff; }
+  /* Machine Settings disclosure: the header reads as the pane's other section headings, so the
+     caret and the held-count carry the affordance. */
+  .re-machine-toggle {
+    display: flex; align-items: center; gap: 16px; width: 100%;
+    background: none; border: none; padding: 0; cursor: pointer; text-align: left;
+    font-family: 'Inter', sans-serif;
+  }
+  .re-machine-count { font-size: 20px; font-weight: 600; color: var(--text-primary-disabled); }
+  .re-machine-caret { display: flex; align-items: center; transition: transform 0.15s; }
+  .re-machine-caret.open { transform: rotate(180deg); }
   /* Steam / Hot Water mode: compact inline text toggle under the label (matches Figma) */
   .re-mode-toggle { display: flex; align-items: center; gap: 10px; margin: 4px 0 0 0; font-size: 19px; font-weight: 600; }
   .re-mode-seg { background: none; border: none; padding: 0; font: inherit; cursor: pointer; color: var(--text-primary-disabled); }
@@ -9801,13 +9811,87 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 
       <div class="re-divider"></div>
 
-      <!-- Settings a recipe holds that this editor has no stepper for, plus the pair member the
-           active mode hides. Read-only: they are edited on Streamline's own settings page and
-           recorded from there while this recipe is selected (dye2#23). Hidden when empty. -->
-      <div id="re-held" style="display:none">
-        <div class="text-[24px] font-bold text-[var(--mimoja-blue)]">Also held</div>
-        <div id="re-held-list" class="flex flex-wrap gap-x-[40px] gap-y-[6px] text-[20px] mt-[8px]"></div>
-        <div class="text-[16px] mt-[8px] opacity-60">Set on Streamline's settings page while this recipe is selected.</div>
+      <!-- The rest of the machine settings a recipe can hold (dye2#23). Collapsed by default:
+           they are set once per machine rather than per dial-in, and this pane is already the
+           longest page in DYE2. The summary line under the header shows what is held while the
+           section is shut, including the half of the Steam / Hot Water pairs the active mode
+           hides. Open, they are the same steppers as every other field. -->
+      <div>
+        <button id="re-machine-toggle" class="re-machine-toggle" aria-expanded="false" aria-controls="re-machine-rows">
+          <span class="text-[30px] font-bold text-[var(--mimoja-blue)]">Machine Settings</span>
+          <span id="re-machine-count" class="re-machine-count"></span>
+          <span class="flex-1"></span>
+          <span id="re-machine-caret" class="re-machine-caret">${lucideIcon("chevron-down", 28, "var(--mimoja-blue)", 2.5)}</span>
+        </button>
+        <div id="re-held-list" class="flex flex-wrap gap-x-[40px] gap-y-[6px] text-[20px] mt-[4px]"></div>
+        <div id="re-machine-rows" style="display:none" class="flex flex-col gap-[30px] mt-[20px]">
+          <div class="flex gap-[45px]">
+            <div class="re-var-block flex-1">
+              ${stepperHtml("re-steam-temp", "Steam temp", "155px")}
+              ${presetStripHtml("re-steam-temp", [
+			"135°c",
+			"150°c",
+			"160°c",
+			"Off"
+		])}
+            </div>
+            <div class="re-vrule"></div>
+            <div class="re-var-block flex-1">
+              ${stepperHtml("re-milk-stop", "Milk stop", "155px")}
+              ${presetStripHtml("re-milk-stop", [
+			"55°c",
+			"60°c",
+			"65°c",
+			"Off"
+		])}
+            </div>
+          </div>
+          <div class="re-divider"></div>
+          <div class="flex gap-[45px]">
+            <div class="re-var-block flex-1">
+              ${stepperHtml("re-hw-time", "Hot water time", "155px")}
+              ${presetStripHtml("re-hw-time", [
+			"10s",
+			"20s",
+			"30s",
+			"60s"
+		])}
+            </div>
+            <div class="re-vrule"></div>
+            <div class="re-var-block flex-1">
+              ${stepperHtml("re-hw-flow", "Hot water flow", "155px")}
+              ${presetStripHtml("re-hw-flow", [
+			"2ml/s",
+			"4ml/s",
+			"6ml/s",
+			"8ml/s"
+		])}
+            </div>
+          </div>
+          <div class="re-divider"></div>
+          <div class="flex gap-[45px]">
+            <div class="re-var-block flex-1">
+              ${stepperHtml("re-flush-temp", "Flush temp", "155px")}
+              ${presetStripHtml("re-flush-temp", [
+			"80°c",
+			"85°c",
+			"90°c",
+			"95°c"
+		])}
+            </div>
+            <div class="re-vrule"></div>
+            <div class="re-var-block flex-1">
+              ${stepperHtml("re-flush-flow", "Flush flow", "155px")}
+              ${presetStripHtml("re-flush-flow", [
+			"2ml/s",
+			"4ml/s",
+			"6ml/s",
+			"8ml/s"
+		])}
+            </div>
+          </div>
+          <div class="text-[16px] opacity-60">Also set on Streamline's settings page: a change there lands on this recipe while it is selected.</div>
+        </div>
       </div>
 
       <!-- Grinder names as plain text tabs (Figma 2396:991 — no label above) -->
@@ -9945,6 +10029,37 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter) {
   makeValueEditable(valueId, min, max, formatter);
 }
 
+// A field where 0 is a real value meaning off (the steam heater, the milk stop). Off sits one
+// step below the range, so minus walks down to it and plus comes back at the field's minimum
+// rather than at a number the DE1 would reject. A blank field is still 'not held'.
+function wireOffAdjuster(prefix, step, min, max, unit) {
+  const valueId = prefix + '-value';
+  const fmt = machineFmt(unit, true);
+  const read = () => {
+    const txt = (document.getElementById(valueId)?.textContent || '').trim();
+    if (/^off$/i.test(txt)) return 0;
+    const n = parseFloat(txt);
+    return isNaN(n) ? null : n;
+  };
+  [prefix + '-minus', prefix + '-plus'].forEach(btnId => {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      const el = document.getElementById(valueId);
+      if (!el) return;
+      const cur = read();
+      const up = btnId === prefix + '-plus';
+      // Blank or off: plus arms the field at its minimum, minus switches it off.
+      const v = cur == null || cur === 0
+        ? (up ? min : 0)
+        : (up ? Math.min(max, cur + step) : (cur - step < min ? 0 : cur - step));
+      el.textContent = fmt(v);
+      syncPresetActive(prefix, fmt(v));
+    });
+  });
+  makeValueEditable(valueId, 0, max, fmt);
+}
+
 // Tap the number to type a value directly (tablet-friendly).
 function makeValueEditable(valueId, min, max, formatter) {
   const valEl = document.getElementById(valueId);
@@ -10011,6 +10126,9 @@ function renderRecipe(recipe) {
   // Point the mode toggles at the recipe's stored mode so units + presets match the value shown.
   setMode('re-steam-mode',    steamMode);
   setMode('re-hotwater-mode', hwMode);
+  for (const [prefix, key, , unit, , , , off] of MACHINE_FIELDS) {
+    set(prefix + '-value', dv[key] != null ? machineFmt(unit, off)(dv[key]) : '—');
+  }
   set('re-grind-value', dv.grind    != null ? String(dv.grind)       : '—');
   set('re-rpm-value',   dv.rpm      != null ? String(dv.rpm)         : '—');
 
@@ -10289,6 +10407,9 @@ function getCurrentRecipeData() {
       hotWaterMode:  hwMode,
       hotWaterMl:    hwMode === 'vol'  ? hwVal : held.hotWaterMl,
       hotWaterTempC: hwMode === 'temp' ? hwVal : held.hotWaterTempC,
+      // The section may be shut, but its steppers are rendered either way, so these read the
+      // same as every other field. 'Off' is a stored 0, not a blank (which means not held).
+      ...machineValues(held),
       grind:   num('re-grind-value'),
       rpm:     num('re-rpm-value'),
       grinderId: selectedGrinderId,
@@ -10300,6 +10421,21 @@ function getCurrentRecipeData() {
       equipmentCustom: { ...equipmentCustomOverrides },
     },
   };
+}
+
+// The Machine Settings fields as getCurrentRecipeData wants them. A stepper that is somehow not
+// on the page keeps what the recipe holds rather than blanking it.
+function machineValues(held) {
+  const out = {};
+  for (const [prefix, key, , , , , , off] of MACHINE_FIELDS) {
+    const el = document.getElementById(prefix + '-value');
+    if (!el) { out[key] = held[key] ?? null; continue; }
+    const txt = (el.textContent || '').trim();
+    const n = parseFloat(txt);
+    // Own parse: getCurrentRecipeData's num() is local to it.
+    out[key] = off && /^off$/i.test(txt) ? 0 : (isNaN(n) ? null : n);
+  }
+  return out;
 }
 
 function setupTabs() {
@@ -10350,37 +10486,64 @@ const MODE_CFG = {
 };
 function activeMode(cls) { return document.querySelector('.' + cls + '.active')?.dataset.mode; }
 
-// The settings a recipe can hold with no stepper of their own (dye2#23), read-only. DYE2 adopts
-// one once the barista moves it on Streamline's settings page while this recipe is armed, so
-// without this they would be invisible here — applied on every apply, shown nowhere.
-const HELD_ONLY = [
-  ['steamTempC', 'Steam temp', '°c'],
-  ['steamStopAtTempC', 'Milk stop', '°c'],
-  ['hotWaterTimeS', 'Hot water time', 's'],
-  ['hotWaterFlowMls', 'Hot water flow', 'ml/s'],
-  ['flushTempC', 'Flush temp', '°c'],
-  ['flushFlowMls', 'Flush flow', 'ml/s'],
+// The machine settings behind the Machine Settings disclosure (dye2#23): dashboardVariables key,
+// label, unit, and the adjuster's step / min / max. Steam temperature and the milk stop take
+// ‘off’ as a stored 0, so they are stepped with wireOffAdjuster; a blank field is still
+// ‘not held’, which apply skips.
+const MACHINE_FIELDS = [
+  ['re-steam-temp', 'steamTempC', 'Steam temp', '°c', 5, 135, 170, true],
+  ['re-milk-stop', 'steamStopAtTempC', 'Milk stop', '°c', 5, 30, 80, true],
+  ['re-hw-time', 'hotWaterTimeS', 'Hot water time', 's', 5, 5, 120, false],
+  ['re-hw-flow', 'hotWaterFlowMls', 'Hot water flow', 'ml/s', 0.5, 0.5, 8, false],
+  ['re-flush-temp', 'flushTempC', 'Flush temp', '°c', 5, 5, 95, false],
+  ['re-flush-flow', 'flushFlowMls', 'Flush flow', 'ml/s', 0.5, 1, 8, false],
 ];
+// 0 reads as Off, and the editor writes it back as 0 (see numOff).
+const machineFmt = (unit, off) => (v) => (off && !(v > 0) ? 'Off' : v + unit);
+
+let machineOpen = false;
+
+function setupMachineSection() {
+  const btn = document.getElementById('re-machine-toggle');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    machineOpen = !machineOpen;
+    const rows = document.getElementById('re-machine-rows');
+    const caret = document.getElementById('re-machine-caret');
+    if (rows) rows.style.display = machineOpen ? '' : 'none';
+    if (caret) caret.classList.toggle('open', machineOpen);
+    btn.setAttribute('aria-expanded', machineOpen ? 'true' : 'false');
+    renderHeld();
+  });
+}
+
+// The summary under the header: what the recipe holds that is not on screen. Shut, that is every
+// machine setting; open, only the half of each pair the active mode hides.
 function renderHeld() {
-  const box = document.getElementById('re-held'), list = document.getElementById('re-held-list');
-  if (!box || !list) return;
+  const list = document.getElementById('re-held-list');
+  if (!list) return;
   const dv = (recipes[currentRecipeIdx] && recipes[currentRecipeIdx].dashboardVariables) || {};
-  const rows = HELD_ONLY.concat(
-    activeMode('re-steam-mode') === 'time' ? [['steamFlowMls', 'Steam flow', 'ml/s']] : [['steamTimeS', 'Steam time', 's']],
-    activeMode('re-hotwater-mode') === 'vol' ? [['hotWaterTempC', 'Hot water temp', '°c']] : [['hotWaterMl', 'Hot water vol', 'ml']]
-  ).filter(([k]) => dv[k] != null);
+  const pairs = [
+    activeMode('re-steam-mode') === 'time' ? ['steamFlowMls', 'Steam flow', 'ml/s'] : ['steamTimeS', 'Steam time', 's'],
+    activeMode('re-hotwater-mode') === 'vol' ? ['hotWaterTempC', 'Hot water temp', '°c'] : ['hotWaterMl', 'Hot water vol', 'ml'],
+  ];
+  const held = MACHINE_FIELDS.filter(([, k]) => dv[k] != null);
+  const rows = (machineOpen ? [] : held.map(([, k, label, unit, , , , off]) => [k, label, unit, off]))
+    .concat(pairs.map(([k, label, unit]) => [k, label, unit, false]))
+    .filter(([k]) => dv[k] != null);
   list.innerHTML = '';
-  for (const [k, label, unit] of rows) {
+  for (const [k, label, unit, off] of rows) {
     const row = document.createElement('div');
     const name = document.createElement('span');
     name.className = 'font-semibold';
     name.textContent = label + ' ';
     row.appendChild(name);
     // textContent, not markup: these come straight out of KV.
-    row.appendChild(document.createTextNode(dv[k] + unit));
+    row.appendChild(document.createTextNode(off && !(dv[k] > 0) ? 'Off' : dv[k] + unit));
     list.appendChild(row);
   }
-  box.style.display = rows.length ? '' : 'none';
+  const count = document.getElementById('re-machine-count');
+  if (count) count.textContent = held.length ? held.length + ' held' : '';
 }
 // Wire preset buttons within one strip (setupPresetStrips only wires what exists at load).
 function wirePresetButtons(container) {
@@ -10566,6 +10729,7 @@ async function initRecipeEdit() {
   setupStreamlineToggle();
   setupPresetStrips();
   // After setupPresetStrips so the mode toggle owns/rewires the strips it rebuilds.
+  setupMachineSection();
   setupModeToggle('re-steam-mode');
   setupModeToggle('re-hotwater-mode');
   setupNameCombo('re-barista',  () => distinctNames('baristaName'));
@@ -10582,6 +10746,10 @@ async function initRecipeEdit() {
   wireAdjuster('re-steam-minus', 're-steam-plus', 're-steam-value', 1,   0, null, v => v + (MODE_CFG['re-steam-mode'].unit[activeMode('re-steam-mode')] || 's'));
   wireAdjuster('re-flush-minus', 're-flush-plus', 're-flush-value', 1,   0, null, v => v + 's');
   wireAdjuster('re-hotwater-minus','re-hotwater-plus','re-hotwater-value', 5, 0, null, v => v + (MODE_CFG['re-hotwater-mode'].unit[activeMode('re-hotwater-mode')] || 'ml'));
+  for (const [prefix, , , unit, step, min, max, off] of MACHINE_FIELDS) {
+    if (off) wireOffAdjuster(prefix, step, min, max, unit);
+    else wireAdjuster(prefix + '-minus', prefix + '-plus', prefix + '-value', step, min, max, machineFmt(unit, false));
+  }
   wireAdjuster('re-grind-minus', 're-grind-plus', 're-grind-value', 0.1, 0, null, v => v.toFixed(1));
   wireAdjuster('re-rpm-minus',   're-rpm-plus',   're-rpm-value',   1,   1, null, v => String(v));
 

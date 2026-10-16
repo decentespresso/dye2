@@ -113,13 +113,16 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   const src = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
   const start = src.indexOf('function getCurrentRecipeData()');
   const body = src.slice(start, src.indexOf('\n}\n', start) + 2);
+  // machineValues (the Machine Settings steppers) is stubbed to what the recipe holds; the real
+  // one is run against its own stub DOM further down.
   const run = (texts, batch = null, roaster = null, held = null, modes = {}) => new Function('document', 'recipes', 'currentRecipeIdx', 'selectedBeanId', 'selectedBeanName', 'selectedBeanBatchId', 'selectedBeanRoaster', 'selectedProfileId', 'selectedProfileTitle',
     'selectedProfileSnapshot', 'showOnStreamline', 'grinders', 'selectedGrinderId', 'baskets', 'selectedBasketId',
-    'equipmentSelIds', 'equipmentSelNames', 'equipmentCustomOverrides', body + '; return getCurrentRecipeData();')(
+    'equipmentSelIds', 'equipmentSelNames', 'equipmentCustomOverrides', 'machineValues', body + '; return getCurrentRecipeData();')(
     { getElementById: (id) => ({ textContent: texts[id], dataset: id === 're-drink-value' ? { ratio: '2' } : {}, value: '' }),
       querySelector: (sel) => { const m = Object.keys(modes).find((c) => sel.startsWith('.' + c)); return m ? { dataset: { mode: modes[m] } } : null; } },
     held ? [{ dashboardVariables: held }] : [], 0,
-    null, null, batch, roaster, null, null, null, false, [], null, [], null, [], [], {});
+    null, null, batch, roaster, null, null, null, false, [], null, [], null, [], [], {},
+    (h) => ({ steamTempC: h.steamTempC ?? null }));
   const blank = run({ 're-dose-value': '—', 're-drink-value': '—', 're-brew-c-value': '—', 're-steam-value': '—',
     're-flush-value': '—', 're-hotwater-value': '—', 're-grind-value': '—', 're-rpm-value': '—' }).dashboardVariables;
   for (const k of ['dose', 'drink', 'brewC', 'flushS', 'grind', 'rpm']) assert.equal(blank[k], null, k + ' blank is null, not 0');
@@ -136,6 +139,7 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(kept.steamTimeS, 30, 'the hidden steam value survives the save');
   assert.equal(kept.hotWaterTempC, 85);
   assert.equal(kept.hotWaterMl, 120, 'the hidden hot-water value survives the save');
+  assert.equal(kept.steamTempC, 150, 'the Machine Settings fields ride along too');
   assert.equal(run({}, null, null, null, { 're-steam-mode': 'flow' }).dashboardVariables.steamTimeS, undefined, 'nothing held, nothing invented');
   // the batch and roaster picked with the bean ride along on the saved record (dye2#27)
   const picked = run({}, 'b-9', 'Onyx');
@@ -265,301 +269,93 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   console.log('ok   a mode switch shows that mode\'s own value');
 }
 
-// --- recipe editor: the read-only 'Also held' list (dye2#23) -------------------------
+// --- recipe editor: the Machine Settings section (dye2#23) -------------------------
 {
-  // The settings with no stepper are invisible otherwise: adopted from Streamline's settings
-  // page, applied on every apply, shown nowhere. Real source again.
+  // Six settings a recipe can hold that had no control: steppers like every other field, behind
+  // a disclosure, with a summary of what is held while it is shut. Real source again.
   const src = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
-  const i = src.indexOf('const HELD_ONLY = [');
-  const code = [
-    src.slice(i, src.indexOf('\n];\n', i) + 4),
-    src.slice(src.indexOf('function renderHeld()'), src.indexOf('\n}\n', src.indexOf('function renderHeld()')) + 2),
-  ].join('\n');
+  const table = src.slice(src.indexOf('const MACHINE_FIELDS = ['), src.indexOf('let machineOpen'));
+  const fn = (sig) => { const i = src.indexOf(sig); return src.slice(i, src.indexOf('\n}\n', i) + 2); };
 
-  const el = () => ({ className: '', textContent: '', kids: [], appendChild(n) { this.kids.push(n); }, style: {} });
-  const box = el(), list = el();
+  const el = () => ({ className: '', textContent: '', kids: [], appendChild(n) { this.kids.push(n); }, style: {}, dataset: {} });
+  const box = el(), list = el(), count = el();
   let steam = 'flow', hw = 'vol';
   const doc = {
-    getElementById: (id) => (id === 're-held' ? box : id === 're-held-list' ? list : null),
+    getElementById: (id) => (id === 're-held-list' ? list : id === 're-machine-count' ? count : id === 're-machine-toggle' ? box : null),
     createElement: el,
     createTextNode: (t) => ({ text: t }),
   };
   const text = () => list.kids.map((r) => r.kids.map((k) => k.textContent ?? k.text).join('')).sort();
-  const render = (dv) => {
+  const render = (dv, open = false) => {
     list.kids = [];
-    new Function('document', 'recipes', 'currentRecipeIdx', 'activeMode', code + '; renderHeld();')(
-      doc, [{ dashboardVariables: dv }], 0, (cls) => (cls === 're-steam-mode' ? steam : hw));
+    new Function('document', 'recipes', 'currentRecipeIdx', 'activeMode', 'machineOpen',
+      table + fn('function renderHeld()') + '; renderHeld();')(
+      doc, [{ dashboardVariables: dv }], 0, (cls) => (cls === 're-steam-mode' ? steam : hw), open);
   };
 
   render({ dose: 18, steamFlowMls: 1.5, hotWaterMl: 120 });
-  assert.deepEqual(text(), [], 'nothing held but what the steppers already show: the list stays empty');
-  assert.equal(box.style.display, 'none', 'and the panel is hidden');
+  assert.deepEqual(text(), [], 'nothing held but what the steppers already show');
+  assert.equal(count.textContent, '', 'and no count beside the header');
 
-  render({ steamTempC: 150, flushFlowMls: 4, steamTimeS: 30, hotWaterTempC: 85, dose: 18, grind: 4.2 });
+  render({ steamTempC: 150, flushFlowMls: 4, steamTimeS: 30, hotWaterTempC: 85, dose: 18 });
   assert.deepEqual(text(), ['Flush flow 4ml/s', 'Hot water temp 85°c', 'Steam temp 150°c', 'Steam time 30s'],
-    "the six plus each pair's hidden member; dose and grind have their own steppers");
-  assert.equal(box.style.display, '', 'the panel shows');
+    "shut: every machine setting held, plus the half of each pair the mode hides");
+  assert.equal(count.textContent, '2 held', 'the count is the machine settings, not the pair halves');
 
-  steam = 'time'; hw = 'temp';
-  render({ steamTempC: 150, steamTimeS: 30, steamFlowMls: 1.5, hotWaterMl: 120, hotWaterTempC: 85 });
-  assert.deepEqual(text(), ['Hot water vol 120ml', 'Steam flow 1.5ml/s', 'Steam temp 150°c'],
-    'the other mode hides the other half of each pair');
-  console.log('ok   the read-only held list shows what has no stepper');
-}
+  render({ steamTempC: 150, flushFlowMls: 4, steamTimeS: 30, hotWaterTempC: 85 }, true);
+  assert.deepEqual(text(), ['Hot water temp 85°c', 'Steam time 30s'],
+    'open: the steppers show the machine settings, so only the pair halves are summarised');
 
-// --- a recorded brew temp moves the stored apply-body's profile (dye2#26) ---------
-{
-  const steps = [{ temperature: 94 }, { temperature: 90 }, { temperature: 88 }];
-  assert.deepEqual(profileAtBrewC({ title: 'P', steps }, 92).steps.map((x) => x.temperature), [92, 88, 86]);
-  assert.deepEqual(steps.map((x) => x.temperature), [94, 90, 88], 'source profile not mutated');
-  assert.equal(profileAtBrewC({ title: 'P' }, 92), null, 'nothing to shift without steps');
-  assert.equal(profileAtBrewC({ steps }, null), null, 'nothing to shift without a temperature');
+  render({ steamTempC: 0, steamStopAtTempC: 0 });
+  assert.deepEqual(text(), ['Milk stop Off', 'Steam temp Off'], 'a stored 0 reads as Off, not 0°c');
 
-  // Streamline's strip PUTs item.workflow, so dashboardVariables.brewC and that body's
-  // profile must not disagree.
-  clearSelection();
-  const item = { ...recipe(), workflow: { context: {}, profile: { title: 'P', steps: [{ temperature: 93 }, { temperature: 89 }] } } };
-  const s = fakeStore({ recipes: [item] });
-  const armed = { kind: 'recipe', id: '1', profileFingerprint: null, armedBrewC: 93, armedBeanBatchId: '', armedGrinderId: '' };
-  const wrote = await recordWorkflow(wf({ profile: profile(95) }), s.fetchFn, armed);
-  assert.equal(wrote, true);
-  assert.equal(s.store.recipes[0].dashboardVariables.brewC, 95);
-  assert.deepEqual(s.store.recipes[0].workflow.profile.steps.map((x) => x.temperature), [95, 91],
-    'the embedded profile follows the recorded brew temp');
-  console.log('ok   a recorded brew temp moves the embedded profile too');
-}
+  // Reading the steppers back. The wipe to avoid: a value the section does not render must keep
+  // what the recipe holds, since recipeChanges writes a null as a cleared field.
+  const shown = {};
+  const vals = new Function('document', 'num',
+    table + fn('function machineValues(held)') + '; return machineValues;')(
+    { getElementById: (id) => (id in shown ? { textContent: shown[id] } : null) },
+    (id) => { const n = parseFloat(shown[id]); return isNaN(n) ? null : n; });
 
-// --- echo guard -------------------------------------------------------------------
-{
-  clearSelection();
-  const s = fakeStore({ recipes: [recipe()] });
-  const applied = wf({ context: { targetDoseWeight: 20, targetYield: 40, grinderSetting: '4.2' } });
-  armSelection({ kind: 'recipe', id: '1' }, applied, 1000); // arm records the apply as an echo
+  shown['re-steam-temp-value'] = 'Off';
+  shown['re-milk-stop-value'] = '60°c';
+  shown['re-hw-time-value'] = '—';
+  assert.deepEqual(vals({ hotWaterFlowMls: 6, flushTempC: 90, flushFlowMls: 4 }), {
+    steamTempC: 0, steamStopAtTempC: 60, hotWaterTimeS: null,
+    hotWaterFlowMls: 6, flushTempC: 90, flushFlowMls: 4,
+  }, 'Off is 0, a blank stepper is null, an absent stepper keeps the held value');
 
-  scheduleWorkflowRecord(applied, s.fetchFn, null, null, 2000, 0); // within 3 s, same values
-  await new Promise((r) => setTimeout(r, 20));
-  assert.equal(s.writes.length, 0, 'own apply is not recorded back');
-
-  scheduleWorkflowRecord(applied, s.fetchFn, null, null, 5000, 0); // window over
-  await new Promise((r) => setTimeout(r, 20));
-  assert.equal(s.writes.length, 1, 'recorded once the window has passed');
-  assert.equal(s.store.recipes[0].dashboardVariables.dose, 20);
-  assert.equal(s.store.recipes[0].workflow.context.targetDoseWeight, 20, 'embedded workflow kept in step');
-
-  // different values inside the window are a real edit, not an echo
-  armSelection({ kind: 'recipe', id: '1' }, applied, 10_000);
-  scheduleWorkflowRecord(wf({ context: { targetDoseWeight: 21, targetYield: 40, grinderSetting: '4.2' } }), s.fetchFn, null, null, 10_500, 0);
-  await new Promise((r) => setTimeout(r, 20));
-  assert.equal(s.store.recipes[0].dashboardVariables.dose, 21);
-}
-
-// --- recent: ids do not arm; listener fires ------------------------------------------
-{
-  let seen = 'unset';
-  setSelectionListener((v) => { seen = v; });
-  armSelection({ kind: 'favourite', id: 'af1' }, wf());
-  assert.equal(seen.id, 'af1');
-  assert.equal(armSelection({ kind: 'favourite', id: 'recent:abc' }, wf()), null);
-  assert.equal(getSelection(), null);
-  assert.equal(seen, null, 'arming a recent clears the selection');
-  // the listener (which plugin.ts uses to push `changed`) fires on every clear path, not just arm
-  armSelection({ kind: 'favourite', id: 'af1' }, wf());
-  seen = 'unset';
-  clearSelection();
-  assert.equal(seen, null, 'explicit clear notifies');
-  armSelection({ kind: 'favourite', id: 'af1' }, wf(), 0);
-  seen = 'unset';
-  scheduleWorkflowRecord(wf({ profile: { ...profile(93), title: 'Other' } }), async () => {}, null, null, 10_000, 0);
-  assert.equal(seen, null, 'profile-drift clear notifies');
-  let calls = 0;
-  setSelectionListener(() => { calls++; });
-  armSelection({ kind: 'favourite', id: 'af1' }, wf());
-  assert.equal(calls, 1, 'arm notifies exactly once');
-  restoreSelection({ kind: 'favourite', id: 'af1' });
-  assert.equal(calls, 1, 'restore does not notify');
-  assert.equal(armSelection({}, wf()), null);
-  setSelectionListener(null);
-}
-
-// --- missing item / other items untouched ------------------------------------------------
-{
-  const s = fakeStore({ recipes: [recipe()] });
-  const ok = await recordWorkflow(wf({ context: { targetDoseWeight: 25 } }), s.fetchFn, { kind: 'recipe', id: 'gone', profileFingerprint: null });
-  assert.equal(ok, false);
-  assert.equal(s.writes.length, 0, 'missing id is a no-op');
-
-  const other = { ...recipe(), id: '2' };
-  const s2 = fakeStore({ recipes: [recipe(), other] });
-  await recordWorkflow(wf({ context: { targetDoseWeight: 25, targetYield: 36, grinderSetting: '4.2' } }), s2.fetchFn, { kind: 'recipe', id: '1', profileFingerprint: null });
-  assert.equal(s2.store.recipes[0].dashboardVariables.dose, 25);
-  assert.deepEqual(s2.store.recipes[1], other, 'other items are not touched');
-}
-
-// --- a cleared selection persists as `{}`, which must restore as no selection ----------
-{
-  // plugin.ts writes `getSelection() || {}` (storage drops a null, so the old value would survive)
-  armSelection({ kind: 'recipe', id: '1' }, wf());
-  assert.ok(getSelection());
-  restoreSelection({});
-  assert.equal(getSelection(), null, '{} sentinel restores as no selection');
-  restoreSelection(null);
-  assert.equal(getSelection(), null);
-}
-
-// --- the selection marker reaches the workflow without a record loop (dye2#20) -----------
-{
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const deepMerge = (a, b) => {
-    const out = { ...a };
-    for (const [k, v] of Object.entries(b)) {
-      out[k] = out[k] && v && typeof out[k] === 'object' && typeof v === 'object' && !Array.isArray(v) ? deepMerge(out[k], v) : v;
-    }
-    return out;
+  // Stepping. Off sits one step below the range: minus walks down to it, plus comes back at the
+  // minimum rather than at a number the DE1 would reject.
+  const handlers = {};
+  const value = { textContent: '—', dataset: {}, style: {} };
+  const stepDoc = {
+    getElementById: (id) => (id === 're-steam-temp-value' ? value
+      : id === 're-steam-temp-plus' || id === 're-steam-temp-minus'
+        ? { addEventListener: (_, h) => { handlers[id] = h; } } : null),
   };
-  // A host that merges PUT /workflow like deepMergeJson and, like Decaid, fires workflowUpdated
-  // with the WHOLE workflow afterwards; that event is wired to scheduleWorkflowRecord as plugin.ts does.
-  const makeHost = (clockSkew = 0) => {
-    const kv = fakeStore({ recipes: [recipe()] });
-    const host = { wf: wf({ context: { targetDoseWeight: 18, targetYield: 36, grinderSetting: '4.2', extras: { rpm: 5, note: 'mine', dye: { v: 1, rpm: true } } } }), puts: [], pushes: 0, failPut: null };
-    host.fetchFn = async (url, init) => {
-      if (url.endsWith('/workflow') && init && init.method === 'PUT') {
-        if (host.failPut === 'throw') throw new Error('offline');
-        if (host.failPut) return { ok: false, status: host.failPut, json: async () => null };
-        host.puts.push(JSON.parse(init.body));
-        host.wf = deepMerge(host.wf, host.puts[host.puts.length - 1]);
-        const snapshot = JSON.parse(JSON.stringify(host.wf));
-        setTimeout(() => scheduleWorkflowRecord(snapshot, host.fetchFn, () => { host.pushes++; }, (e) => { throw e; }, Date.now() + clockSkew, 0), 0);
-        return { ok: true, status: 200, json: async () => host.wf };
-      }
-      return kv.fetchFn(url, init);
-    };
-    host.kv = kv;
-    return host;
-  };
+  new Function('document', 'syncPresetActive', 'makeValueEditable', 'machineFmt',
+    fn('function wireOffAdjuster(prefix, step, min, max, unit)') + "; wireOffAdjuster('re-steam-temp', 5, 135, 170, '°c');")(
+    stepDoc, () => {}, () => {}, (unit, off) => (v) => (off && !(v > 0) ? 'Off' : v + unit));
+  const plus = () => handlers['re-steam-temp-plus']();
+  const minus = () => handlers['re-steam-temp-minus']();
 
-  for (const skew of [0, 10_000]) { // inside the echo window, then well past it
-    setSelectionListener(null);
-    clearSelection();
-    restoreSelection({});
-    await sleep(20);
-    const h = makeHost(skew);
-    setSelectionListener(() => { syncSelectionMarker(h.fetchFn).catch(() => {}); });
-
-    armSelection({ kind: 'recipe', id: '1' }, h.wf);
-    await sleep(40);
-    assert.equal(h.puts.length, 1, 'arming PUTs the marker exactly once (skew ' + skew + ')');
-    assert.deepEqual(h.puts[0], { context: { extras: { dye: { v: 1, selection: { kind: 'recipe', id: '1' } } } } }, 'minimal body');
-    assert.deepEqual(h.wf.context.extras, { rpm: 5, note: 'mine', dye: { v: 1, rpm: true, selection: { kind: 'recipe', id: '1' } } }, 'merged beside the other extras and flags');
-    assert.equal(h.kv.writes.length, 0, 'the marker event records nothing');
-    assert.equal(h.pushes, 0, 'and pushes nothing');
-
-    // a baseline rebase notifies the listener but must not PUT again
-    scheduleWorkflowRecord(h.wf, h.fetchFn, null, null, Date.now() + 10_000, 0);
-    await sleep(40);
-    assert.equal(h.puts.length, 1, 'no second PUT from a rebase or a repeated event');
-
-    clearSelection();
-    await sleep(40);
-    assert.equal(h.puts.length, 2, 'clearing PUTs once more');
-    assert.equal(h.puts[1].context.extras.dye.selection, null);
-    assert.deepEqual(h.wf.context.extras.dye, { v: 1, rpm: true, selection: null });
-    assert.equal(h.wf.context.extras.note, 'mine', 'other writers keep their extras');
-    assert.equal(h.kv.writes.length, 0);
-    assert.equal(h.pushes, 0);
-    clearSelection();
-    await sleep(20);
-    assert.equal(h.puts.length, 2, 'clearing nothing PUTs nothing');
-  }
-
-  // a PUT that fails or throws leaves arming, persistence and the listener working
-  for (const mode of [500, 'throw']) {
-    setSelectionListener(null);
-    clearSelection();
-    restoreSelection({});
-    await sleep(20);
-    const h = makeHost();
-    h.failPut = mode;
-    let persisted = 0;
-    let rejected = 0;
-    setSelectionListener(() => { persisted++; syncSelectionMarker(h.fetchFn).catch(() => { rejected++; }); });
-    const sel = armSelection({ kind: 'recipe', id: '1' }, h.wf);
-    await sleep(20);
-    assert.ok(sel && getSelection().id === '1', 'armed despite the failed PUT');
-    assert.equal(persisted, 1);
-    assert.equal(rejected, 1, 'the failure surfaces to the caller to log');
-    h.failPut = null;
-    armSelection({ kind: 'recipe', id: '1' }, h.wf);
-    await sleep(40);
-    assert.equal(h.puts.length, 1, 'the next change retries, since the failed one was never recorded');
-  }
-  clearSelection();
-  setSelectionListener(null);
-}
-
-console.log('workflow-record tests passed');
-
-// --- machine settings the recipe does not hold yet (dye2#23) ------------------------
-// DYE2 has a control for brewC/steam/flush/hot-water only; the other settings are edited on
-// Streamline's own settings page. A setting is adopted once it moves off what was live when
-// the recipe was applied, which is what keeps the first event from stamping the machine's
-// whole steam/hot-water/flush state onto the recipe.
-{
-  const base = { steamTempC: 150, steamTimeS: 30, steamFlowMls: 1.5, hotWaterMl: 120, hotWaterTempC: 85, flushS: 5 };
-  const steam = (over) => wf({ steamSettings: { targetTemperature: 150, duration: 30, flow: 1.5, ...over } });
-  const r = recipe(); // holds steamTimeS and flushS, nothing else machine-side
-  assert.deepEqual(itemPatch('recipe', r, steam(), null, base), {}, 'live == arm-time baseline: nothing adopted');
-  assert.deepEqual(itemPatch('recipe', r, steam({ targetTemperature: 160 }), null, base), { steamTempC: 160 },
-    'moved after arming: adopted although the recipe held no steamTempC');
-  assert.deepEqual(itemPatch('recipe', r, steam({ targetTemperature: 160 }), null, null), {},
-    'no baseline: unchanged behaviour, nothing adopted');
-  assert.deepEqual(itemPatch('recipe', r, steam({ stopAtTemperature: 60 }), null, base), {},
-    'a setting the workflow had no value for at arm time is not adopted');
-  assert.deepEqual(itemPatch('recipe', r, steam({ targetTemperature: '150.0' }), null, base), {},
-    "numeric compare against the baseline: '150.0' == 150");
-  assert.deepEqual(itemPatch('recipe', { id: '1', dashboardVariables: {} }, steam({ targetTemperature: 160 }), null, base),
-    { steamTempC: 160 }, 'only machine settings are adopted: dose/drink/grind still need to be held');
-  assert.deepEqual(itemPatch('favourite', fav(), steam({ targetTemperature: 160 }), null, base), {},
-    'a favourite holds no machine setting at all');
-}
-
-// --- the baseline is armed, persisted and adopted -----------------------------------
-{
-  const armedLive = { steamTimeS: 30, steamFlowMls: 1.5, hotWaterTempC: 85, hotWaterMl: 120, flushS: 5 };
-  clearSelection();
-  const sel = armSelection({ kind: 'recipe', id: '1' }, wf(), 0);
-  assert.deepEqual(sel.armedMachine, armedLive, 'arm snapshots the live settings; ones the workflow lacks stay absent');
-  restoreSelection(JSON.parse(JSON.stringify(sel)));
-  assert.deepEqual(getSelection().armedMachine, armedLive, 'the baseline survives a reload');
-  restoreSelection({ kind: 'recipe', id: '1' });
-  assert.equal(getSelection().armedMachine, null, 'a selection persisted by an older build has none');
-
-  // Armed by the skin with no workflow in hand: adopt what is live on the first event, so
-  // only a LATER change counts as the barista's.
-  clearSelection();
-  armSelection({ kind: 'recipe', id: '1' });
-  assert.equal(getSelection().armedMachine, null);
-  const s = fakeStore({ recipes: [recipe()] });
-  // past any earlier test's echo window
-  scheduleWorkflowRecord(wf(), s.fetchFn, undefined, undefined, 50_000, 0);
-  assert.deepEqual(getSelection().armedMachine, armedLive, 'adopted from the first event');
-  clearSelection();
-}
-
-// --- an adopted setting moves the strip's ready-to-PUT copy too ---------------------
-{
-  const r = recipe();
-  r.workflow = { context: { targetDoseWeight: 18 }, steamSettings: { duration: 30 } };
-  const s = fakeStore({ recipes: [r] });
-  const armed = {
-    kind: 'recipe', id: '1', profileFingerprint: null, armedBrewC: null,
-    armedBeanBatchId: '', armedGrinderId: '', armedMachine: { steamTempC: 150, steamTimeS: 30 },
-  };
-  assert.equal(await recordWorkflow(wf({ steamSettings: { targetTemperature: 160, duration: 40 } }), s.fetchFn, armed), true);
-  const saved = s.store.recipes[0];
-  assert.equal(saved.dashboardVariables.steamTempC, 160, 'adopted');
-  assert.equal(saved.dashboardVariables.steamTimeS, 40, 'held and changed');
-  assert.deepEqual(saved.workflow.steamSettings, { duration: 40, targetTemperature: 160 },
-    "the embedded workflow the strip applies from follows, so a re-apply steams at the new setting");
+  plus();
+  assert.equal(value.textContent, '135°c', 'plus on a blank field arms it at the minimum');
+  plus();
+  assert.equal(value.textContent, '140°c');
+  minus();
+  assert.equal(value.textContent, '135°c');
+  minus();
+  assert.equal(value.textContent, 'Off', 'a step below the minimum switches it off');
+  minus();
+  assert.equal(value.textContent, 'Off', 'and Off is the bottom');
+  plus();
+  assert.equal(value.textContent, '135°c', 'plus comes back at the minimum');
+  value.textContent = '170°c';
+  plus();
+  assert.equal(value.textContent, '170°c', 'the maximum holds');
+  console.log('ok   the Machine Settings section: steppers, Off, and the held summary');
 }
 
 // --- flush temperature and flow: on the DE1, not the workflow (dye2#23) -------------

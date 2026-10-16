@@ -136,6 +136,16 @@ const styles = `
   }
   .read-from-item + .read-from-item { border-top: 1px solid var(--profile-button-outline-color); }
   .read-from-item:hover { background: var(--mimoja-blue); color: #fff; }
+  /* Machine Settings disclosure: the header reads as the pane's other section headings, so the
+     caret and the held-count carry the affordance. */
+  .re-machine-toggle {
+    display: flex; align-items: center; gap: 16px; width: 100%;
+    background: none; border: none; padding: 0; cursor: pointer; text-align: left;
+    font-family: 'Inter', sans-serif;
+  }
+  .re-machine-count { font-size: 20px; font-weight: 600; color: var(--text-primary-disabled); }
+  .re-machine-caret { display: flex; align-items: center; transition: transform 0.15s; }
+  .re-machine-caret.open { transform: rotate(180deg); }
   /* Steam / Hot Water mode: compact inline text toggle under the label (matches Figma) */
   .re-mode-toggle { display: flex; align-items: center; gap: 10px; margin: 4px 0 0 0; font-size: 19px; font-weight: 600; }
   .re-mode-seg { background: none; border: none; padding: 0; font: inherit; cursor: pointer; color: var(--text-primary-disabled); }
@@ -291,13 +301,57 @@ function buildContent(): string {
 
       <div class="re-divider"></div>
 
-      <!-- Settings a recipe holds that this editor has no stepper for, plus the pair member the
-           active mode hides. Read-only: they are edited on Streamline's own settings page and
-           recorded from there while this recipe is selected (dye2#23). Hidden when empty. -->
-      <div id="re-held" style="display:none">
-        <div class="text-[24px] font-bold text-[var(--mimoja-blue)]">Also held</div>
-        <div id="re-held-list" class="flex flex-wrap gap-x-[40px] gap-y-[6px] text-[20px] mt-[8px]"></div>
-        <div class="text-[16px] mt-[8px] opacity-60">Set on Streamline's settings page while this recipe is selected.</div>
+      <!-- The rest of the machine settings a recipe can hold (dye2#23). Collapsed by default:
+           they are set once per machine rather than per dial-in, and this pane is already the
+           longest page in DYE2. The summary line under the header shows what is held while the
+           section is shut, including the half of the Steam / Hot Water pairs the active mode
+           hides. Open, they are the same steppers as every other field. -->
+      <div>
+        <button id="re-machine-toggle" class="re-machine-toggle" aria-expanded="false" aria-controls="re-machine-rows">
+          <span class="text-[30px] font-bold text-[var(--mimoja-blue)]">Machine Settings</span>
+          <span id="re-machine-count" class="re-machine-count"></span>
+          <span class="flex-1"></span>
+          <span id="re-machine-caret" class="re-machine-caret">${lucideIcon('chevron-down', 28, 'var(--mimoja-blue)', 2.5)}</span>
+        </button>
+        <div id="re-held-list" class="flex flex-wrap gap-x-[40px] gap-y-[6px] text-[20px] mt-[4px]"></div>
+        <div id="re-machine-rows" style="display:none" class="flex flex-col gap-[30px] mt-[20px]">
+          <div class="flex gap-[45px]">
+            <div class="re-var-block flex-1">
+              ${stepperHtml('re-steam-temp', 'Steam temp', '155px')}
+              ${presetStripHtml('re-steam-temp', ['135°c', '150°c', '160°c', 'Off'])}
+            </div>
+            <div class="re-vrule"></div>
+            <div class="re-var-block flex-1">
+              ${stepperHtml('re-milk-stop', 'Milk stop', '155px')}
+              ${presetStripHtml('re-milk-stop', ['55°c', '60°c', '65°c', 'Off'])}
+            </div>
+          </div>
+          <div class="re-divider"></div>
+          <div class="flex gap-[45px]">
+            <div class="re-var-block flex-1">
+              ${stepperHtml('re-hw-time', 'Hot water time', '155px')}
+              ${presetStripHtml('re-hw-time', ['10s', '20s', '30s', '60s'])}
+            </div>
+            <div class="re-vrule"></div>
+            <div class="re-var-block flex-1">
+              ${stepperHtml('re-hw-flow', 'Hot water flow', '155px')}
+              ${presetStripHtml('re-hw-flow', ['2ml/s', '4ml/s', '6ml/s', '8ml/s'])}
+            </div>
+          </div>
+          <div class="re-divider"></div>
+          <div class="flex gap-[45px]">
+            <div class="re-var-block flex-1">
+              ${stepperHtml('re-flush-temp', 'Flush temp', '155px')}
+              ${presetStripHtml('re-flush-temp', ['80°c', '85°c', '90°c', '95°c'])}
+            </div>
+            <div class="re-vrule"></div>
+            <div class="re-var-block flex-1">
+              ${stepperHtml('re-flush-flow', 'Flush flow', '155px')}
+              ${presetStripHtml('re-flush-flow', ['2ml/s', '4ml/s', '6ml/s', '8ml/s'])}
+            </div>
+          </div>
+          <div class="text-[16px] opacity-60">Also set on Streamline's settings page: a change there lands on this recipe while it is selected.</div>
+        </div>
       </div>
 
       <!-- Grinder names as plain text tabs (Figma 2396:991 — no label above) -->
@@ -436,6 +490,37 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter) {
   makeValueEditable(valueId, min, max, formatter);
 }
 
+// A field where 0 is a real value meaning off (the steam heater, the milk stop). Off sits one
+// step below the range, so minus walks down to it and plus comes back at the field's minimum
+// rather than at a number the DE1 would reject. A blank field is still 'not held'.
+function wireOffAdjuster(prefix, step, min, max, unit) {
+  const valueId = prefix + '-value';
+  const fmt = machineFmt(unit, true);
+  const read = () => {
+    const txt = (document.getElementById(valueId)?.textContent || '').trim();
+    if (/^off$/i.test(txt)) return 0;
+    const n = parseFloat(txt);
+    return isNaN(n) ? null : n;
+  };
+  [prefix + '-minus', prefix + '-plus'].forEach(btnId => {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      const el = document.getElementById(valueId);
+      if (!el) return;
+      const cur = read();
+      const up = btnId === prefix + '-plus';
+      // Blank or off: plus arms the field at its minimum, minus switches it off.
+      const v = cur == null || cur === 0
+        ? (up ? min : 0)
+        : (up ? Math.min(max, cur + step) : (cur - step < min ? 0 : cur - step));
+      el.textContent = fmt(v);
+      syncPresetActive(prefix, fmt(v));
+    });
+  });
+  makeValueEditable(valueId, 0, max, fmt);
+}
+
 // Tap the number to type a value directly (tablet-friendly).
 function makeValueEditable(valueId, min, max, formatter) {
   const valEl = document.getElementById(valueId);
@@ -502,6 +587,9 @@ function renderRecipe(recipe) {
   // Point the mode toggles at the recipe's stored mode so units + presets match the value shown.
   setMode('re-steam-mode',    steamMode);
   setMode('re-hotwater-mode', hwMode);
+  for (const [prefix, key, , unit, , , , off] of MACHINE_FIELDS) {
+    set(prefix + '-value', dv[key] != null ? machineFmt(unit, off)(dv[key]) : '—');
+  }
   set('re-grind-value', dv.grind    != null ? String(dv.grind)       : '—');
   set('re-rpm-value',   dv.rpm      != null ? String(dv.rpm)         : '—');
 
@@ -780,6 +868,9 @@ function getCurrentRecipeData() {
       hotWaterMode:  hwMode,
       hotWaterMl:    hwMode === 'vol'  ? hwVal : held.hotWaterMl,
       hotWaterTempC: hwMode === 'temp' ? hwVal : held.hotWaterTempC,
+      // The section may be shut, but its steppers are rendered either way, so these read the
+      // same as every other field. 'Off' is a stored 0, not a blank (which means not held).
+      ...machineValues(held),
       grind:   num('re-grind-value'),
       rpm:     num('re-rpm-value'),
       grinderId: selectedGrinderId,
@@ -791,6 +882,21 @@ function getCurrentRecipeData() {
       equipmentCustom: { ...equipmentCustomOverrides },
     },
   };
+}
+
+// The Machine Settings fields as getCurrentRecipeData wants them. A stepper that is somehow not
+// on the page keeps what the recipe holds rather than blanking it.
+function machineValues(held) {
+  const out = {};
+  for (const [prefix, key, , , , , , off] of MACHINE_FIELDS) {
+    const el = document.getElementById(prefix + '-value');
+    if (!el) { out[key] = held[key] ?? null; continue; }
+    const txt = (el.textContent || '').trim();
+    const n = parseFloat(txt);
+    // Own parse: getCurrentRecipeData's num() is local to it.
+    out[key] = off && /^off$/i.test(txt) ? 0 : (isNaN(n) ? null : n);
+  }
+  return out;
 }
 
 function setupTabs() {
@@ -841,37 +947,64 @@ const MODE_CFG = {
 };
 function activeMode(cls) { return document.querySelector('.' + cls + '.active')?.dataset.mode; }
 
-// The settings a recipe can hold with no stepper of their own (dye2#23), read-only. DYE2 adopts
-// one once the barista moves it on Streamline's settings page while this recipe is armed, so
-// without this they would be invisible here — applied on every apply, shown nowhere.
-const HELD_ONLY = [
-  ['steamTempC', 'Steam temp', '°c'],
-  ['steamStopAtTempC', 'Milk stop', '°c'],
-  ['hotWaterTimeS', 'Hot water time', 's'],
-  ['hotWaterFlowMls', 'Hot water flow', 'ml/s'],
-  ['flushTempC', 'Flush temp', '°c'],
-  ['flushFlowMls', 'Flush flow', 'ml/s'],
+// The machine settings behind the Machine Settings disclosure (dye2#23): dashboardVariables key,
+// label, unit, and the adjuster's step / min / max. Steam temperature and the milk stop take
+// ‘off’ as a stored 0, so they are stepped with wireOffAdjuster; a blank field is still
+// ‘not held’, which apply skips.
+const MACHINE_FIELDS = [
+  ['re-steam-temp', 'steamTempC', 'Steam temp', '°c', 5, 135, 170, true],
+  ['re-milk-stop', 'steamStopAtTempC', 'Milk stop', '°c', 5, 30, 80, true],
+  ['re-hw-time', 'hotWaterTimeS', 'Hot water time', 's', 5, 5, 120, false],
+  ['re-hw-flow', 'hotWaterFlowMls', 'Hot water flow', 'ml/s', 0.5, 0.5, 8, false],
+  ['re-flush-temp', 'flushTempC', 'Flush temp', '°c', 5, 5, 95, false],
+  ['re-flush-flow', 'flushFlowMls', 'Flush flow', 'ml/s', 0.5, 1, 8, false],
 ];
+// 0 reads as Off, and the editor writes it back as 0 (see numOff).
+const machineFmt = (unit, off) => (v) => (off && !(v > 0) ? 'Off' : v + unit);
+
+let machineOpen = false;
+
+function setupMachineSection() {
+  const btn = document.getElementById('re-machine-toggle');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    machineOpen = !machineOpen;
+    const rows = document.getElementById('re-machine-rows');
+    const caret = document.getElementById('re-machine-caret');
+    if (rows) rows.style.display = machineOpen ? '' : 'none';
+    if (caret) caret.classList.toggle('open', machineOpen);
+    btn.setAttribute('aria-expanded', machineOpen ? 'true' : 'false');
+    renderHeld();
+  });
+}
+
+// The summary under the header: what the recipe holds that is not on screen. Shut, that is every
+// machine setting; open, only the half of each pair the active mode hides.
 function renderHeld() {
-  const box = document.getElementById('re-held'), list = document.getElementById('re-held-list');
-  if (!box || !list) return;
+  const list = document.getElementById('re-held-list');
+  if (!list) return;
   const dv = (recipes[currentRecipeIdx] && recipes[currentRecipeIdx].dashboardVariables) || {};
-  const rows = HELD_ONLY.concat(
-    activeMode('re-steam-mode') === 'time' ? [['steamFlowMls', 'Steam flow', 'ml/s']] : [['steamTimeS', 'Steam time', 's']],
-    activeMode('re-hotwater-mode') === 'vol' ? [['hotWaterTempC', 'Hot water temp', '°c']] : [['hotWaterMl', 'Hot water vol', 'ml']]
-  ).filter(([k]) => dv[k] != null);
+  const pairs = [
+    activeMode('re-steam-mode') === 'time' ? ['steamFlowMls', 'Steam flow', 'ml/s'] : ['steamTimeS', 'Steam time', 's'],
+    activeMode('re-hotwater-mode') === 'vol' ? ['hotWaterTempC', 'Hot water temp', '°c'] : ['hotWaterMl', 'Hot water vol', 'ml'],
+  ];
+  const held = MACHINE_FIELDS.filter(([, k]) => dv[k] != null);
+  const rows = (machineOpen ? [] : held.map(([, k, label, unit, , , , off]) => [k, label, unit, off]))
+    .concat(pairs.map(([k, label, unit]) => [k, label, unit, false]))
+    .filter(([k]) => dv[k] != null);
   list.innerHTML = '';
-  for (const [k, label, unit] of rows) {
+  for (const [k, label, unit, off] of rows) {
     const row = document.createElement('div');
     const name = document.createElement('span');
     name.className = 'font-semibold';
     name.textContent = label + ' ';
     row.appendChild(name);
     // textContent, not markup: these come straight out of KV.
-    row.appendChild(document.createTextNode(dv[k] + unit));
+    row.appendChild(document.createTextNode(off && !(dv[k] > 0) ? 'Off' : dv[k] + unit));
     list.appendChild(row);
   }
-  box.style.display = rows.length ? '' : 'none';
+  const count = document.getElementById('re-machine-count');
+  if (count) count.textContent = held.length ? held.length + ' held' : '';
 }
 // Wire preset buttons within one strip (setupPresetStrips only wires what exists at load).
 function wirePresetButtons(container) {
@@ -1057,6 +1190,7 @@ async function initRecipeEdit() {
   setupStreamlineToggle();
   setupPresetStrips();
   // After setupPresetStrips so the mode toggle owns/rewires the strips it rebuilds.
+  setupMachineSection();
   setupModeToggle('re-steam-mode');
   setupModeToggle('re-hotwater-mode');
   setupNameCombo('re-barista',  () => distinctNames('baristaName'));
@@ -1073,6 +1207,10 @@ async function initRecipeEdit() {
   wireAdjuster('re-steam-minus', 're-steam-plus', 're-steam-value', 1,   0, null, v => v + (MODE_CFG['re-steam-mode'].unit[activeMode('re-steam-mode')] || 's'));
   wireAdjuster('re-flush-minus', 're-flush-plus', 're-flush-value', 1,   0, null, v => v + 's');
   wireAdjuster('re-hotwater-minus','re-hotwater-plus','re-hotwater-value', 5, 0, null, v => v + (MODE_CFG['re-hotwater-mode'].unit[activeMode('re-hotwater-mode')] || 'ml'));
+  for (const [prefix, , , unit, step, min, max, off] of MACHINE_FIELDS) {
+    if (off) wireOffAdjuster(prefix, step, min, max, unit);
+    else wireAdjuster(prefix + '-minus', prefix + '-plus', prefix + '-value', step, min, max, machineFmt(unit, false));
+  }
   wireAdjuster('re-grind-minus', 're-grind-plus', 're-grind-value', 0.1, 0, null, v => v.toFixed(1));
   wireAdjuster('re-rpm-minus',   're-rpm-plus',   're-rpm-value',   1,   1, null, v => String(v));
 
