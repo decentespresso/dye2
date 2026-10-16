@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import {
   armSelection, clearSelection, getSelection, setSelectionListener, restoreSelection,
   profileFingerprint, profileDrifted, itemPatch, recordWorkflow, scheduleWorkflowRecord,
-  suppress, profileAtBrewC,
+  suppress, profileAtBrewC, syncSelectionMarker,
 } from '../src/utils/workflow-record.ts';
 
 const profile = (temp) => ({ title: 'P', tank_temperature: 0, steps: [{ name: 's', temperature: temp }] });
@@ -294,6 +294,96 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(getSelection(), null, '{} sentinel restores as no selection');
   restoreSelection(null);
   assert.equal(getSelection(), null);
+}
+
+// --- the selection marker reaches the workflow without a record loop (dye2#20) -----------
+{
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const deepMerge = (a, b) => {
+    const out = { ...a };
+    for (const [k, v] of Object.entries(b)) {
+      out[k] = out[k] && v && typeof out[k] === 'object' && typeof v === 'object' && !Array.isArray(v) ? deepMerge(out[k], v) : v;
+    }
+    return out;
+  };
+  // A host that merges PUT /workflow like deepMergeJson and, like Decaid, fires workflowUpdated
+  // with the WHOLE workflow afterwards; that event is wired to scheduleWorkflowRecord as plugin.ts does.
+  const makeHost = (clockSkew = 0) => {
+    const kv = fakeStore({ recipes: [recipe()] });
+    const host = { wf: wf({ context: { targetDoseWeight: 18, targetYield: 36, grinderSetting: '4.2', extras: { rpm: 5, note: 'mine', dye: { v: 1, rpm: true } } } }), puts: [], pushes: 0, failPut: null };
+    host.fetchFn = async (url, init) => {
+      if (url.endsWith('/workflow') && init && init.method === 'PUT') {
+        if (host.failPut === 'throw') throw new Error('offline');
+        if (host.failPut) return { ok: false, status: host.failPut, json: async () => null };
+        host.puts.push(JSON.parse(init.body));
+        host.wf = deepMerge(host.wf, host.puts[host.puts.length - 1]);
+        const snapshot = JSON.parse(JSON.stringify(host.wf));
+        setTimeout(() => scheduleWorkflowRecord(snapshot, host.fetchFn, () => { host.pushes++; }, (e) => { throw e; }, Date.now() + clockSkew, 0), 0);
+        return { ok: true, status: 200, json: async () => host.wf };
+      }
+      return kv.fetchFn(url, init);
+    };
+    host.kv = kv;
+    return host;
+  };
+
+  for (const skew of [0, 10_000]) { // inside the echo window, then well past it
+    setSelectionListener(null);
+    clearSelection();
+    restoreSelection({});
+    await sleep(20);
+    const h = makeHost(skew);
+    setSelectionListener(() => { syncSelectionMarker(h.fetchFn).catch(() => {}); });
+
+    armSelection({ kind: 'recipe', id: '1' }, h.wf);
+    await sleep(40);
+    assert.equal(h.puts.length, 1, 'arming PUTs the marker exactly once (skew ' + skew + ')');
+    assert.deepEqual(h.puts[0], { context: { extras: { dye: { v: 1, selection: { kind: 'recipe', id: '1' } } } } }, 'minimal body');
+    assert.deepEqual(h.wf.context.extras, { rpm: 5, note: 'mine', dye: { v: 1, rpm: true, selection: { kind: 'recipe', id: '1' } } }, 'merged beside the other extras and flags');
+    assert.equal(h.kv.writes.length, 0, 'the marker event records nothing');
+    assert.equal(h.pushes, 0, 'and pushes nothing');
+
+    // a baseline rebase notifies the listener but must not PUT again
+    scheduleWorkflowRecord(h.wf, h.fetchFn, null, null, Date.now() + 10_000, 0);
+    await sleep(40);
+    assert.equal(h.puts.length, 1, 'no second PUT from a rebase or a repeated event');
+
+    clearSelection();
+    await sleep(40);
+    assert.equal(h.puts.length, 2, 'clearing PUTs once more');
+    assert.equal(h.puts[1].context.extras.dye.selection, null);
+    assert.deepEqual(h.wf.context.extras.dye, { v: 1, rpm: true, selection: null });
+    assert.equal(h.wf.context.extras.note, 'mine', 'other writers keep their extras');
+    assert.equal(h.kv.writes.length, 0);
+    assert.equal(h.pushes, 0);
+    clearSelection();
+    await sleep(20);
+    assert.equal(h.puts.length, 2, 'clearing nothing PUTs nothing');
+  }
+
+  // a PUT that fails or throws leaves arming, persistence and the listener working
+  for (const mode of [500, 'throw']) {
+    setSelectionListener(null);
+    clearSelection();
+    restoreSelection({});
+    await sleep(20);
+    const h = makeHost();
+    h.failPut = mode;
+    let persisted = 0;
+    let rejected = 0;
+    setSelectionListener(() => { persisted++; syncSelectionMarker(h.fetchFn).catch(() => { rejected++; }); });
+    const sel = armSelection({ kind: 'recipe', id: '1' }, h.wf);
+    await sleep(20);
+    assert.ok(sel && getSelection().id === '1', 'armed despite the failed PUT');
+    assert.equal(persisted, 1);
+    assert.equal(rejected, 1, 'the failure surfaces to the caller to log');
+    h.failPut = null;
+    armSelection({ kind: 'recipe', id: '1' }, h.wf);
+    await sleep(40);
+    assert.equal(h.puts.length, 1, 'the next change retries, since the failed one was never recorded');
+  }
+  clearSelection();
+  setSelectionListener(null);
 }
 
 console.log('workflow-record tests passed');

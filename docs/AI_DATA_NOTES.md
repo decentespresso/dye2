@@ -137,6 +137,12 @@ DYE2 reacts to a workflow change it did not make.
   mirrored to `host.storage`, which lands in the ordinary KV store — so a consumer reads it
   at `GET /store/dye2.reaplugin/selection`. Storage reads cannot be awaited; the value comes
   back as a `storageRead` event.
+- The armed `{kind,id}` is also mirrored into the live workflow as `context.extras.dye.selection`
+  (`syncSelectionMarker`, PUT only when the selected item changes; `null` on clear), so Decaid
+  copies it onto each Shot. It cannot loop: that PUT's `workflowUpdated` reaches
+  `scheduleWorkflowRecord`, which writes only KV and only for a `recipeFields`/`favouriteFields`
+  diff, and `extras.dye` is in neither. Keep it out of those mappers. Streamline's post-shot clear
+  ignores it (only keys equal to `true` are flags). The dashboard strips it from its own PUTs.
 - `host.emit('changed', ...)` on the `changed` websocket endpoint is what tells Streamline to
   re-read. A payload of `{"what":"skin"}` refreshes only its surfaces, so KV changes push
   something else or the DYE strip stays stale.

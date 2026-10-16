@@ -11485,6 +11485,35 @@ bcInit();
 	function clearSelection() {
 		setSel(null);
 	}
+	var markedKey = null;
+	var markChain = Promise.resolve();
+	var selectionKey = (s) => s ? s.kind + ":" + s.id : null;
+	/**
+	* Bring the workflow's extras.dye.selection in step with the armed selection. Serialised, and
+	* each step reads the selection as it runs, so an arm then a quick clear cannot land out of
+	* order. Rejects when the PUT fails; the caller logs it, and the next change retries.
+	*/
+	function syncSelectionMarker(fetchFn, base = "http://localhost:8080/api/v1") {
+		const run = markChain.then(async () => {
+			const key = selectionKey(selection);
+			if (key === markedKey) return;
+			const res = await fetchFn(base + "/workflow", {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ context: { extras: { dye: {
+					v: 1,
+					selection: selection ? {
+						kind: selection.kind,
+						id: selection.id
+					} : null
+				} } } })
+			});
+			if (!res.ok) throw new Error("HTTP " + res.status + " writing selection marker");
+			markedKey = key;
+		});
+		markChain = run.catch(() => {});
+		return run;
+	}
 	/** Restore a persisted selection at load; does not notify the persistence listener. */
 	function restoreSelection(raw) {
 		const s = raw;
@@ -11496,6 +11525,7 @@ bcInit();
 			armedBeanBatchId: typeof s.armedBeanBatchId === "string" ? s.armedBeanBatchId : null,
 			armedGrinderId: typeof s.armedGrinderId === "string" ? s.armedGrinderId : null
 		} : null;
+		markedKey = selectionKey(selection);
 	}
 	/**
 	* Arm `{kind,id}` on the live workflow `wf` (used for the profile fingerprint). A
@@ -11657,6 +11687,7 @@ bcInit();
 		let announcedSelection = null;
 		setSelectionListener((sel) => {
 			persistSelection();
+			if (typeof fetch === "function") syncSelectionMarker(fetch).catch((e) => log(`selection marker failed: ${e instanceof Error ? e.message : String(e)}`));
 			const key = sel ? sel.kind + ":" + sel.id : null;
 			if (key === announcedSelection) return;
 			announcedSelection = key;

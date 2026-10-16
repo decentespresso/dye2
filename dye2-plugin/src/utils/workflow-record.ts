@@ -268,6 +268,47 @@ export function clearSelection() {
   setSel(null);
 }
 
+// ── selection marker ────────────────────────────────────────────────────────
+// The armed {kind,id} is mirrored into the live workflow as context.extras.dye.selection, which
+// Decaid copies onto each Shot (decent-sync reads it instead of guessing the recipe). PUT
+// /workflow deep-merges key by key (deepMergeJson), so this body leaves every other extras
+// key, and the field flags dashboard writes put beside it, alone. Streamline's post-shot
+// clear (dye-context.js) acts only on keys whose value is exactly `true`, so the nested
+// object is ignored there.
+//
+// No loop: the PUT fires `workflowUpdated`, but scheduleWorkflowRecord only ever writes KV
+// (never the workflow), and only when recipeFields/favouriteFields differ from the item —
+// extras.dye is in neither, so the marker's own event diffs to an empty patch (and inside the
+// echo window is dropped earlier). The PUT is also gated on the selected {kind,id} actually
+// changing, so the baseline rebases that notify the selection listener never PUT.
+let markedKey: string | null = null;
+let markChain: Promise<void> = Promise.resolve();
+
+const selectionKey = (s: Selection | null) => (s ? s.kind + ":" + s.id : null);
+
+/**
+ * Bring the workflow's extras.dye.selection in step with the armed selection. Serialised, and
+ * each step reads the selection as it runs, so an arm then a quick clear cannot land out of
+ * order. Rejects when the PUT fails; the caller logs it, and the next change retries.
+ */
+export function syncSelectionMarker(fetchFn: FetchLike, base = "http://localhost:8080/api/v1"): Promise<void> {
+  const run = markChain.then(async () => {
+    const key = selectionKey(selection);
+    if (key === markedKey) return;
+    const res = await fetchFn(base + "/workflow", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        context: { extras: { dye: { v: 1, selection: selection ? { kind: selection.kind, id: selection.id } : null } } },
+      }),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status + " writing selection marker");
+    markedKey = key;
+  });
+  markChain = run.catch(() => {});
+  return run;
+}
+
 /** Restore a persisted selection at load; does not notify the persistence listener. */
 export function restoreSelection(raw: unknown) {
   const s = raw as AnyRecord | null;
@@ -282,6 +323,8 @@ export function restoreSelection(raw: unknown) {
           armedGrinderId: typeof s.armedGrinderId === "string" ? s.armedGrinderId : null,
         }
       : null;
+  // The workflow was marked when this was armed, so a later clear has something to clear.
+  markedKey = selectionKey(selection);
 }
 
 /**

@@ -24,6 +24,7 @@ import {
   restoreSelection,
   scheduleWorkflowRecord,
   setSelectionListener,
+  syncSelectionMarker,
 } from "./utils/workflow-record";
 
 const SELECTION_STORAGE_KEY = "selection";
@@ -78,6 +79,13 @@ export default function createPlugin(host: PluginHost): PluginInstance {
   let announcedSelection: string | null = null;
   setSelectionListener((sel) => {
     persistSelection();
+    // Mirror it into the workflow so each Shot carries it. A failed or unavailable PUT only
+    // logs: arming, persistence and the push below do not depend on it.
+    if (typeof fetch === "function") {
+      syncSelectionMarker(fetch).catch((e: unknown) =>
+        log(`selection marker failed: ${e instanceof Error ? e.message : String(e)}`)
+      );
+    }
     // updateSelection fires this listener for a baseline rebase too (armedBrewC after a
     // record, an adopted fingerprint or bean/grinder): nothing the skin can see, and a
     // brew-temp tweak would otherwise push on every workflowUpdated. Push only when
