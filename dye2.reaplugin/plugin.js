@@ -11196,6 +11196,15 @@ bcInit();
 		const fp = profileFingerprint(workflow && workflow.profile);
 		return !!(sel.profileFingerprint && fp && fp !== sel.profileFingerprint);
 	}
+	/** Has the workflow's bean batch or grinder moved off what the selection was armed on? */
+	function contextDrifted(sel, workflow) {
+		if (!sel) return false;
+		const ctx = workflow && workflow.context || {};
+		return sel.armedBeanBatchId != null && sel.armedBeanBatchId !== idOf(ctx.beanBatchId) || sel.armedGrinderId != null && sel.armedGrinderId !== idOf(ctx.grinderId);
+	}
+	function idOf(v) {
+		return v == null ? "" : String(v);
+	}
 	function num(v) {
 		if (v == null || v === "") return void 0;
 		const n = parseFloat(String(v));
@@ -11295,7 +11304,9 @@ bcInit();
 			kind: s.kind,
 			id: String(s.id),
 			profileFingerprint: s.profileFingerprint || null,
-			armedBrewC: typeof s.armedBrewC === "number" ? s.armedBrewC : null
+			armedBrewC: typeof s.armedBrewC === "number" ? s.armedBrewC : null,
+			armedBeanBatchId: typeof s.armedBeanBatchId === "string" ? s.armedBeanBatchId : null,
+			armedGrinderId: typeof s.armedGrinderId === "string" ? s.armedGrinderId : null
 		} : null;
 	}
 	/**
@@ -11315,7 +11326,9 @@ bcInit();
 			kind,
 			id: String(id),
 			profileFingerprint: profileFingerprint(wf && wf.profile),
-			armedBrewC: wf ? liveBrewC(wf) : null
+			armedBrewC: wf ? liveBrewC(wf) : null,
+			armedBeanBatchId: wf ? idOf(wf.context && wf.context.beanBatchId) : null,
+			armedGrinderId: wf ? idOf(wf.context && wf.context.grinderId) : null
 		});
 		if (wf) suppress(wf, now);
 		return selection;
@@ -11387,12 +11400,16 @@ bcInit();
 	*/
 	function scheduleWorkflowRecord(wf, fetchFn, onWrote, onError, now = Date.now(), delay = DEBOUNCE_MS) {
 		if (!selection || !wf) return;
-		if (profileDrifted(selection, wf)) {
+		if (profileDrifted(selection, wf) || contextDrifted(selection, wf)) {
 			clearSelection();
 			return;
 		}
 		if (isEcho(wf, now)) return;
 		if (!selection.profileFingerprint) updateSelection(selection, { profileFingerprint: profileFingerprint(wf.profile) });
+		if (selection.armedBeanBatchId == null || selection.armedGrinderId == null) updateSelection(selection, {
+			armedBeanBatchId: selection.armedBeanBatchId ?? idOf(wf.context && wf.context.beanBatchId),
+			armedGrinderId: selection.armedGrinderId ?? idOf(wf.context && wf.context.grinderId)
+		});
 		cancelPending();
 		const armed = selection;
 		timer = setTimeout(() => {

@@ -85,6 +85,46 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(getSelection(), null, 'drifted workflow clears the armed item');
 }
 
+// --- bean / grinder switch disarms ---------------------------------------------------
+{
+  const withCtx = (extra) => wf({ context: { targetDoseWeight: 18, targetYield: 36, grinderSetting: '4.2', ...extra } });
+  const never = async () => { throw new Error('no'); };
+  const run = (w) => scheduleWorkflowRecord(w, never, null, null, 10_000, 0);
+
+  armSelection({ kind: 'recipe', id: '1' }, withCtx({ beanBatchId: 'b1', grinderId: 'g1' }), 0);
+  assert.equal(getSelection().armedBeanBatchId, 'b1');
+  assert.equal(getSelection().armedGrinderId, 'g1');
+  run(withCtx({ beanBatchId: 'b2', grinderId: 'g1' }));
+  assert.equal(getSelection(), null, 'a different bean batch disarms');
+
+  armSelection({ kind: 'recipe', id: '1' }, withCtx({ beanBatchId: 'b1', grinderId: 'g1' }), 0);
+  run(withCtx({ beanBatchId: 'b1', grinderId: 'g2' }));
+  assert.equal(getSelection(), null, 'a different grinder disarms');
+
+  // unset is consistent: null / undefined / '' are all "none", so none of them disarms
+  armSelection({ kind: 'recipe', id: '1' }, withCtx({ beanBatchId: null }), 0);
+  run(withCtx({ beanBatchId: '', grinderId: undefined }));
+  assert.ok(getSelection(), 'unset -> unset keeps the selection');
+  run(withCtx({ beanBatchId: 'b1' }));
+  assert.equal(getSelection(), null, 'unset -> a batch disarms');
+
+  // armed without a workflow: unknown, adopted from the first event rather than disarming
+  armSelection({ kind: 'recipe', id: '1' });
+  run(withCtx({ beanBatchId: 'b1', grinderId: 'g1' }));
+  assert.equal(getSelection().armedBeanBatchId, 'b1', 'unknown baseline adopted');
+  run(withCtx({ beanBatchId: 'b3', grinderId: 'g1' }));
+  assert.equal(getSelection(), null);
+
+  // round-trips through persistence
+  armSelection({ kind: 'recipe', id: '1' }, withCtx({ beanBatchId: 'b1', grinderId: 'g1' }), 0);
+  const saved = JSON.parse(JSON.stringify(getSelection()));
+  clearSelection();
+  restoreSelection(saved);
+  assert.equal(getSelection().armedBeanBatchId, 'b1');
+  assert.equal(getSelection().armedGrinderId, 'g1');
+  clearSelection();
+}
+
 // --- echo guard -------------------------------------------------------------------
 {
   clearSelection();

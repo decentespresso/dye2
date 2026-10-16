@@ -32,6 +32,14 @@ export interface Selection {
    * live value moves off this baseline, i.e. a real brew-temp edit. Null = unknown.
    */
   armedBrewC: number | null;
+  /**
+   * context.beanBatchId / grinderId when armed ("" = none set). A different value means
+   * the barista switched bean or grinder, so later edits belong to another coffee and
+   * must not land on this item. Null = unknown (armed without a workflow): adopted from
+   * the first event, like profileFingerprint.
+   */
+  armedBeanBatchId: string | null;
+  armedGrinderId: string | null;
 }
 
 const DEBOUNCE_MS = 1500;
@@ -74,6 +82,21 @@ export function profileDrifted(sel: Selection | null, workflow: AnyRecord | null
   if (!sel) return false;
   const fp = profileFingerprint(workflow && workflow.profile);
   return !!(sel.profileFingerprint && fp && fp !== sel.profileFingerprint);
+}
+
+/** Has the workflow's bean batch or grinder moved off what the selection was armed on? */
+export function contextDrifted(sel: Selection | null, workflow: AnyRecord | null | undefined): boolean {
+  if (!sel) return false;
+  const ctx = (workflow && workflow.context) || {};
+  return (
+    (sel.armedBeanBatchId != null && sel.armedBeanBatchId !== idOf(ctx.beanBatchId)) ||
+    (sel.armedGrinderId != null && sel.armedGrinderId !== idOf(ctx.grinderId))
+  );
+}
+
+// null / undefined / "" all mean "not set", so an unset id never counts as a change.
+function idOf(v: unknown): string {
+  return v == null ? "" : String(v);
 }
 
 // ── field mappers ───────────────────────────────────────────────────────────
@@ -207,6 +230,8 @@ export function restoreSelection(raw: unknown) {
           id: String(s.id),
           profileFingerprint: s.profileFingerprint || null,
           armedBrewC: typeof s.armedBrewC === "number" ? s.armedBrewC : null,
+          armedBeanBatchId: typeof s.armedBeanBatchId === "string" ? s.armedBeanBatchId : null,
+          armedGrinderId: typeof s.armedGrinderId === "string" ? s.armedGrinderId : null,
         }
       : null;
 }
@@ -229,6 +254,8 @@ export function armSelection(req: AnyRecord | null | undefined, wf?: AnyRecord |
     id: String(id),
     profileFingerprint: profileFingerprint(wf && wf.profile),
     armedBrewC: wf ? liveBrewC(wf) : null,
+    armedBeanBatchId: wf ? idOf(wf.context && wf.context.beanBatchId) : null,
+    armedGrinderId: wf ? idOf(wf.context && wf.context.grinderId) : null,
   });
   if (wf) suppress(wf, now);
   return selection;
@@ -315,7 +342,7 @@ export function scheduleWorkflowRecord(
   delay = DEBOUNCE_MS
 ) {
   if (!selection || !wf) return;
-  if (profileDrifted(selection, wf)) {
+  if (profileDrifted(selection, wf) || contextDrifted(selection, wf)) {
     clearSelection();
     return;
   }
@@ -323,6 +350,13 @@ export function scheduleWorkflowRecord(
   // The skin armed us before the profile was known (no fetch at arm time): adopt it now.
   if (!selection.profileFingerprint) {
     updateSelection(selection, { profileFingerprint: profileFingerprint(wf.profile) });
+  }
+
+  if (selection.armedBeanBatchId == null || selection.armedGrinderId == null) {
+    updateSelection(selection, {
+      armedBeanBatchId: selection.armedBeanBatchId ?? idOf(wf.context && wf.context.beanBatchId),
+      armedGrinderId: selection.armedGrinderId ?? idOf(wf.context && wf.context.grinderId),
+    });
   }
 
   cancelPending();
