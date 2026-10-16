@@ -22,6 +22,8 @@ import {
   clearSelection,
   getSelection,
   restoreSelection,
+  withMachineSettings,
+  readMachineSettings,
   scheduleWorkflowRecord,
   setSelectionListener,
   syncSelectionMarker,
@@ -129,6 +131,9 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       } catch (e) {
         log(`selection: could not read workflow: ${e instanceof Error ? e.message : String(e)}`);
       }
+      // Flush temperature and flow live on the DE1, not the workflow, so the arm-time baseline
+      // has to read them separately or they could never be recorded (dye2#23).
+      if (wf) wf = withMachineSettings(wf, await readMachineSettings(fetch, "http://localhost:8080/api/v1"));
     }
     const sel = armSelection(body, wf);
     return json(request, 200, sel);

@@ -165,6 +165,38 @@ export function recipeFields(wf: AnyRecord): AnyRecord {
   return out;
 }
 
+/**
+ * The two settings no workflow carries. Streamline edits them with updateDe1Setting
+ * (settings.js), which reaches the DE1 but never the workflow, and Decaid syncs nothing back
+ * the other way (de1_controller.dart updateMachineSettings) — so they are read from
+ * GET /machine/settings and overlaid. Writing them still goes through the workflow: a PUT with
+ * rinseData reaches the machine via updateWorkflowSettings (workflow_handler.dart).
+ * dashboardVariables name -> De1Settings field.
+ */
+const DE1_ONLY: Record<string, string> = { flushTempC: "flushTemp", flushFlowMls: "flushFlow" };
+
+/** A copy of `wf` with the DE1-only settings overlaid from a GET /machine/settings body. */
+export function withMachineSettings(wf: AnyRecord, de1: AnyRecord | null | undefined): AnyRecord {
+  if (!wf || !de1) return wf;
+  const out: AnyRecord = { ...wf };
+  for (const [name, key] of Object.entries(DE1_ONLY)) {
+    if (de1[key] == null) continue;
+    const [group, field] = MACHINE_MAP[name];
+    out[group] = { ...(out[group] || {}), [field]: de1[key] };
+  }
+  return out;
+}
+
+/** GET /machine/settings, or null on any failure — those two settings then go unrecorded. */
+export async function readMachineSettings(fetchFn: FetchLike, base: string): Promise<AnyRecord | null> {
+  try {
+    const res = await fetchFn(base + "/machine/settings");
+    return res.ok ? await res.json() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 /** Those machine settings of `wf` that have a value: the baseline armSelection stores. */
 export function machineFields(wf: AnyRecord): AnyRecord {
   const all = recipeFields(wf);
@@ -408,7 +440,12 @@ export function armSelection(req: AnyRecord | null | undefined, wf?: AnyRecord |
 // skin's withAutoSaveSuppressed, but by value + time because the event arrives
 // asynchronously from the host rather than inside the call that caused it.
 function echoKey(wf: AnyRecord): string {
-  return JSON.stringify([recipeFields(wf), favouriteFields(wf)]);
+  const fields = recipeFields(wf);
+  // The DE1-only pair is overlaid on the workflow the apply read (plugin.ts) but absent from the
+  // host's own event payload, so comparing it here would never match and every apply would
+  // record itself straight back.
+  for (const k of Object.keys(DE1_ONLY)) delete fields[k];
+  return JSON.stringify([fields, favouriteFields(wf)]);
 }
 
 export function suppress(wf: AnyRecord, now = Date.now()) {
@@ -442,7 +479,14 @@ export async function recordWorkflow(
   const idx = list.findIndex((x) => x && String(x.id) === armed.id);
   if (idx === -1) return false;
   const item = list[idx];
-  const patch = itemPatch(armed.kind, item, wf, armed.armedBrewC, armed.armedMachine);
+  // One extra GET, and only when the DE1-only pair could be written: the item holds one, or the
+  // baseline has one to move off. A dose change costs nothing.
+  const stored = item[field] || {};
+  const wantsDe1 = Object.keys(DE1_ONLY).some(
+    (k) => stored[k] != null || (armed.armedMachine && armed.armedMachine[k] !== undefined)
+  );
+  const full = wantsDe1 ? withMachineSettings(wf, await readMachineSettings(fetchFn, base)) : wf;
+  const patch = itemPatch(armed.kind, item, full, armed.armedBrewC, armed.armedMachine);
   const live = liveBrewC(wf);
   if (live !== armed.armedBrewC) updateSelection(armed, { armedBrewC: live });
   if (Object.keys(patch).length === 0) return false;

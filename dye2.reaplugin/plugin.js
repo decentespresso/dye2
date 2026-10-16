@@ -11493,6 +11493,41 @@ bcInit();
 		for (const [k, [group, field]] of Object.entries(MACHINE_MAP)) put(out, k, (wf && wf[group] || {})[field]);
 		return out;
 	}
+	/**
+	* The two settings no workflow carries. Streamline edits them with updateDe1Setting
+	* (settings.js), which reaches the DE1 but never the workflow, and Decaid syncs nothing back
+	* the other way (de1_controller.dart updateMachineSettings) — so they are read from
+	* GET /machine/settings and overlaid. Writing them still goes through the workflow: a PUT with
+	* rinseData reaches the machine via updateWorkflowSettings (workflow_handler.dart).
+	* dashboardVariables name -> De1Settings field.
+	*/
+	var DE1_ONLY = {
+		flushTempC: "flushTemp",
+		flushFlowMls: "flushFlow"
+	};
+	/** A copy of `wf` with the DE1-only settings overlaid from a GET /machine/settings body. */
+	function withMachineSettings(wf, de1) {
+		if (!wf || !de1) return wf;
+		const out = { ...wf };
+		for (const [name, key] of Object.entries(DE1_ONLY)) {
+			if (de1[key] == null) continue;
+			const [group, field] = MACHINE_MAP[name];
+			out[group] = {
+				...out[group] || {},
+				[field]: de1[key]
+			};
+		}
+		return out;
+	}
+	/** GET /machine/settings, or null on any failure — those two settings then go unrecorded. */
+	async function readMachineSettings(fetchFn, base) {
+		try {
+			const res = await fetchFn(base + "/machine/settings");
+			return res.ok ? await res.json() : null;
+		} catch (e) {
+			return null;
+		}
+	}
 	/** Those machine settings of `wf` that have a value: the baseline armSelection stores. */
 	function machineFields(wf) {
 		const all = recipeFields(wf);
@@ -11671,7 +11706,9 @@ bcInit();
 		return selection;
 	}
 	function echoKey(wf) {
-		return JSON.stringify([recipeFields(wf), favouriteFields(wf)]);
+		const fields = recipeFields(wf);
+		for (const k of Object.keys(DE1_ONLY)) delete fields[k];
+		return JSON.stringify([fields, favouriteFields(wf)]);
 	}
 	function suppress(wf, now = Date.now()) {
 		suppressed = {
@@ -11698,7 +11735,9 @@ bcInit();
 		const idx = list.findIndex((x) => x && String(x.id) === armed.id);
 		if (idx === -1) return false;
 		const item = list[idx];
-		const patch = itemPatch(armed.kind, item, wf, armed.armedBrewC, armed.armedMachine);
+		const stored = item[field] || {};
+		const full = Object.keys(DE1_ONLY).some((k) => stored[k] != null || armed.armedMachine && armed.armedMachine[k] !== void 0) ? withMachineSettings(wf, await readMachineSettings(fetchFn, base)) : wf;
+		const patch = itemPatch(armed.kind, item, full, armed.armedBrewC, armed.armedMachine);
 		const live = liveBrewC(wf);
 		if (live !== armed.armedBrewC) updateSelection(armed, { armedBrewC: live });
 		if (Object.keys(patch).length === 0) return false;
@@ -11844,11 +11883,14 @@ bcInit();
 				return json(request, 200, null);
 			}
 			let wf = null;
-			if (typeof fetch === "function") try {
-				const res = await fetch("http://localhost:8080/api/v1/workflow");
-				if (res.ok) wf = await res.json();
-			} catch (e) {
-				log(`selection: could not read workflow: ${e instanceof Error ? e.message : String(e)}`);
+			if (typeof fetch === "function") {
+				try {
+					const res = await fetch("http://localhost:8080/api/v1/workflow");
+					if (res.ok) wf = await res.json();
+				} catch (e) {
+					log(`selection: could not read workflow: ${e instanceof Error ? e.message : String(e)}`);
+				}
+				if (wf) wf = withMachineSettings(wf, await readMachineSettings(fetch, "http://localhost:8080/api/v1"));
 			}
 			return json(request, 200, armSelection(body, wf));
 		}

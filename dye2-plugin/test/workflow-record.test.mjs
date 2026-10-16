@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import {
   armSelection, clearSelection, getSelection, setSelectionListener, restoreSelection,
   profileFingerprint, profileDrifted, itemPatch, recordWorkflow, scheduleWorkflowRecord,
-  suppress, profileAtBrewC, syncSelectionMarker,
+  suppress, profileAtBrewC, syncSelectionMarker, withMachineSettings, readMachineSettings,
 } from '../src/utils/workflow-record.ts';
 
 const profile = (temp) => ({ title: 'P', tank_temperature: 0, steps: [{ name: 's', temperature: temp }] });
@@ -560,4 +560,74 @@ console.log('workflow-record tests passed');
   assert.equal(saved.dashboardVariables.steamTimeS, 40, 'held and changed');
   assert.deepEqual(saved.workflow.steamSettings, { duration: 40, targetTemperature: 160 },
     "the embedded workflow the strip applies from follows, so a re-apply steams at the new setting");
+}
+
+// --- flush temperature and flow: on the DE1, not the workflow (dye2#23) -------------
+{
+  const de1 = { flushTemp: 88, flushFlow: 4, steamFlow: 1.5 };
+  const merged = withMachineSettings(wf(), de1);
+  assert.deepEqual(merged.rinseData, { duration: 5, targetTemperature: 88, flow: 4 }, 'overlaid onto rinseData');
+  assert.deepEqual(wf().rinseData, { duration: 5 }, 'the source workflow is not touched');
+  assert.equal(merged.steamSettings.flow, 1.5, "steamFlow is the workflow's own: not overlaid from the DE1");
+  assert.deepEqual(withMachineSettings(wf(), null).rinseData, { duration: 5 }, 'no settings body: unchanged');
+  assert.deepEqual(withMachineSettings(wf(), {}).rinseData, { duration: 5 }, 'empty body: unchanged');
+
+  const fail = async () => ({ ok: false, status: 500, json: async () => null });
+  assert.equal(await readMachineSettings(fail, 'x'), null, 'a failed read is null, not a throw');
+  assert.equal(await readMachineSettings(async () => { throw new Error('offline'); }, 'x'), null);
+
+  // A machine-settings fetch only when the pair could be written.
+  const calls = [];
+  const store = (initial) => {
+    const data = { ...initial };
+    return {
+      data, calls,
+      fetchFn: async (url, init) => {
+        calls.push((init && init.method) || 'GET');
+        if (url.endsWith('/machine/settings')) return { ok: true, status: 200, json: async () => de1 };
+        const key = url.split('/').pop();
+        if (init && init.method === 'POST') { data[key] = JSON.parse(init.body); return { ok: true, status: 200, json: async () => null }; }
+        return { ok: true, status: 200, json: async () => (key in data ? data[key] : null) };
+      },
+    };
+  };
+  const armed = (over) => ({
+    kind: 'recipe', id: '1', profileFingerprint: null, armedBrewC: null,
+    armedBeanBatchId: '', armedGrinderId: '', armedMachine: null, ...over,
+  });
+
+  // held, and the machine disagrees
+  const held = recipe();
+  held.dashboardVariables.flushTempC = 90;
+  let s1 = store({ recipes: [held] });
+  assert.equal(await recordWorkflow(wf(), s1.fetchFn, armed()), true);
+  assert.equal(s1.data.recipes[0].dashboardVariables.flushTempC, 88, 'recorded from the DE1');
+
+  // not held, but moved off the arm-time baseline
+  let s2 = store({ recipes: [recipe()] });
+  assert.equal(await recordWorkflow(wf(), s2.fetchFn, armed({ armedMachine: { flushTempC: 90, flushFlowMls: 4 } })), true);
+  assert.equal(s2.data.recipes[0].dashboardVariables.flushTempC, 88, 'adopted; flow was already 4, so it stays out');
+  assert.equal(s2.data.recipes[0].dashboardVariables.flushFlowMls, undefined);
+
+  // neither: no extra round trip
+  calls.length = 0;
+  let s3 = store({ recipes: [recipe()] });
+  await recordWorkflow(wf({ context: { targetDoseWeight: 19, targetYield: 36, grinderSetting: '4.2' } }), s3.fetchFn, armed());
+  assert.equal(s3.data.recipes[0].dashboardVariables.dose, 19, 'the ordinary record still happens');
+  assert.deepEqual(calls, ['GET', 'POST'], 'read the array, wrote it back: no machine-settings call');
+}
+
+// --- the echo guard still matches across the overlay --------------------------------
+{
+  // The apply reads the DE1 pair; the host's event payload is the workflow alone. Comparing it
+  // would never match, and every apply would record itself straight back.
+  clearSelection();
+  const s = fakeStore({ recipes: [recipe()] });
+  const applied = withMachineSettings(wf(), { flushTemp: 88, flushFlow: 4 });
+  armSelection({ kind: 'recipe', id: '1' }, applied, 1000);
+  scheduleWorkflowRecord(wf(), s.fetchFn, undefined, undefined, 1200, 0);
+  await new Promise((r) => setTimeout(r, 5));
+  assert.deepEqual(s.writes, [], "the apply's own event is still an echo");
+  clearSelection();
+  console.log('ok   flush temperature and flow are read from the DE1');
 }
