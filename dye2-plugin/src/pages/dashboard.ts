@@ -1093,6 +1093,7 @@ function renderGrinderTabs() {
       currentWorkflow.context = currentWorkflow.context || {};
       currentWorkflow.context.grinderId = g.id;
       currentWorkflow.context.grinderModel = g.model || g.name;
+      markDye(currentWorkflow.context, ['grinderId', 'grinderModel']);
       renderGrinderTabs();
       updateWorkflow(currentWorkflow).catch(e => console.warn(e));
     });
@@ -1186,14 +1187,17 @@ async function applyRecipe(recipe) {
   const dv = recipe.dashboardVariables || {};
   currentWorkflow = currentWorkflow || {};
   const ctx = { ...(currentWorkflow.context || {}) };
+  // The fields this apply sets, flagged for Streamline's post-shot clear (markDye): ctx is a
+  // copy of the whole live context, so scanning it would claim other plugins' values too.
+  const wrote = [];
   if (dv.dose != null)  ctx.targetDoseWeight = dv.dose;
   if (dv.drink != null) ctx.targetYield = dv.drink;
   else if (dv.ratio != null && dv.dose != null) ctx.targetYield = Math.round(dv.dose * dv.ratio * 10) / 10;
   if (dv.grind != null) ctx.grinderSetting = dv.grind;
-  if (dv.rpm != null)   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm };
+  if (dv.rpm != null)   { ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm }; wrote.push('rpm'); }
   const grinder = dv.grinderId ? grinders.find(g => g.id === dv.grinderId) : null;
   // Write id and name together: tabs match by id, shots record the name.
-  if (grinder) { ctx.grinderId = grinder.id; ctx.grinderModel = grinder.model || grinder.name; }
+  if (grinder) { ctx.grinderId = grinder.id; ctx.grinderModel = grinder.model || grinder.name; wrote.push('grinderId', 'grinderModel'); }
   // Bean, roaster and batch are one pick (bean-picker), so they move together: a recipe that
   // names a bean but holds no batch clears the previous one rather than leaving a shot
   // carrying one roast's id under another coffee's name (dye2#27).
@@ -1201,9 +1205,11 @@ async function applyRecipe(recipe) {
     ctx.coffeeName    = recipe.beanName    || null;
     ctx.coffeeRoaster = recipe.beanRoaster || null;
     ctx.beanBatchId   = recipe.beanBatchId || null;
+    wrote.push('coffeeName', 'coffeeRoaster', 'beanBatchId');
   }
-  if (recipe.barista) ctx.baristaName = recipe.barista;
-  if (recipe.drinker) ctx.drinkerName = recipe.drinker;
+  if (recipe.barista) { ctx.baristaName = recipe.barista; wrote.push('baristaName'); }
+  if (recipe.drinker) { ctx.drinkerName = recipe.drinker; wrote.push('drinkerName'); }
+  markDye(ctx, wrote);
   currentWorkflow.context = ctx;
   if (recipe.profileId || recipe.profileTitle) {
     if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps)) {
@@ -1248,25 +1254,26 @@ async function applyAutoFavourite(fav) {
   const on = k => mask[k] !== false;
   currentWorkflow = currentWorkflow || {};
   const ctx = { ...(currentWorkflow.context || {}) };
+  const wrote = [];   // flagged for Streamline's post-shot clear (markDye), as in applyRecipe
   if (on('dose')  && snp.dose  != null) ctx.targetDoseWeight = snp.dose;
   if (on('drink') && snp.drink != null) ctx.targetYield = snp.drink;
   if (on('grindSetting')) {
     if (snp.grindSetting != null) ctx.grinderSetting = String(snp.grindSetting);
-    if (snp.rpm != null) ctx.extras = { ...(ctx.extras || {}), rpm: snp.rpm };
+    if (snp.rpm != null) { ctx.extras = { ...(ctx.extras || {}), rpm: snp.rpm }; wrote.push('rpm'); }
   }
   if (on('grinder')) {
-    if (snp.grinderId) ctx.grinderId = snp.grinderId;
-    if (snp.grinderModel) ctx.grinderModel = snp.grinderModel;
+    if (snp.grinderId) { ctx.grinderId = snp.grinderId; wrote.push('grinderId'); }
+    if (snp.grinderModel) { ctx.grinderModel = snp.grinderModel; wrote.push('grinderModel'); }
   }
   if (on('beans')) {
-    if (snp.beanBatchId) ctx.beanBatchId = snp.beanBatchId;
-    if (snp.coffeeName) ctx.coffeeName = snp.coffeeName;
-    if (snp.coffeeRoaster) ctx.coffeeRoaster = snp.coffeeRoaster;
+    if (snp.beanBatchId) { ctx.beanBatchId = snp.beanBatchId; wrote.push('beanBatchId'); }
+    if (snp.coffeeName) { ctx.coffeeName = snp.coffeeName; wrote.push('coffeeName'); }
+    if (snp.coffeeRoaster) { ctx.coffeeRoaster = snp.coffeeRoaster; wrote.push('coffeeRoaster'); }
   }
   if (on('roastDate') && snp.roastDate) ctx.roastDate = snp.roastDate;
-  if (on('barista')   && snp.barista)   ctx.baristaName = snp.barista;
-  if (on('drinker')   && snp.drinker)   ctx.drinkerName = snp.drinker;
-  if (on('note')      && snp.note)      ctx.extras = { ...(ctx.extras || {}), note: snp.note };
+  if (on('barista')   && snp.barista)   { ctx.baristaName = snp.barista; wrote.push('baristaName'); }
+  if (on('drinker')   && snp.drinker)   { ctx.drinkerName = snp.drinker; wrote.push('drinkerName'); }
+  if (on('note')      && snp.note)      { ctx.extras = { ...(ctx.extras || {}), note: snp.note }; wrote.push('note'); }
   // A recent's own workflow.context is the source shot's actual recorded values,
   // including an explicit null where the shot had none — unlike a saved favourite's
   // snapshot, where the truthy checks above intentionally leave a field untouched
@@ -1280,12 +1287,15 @@ async function applyAutoFavourite(fav) {
       ctx.beanBatchId   = fctx.beanBatchId   != null ? fctx.beanBatchId   : null;
       ctx.coffeeName    = fctx.coffeeName    != null ? fctx.coffeeName    : null;
       ctx.coffeeRoaster = fctx.coffeeRoaster != null ? fctx.coffeeRoaster : null;
+      wrote.push('beanBatchId', 'coffeeName', 'coffeeRoaster');
     }
     if (on('grinder')) {
       ctx.grinderId    = fctx.grinderId    != null ? fctx.grinderId    : null;
       ctx.grinderModel = fctx.grinderModel != null ? fctx.grinderModel : null;
+      wrote.push('grinderId', 'grinderModel');
     }
   }
+  markDye(ctx, wrote);
   currentWorkflow.context = ctx;
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
     if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps)) {
@@ -1388,7 +1398,7 @@ function setupDoseControls() {
   );
   wireAdjuster('dye-rpm-minus', 'dye-rpm-plus', 'dye-rpm-value', 1, 1, null,
     val => String(val),
-    val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.extras = { ...(currentWorkflow.context.extras || {}), rpm: val }; updateWorkflow(currentWorkflow).catch(e => console.warn(e)); }
+    val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.extras = { ...(currentWorkflow.context.extras || {}), rpm: val }; markDye(currentWorkflow.context, ['rpm']); updateWorkflow(currentWorkflow).catch(e => console.warn(e)); }
   );
 }
 
@@ -1520,6 +1530,7 @@ function setupNameField(fieldId, valueId, ctxKey) {
     if (!currentWorkflow) return;
     currentWorkflow.context = currentWorkflow.context || {};
     currentWorkflow.context[ctxKey] = v || null;
+    markDye(currentWorkflow.context, [ctxKey]);
     renderNextShot();
     cache = null;   // a name entered now should appear in the list next time
     try { await updateWorkflow(currentWorkflow); }
@@ -1559,6 +1570,7 @@ function setupClipboardPaste() {
       // Basket and RPM as edit-shot shows them: an edit made after the shot wins.
       extras:           shotWorkflowExtras(shot),
     };
+    markDye(currentWorkflow.context);   // the pasted shot's own flags are its past; flag what is set now
     if (wf.profile) currentWorkflow.profile = { ...wf.profile };
     renderNextShot();
     // Show the copied shot's profile name (only revealed on clipboard copy).
@@ -1626,6 +1638,7 @@ function setupAddNote() {
     snapshotWorkflow();
     currentWorkflow.context = currentWorkflow.context || {};
     currentWorkflow.context.extras = { ...(currentWorkflow.context.extras || {}), note: input.value };
+    markDye(currentWorkflow.context, ['note']);
     updateWorkflow(currentWorkflow).catch(e => console.warn(e));
     overlay?.classList.remove('open');
   });
@@ -1659,6 +1672,7 @@ function setupBottomButtons() {
       baristaName: null, drinkerName: null,
       extras: { basketId: null, basketName: null, rpm: null, note: null },
     };
+    markDye(currentWorkflow.context);   // all null here, so every flag clears with its value
     renderNextShot();
   });
 }

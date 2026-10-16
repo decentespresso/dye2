@@ -398,7 +398,7 @@ async function initializeDyeBaskets() {
       if (!selectedBasketId) return;
       const b = basketsCache.find(x => x.id === selectedBasketId);
       try {
-        await updateWorkflow({ context: { extras: { basketId: selectedBasketId, basketName: b ? basketName(b) : '' } } });
+        await updateWorkflow({ context: markDye({ extras: { basketId: selectedBasketId, basketName: b ? basketName(b) : '' } }) });
       } catch (e) { console.warn('workflow update failed:', e); }
       window.history.back();
     });

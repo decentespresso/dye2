@@ -99,6 +99,13 @@ Fields with no schema slot ride in `context.extras` — `rpm`, `basketId`, `bask
 `note`. Note that `extras` is rebuilt by spread on each branch, so it merges rather than
 clobbers within a single build.
 
+Every DYE2 write of a bean, grinder, barista/drinker, basket, rpm or note field also flags it in
+`context.extras.dye = { v: 1, <field>: true }` through `markDye()` (`dev-api.ts`). Streamline's
+post-shot clear (`dye-context.js`) wipes only flagged fields, so an unflagged write is cleared
+along with everything else, or an unrelated plugin's value is. Flag exactly what a write sets;
+a field written `null` gets a `null` flag. A new workflow write site must call `markDye`.
+The plugin runtime writes none of these fields, so it has no copy.
+
 `WorkflowContext` and `BeanBatch` are different schemas that share some field names, and not
 all of them: `roastDate` is a `BeanBatch` field, not a `WorkflowContext` one — the bridge
 accepts and drops it from workflow context, which is why `dashboard.ts` reads a shot's

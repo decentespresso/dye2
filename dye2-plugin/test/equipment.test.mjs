@@ -16,7 +16,7 @@ const fakeFetch = async (url, opts) => {
 };
 
 const api = new Function('fetch', devApiScript +
-  '\nreturn { getEquipment, createEquipment, buildRecipeWorkflow, getRecipe, updateRecipe, recipeChanges, profileAtBrewTemp };')(fakeFetch);
+  '\nreturn { getEquipment, createEquipment, buildRecipeWorkflow, getRecipe, updateRecipe, recipeChanges, profileAtBrewTemp, buildFavouriteWorkflow, markDye, updateWorkflow };')(fakeFetch);
 
 assert.deepEqual(await api.getEquipment(), [], 'an unwritten key reads as an empty table');
 
@@ -111,4 +111,41 @@ console.log('ok   equipment KV table');
   assert.deepEqual((await api.buildRecipeWorkflow({ profileId: 'x', profileSnapshot: snap, dashboardVariables: { brewC: null } })).profile.steps.map(s => s.temperature), [94, 90], 'null brewC skips');
   assert.equal((await api.buildRecipeWorkflow({ dashboardVariables: { brewC: 92 } })).profile, undefined, 'no profile named, none embedded');
   console.log('ok   brew temperature shifts the profile');
+}
+
+// Streamline clears after a shot only what context.extras.dye flags (dye2#25): every write
+// flags exactly the fields it set, and a field DYE2 nulls has its flag nulled.
+{
+  const r = (await api.buildRecipeWorkflow({
+    beanName: 'Ethiopia', beanRoaster: 'Onyx', barista: 'Mo',
+    dashboardVariables: { dose: 18, rpm: 900, grinderId: 'g1', grinderModel: 'Niche', basketId: 'b1', basketName: 'VST' },
+  })).context;
+  assert.deepEqual(r.extras.dye, {
+    v: 1, coffeeName: true, coffeeRoaster: true, beanBatchId: null, grinderId: true, grinderModel: true,
+    baristaName: true, basketId: true, basketName: true, rpm: true,
+  }, 'recipe flags what it set; the absent batch it clears is nulled');
+  assert.ok(!('drinkerName' in r.extras.dye) && !('note' in r.extras.dye), 'unset fields are not flagged');
+  assert.equal(r.extras.rpm, 900, 'values survive the flagging');
+  const none = (await api.buildRecipeWorkflow({ dashboardVariables: { dose: 18 } })).context;
+  assert.ok(!('extras' in none), 'a write of no flaggable field carries no marker');
+
+  const f = (await api.buildFavouriteWorkflow({ snapshot: { dose: 18, note: 'n', coffeeName: 'X', rpm: 800, grindSetting: 3 }, copyMask: { beans: false } })).context;
+  assert.deepEqual(f.extras.dye, { v: 1, rpm: true, note: true }, 'copyMask-skipped fields are not flagged');
+
+  // dashboard setters pass explicit keys: a ctx holding another plugin's values claims none of them
+  const ctx = { coffeeName: 'Other plugin', grinderId: 'g2', extras: { dye: { v: 1, rpm: true, selection: { kind: 'recipe', id: '1' } } } };
+  api.markDye(ctx, ['grinderId']);
+  assert.deepEqual(ctx.extras.dye, { v: 1, rpm: true, selection: { kind: 'recipe', id: '1' }, grinderId: true }, 'merges into existing flags, claims only the named key');
+  api.markDye(ctx, ['grinderId', 'note']);
+  assert.ok(!('note' in ctx.extras.dye), 'an undefined (unwritten) key is skipped');
+  ctx.grinderId = null;
+  api.markDye(ctx, ['grinderId']);
+  assert.equal(ctx.extras.dye.grinderId, null, 'a cleared field clears its flag');
+
+  // a whole-workflow PUT never carries the plugin runtime's selection back
+  let sent = null;
+  const put = new Function('fetch', devApiScript + '\nreturn updateWorkflow;')(async (u, o) => { sent = JSON.parse(o.body); return { ok: true, status: 200, json: async () => ({}) }; });
+  await put({ context: { extras: { rpm: 1, dye: { v: 1, rpm: true, selection: { kind: 'recipe', id: '1' } } } } });
+  assert.deepEqual(sent.context.extras.dye, { v: 1, rpm: true }, 'selection is stripped from the outgoing PUT');
+  console.log('ok   workflow writes flag extras.dye');
 }

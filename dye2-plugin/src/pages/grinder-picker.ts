@@ -462,7 +462,7 @@ async function initializeDyeGrinders() {
       if (!selectedGrinderId) return;
       const g = grindersCache.find(x => x.id === selectedGrinderId);
       try {
-        await updateWorkflow({ context: { grinderId: selectedGrinderId, grinderModel: g ? grinderName(g) : '' } });
+        await updateWorkflow({ context: markDye({ grinderId: selectedGrinderId, grinderModel: g ? grinderName(g) : '' }) });
       } catch (e) { console.warn('workflow update failed:', e); }
       window.history.back();
     });

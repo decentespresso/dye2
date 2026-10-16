@@ -390,7 +390,7 @@ async function initializeDyeBeans() {
       if (roaster) {
         const coffeeName  = sessionStorage.getItem('dye_selectedBeanName') || '';
         const beanBatchId = sessionStorage.getItem('dye_selectedBatchId') || undefined;
-        try { await updateWorkflow({ context: { coffeeName, coffeeRoaster: roaster, beanBatchId } }); }
+        try { await updateWorkflow({ context: markDye({ coffeeName, coffeeRoaster: roaster, beanBatchId }) }); }
         catch (e) { console.error('Failed to update workflow:', e); }
         ['dye_selectedBeanId','dye_selectedBeanName','dye_selectedBeanRoaster','dye_selectedBatchId','dye_selectedRoastDate']
           .forEach(k => sessionStorage.removeItem(k));

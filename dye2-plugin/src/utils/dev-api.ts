@@ -109,7 +109,34 @@ async function getWorkflow() {
   return res.json();
 }
 
+/* Streamline clears, after each shot, only the context fields DYE2 flagged in
+   context.extras.dye = { v: 1, <field>: true } (streamline_project src/modules/dye-context.js).
+   markDye(ctx, keys) flags the \`keys\` this write set on \`ctx\` (a WorkflowContext about to be
+   PUT); with no \`keys\` it flags every known field present, for a ctx built fresh by a
+   builder. A field written null is DYE2 clearing it, so its flag goes null too. An undefined
+   one was not written and is left alone. The plugin runtime never writes these fields, so it
+   has no copy of this. */
+const DYE_TOP_KEYS = ['beanBatchId', 'coffeeName', 'coffeeRoaster', 'grinderId', 'grinderModel', 'baristaName', 'drinkerName'];
+const DYE_EXTRAS_KEYS = ['basketId', 'basketName', 'rpm', 'note'];
+function markDye(ctx, keys) {
+  const ex = ctx.extras || {};
+  const flags = {};
+  for (const k of keys || [...DYE_TOP_KEYS, ...DYE_EXTRAS_KEYS]) {
+    const v = DYE_EXTRAS_KEYS.includes(k) ? ex[k] : ctx[k];
+    if (v !== undefined) flags[k] = v === null ? null : true;
+  }
+  if (Object.keys(flags).length) ctx.extras = { ...ex, dye: { ...(ex.dye || {}), v: 1, ...flags } };
+  return ctx;
+}
+
 async function updateWorkflow(data) {
+  /* extras.dye.selection is the plugin runtime's (plugin.ts writes it); a whole-workflow PUT
+     carrying a stale copy would re-arm what it cleared, so it never leaves this page. */
+  const dye = data && data.context && data.context.extras && data.context.extras.dye;
+  if (dye && 'selection' in dye) {
+    const { selection, ...rest } = dye;
+    data = { ...data, context: { ...data.context, extras: { ...data.context.extras, dye: rest } } };
+  }
   const res = await fetch(API_BASE_URL + '/workflow', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -345,6 +372,7 @@ async function buildFavouriteWorkflow(fav) {
       wf.profile = full || { id: snp.profileId, title: snp.profileTitle };
     }
   }
+  markDye(ctx);
   return wf;
 }
 
@@ -383,6 +411,7 @@ async function buildRecipeWorkflow(recipe) {
   // whatever is live at apply time, which this stored body cannot know: dashboard.ts applyRecipe
   // covers that case, and the body then carries no profile to shift (dye2#26).
   if (dv.brewC != null && wf.profile) wf.profile = profileAtBrewTemp(wf.profile, dv.brewC);
+  markDye(ctx);
   return wf;
 }
 

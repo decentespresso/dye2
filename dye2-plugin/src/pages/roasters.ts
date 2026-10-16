@@ -263,7 +263,7 @@ async function initializeDyeRoasters() {
       const coffeeRoaster = selectedRoaster;
       const beanBatchId   = sessionStorage.getItem('dye_selectedBatchId') || undefined;
       try {
-        await updateWorkflow({ context: { coffeeName, coffeeRoaster, beanBatchId } });
+        await updateWorkflow({ context: markDye({ coffeeName, coffeeRoaster, beanBatchId }) });
       } catch (e) {
         console.error('Failed to update workflow:', e);
       }
