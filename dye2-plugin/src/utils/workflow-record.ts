@@ -88,9 +88,13 @@ export function profileDrifted(sel: Selection | null, workflow: AnyRecord | null
 export function contextDrifted(sel: Selection | null, workflow: AnyRecord | null | undefined): boolean {
   if (!sel) return false;
   const ctx = (workflow && workflow.context) || {};
+  // Only a switch away from one the selection actually had. An armed "" means the workflow
+  // had none — applying a recipe never sets beanBatchId (dye2#27) — so picking a bean then
+  // is the barista saying which coffee this is, not switching off the recipe; disarming
+  // there would stop recording on the normal apply-then-pick-bean order.
   return (
-    (sel.armedBeanBatchId != null && sel.armedBeanBatchId !== idOf(ctx.beanBatchId)) ||
-    (sel.armedGrinderId != null && sel.armedGrinderId !== idOf(ctx.grinderId))
+    (!!sel.armedBeanBatchId && sel.armedBeanBatchId !== idOf(ctx.beanBatchId)) ||
+    (!!sel.armedGrinderId && sel.armedGrinderId !== idOf(ctx.grinderId))
   );
 }
 
@@ -371,10 +375,12 @@ export function scheduleWorkflowRecord(
     updateSelection(selection, { profileFingerprint: profileFingerprint(wf.profile) });
   }
 
-  if (selection.armedBeanBatchId == null || selection.armedGrinderId == null) {
+  // No baseline yet (armed without a workflow) or an empty one (the workflow had no bean
+  // or grinder when armed): adopt what the workflow says now, so the NEXT switch disarms.
+  if (!selection.armedBeanBatchId || !selection.armedGrinderId) {
     updateSelection(selection, {
-      armedBeanBatchId: selection.armedBeanBatchId ?? idOf(wf.context && wf.context.beanBatchId),
-      armedGrinderId: selection.armedGrinderId ?? idOf(wf.context && wf.context.grinderId),
+      armedBeanBatchId: selection.armedBeanBatchId || idOf(wf.context && wf.context.beanBatchId),
+      armedGrinderId: selection.armedGrinderId || idOf(wf.context && wf.context.grinderId),
     });
   }
 

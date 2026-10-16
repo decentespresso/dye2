@@ -11202,7 +11202,7 @@ bcInit();
 	function contextDrifted(sel, workflow) {
 		if (!sel) return false;
 		const ctx = workflow && workflow.context || {};
-		return sel.armedBeanBatchId != null && sel.armedBeanBatchId !== idOf(ctx.beanBatchId) || sel.armedGrinderId != null && sel.armedGrinderId !== idOf(ctx.grinderId);
+		return !!sel.armedBeanBatchId && sel.armedBeanBatchId !== idOf(ctx.beanBatchId) || !!sel.armedGrinderId && sel.armedGrinderId !== idOf(ctx.grinderId);
 	}
 	function idOf(v) {
 		return v == null ? "" : String(v);
@@ -11425,9 +11425,9 @@ bcInit();
 		}
 		if (isEcho(wf, now)) return;
 		if (!selection.profileFingerprint) updateSelection(selection, { profileFingerprint: profileFingerprint(wf.profile) });
-		if (selection.armedBeanBatchId == null || selection.armedGrinderId == null) updateSelection(selection, {
-			armedBeanBatchId: selection.armedBeanBatchId ?? idOf(wf.context && wf.context.beanBatchId),
-			armedGrinderId: selection.armedGrinderId ?? idOf(wf.context && wf.context.grinderId)
+		if (!selection.armedBeanBatchId || !selection.armedGrinderId) updateSelection(selection, {
+			armedBeanBatchId: selection.armedBeanBatchId || idOf(wf.context && wf.context.beanBatchId),
+			armedGrinderId: selection.armedGrinderId || idOf(wf.context && wf.context.grinderId)
 		});
 		cancelPending();
 		const armed = selection;
@@ -11470,8 +11470,12 @@ bcInit();
 				data: getSelection() || {}
 			});
 		}
-		setSelectionListener(() => {
+		let announcedSelection = null;
+		setSelectionListener((sel) => {
 			persistSelection();
+			const key = sel ? sel.kind + ":" + sel.id : null;
+			if (key === announcedSelection) return;
+			announcedSelection = key;
 			announce({ what: "workflow" });
 		});
 		function json(request, status, body) {

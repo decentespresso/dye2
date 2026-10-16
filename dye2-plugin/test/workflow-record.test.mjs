@@ -171,7 +171,9 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   run(withCtx({ beanBatchId: '', grinderId: undefined }));
   assert.ok(getSelection(), 'unset -> unset keeps the selection');
   run(withCtx({ beanBatchId: 'b1' }));
-  assert.equal(getSelection(), null, 'unset -> a batch disarms');
+  assert.ok(getSelection(), 'unset -> a batch is specifying, not switching: stays armed');
+  run(withCtx({ beanBatchId: 'b2' }));
+  assert.equal(getSelection(), null, 'and then a different batch disarms');
 
   // armed without a workflow: unknown, adopted from the first event rather than disarming
   armSelection({ kind: 'recipe', id: '1' });

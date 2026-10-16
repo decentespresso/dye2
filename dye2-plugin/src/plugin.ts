@@ -75,8 +75,16 @@ export default function createPlugin(host: PluginHost): PluginInstance {
   // Every selection change (arm, clear, `recent:`, profile drift) persists AND pushes, so
   // the skin re-reads its DYE strip. handleSelection must not announce again itself, and
   // restoreSelection deliberately does not notify this listener.
-  setSelectionListener(() => {
+  let announcedSelection: string | null = null;
+  setSelectionListener((sel) => {
     persistSelection();
+    // updateSelection fires this listener for a baseline rebase too (armedBrewC after a
+    // record, an adopted fingerprint or bean/grinder): nothing the skin can see, and a
+    // brew-temp tweak would otherwise push on every workflowUpdated. Push only when
+    // WHICH item is selected changes.
+    const key = sel ? sel.kind + ":" + sel.id : null;
+    if (key === announcedSelection) return;
+    announcedSelection = key;
     announce({ what: "workflow" });
   });
 
