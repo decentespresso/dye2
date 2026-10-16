@@ -362,9 +362,13 @@ async function buildRecipeWorkflow(recipe) {
   if (dv.grinderModel) ctx.grinderModel = dv.grinderModel;
   if (dv.basketId)   ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId };
   if (dv.basketName) ctx.extras = { ...(ctx.extras || {}), basketName: dv.basketName };
-  if (recipe && recipe.beanName) ctx.coffeeName = recipe.beanName;
-  if (recipe && recipe.beanRoaster) ctx.coffeeRoaster = recipe.beanRoaster;
-  if (recipe && recipe.beanBatchId) ctx.beanBatchId = recipe.beanBatchId;
+  // One pick, written together: a recipe naming a bean with no batch clears the previous
+  // batch (PUT deep-merges, so omitting it would keep another roast's id). See dye2#27.
+  if (recipe && (recipe.beanId || recipe.beanName)) {
+    ctx.coffeeName    = recipe.beanName    || null;
+    ctx.coffeeRoaster = recipe.beanRoaster || null;
+    ctx.beanBatchId   = recipe.beanBatchId || null;
+  }
   if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;
   if (recipe && (recipe.profileId || recipe.profileTitle)) {

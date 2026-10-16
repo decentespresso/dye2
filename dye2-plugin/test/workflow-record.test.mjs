@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import {
   armSelection, clearSelection, getSelection, setSelectionListener, restoreSelection,
   profileFingerprint, profileDrifted, itemPatch, recordWorkflow, scheduleWorkflowRecord,
-  suppress,
+  suppress, profileAtBrewC,
 } from '../src/utils/workflow-record.ts';
 
 const profile = (temp) => ({ title: 'P', tank_temperature: 0, steps: [{ name: 's', temperature: temp }] });
@@ -195,6 +195,28 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(getSelection().armedBeanBatchId, 'b1');
   assert.equal(getSelection().armedGrinderId, 'g1');
   clearSelection();
+}
+
+// --- a recorded brew temp moves the stored apply-body's profile (dye2#26) ---------
+{
+  const steps = [{ temperature: 94 }, { temperature: 90 }, { temperature: 88 }];
+  assert.deepEqual(profileAtBrewC({ title: 'P', steps }, 92).steps.map((x) => x.temperature), [92, 88, 86]);
+  assert.deepEqual(steps.map((x) => x.temperature), [94, 90, 88], 'source profile not mutated');
+  assert.equal(profileAtBrewC({ title: 'P' }, 92), null, 'nothing to shift without steps');
+  assert.equal(profileAtBrewC({ steps }, null), null, 'nothing to shift without a temperature');
+
+  // Streamline's strip PUTs item.workflow, so dashboardVariables.brewC and that body's
+  // profile must not disagree.
+  clearSelection();
+  const item = { ...recipe(), workflow: { context: {}, profile: { title: 'P', steps: [{ temperature: 93 }, { temperature: 89 }] } } };
+  const s = fakeStore({ recipes: [item] });
+  const armed = { kind: 'recipe', id: '1', profileFingerprint: null, armedBrewC: 93, armedBeanBatchId: '', armedGrinderId: '' };
+  const wrote = await recordWorkflow(wf({ profile: profile(95) }), s.fetchFn, armed);
+  assert.equal(wrote, true);
+  assert.equal(s.store.recipes[0].dashboardVariables.brewC, 95);
+  assert.deepEqual(s.store.recipes[0].workflow.profile.steps.map((x) => x.temperature), [95, 91],
+    'the embedded profile follows the recorded brew temp');
+  console.log('ok   a recorded brew temp moves the embedded profile too');
 }
 
 // --- echo guard -------------------------------------------------------------------

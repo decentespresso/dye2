@@ -26,7 +26,7 @@ export interface Selection {
   /** Fingerprint of the profile the item was armed on; null until first seen. */
   profileFingerprint: string | null;
   /**
-   * Live step-0 temperature when armed (then rebased after each record). apply never
+   * Live step-0 temperature when armed (then rebased after each record). apply now
    * shifts the loaded profile to a recipe's brewC (dye2#26), so right after apply the live
    * value equals the stored one; a favourite carries no brewC and a recipe naming no
    * profile can leave the live one different. brewC is recorded only when the live value
@@ -90,7 +90,8 @@ export function contextDrifted(sel: Selection | null, workflow: AnyRecord | null
   if (!sel) return false;
   const ctx = (workflow && workflow.context) || {};
   // Only a switch away from one the selection actually had. An armed "" means the workflow
-  // had none — applying a recipe never sets beanBatchId (dye2#27) — so picking a bean then
+  // had none — apply sets beanBatchId only for a recipe that holds one (dye2#27) — so picking
+  // a bean then
   // is the barista saying which coffee this is, not switching off the recipe; disarming
   // there would stop recording on the normal apply-then-pick-bean order.
   return (
@@ -200,6 +201,32 @@ export function itemPatch(
     for (const k of ["basketId", "basketName"]) if (all[k] !== undefined) patch[k] = all[k];
   }
   return patch;
+}
+
+/**
+ * A copy of `profile` with its first step at `brewC` and every other step moved by the same
+ * amount: 94, 90, 88 at 92 becomes 92, 88, 86. Port of profileAtBrewTemp in
+ * streamline_project/src/modules/brew-temp.js; keep it in step with the browser-side copy in
+ * dev-api.ts (the two runtimes cannot share one). Null when there is nothing to shift.
+ */
+export function profileAtBrewC(profile: AnyRecord | null | undefined, brewC: unknown): AnyRecord | null {
+  // Number(null) and Number("") are 0, which would silently shift the whole curve to zero.
+  if (brewC == null || brewC === "") return null;
+  const target = Number(brewC);
+  if (!profile || !Array.isArray(profile.steps) || !Number.isFinite(target)) return null;
+  const origin = profile.steps[0] && profile.steps[0].temperature;
+  const shift =
+    typeof origin === "number" && Number.isFinite(origin) ? target - origin : null;
+  return {
+    ...profile,
+    steps: profile.steps.map((s: AnyRecord) => {
+      const t =
+        shift != null && typeof s.temperature === "number" && Number.isFinite(s.temperature)
+          ? Math.round((s.temperature + shift) * 100) / 100
+          : target;
+      return { ...s, temperature: t };
+    }),
+  };
 }
 
 // ── selection ───────────────────────────────────────────────────────────────
@@ -340,6 +367,13 @@ export async function recordWorkflow(
       if (k in patch) c.extras = { ...(c.extras || {}), [k]: patch[k] };
     }
     next.workflow = { ...item.workflow, context: c };
+  }
+  // item.workflow is also what Streamline's strip PUTs, so a recorded brew-temp change has
+  // to move its profile too — otherwise a strip apply would brew the old temperatures while
+  // dashboardVariables.brewC says the new one (dye2#26).
+  if ("brewC" in patch && next.workflow) {
+    const shifted = profileAtBrewC(next.workflow.profile, patch.brewC);
+    if (shifted) next.workflow = { ...next.workflow, profile: shifted };
   }
   const out = list.slice();
   out[idx] = next;

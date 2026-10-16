@@ -42,8 +42,13 @@ console.log('ok   equipment KV table');
   assert.equal(wf.coffeeName, 'Ethiopia');
   assert.equal(wf.coffeeRoaster, 'Onyx');
   assert.equal(wf.beanBatchId, 'b-9');
+  // Naming a bean with no batch CLEARS the batch: PUT deep-merges, so leaving it out would
+  // keep the previous bean's roast under this coffee's name.
   const bare = (await api.buildRecipeWorkflow({ beanName: 'Ethiopia' })).context;
-  assert.ok(!('beanBatchId' in bare) && !('coffeeRoaster' in bare), 'a recipe without a batch writes none');
+  assert.equal(bare.beanBatchId, null);
+  assert.equal(bare.coffeeRoaster, null);
+  const noBean = (await api.buildRecipeWorkflow({ dashboardVariables: { dose: 18 } })).context;
+  assert.ok(!('beanBatchId' in noBean), 'a recipe naming no bean leaves the workflow alone');
   console.log('ok   recipe workflow carries the bean batch');
 }
 

@@ -584,9 +584,13 @@ async function buildRecipeWorkflow(recipe) {
   if (dv.grinderModel) ctx.grinderModel = dv.grinderModel;
   if (dv.basketId)   ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId };
   if (dv.basketName) ctx.extras = { ...(ctx.extras || {}), basketName: dv.basketName };
-  if (recipe && recipe.beanName) ctx.coffeeName = recipe.beanName;
-  if (recipe && recipe.beanRoaster) ctx.coffeeRoaster = recipe.beanRoaster;
-  if (recipe && recipe.beanBatchId) ctx.beanBatchId = recipe.beanBatchId;
+  // One pick, written together: a recipe naming a bean with no batch clears the previous
+  // batch (PUT deep-merges, so omitting it would keep another roast's id). See dye2#27.
+  if (recipe && (recipe.beanId || recipe.beanName)) {
+    ctx.coffeeName    = recipe.beanName    || null;
+    ctx.coffeeRoaster = recipe.beanRoaster || null;
+    ctx.beanBatchId   = recipe.beanBatchId || null;
+  }
   if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;
   if (recipe && (recipe.profileId || recipe.profileTitle)) {
@@ -6451,11 +6455,14 @@ async function applyRecipe(recipe) {
   const grinder = dv.grinderId ? grinders.find(g => g.id === dv.grinderId) : null;
   // Write id and name together: tabs match by id, shots record the name.
   if (grinder) { ctx.grinderId = grinder.id; ctx.grinderModel = grinder.model || grinder.name; }
-  // Bean, roaster and batch are one pick (bean-picker): write what the recipe holds, so the
-  // workflow's beanBatchId follows its coffee name (dye2#27).
-  if (recipe.beanName) ctx.coffeeName = recipe.beanName;
-  if (recipe.beanRoaster) ctx.coffeeRoaster = recipe.beanRoaster;
-  if (recipe.beanBatchId) ctx.beanBatchId = recipe.beanBatchId;
+  // Bean, roaster and batch are one pick (bean-picker), so they move together: a recipe that
+  // names a bean but holds no batch clears the previous one rather than leaving a shot
+  // carrying one roast's id under another coffee's name (dye2#27).
+  if (recipe.beanId || recipe.beanName) {
+    ctx.coffeeName    = recipe.beanName    || null;
+    ctx.coffeeRoaster = recipe.beanRoaster || null;
+    ctx.beanBatchId   = recipe.beanBatchId || null;
+  }
   if (recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe.drinker) ctx.drinkerName = recipe.drinker;
   currentWorkflow.context = ctx;
@@ -11385,6 +11392,29 @@ bcInit();
 		}
 		return patch;
 	}
+	/**
+	* A copy of `profile` with its first step at `brewC` and every other step moved by the same
+	* amount: 94, 90, 88 at 92 becomes 92, 88, 86. Port of profileAtBrewTemp in
+	* streamline_project/src/modules/brew-temp.js; keep it in step with the browser-side copy in
+	* dev-api.ts (the two runtimes cannot share one). Null when there is nothing to shift.
+	*/
+	function profileAtBrewC(profile, brewC) {
+		if (brewC == null || brewC === "") return null;
+		const target = Number(brewC);
+		if (!profile || !Array.isArray(profile.steps) || !Number.isFinite(target)) return null;
+		const origin = profile.steps[0] && profile.steps[0].temperature;
+		const shift = typeof origin === "number" && Number.isFinite(origin) ? target - origin : null;
+		return {
+			...profile,
+			steps: profile.steps.map((s) => {
+				const t = shift != null && typeof s.temperature === "number" && Number.isFinite(s.temperature) ? Math.round((s.temperature + shift) * 100) / 100 : target;
+				return {
+					...s,
+					temperature: t
+				};
+			})
+		};
+	}
 	function getSelection() {
 		return selection;
 	}
@@ -11504,6 +11534,13 @@ bcInit();
 			next.workflow = {
 				...item.workflow,
 				context: c
+			};
+		}
+		if ("brewC" in patch && next.workflow) {
+			const shifted = profileAtBrewC(next.workflow.profile, patch.brewC);
+			if (shifted) next.workflow = {
+				...next.workflow,
+				profile: shifted
 			};
 		}
 		const out = list.slice();
