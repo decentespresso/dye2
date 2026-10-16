@@ -1137,9 +1137,14 @@ function renderRecipePills(workflow) {
         noteApplied('favourite', item);
         updateWorkflow(currentWorkflow).then(() => postSelection('favourite', item)).catch(e => console.warn(e));
       } else {
-        await applyRecipe(item);
-        noteApplied('recipe', item);
-        updateWorkflow(currentWorkflow).then(() => postSelection('recipe', item)).catch(e => console.warn(e));
+        // The list was read at page load; dial-in recording may have changed this recipe since,
+        // so apply the stored record. Fall back to the loaded one if the re-read fails or the
+        // recipe is gone, rather than applying nothing (dye2#28).
+        let fresh = item;
+        try { fresh = (await getRecipe(item.id)) || item; } catch (e) { console.warn('recipe re-read failed', e); }
+        await applyRecipe(fresh);
+        noteApplied('recipe', fresh);
+        updateWorkflow(currentWorkflow).then(() => postSelection('recipe', fresh)).catch(e => console.warn(e));
       }
     });
     container.appendChild(pill);

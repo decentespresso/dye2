@@ -45,6 +45,9 @@ Three things about this store matter more than the schemas:
 3. **Derived fields are recomputed on write.** `updateAutoFavourite` / `updateRecipe`
    overwrite `subtitle`, `title` and `workflow` from the source fields every time. Hand-editing
    those in the store is pointless — they will be regenerated.
+   `updateRecipe(id, patch)` takes only the fields that changed (`recipeChanges(baseline, form)`,
+   `dashboardVariables` key by key; a cleared field is `null`) and lays them on the re-read
+   record, because dial-in recording writes recipes while the editor is open.
 
 `baskets` is transitional. Decaid PR #727 adds a real `/api/v1/equipment` resource; check
 whether it has landed before building anything new against the `baskets` key.

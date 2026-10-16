@@ -354,6 +354,10 @@ const STREAMLINE_OFF_SVG = ${JSON.stringify(streamlineOffSvg)};
 
 const NUM_RECIPES = ${NUM_RECIPES};
 let recipes = [];
+// Each slot as read from the store at open, never edited: save writes only what differs from
+// it, so a dial-in recorded while the page is open is not reverted (dye2#28). A slot with no
+// stored record is {}, so everything on it counts as changed.
+let recipeBaselines = [];
 let currentRecipeIdx = 0;
 let grinders = [];
 let baskets = [];
@@ -969,7 +973,7 @@ function setupFooter() {
     const recipe = recipes[currentRecipeIdx];
     try {
       if (recipe && recipe.id) {
-        await updateRecipe(recipe.id, data);
+        await updateRecipe(recipe.id, recipeChanges(recipeBaselines[currentRecipeIdx] || {}, data));
       }
       leaveRecipeEdit();
     } catch (e) { console.error('Failed to save recipe:', e); }
@@ -1013,6 +1017,7 @@ async function initRecipeEdit() {
     const existing = loadedRecipes.find(r => r && r.id === id);
     return existing ? { ...existing, id } : { id, name: 'Recipe ' + (i + 1) };
   });
+  recipeBaselines = recipes.map((_, i) => JSON.parse(JSON.stringify(loadedRecipes.find(r => r && r.id === String(i + 1)) || {})));
   document.querySelectorAll('.re-tab').forEach((btn, i) => {
     if (recipes[i] && recipes[i].name) btn.textContent = recipes[i].name;
   });

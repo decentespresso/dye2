@@ -363,9 +363,42 @@ function recipeSubtitle(r) {
 // Recipes (R mode)
 async function getRecipes() { return kvGetArray('recipes'); }
 
-async function updateRecipe(id, data) {
+async function getRecipe(id) {
   const arr = await kvGetArray('recipes');
-  const item = { ...data, id, capturedAt: new Date().toISOString() };
+  return arr.find(x => x && x.id === id) || null;
+}
+
+// The fields of \`data\` that differ from \`base\` (the record as the editor loaded it), for
+// updateRecipe. Dial-in recording writes recipes while the editor is open, so saving the
+// whole form would revert every field the barista never touched. A cleared field arrives
+// as null (or undefined, which the editor uses for an inactive mode) and is written as null;
+// an untouched one is absent from the patch. dashboardVariables is diffed key by key.
+// Mirrors changedFields in workflow-record.ts, which the plugin runtime cannot share.
+function recipeChanges(base, data) {
+  const same = (a, b) => JSON.stringify(a == null ? null : a) === JSON.stringify(b == null ? null : b);
+  const diff = (b, d) => {
+    const out = {};
+    for (const k of Object.keys(d || {})) {
+      if (!same((b || {})[k], d[k])) out[k] = d[k] === undefined ? null : d[k];
+    }
+    return out;
+  };
+  const { dashboardVariables, ...rest } = data || {};
+  const patch = diff(base, rest);
+  const dv = diff((base || {}).dashboardVariables, dashboardVariables);
+  if (Object.keys(dv).length) patch.dashboardVariables = dv;
+  return patch;
+}
+
+// \`patch\` is only what changed (see recipeChanges), laid over the freshly re-read record so
+// edits made elsewhere since the page loaded survive. Derived fields are recomputed from
+// the merged result, never from the patch.
+async function updateRecipe(id, patch) {
+  const arr = await kvGetArray('recipes');
+  const fresh = arr.find(x => x && x.id === id) || {};
+  const { dashboardVariables, ...rest } = patch || {};
+  const item = { ...fresh, ...rest, id, capturedAt: new Date().toISOString() };
+  if (dashboardVariables) item.dashboardVariables = { ...(fresh.dashboardVariables || {}), ...dashboardVariables };
   item.title = item.name || ('Recipe ' + id);
   item.subtitle = recipeSubtitle(item);
   item.workflow = await buildRecipeWorkflow(item);

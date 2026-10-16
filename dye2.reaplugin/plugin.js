@@ -585,9 +585,42 @@ function recipeSubtitle(r) {
 // Recipes (R mode)
 async function getRecipes() { return kvGetArray('recipes'); }
 
-async function updateRecipe(id, data) {
+async function getRecipe(id) {
   const arr = await kvGetArray('recipes');
-  const item = { ...data, id, capturedAt: new Date().toISOString() };
+  return arr.find(x => x && x.id === id) || null;
+}
+
+// The fields of \`data\` that differ from \`base\` (the record as the editor loaded it), for
+// updateRecipe. Dial-in recording writes recipes while the editor is open, so saving the
+// whole form would revert every field the barista never touched. A cleared field arrives
+// as null (or undefined, which the editor uses for an inactive mode) and is written as null;
+// an untouched one is absent from the patch. dashboardVariables is diffed key by key.
+// Mirrors changedFields in workflow-record.ts, which the plugin runtime cannot share.
+function recipeChanges(base, data) {
+  const same = (a, b) => JSON.stringify(a == null ? null : a) === JSON.stringify(b == null ? null : b);
+  const diff = (b, d) => {
+    const out = {};
+    for (const k of Object.keys(d || {})) {
+      if (!same((b || {})[k], d[k])) out[k] = d[k] === undefined ? null : d[k];
+    }
+    return out;
+  };
+  const { dashboardVariables, ...rest } = data || {};
+  const patch = diff(base, rest);
+  const dv = diff((base || {}).dashboardVariables, dashboardVariables);
+  if (Object.keys(dv).length) patch.dashboardVariables = dv;
+  return patch;
+}
+
+// \`patch\` is only what changed (see recipeChanges), laid over the freshly re-read record so
+// edits made elsewhere since the page loaded survive. Derived fields are recomputed from
+// the merged result, never from the patch.
+async function updateRecipe(id, patch) {
+  const arr = await kvGetArray('recipes');
+  const fresh = arr.find(x => x && x.id === id) || {};
+  const { dashboardVariables, ...rest } = patch || {};
+  const item = { ...fresh, ...rest, id, capturedAt: new Date().toISOString() };
+  if (dashboardVariables) item.dashboardVariables = { ...(fresh.dashboardVariables || {}), ...dashboardVariables };
   item.title = item.name || ('Recipe ' + id);
   item.subtitle = recipeSubtitle(item);
   item.workflow = await buildRecipeWorkflow(item);
@@ -6330,9 +6363,14 @@ function renderRecipePills(workflow) {
         noteApplied('favourite', item);
         updateWorkflow(currentWorkflow).then(() => postSelection('favourite', item)).catch(e => console.warn(e));
       } else {
-        await applyRecipe(item);
-        noteApplied('recipe', item);
-        updateWorkflow(currentWorkflow).then(() => postSelection('recipe', item)).catch(e => console.warn(e));
+        // The list was read at page load; dial-in recording may have changed this recipe since,
+        // so apply the stored record. Fall back to the loaded one if the re-read fails or the
+        // recipe is gone, rather than applying nothing (dye2#28).
+        let fresh = item;
+        try { fresh = (await getRecipe(item.id)) || item; } catch (e) { console.warn('recipe re-read failed', e); }
+        await applyRecipe(fresh);
+        noteApplied('recipe', fresh);
+        updateWorkflow(currentWorkflow).then(() => postSelection('recipe', fresh)).catch(e => console.warn(e));
       }
     });
     container.appendChild(pill);
@@ -9722,6 +9760,10 @@ const STREAMLINE_OFF_SVG = ${JSON.stringify(streamlineOffSvg)};
 
 const NUM_RECIPES = ${NUM_RECIPES};
 let recipes = [];
+// Each slot as read from the store at open, never edited: save writes only what differs from
+// it, so a dial-in recorded while the page is open is not reverted (dye2#28). A slot with no
+// stored record is {}, so everything on it counts as changed.
+let recipeBaselines = [];
 let currentRecipeIdx = 0;
 let grinders = [];
 let baskets = [];
@@ -10337,7 +10379,7 @@ function setupFooter() {
     const recipe = recipes[currentRecipeIdx];
     try {
       if (recipe && recipe.id) {
-        await updateRecipe(recipe.id, data);
+        await updateRecipe(recipe.id, recipeChanges(recipeBaselines[currentRecipeIdx] || {}, data));
       }
       leaveRecipeEdit();
     } catch (e) { console.error('Failed to save recipe:', e); }
@@ -10381,6 +10423,7 @@ async function initRecipeEdit() {
     const existing = loadedRecipes.find(r => r && r.id === id);
     return existing ? { ...existing, id } : { id, name: 'Recipe ' + (i + 1) };
   });
+  recipeBaselines = recipes.map((_, i) => JSON.parse(JSON.stringify(loadedRecipes.find(r => r && r.id === String(i + 1)) || {})));
   document.querySelectorAll('.re-tab').forEach((btn, i) => {
     if (recipes[i] && recipes[i].name) btn.textContent = recipes[i].name;
   });

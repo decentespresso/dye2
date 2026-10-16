@@ -16,7 +16,7 @@ const fakeFetch = async (url, opts) => {
 };
 
 const api = new Function('fetch', devApiScript +
-  '\nreturn { getEquipment, createEquipment, buildRecipeWorkflow };')(fakeFetch);
+  '\nreturn { getEquipment, createEquipment, buildRecipeWorkflow, getRecipe, updateRecipe, recipeChanges };')(fakeFetch);
 
 assert.deepEqual(await api.getEquipment(), [], 'an unwritten key reads as an empty table');
 
@@ -45,4 +45,40 @@ console.log('ok   equipment KV table');
   const bare = (await api.buildRecipeWorkflow({ beanName: 'Ethiopia' })).context;
   assert.ok(!('beanBatchId' in bare) && !('coffeeRoaster' in bare), 'a recipe without a batch writes none');
   console.log('ok   recipe workflow carries the bean batch');
+}
+
+// Saving a recipe writes only what the barista changed onto the freshly re-read record
+// (dye2#28): dial-in recording may have changed other fields while the editor was open.
+{
+  const loaded = { id: '1', name: 'Morning', beanName: 'Ethiopia', profileId: null,
+    dashboardVariables: { dose: 18, drink: 36, brewC: 93, rpm: 600, grind: 4.2 } };
+  const form = { name: 'Morning', beanName: 'Ethiopia', profileId: null,
+    dashboardVariables: { dose: 18, drink: 36, brewC: null, rpm: 600, grind: 4.2, ratio: undefined } };
+  // clearing brewC is a change, written as null; every untouched key is absent
+  assert.deepEqual(api.recipeChanges(loaded, form), { dashboardVariables: { brewC: null } });
+  assert.deepEqual(api.recipeChanges(loaded, JSON.parse(JSON.stringify(loaded))), {}, 'nothing touched, nothing patched');
+  assert.deepEqual(api.recipeChanges(loaded, { ...form, dashboardVariables: { ...form.dashboardVariables, brewC: 93, dose: 19 } }),
+    { dashboardVariables: { dose: 19 } }, 'dashboardVariables is diffed key by key');
+  assert.deepEqual(api.recipeChanges({}, { name: 'N', beanBatchId: null, dashboardVariables: { dose: 18, rpm: null } }),
+    { name: 'N', dashboardVariables: { dose: 18 } }, 'a null on a slot with no record is not a change');
+
+  // while the editor was open, dial-in recorded dose 20 and moved the grind; the barista only
+  // renamed the recipe. Neither recorded value is reverted, the other recipe survives.
+  stored = [{ ...loaded, dashboardVariables: { ...loaded.dashboardVariables, dose: 20, grind: 4.5 } }, { id: '2', name: 'Other' }];
+  const saved = await api.updateRecipe('1', api.recipeChanges(loaded, { ...form, name: 'Renamed', dashboardVariables: { ...form.dashboardVariables, brewC: 93 } }));
+  assert.equal(saved.name, 'Renamed');
+  assert.equal(saved.title, 'Renamed', 'title recomputed from the merged record');
+  assert.equal(saved.subtitle, 'Ethiopia', 'subtitle recomputed from the merged record');
+  assert.equal(saved.workflow.context.targetDoseWeight, 20, 'embedded workflow built from the merged record');
+  assert.deepEqual(saved.dashboardVariables, { dose: 20, drink: 36, brewC: 93, rpm: 600, grind: 4.5 });
+  assert.equal(stored.length, 2);
+  assert.equal(stored[1].name, 'Other');
+  assert.equal((await api.getRecipe('2')).name, 'Other');
+  assert.equal(await api.getRecipe('9'), null);
+
+  // a cleared field really is written as null
+  const cleared = await api.updateRecipe('1', { dashboardVariables: { rpm: null } });
+  assert.equal(cleared.dashboardVariables.rpm, null);
+  assert.equal(cleared.dashboardVariables.dose, 20);
+  console.log('ok   recipe save writes only changed fields');
 }
