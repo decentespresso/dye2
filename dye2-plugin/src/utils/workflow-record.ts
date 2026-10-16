@@ -27,9 +27,10 @@ export interface Selection {
   profileFingerprint: string | null;
   /**
    * Live step-0 temperature when armed (then rebased after each record). apply never
-   * pushes a recipe's brewC (docs/KV_CONTRACT.md: display only), so the live profile
-   * may legitimately differ from the stored value; brewC is recorded only when the
-   * live value moves off this baseline, i.e. a real brew-temp edit. Null = unknown.
+   * shifts the loaded profile to a recipe's brewC (dye2#26), so right after apply the live
+   * value equals the stored one; a favourite carries no brewC and a recipe naming no
+   * profile can leave the live one different. brewC is recorded only when the live value
+   * moves off this baseline, i.e. a real brew-temp edit. Null = unknown.
    */
   armedBrewC: number | null;
   /**

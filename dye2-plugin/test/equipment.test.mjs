@@ -16,7 +16,7 @@ const fakeFetch = async (url, opts) => {
 };
 
 const api = new Function('fetch', devApiScript +
-  '\nreturn { getEquipment, createEquipment, buildRecipeWorkflow, getRecipe, updateRecipe, recipeChanges };')(fakeFetch);
+  '\nreturn { getEquipment, createEquipment, buildRecipeWorkflow, getRecipe, updateRecipe, recipeChanges, profileAtBrewTemp };')(fakeFetch);
 
 assert.deepEqual(await api.getEquipment(), [], 'an unwritten key reads as an empty table');
 
@@ -81,4 +81,29 @@ console.log('ok   equipment KV table');
   assert.equal(cleared.dashboardVariables.rpm, null);
   assert.equal(cleared.dashboardVariables.dose, 20);
   console.log('ok   recipe save writes only changed fields');
+}
+
+// Brew temperature moves the whole curve, first step to N (dye2#26); ported from Streamline.
+{
+  const step = t => ({ name: 's', temperature: t });
+  const prof = { title: 'P', steps: [step(94), step(90), step(88)] };
+  const out = api.profileAtBrewTemp(prof, 92);
+  assert.deepEqual(out.steps.map(s => s.temperature), [92, 88, 86], '94/90/88 at 92');
+  assert.deepEqual(prof.steps.map(s => s.temperature), [94, 90, 88], 'the source profile is not mutated');
+  assert.notEqual(out, prof);
+  assert.deepEqual(api.profileAtBrewTemp({ steps: [step(93)] }, 91).steps.map(s => s.temperature), [91], 'single step');
+  assert.deepEqual(api.profileAtBrewTemp({ steps: [step(94), step('x'), step(88)] }, 92).steps.map(s => s.temperature),
+    [92, 92, 86], 'a non-numeric step takes the target');
+  assert.deepEqual(api.profileAtBrewTemp({ steps: [step(undefined), step(90)] }, 92).steps.map(s => s.temperature),
+    [92, 92], 'no usable first step: every step gets the target');
+  const stub = { id: 'p', title: 'P' };
+  assert.equal(api.profileAtBrewTemp(stub, 92), stub, 'a profile with no steps is left alone');
+  // the embedded workflow shifts the profile it carries, from the recipe's snapshot copy
+  const snap = { title: 'Snap', steps: [step(94), step(90)] };
+  const body = await api.buildRecipeWorkflow({ profileId: 'x', profileSnapshot: snap, dashboardVariables: { brewC: 92 } });
+  assert.deepEqual(body.profile.steps.map(s => s.temperature), [92, 88]);
+  assert.deepEqual(snap.steps.map(s => s.temperature), [94, 90], 'snapshot untouched');
+  assert.deepEqual((await api.buildRecipeWorkflow({ profileId: 'x', profileSnapshot: snap, dashboardVariables: { brewC: null } })).profile.steps.map(s => s.temperature), [94, 90], 'null brewC skips');
+  assert.equal((await api.buildRecipeWorkflow({ dashboardVariables: { brewC: 92 } })).profile, undefined, 'no profile named, none embedded');
+  console.log('ok   brew temperature shifts the profile');
 }

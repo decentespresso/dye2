@@ -72,8 +72,8 @@ POST /api/v1/plugins/dye2.reaplugin/selection {}           -> clears
 The selection is persisted in plugin storage, so it survives page navigation and
 reloads. Plugin storage shares the KV namespace, so a consumer can also read the armed
 item directly at `GET /api/v1/store/dye2.reaplugin/selection` (`null` when none).
-`brewC` is recorded only if the live brew temperature moves after arming (apply never
-pushes it); a recipe's inactive steam/hot-water mode value is never recorded, and the
+`brewC` is recorded only if the live brew temperature moves after arming (apply sets it,
+so the baseline is the applied value); a recipe's inactive steam/hot-water mode value is never recorded, and the
 mode fields themselves are never written by dial-in.
 
 ## Freshness
@@ -189,7 +189,11 @@ PUT /api/v1/workflow  with the merged object
 ```
 
 Only override when the base sub-object exists (it carries the required fields).
-`brewC` has no workflow target (brew temperature lives on the profile) — display only.
+`brewC` has no workflow field of its own (brew temperature lives on the profile), so apply
+shifts the profile instead: the first step goes to `brewC` and every other step moves by the
+same amount (94/90/88 at 92 becomes 92/88/86); a profile with no steps is left alone. It applies
+to whatever profile the workflow ends up with, so the stored `workflow.profile` is shifted only
+when the recipe names a profile.
 DYE2's own dashboard (`dashboard.ts applyRecipe`) does exactly this merge; Streamline
 should mirror it. `context`/`profile` from `workflow` still apply as a plain PUT.
 

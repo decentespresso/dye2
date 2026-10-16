@@ -1210,6 +1210,11 @@ async function applyRecipe(recipe) {
       currentWorkflow.profile = full || { id: recipe.profileId, title: recipe.profileTitle };
     }
   }
+  // Brew temperature moves the whole curve of whichever profile is now loaded (the recipe's
+  // own, or the live one when it names none); a copy, so the recipe's snapshot is untouched.
+  if (dv.brewC != null && currentWorkflow.profile) {
+    currentWorkflow.profile = profileAtBrewTemp(currentWorkflow.profile, dv.brewC);
+  }
   // Steam / hot-water / flush: override only the recipe's fields on the live sub-objects
   // (which already carry the required targetTemperature/flow). Guarded so we never send a partial.
   if (currentWorkflow.steamSettings && (dv.steamTimeS != null || dv.steamFlowMls != null)) {

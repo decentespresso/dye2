@@ -276,6 +276,33 @@ async function resolveFullProfileById(id) {
   return null;
 }
 
+/* ── Brew temperature that keeps a profile's shape. Port of profileAtBrewTemp /
+   shiftedTemperatures in streamline_project/src/modules/brew-temp.js (browser string, so it
+   cannot import it). Setting brew temp to N puts the FIRST step at N and moves every other
+   step by the same amount: 94, 90, 88 set to 92 becomes 92, 88, 86. */
+const roundTemp = n => Math.round(n * 100) / 100;
+
+// -> the shifted list, or null when there is no usable first step to measure offsets from.
+function shiftedTemperatures(baseTemps, first) {
+  if (!Array.isArray(baseTemps) || baseTemps.length === 0) return null;
+  const target = Number(first);
+  const origin = baseTemps[0];
+  if (!Number.isFinite(target) || typeof origin !== 'number' || !Number.isFinite(origin)) return null;
+  const shift = target - origin;
+  return baseTemps.map(t => (typeof t === 'number' && Number.isFinite(t) ? roundTemp(t + shift) : roundTemp(target)));
+}
+
+// A COPY of \`profile\` with its first step at \`first\`. Without a usable first step every step
+// gets \`first\`, as in Streamline. Never mutates \`profile\`; a profile with no steps comes back as is.
+function profileAtBrewTemp(profile, first) {
+  if (!profile || !Array.isArray(profile.steps)) return profile;
+  const target = Number(first);
+  if (!Number.isFinite(target)) return profile;
+  const temps = shiftedTemperatures(profile.steps.map(step => step.temperature), target)
+    || profile.steps.map(() => target);
+  return { ...profile, steps: profile.steps.map((step, i) => ({ ...step, temperature: temps[i] })) };
+}
+
 /* ── Denormalised fields written for the Streamline dashboard (read-only consumer).
    Both builders return a ready-to-PUT WorkflowRequest body { context, profile? }.
    They mirror dashboard.ts applyAutoFavourite/applyRecipe, but build a fresh ctx
@@ -348,6 +375,10 @@ async function buildRecipeWorkflow(recipe) {
       wf.profile = full || { id: recipe.profileId, title: recipe.profileTitle };
     }
   }
+  // The brew temperature belongs to the loaded profile. A recipe naming no profile applies to
+  // whatever is live at apply time, which this stored body cannot know: dashboard.ts applyRecipe
+  // covers that case, and the body then carries no profile to shift (dye2#26).
+  if (dv.brewC != null && wf.profile) wf.profile = profileAtBrewTemp(wf.profile, dv.brewC);
   return wf;
 }
 
