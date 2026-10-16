@@ -72,7 +72,13 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       data: getSelection() || {},
     });
   }
-  setSelectionListener(persistSelection);
+  // Every selection change (arm, clear, `recent:`, profile drift) persists AND pushes, so
+  // the skin re-reads its DYE strip. handleSelection must not announce again itself, and
+  // restoreSelection deliberately does not notify this listener.
+  setSelectionListener(() => {
+    persistSelection();
+    announce({ what: "workflow" });
+  });
 
   function json(request: HttpRequest, status: number, body: unknown): HttpResponse {
     return {
@@ -109,7 +115,6 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       }
     }
     const sel = armSelection(body, wf);
-    if (sel) announce({ what: "workflow" });
     return json(request, 200, sel);
   }
 

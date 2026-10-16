@@ -158,6 +158,21 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(armSelection({ kind: 'favourite', id: 'recent:abc' }, wf()), null);
   assert.equal(getSelection(), null);
   assert.equal(seen, null, 'arming a recent clears the selection');
+  // the listener (which plugin.ts uses to push `changed`) fires on every clear path, not just arm
+  armSelection({ kind: 'favourite', id: 'af1' }, wf());
+  seen = 'unset';
+  clearSelection();
+  assert.equal(seen, null, 'explicit clear notifies');
+  armSelection({ kind: 'favourite', id: 'af1' }, wf(), 0);
+  seen = 'unset';
+  scheduleWorkflowRecord(wf({ profile: { ...profile(93), title: 'Other' } }), async () => {}, null, null, 10_000, 0);
+  assert.equal(seen, null, 'profile-drift clear notifies');
+  let calls = 0;
+  setSelectionListener(() => { calls++; });
+  armSelection({ kind: 'favourite', id: 'af1' }, wf());
+  assert.equal(calls, 1, 'arm notifies exactly once');
+  restoreSelection({ kind: 'favourite', id: 'af1' });
+  assert.equal(calls, 1, 'restore does not notify');
   assert.equal(armSelection({}, wf()), null);
   setSelectionListener(null);
 }

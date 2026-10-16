@@ -11451,7 +11451,10 @@ bcInit();
 				data: getSelection() || {}
 			});
 		}
-		setSelectionListener(persistSelection);
+		setSelectionListener(() => {
+			persistSelection();
+			announce({ what: "workflow" });
+		});
 		function json(request, status, body) {
 			return {
 				requestId: request.requestId,
@@ -11479,9 +11482,7 @@ bcInit();
 			} catch (e) {
 				log(`selection: could not read workflow: ${e instanceof Error ? e.message : String(e)}`);
 			}
-			const sel = armSelection(body, wf);
-			if (sel) announce({ what: "workflow" });
-			return json(request, 200, sel);
+			return json(request, 200, armSelection(body, wf));
 		}
 		return {
 			id: "dye2.reaplugin",
