@@ -3,6 +3,7 @@
  * Imported directly like recent-favs.ts; see src/utils/workflow-record.ts.
  */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   armSelection, clearSelection, getSelection, setSelectionListener, restoreSelection,
   profileFingerprint, profileDrifted, itemPatch, recordWorkflow, scheduleWorkflowRecord,
@@ -91,6 +92,33 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   const s = fakeStore({ recipes: [{ ...withExtras(), workflow: { context: { extras: { note: 'n' } } } }] });
   await recordWorkflow(ex({ rpm: 700, basketId: 'bk2', basketName: 'IMS' }), s.fetchFn, { kind: 'recipe', id: '1', profileFingerprint: null });
   assert.deepEqual(s.store.recipes[0].workflow.context.extras, { note: 'n', rpm: 700, basketId: 'bk2', basketName: 'IMS' });
+}
+
+// --- recipe editor: a blank stepper saves as absent, not 0 ------------------------------
+{
+  // getCurrentRecipeData lives in a browser-side template string (no type check), so run it
+  // from source against a stub DOM.
+  const src = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
+  const start = src.indexOf('function getCurrentRecipeData()');
+  const body = src.slice(start, src.indexOf('\n}\n', start) + 2);
+  const run = (texts) => new Function('document', 'selectedBeanId', 'selectedBeanName', 'selectedProfileId', 'selectedProfileTitle',
+    'selectedProfileSnapshot', 'showOnStreamline', 'grinders', 'selectedGrinderId', 'baskets', 'selectedBasketId',
+    'equipmentSelIds', 'equipmentSelNames', 'equipmentCustomOverrides', body + '; return getCurrentRecipeData();')(
+    { getElementById: (id) => ({ textContent: texts[id], dataset: id === 're-drink-value' ? { ratio: '2' } : {}, value: '' }),
+      querySelector: () => null },
+    null, null, null, null, null, false, [], null, [], null, [], [], {});
+  const blank = run({ 're-dose-value': '—', 're-drink-value': '—', 're-brew-c-value': '—', 're-steam-value': '—',
+    're-flush-value': '—', 're-hotwater-value': '—', 're-grind-value': '—', 're-rpm-value': '—' }).dashboardVariables;
+  for (const k of ['dose', 'drink', 'brewC', 'flushS', 'grind', 'rpm']) assert.equal(blank[k], null, k + ' blank is null, not 0');
+  assert.equal(blank.ratio, undefined);
+  const filled = run({ 're-dose-value': '18g', 're-drink-value': '36g', 're-brew-c-value': '0°c', 're-grind-value': '4.2' }).dashboardVariables;
+  assert.equal(filled.dose, 18);
+  assert.equal(filled.brewC, 0, 'a real 0 is kept, not replaced by 93');
+  assert.equal(filled.ratio, 2, 'ratio still derived');
+  // a null field is skipped by record, as a missing one is
+  const r = recipe();
+  r.dashboardVariables.rpm = null;
+  assert.deepEqual(itemPatch('recipe', r, wf({ context: { targetDoseWeight: 18, targetYield: 36, grinderSetting: '4.2', extras: { rpm: 700 } } })), {}, 'null rpm is not held');
 }
 
 // --- a favourite gets dose/drink/grindSetting only ---------------------------------

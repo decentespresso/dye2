@@ -10069,7 +10069,9 @@ function updateStreamlineBtn() {
 }
 
 function getCurrentRecipeData() {
-  const num = id => parseFloat(document.getElementById(id)?.textContent) || 0;
+  // A stepper showing '—' is blank: null, not 0. Apply and dial-in recording both skip a
+  // null field, but would apply / treat a stored 0 as a real value.
+  const num = id => { const n = parseFloat(document.getElementById(id)?.textContent); return isNaN(n) ? null : n; };
   const steamMode = document.querySelector('.re-steam-mode.active')?.dataset.mode || 'flow';
   const steamVal  = num('re-steam-value');
   const hwMode    = document.querySelector('.re-hotwater-mode.active')?.dataset.mode || 'vol';
@@ -10078,7 +10080,7 @@ function getCurrentRecipeData() {
   const doseVal = num('re-dose-value'), drinkVal = num('re-drink-value');
   const ratioAttr = document.getElementById('re-drink-value')?.dataset.ratio;
   const ratioNum = ratioAttr ? parseFloat(ratioAttr) : NaN;
-  const ratio = (!isNaN(ratioNum) && doseVal && Math.abs(drinkVal - Math.round(doseVal * ratioNum * 10) / 10) < 0.05)
+  const ratio = (!isNaN(ratioNum) && doseVal && drinkVal != null && Math.abs(drinkVal - Math.round(doseVal * ratioNum * 10) / 10) < 0.05)
     ? ratioNum : undefined;
   return {
     name:      document.getElementById('re-name-input')?.value || '',
@@ -10095,7 +10097,7 @@ function getCurrentRecipeData() {
       dose:    num('re-dose-value'),
       drink:   num('re-drink-value'),
       ratio,
-      brewC:   num('re-brew-c-value') || 93,
+      brewC:   num('re-brew-c-value'),
       steamMode,
       steamTimeS:   steamMode === 'time' ? steamVal : undefined,
       steamFlowMls: steamMode === 'flow' ? steamVal : undefined,

@@ -276,6 +276,9 @@ write at the same instant can lose one side's change.
     equipmentIds, equipmentNames,   // arrays in lockstep — see equipment[] below
     equipmentCustom,                // { [equipmentId]: [{key,value}, ...] } — per-value overrides, optional
   },
+  // The numeric dashboardVariables (dose … rpm) are a number, or null / absent when the recipe
+  // editor's stepper was left blank. Never 0 for "blank": apply and dial-in recording skip a
+  // null field but treat 0 as a real value.
 
   // added by this version (optional for consumers):
   title,                       // name || 'Recipe <id>'
