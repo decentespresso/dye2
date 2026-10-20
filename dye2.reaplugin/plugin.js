@@ -6537,9 +6537,10 @@ function renderRecipePills(workflow) {
 // those two keys on the profile ALREADY loaded -- the steps array (the actual
 // brew recipe) stays whatever was there before, and the machine keeps brewing
 // the old profile mislabeled with the new one's name. Resolve to the full
-// Profile record (steps included) instead: check the profiles list already
-// loaded at init first (mirrors the grinders.find(...) pattern above), then
-// fall back to a fresh GET /profiles for an id that arrived after that load.
+// Profile record (steps included) instead: check the profiles list loaded by
+// an earlier apply first, then fall back to a GET /profiles, memoised in
+// profiles so only the first apply of a session pays for it (init no longer
+// fetches it).
 // Returns null (never throws) when the id can't be resolved -- an ad-hoc/
 // deleted profile with no library record has nothing else to load; callers
 // fall back to the thin {id, title} stub and a warning is logged.
@@ -6550,6 +6551,7 @@ async function resolveFullProfile(id) {
   try {
     const fresh = await getProfiles({ includeHidden: true });
     const list = Array.isArray(fresh) ? fresh : (fresh && fresh.items ? fresh.items : []);
+    profiles = list;
     const record = list.find(p => p && p.id === id);
     if (record && record.profile) return record.profile;
   } catch (e) {
@@ -7102,13 +7104,15 @@ function wireDashboardControls() {
 async function initializeDyeDashboard() {
   wireDashboardControls();
 
+  // The unfiltered KV favourites array, read in the same batch as everything else.
+  let allFavs = [];
   try {
-    const [shotsResult, workflowResult, grindersResult, profilesResult, recipesResult] = await Promise.all([
+    const [shotsResult, workflowResult, grindersResult, recipesResult, autoResult] = await Promise.all([
       fetchShotPage(0),
       getWorkflow().catch(() => null),
       getGrinders().catch(() => []),
-      getProfiles({ includeHidden: true }).catch(() => []),
       getRecipes().catch(() => []),
+      getAutoFavourites().catch(() => []),
     ]);
     shots = shotsResult.items;
     shotsTotal = shotsResult.total;
@@ -7120,7 +7124,7 @@ async function initializeDyeDashboard() {
     currentWorkflow = workflowResult;
     baseWorkflow = workflowResult ? JSON.parse(JSON.stringify(workflowResult)) : null;
     grinders = Array.isArray(grindersResult) ? grindersResult : (grindersResult && grindersResult.items ? grindersResult.items : []);
-    profiles = Array.isArray(profilesResult) ? profilesResult : (profilesResult && profilesResult.items ? profilesResult.items : []);
+    allFavs = Array.isArray(autoResult) ? autoResult : (autoResult && autoResult.items ? autoResult.items : []);
     recipes = Array.isArray(recipesResult) ? recipesResult : [];
   } catch (e) {
     console.error('DYE Dashboard: Failed to load data:', e);
@@ -7132,7 +7136,7 @@ async function initializeDyeDashboard() {
   if (selFavId) {
     sessionStorage.removeItem('dye_selectedAutoFavId');
     try {
-      const fav = await getAutoFavourite(selFavId);
+      const fav = allFavs.find(f => f && f.id === selFavId) || null;
       if (fav) {
         await applyAutoFavourite(fav);
         noteApplied('favourite', fav);
@@ -7147,11 +7151,7 @@ async function initializeDyeDashboard() {
     } catch (e) { console.warn('Could not apply selected auto-favourite:', e); }
   }
 
-  try {
-    const autoResult = await getAutoFavourites();
-    const allFavs = Array.isArray(autoResult) ? autoResult : (autoResult && autoResult.items ? autoResult.items : []);
-    autoFavs = allFavs.filter(f => f && f.auto);
-  } catch (e) { console.warn('Could not load recent auto-favourites:', e); autoFavs = []; }
+  autoFavs = allFavs.filter(f => f && f.auto);
 
   initChart();
   await renderLastShot();

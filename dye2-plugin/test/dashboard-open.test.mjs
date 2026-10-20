@@ -29,4 +29,28 @@ const dash = readFileSync(new URL("../src/pages/dashboard.ts", import.meta.url),
   assert.ok(body.indexOf("renderToken !== shotRenderToken") > fetchAt, "token compared in the then");
 }
 
+// 2. The open does one parallel batch and no serial KV read.
+{
+  const start = dash.indexOf("async function initializeDyeDashboard(");
+  const end = dash.indexOf("\nfunction showTransientMessage", start);
+  assert.ok(start > 0 && end > start, "initializeDyeDashboard found");
+  const body = dash.slice(start, end);
+  const pa = body.indexOf("Promise.all([");
+  const paEnd = body.indexOf("]);", pa);
+  assert.ok(pa > 0 && paEnd > pa, "Promise.all found");
+  assert.ok(body.slice(pa, paEnd).includes("getAutoFavourites("), "favourites are in the batch");
+  const after = body.slice(paEnd);
+  assert.ok(!after.includes("await getAutoFavourites"), "no serial getAutoFavourites");
+  assert.ok(!after.includes("await getAutoFavourite("), "no serial getAutoFavourite");
+  assert.ok(!body.includes("getProfiles("), "no /profiles fetch on open");
+}
+
+// 4. The profiles fallback memoises, so only the first apply fetches.
+{
+  const start = dash.indexOf("async function resolveFullProfile(");
+  const body = dash.slice(start, dash.indexOf("\n}\n", start));
+  assert.ok(body.includes("getProfiles("), "fallback fetches");
+  assert.ok(body.includes("profiles = list;"), "fallback memoises the list");
+}
+
 console.log("dashboard-open tests passed");
