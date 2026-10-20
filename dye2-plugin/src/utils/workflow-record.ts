@@ -77,7 +77,14 @@ let suppressed: { values: string; at: number } | null = null;
 export function profileFingerprint(profile: AnyRecord | null | undefined): string | null {
   if (!profile) return null;
   const steps = Array.isArray(profile.steps)
-    ? profile.steps.map(({ temperature, ...rest }: AnyRecord) => rest)
+    ? profile.steps.map(({ temperature, limiter, ...rest }: AnyRecord) => ({
+        ...rest,
+        // {value:0}, null and absent all mean "no limiter", and Decaid reports them
+        // interchangeably: Streamline nulls a 0 limiter before every PUT (api.js
+        // updateWorkflow), so hashing it as sent made its own yield/dose writes look like a
+        // profile switch and cleared the selection (dye2#32, streamline-js#158).
+        limiter: limiter && Number(limiter.value) !== 0 ? limiter : null,
+      }))
     : profile.steps;
   return JSON.stringify({
     title: profile.title,

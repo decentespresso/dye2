@@ -11604,7 +11604,10 @@ bcInit();
 	var suppressed = null;
 	function profileFingerprint(profile) {
 		if (!profile) return null;
-		const steps = Array.isArray(profile.steps) ? profile.steps.map(({ temperature, ...rest }) => rest) : profile.steps;
+		const steps = Array.isArray(profile.steps) ? profile.steps.map(({ temperature, limiter, ...rest }) => ({
+			...rest,
+			limiter: limiter && Number(limiter.value) !== 0 ? limiter : null
+		})) : profile.steps;
 		return JSON.stringify({
 			title: profile.title,
 			tank_temperature: profile.tank_temperature,

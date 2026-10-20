@@ -175,6 +175,14 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(profileDrifted(sel, wf()), false);
   assert.equal(profileDrifted(sel, wf({ profile: { ...profile(93), title: 'Other' } })), true);
 
+  // A limiter of value 0 limits nothing, and Streamline nulls it before every PUT
+  // (api.js updateWorkflow) — the two must hash alike (dye2#32, streamline-js#158).
+  const lim = (l) => ({ title: 'P', tank_temperature: 0, steps: [{ name: 's', temperature: 93, limiter: l }] });
+  assert.equal(profileFingerprint(lim({ value: 0, range: 0.6 })), profileFingerprint(lim(null)), 'a 0 limiter is no limiter');
+  assert.notEqual(profileFingerprint(lim({ value: 2, range: 0.6 })), profileFingerprint(lim(null)), 'a real limiter still counts');
+  assert.equal(profileDrifted({ kind: 'recipe', id: '1', profileFingerprint: profileFingerprint(lim({ value: 0, range: 0.6 })) },
+    { profile: lim(null) }), false, 'Streamline nulling a 0 limiter does not disarm');
+
   armSelection({ kind: 'recipe', id: '1' }, wf(), 0);
   assert.ok(getSelection());
   scheduleWorkflowRecord(wf({ profile: { ...profile(93), title: 'Other' } }), async () => { throw new Error('no'); }, null, null, 10_000, 0);
