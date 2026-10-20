@@ -10,11 +10,24 @@ const shell = readFileSync(new URL("../src/utils/dev-shell.ts", import.meta.url)
 {
   const tag = shell.indexOf('<script src="plotly"');
   const scripts = shell.indexOf("scripts.map(");
-  assert.ok(tag > 0 && scripts > 0, "both markers present");
-  assert.ok(tag > scripts, "plotly script tag must come after scripts.map(");
+  const headEnd = shell.indexOf("</head>");
+  assert.ok(tag > 0 && scripts > 0 && headEnd > 0, "all markers present");
+  assert.ok(tag > scripts, "plotly script tag comes after the page scripts");
+  // Source order alone would still pass with the tag moved into the head template, so pin it
+  // past </head> as well: a blocking 1MB script in head delays every data request.
+  assert.ok(tag > headEnd, "and it is outside <head>");
 }
 
 const dash = readFileSync(new URL("../src/pages/dashboard.ts", import.meta.url), "utf8");
+
+// Drop whole-line AND trailing // comments. Every assertion below matches against code only:
+// these comments name the identifiers being asserted on, so matching raw text would pass on
+// the prose with the code deleted.
+function stripComments(src) {
+  return src.split("\n")
+    .map(l => (l.trim().startsWith("//") ? "" : l.replace(/\s\/\/.*$/, "")))
+    .join("\n");
+}
 
 // 3. Every text field is written before the measurements are fetched.
 {
@@ -22,8 +35,9 @@ const dash = readFileSync(new URL("../src/pages/dashboard.ts", import.meta.url),
   const fnEnd = dash.indexOf("\nfunction updateStarDisplay", fn);
   assert.ok(fn > 0 && fnEnd > fn, "renderLastShot found");
   // Comments are stripped first: they mention the very identifiers asserted on below, so a
-  // check against the raw text passes on the prose alone once the code is deleted.
-  const body = dash.slice(fn, fnEnd).split("\n").filter(l => !l.trim().startsWith("//")).join("\n");
+  // check against the raw text passes on the prose alone once the code is deleted. Trailing
+  // comments count too -- this file has code lines with an explanation after them.
+  const body = stripComments(dash.slice(fn, fnEnd));
 
   const lastText = body.indexOf("baristaEl.innerHTML");
   const fetchAt = body.indexOf("getShot(");
@@ -75,8 +89,43 @@ assert.equal(shotPatchAffectsRecents('{"annotations":{"enjoyment":1}}'), false, 
 
 {
   const del = dash.slice(dash.indexOf("function setupDeleteShot("));
-  assert.ok(del.slice(0, del.indexOf("\n}\n")).includes("refreshRecentsFromHistory()"), "delete refreshes recents");
-  assert.ok(!dash.includes("limit: 200"), "no limit above the host clamp");
+  const delBody = stripComments(del.slice(0, del.indexOf("\n}\n")));
+  assert.ok(delBody.includes("refreshRecentsFromHistory()"), "delete refreshes recents");
+  // Against the one-shot seed, deleting would empty shots while shotsTotal still counted the
+  // rest, and the panel would read "No shots recorded" with history intact.
+  assert.ok(delBody.includes("ensureShotsPage()"), "delete waits for the real window first");
+  // Assert the value, not one spelling: banning the string "limit: 200" let 300 or 200 through.
+  for (const m of stripComments(dash).matchAll(/limit:\s*(\d+)/g)) {
+    assert.ok(Number(m[1]) <= 100, "limit " + m[1] + " exceeds the host clamp of 100");
+  }
+}
+
+// 6. The two-phase open's dashboard half (82a5cbe had no test for it at all).
+{
+  const fn = dash.indexOf("async function initializeDyeDashboard(");
+  const fnEnd = dash.indexOf("\nfunction showTransientMessage", fn);
+  const body = stripComments(dash.slice(fn, fnEnd));
+  assert.ok(body.includes("getLatestShot("), "the open seeds from GET /shots/latest");
+  assert.ok(body.includes("seedLatestShot("), "and installs it as the window");
+  assert.ok(body.includes("ensureShotsPage()"), "and loads the real page behind the paint");
+  // The counter must resync when the total changes, not only when the shown shot does.
+  assert.ok(body.includes("shotsTotal !== seededTotal"), "the deferred re-render checks the total");
+  const navFn = stripComments(dash.slice(dash.indexOf("function setupShotNavigation(")));
+  assert.ok(navFn.slice(0, navFn.indexOf("\n}\n")).includes("ensureShotsPage()"),
+    "stepping to a newer shot waits for the real window");
+}
+
+// 7. The late measurements write must locate its row by id, not by a captured index: the array
+//    can be swapped underneath while the displayed shot is unchanged, so nothing re-renders and
+//    the render token stays current.
+{
+  const fn = dash.indexOf("async function renderLastShot(");
+  const body = stripComments(dash.slice(fn, dash.indexOf("\nfunction updateStarDisplay", fn)));
+  const thenAt = body.indexOf("getShot(");
+  const tail = body.slice(thenAt);
+  assert.ok(tail.includes("findIndex(s => s && s.id === shot.id)"),
+    "the merge finds its row by id");
+  assert.ok(!/shots\[idx\]\s*=/.test(tail), "and never writes by the captured index");
 }
 
 console.log("dashboard-open tests passed");

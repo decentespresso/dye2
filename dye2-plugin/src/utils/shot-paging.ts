@@ -27,6 +27,7 @@ let shotFilter = null;       // {coffeeName, coffeeRoaster} while Same Beans is 
 let loadingShots = false;
 let shotsPageLoaded = false; // has a real page replaced the one-shot seed?
 let shotsPagePromise = null;
+let shotsGen = 0;            // bumped by anything that installs a new window
 
 async function fetchShotPage(offset) {
   const opts = { limit: SHOT_PAGE, offset: offset, order: 'desc' };
@@ -46,12 +47,19 @@ async function loadShots(filter) {
   // A filtered view is always a real page: GET /shots/latest takes no filter parameters.
   shotsPageLoaded = true;
   shotsPagePromise = null;
+  shotsGen++;
 }
 
 // Seed the newest shot from GET /shots/latest, whose response is the same shape as a list row
 // (the bridge serves both from toJsonWithoutMeasurements), so rendering needs no special case.
 // total comes from a separate limit=1 read, whose count is a plain SQL COUNT on the bridge.
 function seedLatestShot(shot, total) {
+  // The nav buttons are wired before the open's reads land, so a tap can already have started
+  // or finished a real page. Rewinding to one shot then would leave currentShotIndex pointing
+  // at a different shot than the one on screen, and the star, visualizer upload, edit-shot and
+  // delete handlers all act on shots[currentShotIndex].
+  if (shotsPageLoaded || shotsPagePromise) return;
+  shotsGen++;
   shots = shot ? [shot] : [];
   shotsTotal = typeof total === 'number' ? total : shots.length;
   currentShotIndex = 0;
@@ -66,10 +74,17 @@ function seedLatestShot(shot, total) {
 async function ensureShotsPage() {
   if (shotsPageLoaded) return true;
   if (!shotsPagePromise) {
-    const seeded = shots.length ? shots[0] : null;
-    const seededId = seeded ? seeded.id : null;
+    const gen = shotsGen;
+    // The array, not the element: renderLastShot merges measurements by replacing the slot
+    // (shots[idx] = ...), so reading the captured element would never see them.
+    const prevShots = shots;
+    const seededId = shots.length ? shots[0].id : null;
     shotsPagePromise = (async () => {
       const page = await fetchShotPage(0);
+      // A filtered load (search, Same Beans) may have installed its own window while this
+      // unfiltered page was in flight. Landing on top of it would show unfiltered history
+      // under a filter label, with shotsTotal the unfiltered total.
+      if (gen !== shotsGen) return;
       // fetchShotPage swallows errors into an empty page, which is indistinguishable from an
       // empty history. We know a shot exists when there is a seed, so keep it and stay
       // unloaded rather than blanking the panel on a transient failure; the next caller retries.
@@ -83,8 +98,9 @@ async function ensureShotsPage() {
       currentShotIndex = at >= 0 ? at : 0;
       // The seed may already hold the measurements the chart fetched. A page row never does, so
       // without this the swap throws them away and the next render fetches them again.
-      if (at >= 0 && seeded && seeded.measurements) {
-        shots[at] = Object.assign({}, shots[at], { measurements: seeded.measurements });
+      const prev = seededId ? prevShots.find(x => x && x.id === seededId) : null;
+      if (at >= 0 && prev && prev.measurements) {
+        shots[at] = Object.assign({}, shots[at], { measurements: prev.measurements });
       }
       shotsPageLoaded = true;
     })().catch(e => { console.warn('shot page load failed', e); })
@@ -115,7 +131,7 @@ async function stepToOlderShot() {
   // Before any loadMoreShots: with only the seed, shots.length is 1 and shotsTotal the real
   // total, so loadMoreShots would page from offset 1 on top of the seed instead of loading
   // page zero cleanly.
-  await ensureShotsPage();
+  if (!(await ensureShotsPage())) return false;
   if (currentShotIndex + 1 >= shots.length) await loadMoreShots();
   if (shots.length < 2) return false;
   currentShotIndex = (currentShotIndex + 1) % shots.length;

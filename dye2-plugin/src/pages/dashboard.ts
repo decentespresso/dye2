@@ -917,8 +917,13 @@ async function renderLastShot() {
     chartShowPlaceholder(document.getElementById('plotly-chart'), 'Loading...');
     getShot(shot.id).then(function (fullShot) {
       if (renderToken !== shotRenderToken) return;
-      shots[idx] = { ...shot, ...fullShot };
-      const merged = shots[idx];
+      // By id, not the captured index: ensureShotsPage can swap the array underneath while the
+      // displayed shot stays the same, in which case nothing re-renders and the token is still
+      // current. Writing shots[idx] then overwrites whichever shot now sits at that index.
+      const at = shots.findIndex(s => s && s.id === shot.id);
+      if (at < 0) return;
+      shots[at] = { ...shot, ...fullShot };
+      const merged = shots[at];
       renderShotStats(merged);
       if (merged.measurements && merged.measurements.length > 0) {
         plotHistoricalShot(merged.measurements, merged.workflow);
@@ -1827,9 +1832,16 @@ async function initializeDyeDashboard() {
     // jumping. Every other open paints from the seed.
     const editedId = sessionStorage.getItem('dye_editShotId');
     sessionStorage.removeItem('dye_editShotId');
-    if (editedId) {
+    // Editing the newest shot is the common case and the seed already is that shot, so only a
+    // deeper one pays for the window. edit-shot lists more shots than SHOT_PAGE, so page until
+    // the id turns up rather than silently landing on the newest.
+    if (editedId && !(shots[0] && String(shots[0].id) === editedId)) {
       await ensureShotsPage();
-      const editedIdx = shots.findIndex(s => String(s.id) === editedId);
+      let editedIdx = shots.findIndex(s => String(s.id) === editedId);
+      while (editedIdx < 0 && shots.length < shotsTotal) {
+        if (!(await loadMoreShots())) break;
+        editedIdx = shots.findIndex(s => String(s.id) === editedId);
+      }
       if (editedIdx >= 0) currentShotIndex = editedIdx;
     }
     currentWorkflow = workflowResult;
@@ -1873,10 +1885,13 @@ async function initializeDyeDashboard() {
   // shot is stored between the two reads, or when the seed was empty and the page is not.
   if (!shotsPageLoaded) {
     const seededId = shots[0] && shots[0].id;
+    const seededTotal = shotsTotal;
     ensureShotsPage()
       .then(() => {
         const shownId = shots[currentShotIndex] && shots[currentShotIndex].id;
-        if (shownId !== seededId) return renderLastShot();
+        // The total too: a shot stored between the two cheap reads, or a failed count read,
+        // leaves the label showing the seed's total with no other trigger to correct it.
+        if (shownId !== seededId || shotsTotal !== seededTotal) return renderLastShot();
       })
       .catch(e => console.warn('could not load the shot page:', e));
   }

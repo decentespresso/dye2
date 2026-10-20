@@ -14,11 +14,15 @@ const store = Array.from({ length: 120 }, (_, i) => ({
 
 const calls = [];
 let failNextGetShots = false;
+let delayNextGetShots = 0;   // ms, consumed by the next call: forces which page lands first
 function makeEnv() {
   calls.length = 0;
   failNextGetShots = false;
+  delayNextGetShots = 0;
   const getShots = async (opts) => {
     calls.push(opts);
+    const wait = delayNextGetShots; delayNextGetShots = 0;
+    if (wait) await new Promise(r => setTimeout(r, wait));
     // fetchShotPage swallows a rejection into an empty page, which is what we want to simulate.
     if (failNextGetShots) { failNextGetShots = false; return null; }
     let items = store;
@@ -164,18 +168,83 @@ console.log('ok   getShots query serialization');
   await env.ensureShotsPage();
   assert.equal(env.state().shotsPageLoaded, true, 'an empty history still settles as loaded');
 
-  // 8. seeding again after a page has loaded must go back to being a seed, or the fresh
-  //    one-shot window would be treated as a full page and never widen.
+  // 8. The nav buttons are live before the open's reads land, so a seed can arrive after a tap
+  //    already installed a real window. Rewinding it would leave currentShotIndex pointing at a
+  //    different shot than the one on screen, and delete/star/upload all use that index.
   env = makeEnv();
   await env.loadShots(null);
-  assert.equal(env.state().shotsPageLoaded, true, 'page loaded');
+  const walked = env.state().shots.length;
+  await env.stepToOlderShot();
+  assert.equal(env.state().currentShotIndex, 1, 'the user has stepped to the second shot');
   env.seedLatestShot(latest, 120);
-  assert.equal(env.state().shotsPageLoaded, false, 'seeding resets the loaded flag');
-  assert.equal(env.state().shots.length, 1, 'and the window is the seed again');
-  const before8 = calls.length;
-  await env.ensureShotsPage();
-  assert.equal(calls.length, before8 + 1, 'so the page is fetched again');
-  assert.equal(env.state().shots.length, env.SHOT_PAGE, 'and the window widens');
+  assert.equal(env.state().shots.length, walked, 'a late seed does not rewind a loaded window');
+  assert.equal(env.state().currentShotIndex, 1, 'and does not move the user off their shot');
+  assert.equal(env.state().shotsPageLoaded, true, 'the window stays loaded');
 
   console.log('ok   the open seeds the newest shot and loads the page behind it');
+}
+
+// --- the two-phase open under races and failures (review of 82a5cbe) -----------------
+{
+  const latest = store[0];
+
+  // BUG 1: a seed landing while a tap's page is IN FLIGHT must not rewind the window, and
+  // must not break single-flight into two identical page requests.
+  let env = makeEnv();
+  const stepping = env.stepToOlderShot();          // starts the page, nothing loaded yet
+  env.seedLatestShot(latest, 120);                 // the open's reads land mid-flight
+  await stepping;
+  await env.ensureShotsPage();
+  assert.equal(calls.length, 1, 'the in-flight page is shared, not duplicated');
+  assert.equal(env.state().shots.length, env.SHOT_PAGE, 'the real window survived the seed');
+  assert.equal(env.state().shots[env.state().currentShotIndex].id, store[1].id,
+    'currentShotIndex still points at the shot the step moved to');
+
+  // BUG 3: an unfiltered page in flight must not land on top of a filtered window.
+  env = makeEnv();
+  env.seedLatestShot(latest, 120);
+  delayNextGetShots = 50;                           // the unfiltered page is the slow one
+  const deferred = env.ensureShotsPage();           // in flight
+  await env.loadShots({ coffeeName: 'Red Brick' }); // user filters; lands first
+  await deferred;                                   // the stale page lands on top
+  const st = env.state();
+  assert.deepEqual(st.shotFilter, { coffeeName: 'Red Brick' }, 'the filter is still on');
+  assert.equal(st.shotsTotal, 60, 'the total is the filtered total, not the unfiltered 120');
+  assert.ok(st.shots.every(s => s.coffeeName === 'Red Brick'),
+    'and every row in the window matches the filter');
+
+  // BUG 4: a failed page must not fall through to paging from offset 1 on top of the seed.
+  env = makeEnv();
+  env.seedLatestShot(latest, 120);
+  failNextGetShots = true;
+  assert.equal(await env.stepToOlderShot(), false, 'the step reports failure rather than paging');
+  assert.ok(calls.every(c => c.offset === 0), 'no request paged from offset 1');
+  assert.equal(env.state().shots.length, 1, 'the seed is intact');
+  assert.equal(await env.stepToOlderShot(), true, 'and the next press works');
+  assert.equal(env.state().shots.length, env.SHOT_PAGE, 'on a real page');
+
+  // BUG 6: the measurements the open fetched must survive the seed -> page swap. The dashboard
+  // merges them by replacing the array slot, which is what this reproduces.
+  env = makeEnv();
+  env.seedLatestShot(latest, 120);
+  delayNextGetShots = 50;
+  const inFlight = env.ensureShotsPage();
+  // The dashboard's deferred getShot resolves while the page is still in flight, and it merges
+  // by replacing the array slot. Capturing the element instead of the array misses this.
+  env.state().shots[0] = Object.assign({}, latest, { measurements: [{ t: 1 }] });
+  await inFlight;
+  const at = env.state().shots.findIndex(s => s.id === latest.id);
+  assert.ok(at >= 0, 'the seeded shot is in the page');
+  assert.deepEqual(env.state().shots[at].measurements, [{ t: 1 }],
+    'the measurements are carried across the swap, so they are not refetched');
+
+  // and a page whose newest row is NEWER than the seed keeps the user on their shot
+  env = makeEnv();
+  env.seedLatestShot(store[1], 120);   // seed is the second shot; page 0 starts at store[0]
+  await env.ensureShotsPage();
+  assert.equal(env.state().shots[env.state().currentShotIndex].id, store[1].id,
+    'a newer shot in the page does not move the user');
+  assert.ok(env.state().currentShotIndex >= 1, 'and the index moved to match the new window');
+
+  console.log('ok   the two-phase open holds up under races, filters and failures');
 }
