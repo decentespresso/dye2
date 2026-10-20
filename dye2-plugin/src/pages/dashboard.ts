@@ -1222,7 +1222,8 @@ function renderRecipePills(workflow) {
 // fetches it).
 // Returns null (never throws) when the id can't be resolved -- an ad-hoc/
 // deleted profile with no library record has nothing else to load; callers
-// fall back to the thin {id, title} stub and a warning is logged.
+// then send no profile at all and leave the live one alone, and a warning
+// is logged. They used to send the {id, title} stub described above.
 async function resolveFullProfile(id) {
   if (!id) return null;
   const cached = profiles.find(p => p && p.id === id);
