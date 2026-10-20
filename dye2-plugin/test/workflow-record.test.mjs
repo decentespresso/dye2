@@ -480,3 +480,23 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
     { flushS: 7 }, 'only steam is held back');
   console.log('ok   steam off on the machine is not recorded onto the item');
 }
+
+// --- the dashboard sends only what it changed (dye2#31) ---------------------------
+{
+  const src = readFileSync(new URL('../src/pages/dashboard.ts', import.meta.url), 'utf8');
+  const start = src.indexOf('function workflowPatch(');
+  const body = src.slice(start, src.indexOf('\n}\n', start) + 2);
+  const patch = new Function('base', 'cur', body + '; return workflowPatch(base, cur);');
+  const base = { id: 'w1', context: { targetDoseWeight: 18, beanBatchId: 'b1', extras: { rpm: 900 } },
+                 steamSettings: { targetTemperature: 150, duration: 30 } };
+  const tapped = JSON.parse(JSON.stringify(base));
+  tapped.context.targetDoseWeight = 19;
+  assert.deepEqual(patch(base, tapped), { context: { targetDoseWeight: 19 } }, 'only the field the tap changed');
+  assert.deepEqual(patch(base, JSON.parse(JSON.stringify(base))), {}, 'nothing changed, nothing sent');
+  assert.deepEqual(patch(base, { context: { beanBatchId: null } }), { context: { beanBatchId: null } },
+    'an explicit null is a change; keys the change did not touch are not sent');
+  const shifted = JSON.parse(JSON.stringify(base));
+  shifted.profile = { title: 'P', steps: [{ temperature: 92 }] };
+  assert.deepEqual(patch(base, shifted), { profile: { title: 'P', steps: [{ temperature: 92 }] } }, 'a profile arrives whole');
+  console.log('ok   the dashboard PUTs only its own edits');
+}

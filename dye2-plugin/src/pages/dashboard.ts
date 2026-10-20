@@ -511,6 +511,7 @@ let profiles = [];
 let recipes = [];
 let autoFavs = [];   // auto: true entries from autoFavourites — recent shot combos, see recent-favs.ts
 let currentWorkflow = null;
+let baseWorkflow = null;   // the Workflow as last read / successfully sent (dye2#31)
 let currentStarRating = 0;
 let currentShotNote = '';
 let vizLoggedIn = false;
@@ -538,6 +539,48 @@ function postSelection(kind, item) {
   }).catch(e => console.warn('selection post failed', e));
 }
 
+// The subset of "cur" that differs from "base", recursing into plain objects: the body for a
+// PUT that changes only what this page changed, so a change another app made since the page
+// opened is left alone (dye2#31; PUT /workflow deep-merges key by key). An undefined value is
+// omitted, as JSON.stringify would drop it anyway; an explicit null IS a change and is kept.
+function workflowPatch(base, cur) {
+  const obj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+  const out = {};
+  for (const k of Object.keys(cur || {})) {
+    const b = (base || {})[k], c = cur[k];
+    if (c === undefined) continue;
+    if (obj(b) && obj(c)) {
+      const sub = workflowPatch(b, c);
+      if (Object.keys(sub).length) out[k] = sub;
+    } else if (JSON.stringify(b) !== JSON.stringify(c)) {
+      out[k] = c;
+    }
+  }
+  return out;
+}
+
+// Send this page's own edits. baseWorkflow advances only on a successful PUT, so a failed send
+// is carried into the next one, and the history button can still undo a change already sent.
+function pushWorkflow() {
+  if (!currentWorkflow) return Promise.resolve(null);
+  const patch = workflowPatch(baseWorkflow, currentWorkflow);
+  if (!Object.keys(patch).length) return Promise.resolve(null);
+  const sent = JSON.parse(JSON.stringify(currentWorkflow));
+  return updateWorkflow(patch).then(r => { baseWorkflow = sent; return r; });
+}
+
+// Re-read before applying an item, so the apply lands on what the machine holds now rather
+// than on what this page read when it opened — otherwise a recipe whose values match the
+// page-open copy diffs to nothing and is never actually applied. Skipped while this page has
+// an edit it has not sent yet (the Clear button's nulls), which a re-read would drop.
+async function refreshWorkflow() {
+  if (!currentWorkflow || Object.keys(workflowPatch(baseWorkflow, currentWorkflow)).length) return;
+  const live = await getWorkflow().catch(() => null);
+  if (!live) return;
+  currentWorkflow = live;
+  baseWorkflow = JSON.parse(JSON.stringify(live));
+}
+
 // One-level undo for Next Shot Planning: every edit first saves the state it is
 // replacing, and the history button swaps back to it (press again to re-apply).
 // ponytail: single snapshot, not a stack — add an array if multi-step undo is wanted.
@@ -559,7 +602,7 @@ function setupHistoryRevert() {
     currentWorkflow.context = prev.context;
     if (prev.profile) currentWorkflow.profile = prev.profile;
     renderNextShot();
-    updateWorkflow(currentWorkflow).catch(e => console.warn(e));
+    pushWorkflow().catch(e => console.warn(e));
   });
 }
 
@@ -1095,7 +1138,7 @@ function renderGrinderTabs() {
       currentWorkflow.context.grinderModel = g.model || g.name;
       markDye(currentWorkflow.context, ['grinderId', 'grinderModel']);
       renderGrinderTabs();
-      updateWorkflow(currentWorkflow).catch(e => console.warn(e));
+      pushWorkflow().catch(e => console.warn(e));
     });
     container.appendChild(tab);
   });
@@ -1133,10 +1176,11 @@ function renderRecipePills(workflow) {
       document.querySelectorAll('.dye-recipe-pill').forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
       if (typeof item !== 'object') return;
+      await refreshWorkflow();   // apply over the live Workflow, not the page-open copy (dye2#31)
       if (isRecent) {
         await applyAutoFavourite(item);
         noteApplied('favourite', item);
-        updateWorkflow(currentWorkflow).then(() => postSelection('favourite', item)).catch(e => console.warn(e));
+        pushWorkflow().then(() => postSelection('favourite', item)).catch(e => console.warn(e));
       } else {
         // The list was read at page load; dial-in recording may have changed this recipe since,
         // so apply the stored record. Fall back to the loaded one if the re-read fails or the
@@ -1145,7 +1189,7 @@ function renderRecipePills(workflow) {
         try { fresh = (await getRecipe(item.id)) || item; } catch (e) { console.warn('recipe re-read failed', e); }
         await applyRecipe(fresh);
         noteApplied('recipe', fresh);
-        updateWorkflow(currentWorkflow).then(() => postSelection('recipe', fresh)).catch(e => console.warn(e));
+        pushWorkflow().then(() => postSelection('recipe', fresh)).catch(e => console.warn(e));
       }
     });
     container.appendChild(pill);
@@ -1376,19 +1420,19 @@ function makeValueEditable(valueId, min, max, formatter, onChange) {
 function setupDoseControls() {
   wireAdjuster('dye-dose-minus', 'dye-dose-plus', 'dye-dose-value', 0.5, 0, null,
     val => val + 'g',
-    val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.targetDoseWeight = val; updateRatioDisplay(); updateWorkflow(currentWorkflow).catch(e => console.warn(e)); }
+    val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.targetDoseWeight = val; updateRatioDisplay(); pushWorkflow().catch(e => console.warn(e)); }
   );
   wireAdjuster('dye-drink-minus', 'dye-drink-plus', 'dye-drink-value', 1, 0, null,
     val => val + 'g',
-    val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.targetYield = val; updateRatioDisplay(); updateWorkflow(currentWorkflow).catch(e => console.warn(e)); }
+    val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.targetYield = val; updateRatioDisplay(); pushWorkflow().catch(e => console.warn(e)); }
   );
   wireAdjuster('dye-grind-minus', 'dye-grind-plus', 'dye-grind-value', 0.1, 0, null,
     val => val.toFixed(1),
-    val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.grinderSetting = String(val); updateWorkflow(currentWorkflow).catch(e => console.warn(e)); }
+    val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.grinderSetting = String(val); pushWorkflow().catch(e => console.warn(e)); }
   );
   wireAdjuster('dye-rpm-minus', 'dye-rpm-plus', 'dye-rpm-value', 1, 1, null,
     val => String(val),
-    val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.extras = { ...(currentWorkflow.context.extras || {}), rpm: val }; markDye(currentWorkflow.context, ['rpm']); updateWorkflow(currentWorkflow).catch(e => console.warn(e)); }
+    val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.extras = { ...(currentWorkflow.context.extras || {}), rpm: val }; markDye(currentWorkflow.context, ['rpm']); pushWorkflow().catch(e => console.warn(e)); }
   );
 }
 
@@ -1523,7 +1567,7 @@ function setupNameField(fieldId, valueId, ctxKey) {
     markDye(currentWorkflow.context, [ctxKey]);
     renderNextShot();
     cache = null;   // a name entered now should appear in the list next time
-    try { await updateWorkflow(currentWorkflow); }
+    try { await pushWorkflow(); }
     catch (e) { console.warn('Failed to save ' + ctxKey + ':', e); }
   }
 
@@ -1629,7 +1673,7 @@ function setupAddNote() {
     currentWorkflow.context = currentWorkflow.context || {};
     currentWorkflow.context.extras = { ...(currentWorkflow.context.extras || {}), note: input.value };
     markDye(currentWorkflow.context, ['note']);
-    updateWorkflow(currentWorkflow).catch(e => console.warn(e));
+    pushWorkflow().catch(e => console.warn(e));
     overlay?.classList.remove('open');
   });
   cancelBtn?.addEventListener('click', () => overlay?.classList.remove('open'));
@@ -1642,7 +1686,7 @@ function setupBottomButtons() {
   const clearBtn = document.getElementById('dye-clear-btn');
   if (cancelBtn) cancelBtn.addEventListener('click', () => leaveDashboard());
   if (doneBtn) doneBtn.addEventListener('click', async () => {
-    if (currentWorkflow) { try { await updateWorkflow(currentWorkflow); } catch (e) { console.warn(e); } }
+    if (currentWorkflow) { try { await pushWorkflow(); } catch (e) { console.warn(e); } }
     leaveDashboard();
   });
   if (clearBtn) clearBtn.addEventListener('click', () => {
@@ -1728,6 +1772,7 @@ async function initializeDyeDashboard() {
     const editedIdx = editedId ? shots.findIndex(s => String(s.id) === editedId) : -1;
     currentShotIndex = editedIdx >= 0 ? editedIdx : 0;
     currentWorkflow = workflowResult;
+    baseWorkflow = workflowResult ? JSON.parse(JSON.stringify(workflowResult)) : null;
     grinders = Array.isArray(grindersResult) ? grindersResult : (grindersResult && grindersResult.items ? grindersResult.items : []);
     profiles = Array.isArray(profilesResult) ? profilesResult : (profilesResult && profilesResult.items ? profilesResult.items : []);
     recipes = Array.isArray(recipesResult) ? recipesResult : [];
@@ -1745,7 +1790,7 @@ async function initializeDyeDashboard() {
       if (fav) {
         await applyAutoFavourite(fav);
         noteApplied('favourite', fav);
-        await updateWorkflow(currentWorkflow).catch(e => console.warn(e));
+        await pushWorkflow().catch(e => console.warn(e));
         await postSelection('favourite', fav);
       } else if (selFavId.indexOf('recent:') === 0) {
         // A recent's id is not stable — it changes as soon as a newer shot takes over
