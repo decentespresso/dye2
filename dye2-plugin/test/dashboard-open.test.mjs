@@ -18,16 +18,25 @@ const dash = readFileSync(new URL("../src/pages/dashboard.ts", import.meta.url),
 
 // 3. Every text field is written before the measurements are fetched.
 {
-  const start = dash.indexOf("async function renderLastShot(");
-  const end = dash.indexOf("\nfunction updateStarDisplay", start);
-  assert.ok(start > 0 && end > start, "renderLastShot found");
-  const body = dash.slice(start, end);
+  const fn = dash.indexOf("async function renderLastShot(");
+  const fnEnd = dash.indexOf("\nfunction updateStarDisplay", fn);
+  assert.ok(fn > 0 && fnEnd > fn, "renderLastShot found");
+  // Comments are stripped first: they mention the very identifiers asserted on below, so a
+  // check against the raw text passes on the prose alone once the code is deleted.
+  const body = dash.slice(fn, fnEnd).split("\n").filter(l => !l.trim().startsWith("//")).join("\n");
+
   const lastText = body.indexOf("baristaEl.innerHTML");
   const fetchAt = body.indexOf("getShot(");
   assert.ok(lastText > 0 && fetchAt > 0, "markers present");
   assert.ok(lastText < fetchAt, "text is written before getShot(");
   assert.ok(!body.includes("await getShot"), "getShot is not awaited");
   assert.ok(body.indexOf("renderToken !== shotRenderToken") > fetchAt, "token compared in the then");
+
+  // The text is swapped before the fetch, so the previous shot's trace must go with it, or the
+  // chart shows the old shot under the new shot's numbers for as long as the fetch takes.
+  // Anchored to the fetch branch: the !shot branch has a placeholder call of its own.
+  const branch = body.slice(body.indexOf("if (!shot.measurements)"), fetchAt);
+  assert.ok(branch.includes("chartShowPlaceholder("), "the stale chart is purged before the fetch");
 }
 
 // 2. The open does one parallel batch and no serial KV read.

@@ -6232,6 +6232,10 @@ async function renderLastShot() {
 
   // Measurements only feed the chart and the Time figure, so fetch them after the text is up.
   if (!shot.measurements) {
+    // The text above is already the new shot's, so drop the previous shot's trace rather than
+    // leave it sitting under it for the length of the fetch (prev/next). chartShowPlaceholder
+    // purges Plotly's state and plotHistoricalShot clears the placeholder before it replots.
+    chartShowPlaceholder(document.getElementById('plotly-chart'), 'Loading...');
     getShot(shot.id).then(function (fullShot) {
       if (renderToken !== shotRenderToken) return;
       shots[idx] = { ...shot, ...fullShot };
