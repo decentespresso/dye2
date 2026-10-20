@@ -76,6 +76,22 @@ export function recentGroupKey(shot: AnyRecord): string | null {
 }
 
 /**
+ * Can this shotUpdated patch change a recent? Only the workflow (recentGroupKey, the
+ * recorded profile) and the rpm annotation (resolveRpm) feed them; a star tap or a note
+ * edit does not. A patch that is missing or unreadable answers true (fail safe).
+ */
+export function shotPatchAffectsRecents(patch: unknown): boolean {
+  let p: any = patch;
+  if (typeof p === "string") {
+    try { p = JSON.parse(p); } catch { return true; }
+  }
+  if (!p || typeof p !== "object") return true;
+  if ("workflow" in p) return true;
+  const extras = p.annotations && p.annotations.extras;
+  return !!extras && typeof extras === "object" && "rpm" in extras;
+}
+
+/**
  * Scans shot history newest-first, one page at a time via getPage, and returns the
  * first (= newest) shot for up to `max` distinct recentGroupKey groups. Because both
  * the page order and each page's own order are newest-first, the first occurrence of

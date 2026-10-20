@@ -2,6 +2,7 @@
 // by node (Vite ?inline import) and renderLastShot needs a DOM, so read the sources.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { shotPatchAffectsRecents } from "../src/utils/recent-favs.ts";
 
 const shell = readFileSync(new URL("../src/utils/dev-shell.ts", import.meta.url), "utf8");
 
@@ -51,6 +52,22 @@ const dash = readFileSync(new URL("../src/pages/dashboard.ts", import.meta.url),
   const body = dash.slice(start, dash.indexOf("\n}\n", start));
   assert.ok(body.includes("getProfiles("), "fallback fetches");
   assert.ok(body.includes("profiles = list;"), "fallback memoises the list");
+}
+
+// 5. Recents recompute only when a shotUpdated patch can change them.
+assert.equal(shotPatchAffectsRecents({ annotations: { enjoyment: 80 } }), false, "star tap");
+assert.equal(shotPatchAffectsRecents({ annotations: { espressoNotes: "x" } }), false, "note edit");
+assert.equal(shotPatchAffectsRecents({ workflow: { context: {} } }), true, "workflow");
+assert.equal(shotPatchAffectsRecents({ annotations: { extras: { rpm: 900 } } }), true, "rpm");
+assert.equal(shotPatchAffectsRecents({ annotations: { extras: { basketId: "b" } } }), false, "other extras");
+assert.equal(shotPatchAffectsRecents(undefined), true, "missing patch fails safe");
+assert.equal(shotPatchAffectsRecents("{not json"), true, "unparseable patch fails safe");
+assert.equal(shotPatchAffectsRecents('{"annotations":{"enjoyment":1}}'), false, "json string patch");
+
+{
+  const del = dash.slice(dash.indexOf("function setupDeleteShot("));
+  assert.ok(del.slice(0, del.indexOf("\n}\n")).includes("refreshRecentsFromHistory()"), "delete refreshes recents");
+  assert.ok(!dash.includes("limit: 200"), "no limit above the host clamp");
 }
 
 console.log("dashboard-open tests passed");

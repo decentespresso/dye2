@@ -1466,6 +1466,18 @@ function updateRatioDisplay() {
   ratioEl.textContent = r !== '—' ? '(' + r + ')' : '';
 }
 
+// Ask the plugin runtime to recompute the recents, then re-read them for the pill row.
+function refreshRecentsFromHistory() {
+  fetch('/api/v1/plugins/dye2.reaplugin/recent-favs', { method: 'POST' })
+    .then(() => getAutoFavourites())
+    .then(result => {
+      const allFavs = Array.isArray(result) ? result : (result && result.items ? result.items : []);
+      autoFavs = allFavs.filter(f => f && f.auto);
+      if (currentWorkflow) renderRecipePills(currentWorkflow);
+    })
+    .catch(e => console.warn('Could not refresh recent auto-favourites:', e));
+}
+
 function setupDeleteShot() {
   const deleteBtn = document.getElementById('dye-delete-shot');
   const dropdown = document.getElementById('dye-edit-shot-dropdown');
@@ -1481,6 +1493,8 @@ function setupDeleteShot() {
       shotsTotal = Math.max(0, shotsTotal - 1);
       currentShotIndex = Math.min(currentShotIndex, shots.length - 1);
       renderLastShot().catch(e => console.warn(e));
+      // No shotDeleted event exists, so this POST is the only way the recents drop a deleted shot.
+      refreshRecentsFromHistory();
     } catch (e) { console.error('Failed to delete shot:', e); }
   });
 }
@@ -1518,7 +1532,8 @@ function setupBasketField() {
 
 // Names previously used on shots, so Barista / Drinker can be picked instead of retyped.
 async function distinctNames(key) {
-  const res = await getShots({ limit: 200 }).catch(() => []);
+  // Decaid clamps limit to 100 (shots_handler.dart), so ask for what it will actually return.
+  const res = await getShots({ limit: 100 }).catch(() => []);
   const seen = new Set();
   (Array.isArray(res) ? res : (res.items || [])).forEach(s => {
     const ctx = (s.workflow && s.workflow.context) || {};
@@ -1839,14 +1854,11 @@ async function initializeDyeDashboard() {
   // Recompute recents from the latest shot history in the background — same round
   // trip the Auto Favourites picker takes — then refresh just the pill row once it
   // lands. Never blocks first paint on this round trip.
-  fetch('/api/v1/plugins/dye2.reaplugin/recent-favs', { method: 'POST' })
-    .then(() => getAutoFavourites())
-    .then(result => {
-      const allFavs = Array.isArray(result) ? result : (result && result.items ? result.items : []);
-      autoFavs = allFavs.filter(f => f && f.auto);
-      if (currentWorkflow) renderRecipePills(currentWorkflow);
-    })
-    .catch(e => console.warn('Could not refresh recent auto-favourites:', e));
+  // Skipped when the newest loaded shot already represents a recent: pages are newest-first
+  // and each group is represented by its newest shot, so the stored recents already include it.
+  if (!shots[0] || !allFavs.some(f => f && f.auto && f.sourceShotId === shots[0].id)) {
+    refreshRecentsFromHistory();
+  }
 }
 
 function showTransientMessage(text) {

@@ -16,7 +16,7 @@ import { renderAutoFavsPage } from "./pages/auto-favs";
 import { renderAutoFavEditPage } from "./pages/auto-fav-edit";
 import { renderRecipeEditPage } from "./pages/recipe-edit";
 import { renderBcImportPage } from "./pages/bc-import";
-import { refreshRecentFavourites } from "./utils/recent-favs";
+import { refreshRecentFavourites, shotPatchAffectsRecents } from "./utils/recent-favs";
 import {
   armSelection,
   clearSelection,
@@ -156,8 +156,12 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     },
 
     onEvent(event: PluginEvent) {
-      if (event.name === "shotStored" || event.name === "shotUpdated") {
+      if (event.name === "shotStored") {
         refreshRecents();
+      } else if (event.name === "shotUpdated") {
+        // A star tap or note edit cannot change a recent: only the workflow and the rpm
+        // annotation feed the recents. A missing or unreadable patch refreshes (fail safe).
+        if (shotPatchAffectsRecents(event.payload && event.payload.patch)) refreshRecents();
       } else if (event.name === "storageRead") {
         if (event.payload && event.payload.key === SELECTION_STORAGE_KEY && !getSelection()) {
           restoreSelection(event.payload.value);
