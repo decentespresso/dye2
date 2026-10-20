@@ -1260,7 +1260,11 @@ async function applyRecipe(recipe) {
       currentWorkflow.profile = recipe.profileSnapshot;
     } else {
       const full = recipe.profileId ? await resolveFullProfile(recipe.profileId) : null;
-      currentWorkflow.profile = full || { id: recipe.profileId, title: recipe.profileTitle };
+      // Without a full profile, send none: PUT /workflow deep-merges, so a { id, title } stub
+      // leaves the live profile's steps standing under the new name -- a workflow that claims a
+      // profile it is not running, which dial-in then records onto the item. Leaving the live
+      // profile alone is what resolveFullProfile's own warning already promises.
+      if (full) currentWorkflow.profile = full;
     }
   }
   // Brew temperature moves the whole curve of whichever profile is now loaded (the recipe's
@@ -1336,7 +1340,9 @@ async function applyAutoFavourite(fav) {
       currentWorkflow.profile = snp.profileSnapshot;
     } else {
       const full = snp.profileId ? await resolveFullProfile(snp.profileId) : null;
-      currentWorkflow.profile = full || { id: snp.profileId, title: snp.profileTitle };
+      // No full profile, no profile: a { id, title } stub would deep-merge into the live
+      // profile and rename its steps rather than replace them (see dashboard.ts applyRecipe).
+      if (full) currentWorkflow.profile = full;
     }
   }
   // Recents carry the FULL recorded profile (not just {id, title}), so reapplying one

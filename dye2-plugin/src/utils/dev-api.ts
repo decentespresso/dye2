@@ -369,7 +369,9 @@ async function buildFavouriteWorkflow(fav) {
       wf.profile = snp.profileSnapshot;
     } else {
       const full = snp.profileId ? await resolveFullProfileById(snp.profileId) : null;
-      wf.profile = full || { id: snp.profileId, title: snp.profileTitle };
+      // No full profile, no profile: a { id, title } stub would deep-merge into the live
+      // profile and rename its steps rather than replace them (see dashboard.ts applyRecipe).
+      if (full) wf.profile = full;
     }
   }
   markDye(ctx);
@@ -427,7 +429,9 @@ async function buildRecipeWorkflow(recipe) {
       wf.profile = recipe.profileSnapshot;
     } else {
       const full = recipe.profileId ? await resolveFullProfileById(recipe.profileId) : null;
-      wf.profile = full || { id: recipe.profileId, title: recipe.profileTitle };
+      // No full profile, no profile: a { id, title } stub would deep-merge into the live
+      // profile and rename its steps rather than replace them (see dashboard.ts applyRecipe).
+      if (full) wf.profile = full;
     }
   }
   // The brew temperature belongs to the loaded profile. A recipe naming no profile applies to

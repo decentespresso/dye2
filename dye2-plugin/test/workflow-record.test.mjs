@@ -526,3 +526,23 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   }
   console.log('ok   saving the armed recipe applies it and re-arms');
 }
+
+// --- an unresolvable profile is omitted, not sent as an {id,title} stub ---------------
+{
+  const src = readFileSync(new URL('../src/utils/dev-api.ts', import.meta.url), 'utf8');
+  const start = src.indexOf('async function buildRecipeWorkflow(');
+  const body = src.slice(start, src.indexOf('\n}\n', start) + 2);
+  const build = (resolved) => new Function(
+    'resolveFullProfileById', 'profileAtBrewTemp', 'recipeMachineSettings', 'markDye', 'recipe',
+    body + '; return buildRecipeWorkflow(recipe);',
+  )(async () => resolved, (p) => p, () => ({}), () => {}, {
+    id: 'r1', profileId: 'p1', profileTitle: 'Adaptive v3', dashboardVariables: { dose: 18 },
+  });
+
+  const full = { title: 'Adaptive v3', steps: [{ name: 's', temperature: 93 }] };
+  assert.deepEqual((await build(full)).profile, full, 'a resolved profile is sent whole');
+  // PUT /workflow deep-merges, so a stub would rename the live profile's steps instead of
+  // replacing them: the workflow would claim a profile it is not running.
+  assert.ok(!('profile' in (await build(null))), 'an unresolvable profile is left out entirely');
+  console.log('ok   an unresolvable profile is omitted rather than stubbed');
+}
