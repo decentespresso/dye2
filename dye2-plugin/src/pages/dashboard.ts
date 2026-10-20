@@ -788,55 +788,9 @@ function updateSearchCount() {
     : 'No matches';
 }
 
-async function renderLastShot() {
-  updateSearchCount();
-  let shot = shots[currentShotIndex];
-  const labelEl = document.getElementById('dye-last-shot-label');
-  const dateEl = document.getElementById('dye-last-shot-date');
-  const profileEl = document.getElementById('dye-shot-profile');
+// Drink / Time / Ratio line. Runs once from the list row and again when the measurements land.
+function renderShotStats(shot) {
   const statsEl = document.getElementById('dye-shot-stats');
-  const beansEl = document.getElementById('dye-shot-beans');
-  const grinderEl = document.getElementById('dye-shot-grinder');
-  const baristaEl = document.getElementById('dye-shot-barista');
-
-  if (!shot) {
-    if (labelEl) labelEl.textContent = 'Last Shot: —';
-    if (dateEl) dateEl.textContent = shotFilter ? 'No matching shots' : 'No shots recorded';
-    chartShowPlaceholder(document.getElementById('plotly-chart'), 'No shot data');
-    if (profileEl) profileEl.textContent = '—';
-    if (statsEl) statsEl.textContent = '—';
-    if (beansEl) beansEl.textContent = '—';
-    if (grinderEl) grinderEl.textContent = '—';
-    if (baristaEl) baristaEl.textContent = '—';
-    currentShotNote = '';
-    return;
-  }
-
-  const { label, full } = formatShotDate(shot.timestamp);
-  // Show position so a single-shot "Same Beans" view is obviously why prev/next don't move.
-  const pos = shotsTotal > 1 ? ' (' + (currentShotIndex + 1) + '/' + shotsTotal + ')' : '';
-  if (labelEl) labelEl.textContent = 'Last Shot: ' + label + pos;
-  if (dateEl) dateEl.textContent = full;
-
-  if (!shot.measurements) {
-    try {
-      const full = await getShot(shot.id);
-      shots[currentShotIndex] = { ...shot, ...full };
-      shot = shots[currentShotIndex];
-    } catch (e) { console.warn('Could not fetch full shot data:', e); }
-  }
-
-  if (shot.measurements && shot.measurements.length > 0) {
-    plotHistoricalShot(shot.measurements, shot.workflow);
-  }
-
-  const wf = shot.workflow || {};
-  const ctx = wf.context || {};
-  const grinderData = wf.grinderData || {};
-  const profile = wf.profile || {};
-
-  if (profileEl) profileEl.textContent = profile.title || '—';
-
   // Prefers the saved actual dose/yield (what edit-shot shows) over the last scale sample.
   const measurements = shot.measurements || [];
   const { doseIn: doseInRaw, doseOut: doseOutRaw } = shotWeights(shot);
@@ -871,6 +825,51 @@ async function renderLastShot() {
     }
     statsEl.innerHTML = statsHtml;
   }
+}
+
+// Bumped on every render so a slow measurements fetch cannot stamp a shot the user has since left.
+let shotRenderToken = 0;
+
+async function renderLastShot() {
+  const renderToken = ++shotRenderToken;
+  updateSearchCount();
+  const idx = currentShotIndex;
+  const shot = shots[idx];
+  const labelEl = document.getElementById('dye-last-shot-label');
+  const dateEl = document.getElementById('dye-last-shot-date');
+  const profileEl = document.getElementById('dye-shot-profile');
+  const statsEl = document.getElementById('dye-shot-stats');
+  const beansEl = document.getElementById('dye-shot-beans');
+  const grinderEl = document.getElementById('dye-shot-grinder');
+  const baristaEl = document.getElementById('dye-shot-barista');
+
+  if (!shot) {
+    if (labelEl) labelEl.textContent = 'Last Shot: —';
+    if (dateEl) dateEl.textContent = shotFilter ? 'No matching shots' : 'No shots recorded';
+    chartShowPlaceholder(document.getElementById('plotly-chart'), 'No shot data');
+    if (profileEl) profileEl.textContent = '—';
+    if (statsEl) statsEl.textContent = '—';
+    if (beansEl) beansEl.textContent = '—';
+    if (grinderEl) grinderEl.textContent = '—';
+    if (baristaEl) baristaEl.textContent = '—';
+    currentShotNote = '';
+    return;
+  }
+
+  const { label, full } = formatShotDate(shot.timestamp);
+  // Show position so a single-shot "Same Beans" view is obviously why prev/next don't move.
+  const pos = shotsTotal > 1 ? ' (' + (currentShotIndex + 1) + '/' + shotsTotal + ')' : '';
+  if (labelEl) labelEl.textContent = 'Last Shot: ' + label + pos;
+  if (dateEl) dateEl.textContent = full;
+
+  const wf = shot.workflow || {};
+  const ctx = wf.context || {};
+  const grinderData = wf.grinderData || {};
+  const profile = wf.profile || {};
+
+  if (profileEl) profileEl.textContent = profile.title || '—';
+
+  renderShotStats(shot);
 
   const roaster = ctx.coffeeRoaster || '';
   const coffeeName = ctx.coffeeName || '';
@@ -909,6 +908,21 @@ async function renderLastShot() {
   currentShotNote = shotNote(shot);
   const noteBtn = document.getElementById('dye-read-note-btn');
   if (noteBtn) noteBtn.style.opacity = currentShotNote.trim() ? '' : '0.4';
+
+  // Measurements only feed the chart and the Time figure, so fetch them after the text is up.
+  if (!shot.measurements) {
+    getShot(shot.id).then(function (fullShot) {
+      if (renderToken !== shotRenderToken) return;
+      shots[idx] = { ...shot, ...fullShot };
+      const merged = shots[idx];
+      renderShotStats(merged);
+      if (merged.measurements && merged.measurements.length > 0) {
+        plotHistoricalShot(merged.measurements, merged.workflow);
+      }
+    }).catch(function (e) { console.warn('Could not fetch full shot data:', e); });
+  } else if (shot.measurements.length > 0) {
+    plotHistoricalShot(shot.measurements, shot.workflow);
+  }
 }
 
 function updateStarDisplay(rating) {
