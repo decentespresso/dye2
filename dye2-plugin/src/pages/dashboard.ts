@@ -8,6 +8,14 @@ import { recordedShotScript } from "../utils/recorded-shot";
 import { shotWeightsScript } from "../utils/shot-weights";
 
 const styles = `
+  /* The Undo and Clipboard buttons are the two legacy base64 PNGs from utils/icons.ts, so
+     their near-black glyph is baked into the image and no token can reach it — in dark mode
+     both buttons simply vanished. brightness(0) flattens whatever shade the PNG holds to
+     black, invert(0.91) lifts that to --text-primary (#e8e8e8); the transparent background
+     is left alone. Light mode is untouched. Inline SVG (utils/lucide.ts) needs none of this
+     and is what new work should use. */
+  :root[data-theme="dark"] #dye-history-btn img,
+  :root[data-theme="dark"] #dye-clipboard-btn img { filter: brightness(0) invert(0.91); }
   /* Navy popup menu, matches Figma 2345:1613 */
   .dye-dash-dropdown {
     display: none;

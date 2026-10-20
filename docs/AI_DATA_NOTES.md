@@ -33,8 +33,10 @@ PUT). `kvGetArray` coerces anything non-array — including the `null` an unwrit
 returns — to `[]`.
 
 DYE2 also **reads** (never writes) one key it does not own: `GET /store/streamlineSettings/theme`
-(a JSON string, `"light"` or `"dark"`; 404 if unset), the skin's durable theme preference.
-The page shell does it in the browser; see "Dark mode" in `AI_UI_NOTES.md`.
+(a JSON string, `"light"` or `"dark"`), the skin's durable theme preference. An unset key is
+**200 with a JSON `null`**, not a 404 — `kv_store_handler.dart:18` hands `store.get` straight
+to `jsonOk`, so this is true of every key in every namespace, DYE2's own included. The page
+shell does the read in the browser; see "Dark mode" in `AI_UI_NOTES.md`.
 
 Three things about this store matter more than the schemas:
 

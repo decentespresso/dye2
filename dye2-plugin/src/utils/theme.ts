@@ -42,8 +42,10 @@ export const themeBootstrap = `
   try { cached = localStorage.getItem('dye2Theme'); } catch (e) {}
   root.setAttribute('data-theme', resolveTheme({ param: param, cached: cached }).theme);
   // Refresh from the skin's durable copy. Absolute path, same origin as the page: on the
-  // tablet and through the dev server's proxy alike. 404 (never set), no Decaid, junk: all
-  // swallowed, and the page stays on what it already applied.
+  // tablet and through the dev server's proxy alike. An unset key is 200 with a JSON null,
+  // not a 404 (kv_store_handler.dart:18 hands store.get straight to jsonOk); that, a real
+  // error status, no Decaid at all and a junk value are all swallowed the same way, and the
+  // page stays on what it already applied.
   try {
     fetch('/api/v1/store/streamlineSettings/theme')
       .then(function (r) { return r.ok ? r.json() : null; })

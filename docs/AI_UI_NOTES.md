@@ -93,9 +93,26 @@ before first paint, from two inputs:
   visit never flashes. The first visit can flip one frame once the KV answer lands.
 
 The full-page DYE route passes no param, so the KV read is what makes it follow the skin.
-Failures (404, no bridge, storage refused) leave the page on what it already applied. Not
-built on purpose: no toggle in DYE2, no live update while a page is open, no
+Failures (unset key, no bridge, storage refused) leave the page on what it already applied.
+Not built on purpose: no toggle in DYE2, no live update while a page is open, no
 `prefers-color-scheme` fallback (the WebView's OS theme is not the skin's preference).
+
+Two dark values are low-contrast **on purpose, because the skin chose them** — do not
+"fix" them in isolation, fix them in the skin and follow:
+
+- `--mimoja-blue` `#415996` on the dark ground is ~2.6:1, and it carries most headings,
+  section labels and chips. `main.css` calls it "a known low-contrast choice on the dark
+  card" per the designer. DYE2 matches it so the two surfaces read as one app.
+- The dark chart traces (`chart.ts`): temperature `#653F43`, weight `#695F57` and the
+  dotted target lines are dim. They are the skin's `DARK_TRACE_COLORS` verbatim, so one
+  shot looks the same on the skin's chart and on DYE2's. Flow is the one trace the skin
+  has no dark value for, and `#4d82e8` is dye2's own.
+
+One token **deviates** from the skin, and the reason is in `dev-shell.ts` beside it:
+`--text-primary-disabled` is `#707485`, not the skin's `#4a4a4a`. The skin spends that
+token only on disabled text; DYE2 spends it on muted-secondary text — form labels, search
+placeholders, empty states, off toggle values, preset strips — which `#4a4a4a` renders
+unreadable. `#707485` is still a skin value (Text/Tertiary).
 
 `cssVarFallbacks()` is the only place colour is decided: `:root` holds light, and
 `:root[data-theme="dark"]` the skin's dark values. **New markup uses tokens, not hexes.**

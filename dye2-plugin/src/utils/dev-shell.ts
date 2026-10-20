@@ -181,7 +181,15 @@ function cssVarFallbacks(): string {
       --profile-button-outline-color: #3d4255;
       --box-color: #17191e;
       --text-primary: #e8e8e8;
-      --text-primary-disabled: #4a4a4a;
+      /* DELIBERATE DEVIATION from the skin, which has #4a4a4a here. The skin spends this
+         token only on genuinely disabled text; DYE2 spends it on muted-secondary text —
+         every form label in the grinder/basket/equipment editors, search placeholders and
+         icons, "No grinders" empty states, combo empty rows, the off value on a toggle row
+         and the preset strips. At #4a4a4a those are ~2:1 on --box-color and unreadable,
+         while their light value (#94a3b8) reads fine. #707485 is still the skin's own
+         Text/Tertiary — the value it substitutes for --text-primary-inactive for the same
+         reason — so nothing here is invented. ~3.9:1 on --box-color. */
+      --text-primary-disabled: #707485;
       --low-contrast-white: #707485;
       --fav-button-wait: #353948;
       --profile-button-background-color: #292c38;
