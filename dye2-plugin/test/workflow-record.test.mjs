@@ -459,3 +459,16 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   clearSelection();
   console.log('ok   flush temperature and flow are read from the DE1');
 }
+
+// --- steam switched off on the machine is not recorded (dye2#30) -------------------
+{
+  const r = recipe();
+  Object.assign(r.dashboardVariables, { steamTempC: 150, steamTimeS: 30, steamFlowMls: 2, steamStopAtTempC: 0 });
+  const live = (steam) => wf({ steamSettings: { targetTemperature: 150, duration: 30, flow: 2, stopAtTemperature: 0, ...steam } });
+  assert.deepEqual(itemPatch('recipe', r, live({ targetTemperature: 120 })), {}, 'steam off: nothing recorded');
+  assert.deepEqual(itemPatch('recipe', r, live({ targetTemperature: 0, duration: 0 })), {}, 'steam-time 0 sends temp 0: still nothing');
+  assert.deepEqual(itemPatch('recipe', r, live({ targetTemperature: 140 })), { steamTempC: 140 }, 'above the off threshold is still dial-in');
+  assert.deepEqual(itemPatch('recipe', r, wf({ steamSettings: { targetTemperature: 0, duration: 0, flow: 2, stopAtTemperature: 0 }, rinseData: { duration: 7 } })),
+    { flushS: 7 }, 'only steam is held back');
+  console.log('ok   steam off on the machine is not recorded onto the item');
+}

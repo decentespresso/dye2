@@ -75,6 +75,10 @@ item directly at `GET /api/v1/store/dye2.reaplugin/selection` (`null` when none)
 `brewC` is recorded only if the live brew temperature moves after arming (apply sets it,
 so the baseline is the applied value); apply writes every steam / hot-water / flush setting a recipe holds, so
 changes to any held one are recorded. The mode fields themselves are never written by dial-in.
+The steam settings are the exception: they are **not** recorded from a workflow whose steam is
+off (`steamSettings.targetTemperature` below 135, which Decaid reads as off), because that is a
+machine state and recording it would turn steam off on every later apply of the item. A recipe
+set to Off in the editor is unaffected.
 
 ## Freshness
 
@@ -155,16 +159,17 @@ table in "Where equipment data lives" below.
 ## Applying an item to the workflow
 
 Every item written by this version carries a `workflow` field that is a
-ready-to-PUT `WorkflowRequest` body: `{ context, profile? }`. To apply (e.g. on
-tapping a card):
+ready-to-PUT `WorkflowRequest` body. For a **favourite** it is `{ context, profile? }`; for a
+**recipe** it is `{ context, profile?, steamSettings?, hotWaterData?, rinseData? }` (the
+three sub-objects are partial, see "Recipes: steam / hot-water / flush settings" below). To
+apply (e.g. on tapping a card):
 
 ```
 PUT /api/v1/workflow   with body = item.workflow
 ```
 
 No transformation needed. `PUT /api/v1/workflow` accepts
-`{ context, profile?, steamSettings?, hotWaterData?, rinseData? }`; the stored
-`workflow` only ever sets `context` and optionally `profile`.
+`{ context, profile?, steamSettings?, hotWaterData?, rinseData? }`.
 
 ### Recipes: steam / hot-water / flush settings
 
@@ -183,9 +188,8 @@ flushS          rinseData.duration
 
 `steamMode` (`time`|`flow`) and `hotWaterMode` (`vol`|`temp`) are **display-only**: they say
 which of a pair the recipe editor shows. Apply ignores them and writes every setting held.
-The editor has controls only for `steamTimeS`/`steamFlowMls`, `hotWaterMl`/`hotWaterTempC`
-and `flushS`; the rest (`steamTempC`, `steamStopAtTempC`, `hotWaterTimeS`, `hotWaterFlowMls`,
-`flushTempC`, `flushFlowMls`) are written by other clients and kept as is when the editor saves.
+The editor has a control for every field in the table; `steamTempC` and `steamStopAtTempC`
+read `0` as **Off** and save it back as `0`.
 
 The embedded `workflow` carries these as **partial** `steamSettings` / `hotWaterData` /
 `rinseData` holding only the fields the recipe holds (omitted entirely when it holds none).
@@ -298,7 +302,7 @@ write at the same instant can lose one side's change.
   title,                       // name || 'Recipe <id>'
   subtitle,                    // beanName || beverage || ''
   capturedAt,                  // ISO 8601 (recipes had no timestamp before)
-  workflow: { context, profile? }   // ready-to-PUT WorkflowRequest — does NOT carry equipment, see note below
+  workflow: { context, profile?, steamSettings?, hotWaterData?, rinseData? }   // ready-to-PUT WorkflowRequest — does NOT carry equipment, see note below
 }
 ```
 

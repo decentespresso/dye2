@@ -11653,6 +11653,13 @@ bcInit();
 		flushS: ["rinseData", "duration"],
 		flushFlowMls: ["rinseData", "flow"]
 	};
+	/** The steam settings as a group: all four are withheld while steam is off (dye2#30). */
+	var STEAM_KEYS = [
+		"steamTempC",
+		"steamTimeS",
+		"steamFlowMls",
+		"steamStopAtTempC"
+	];
 	/** Everything the live workflow says that a recipe could hold, in dashboardVariables names. */
 	function recipeFields(wf) {
 		const out = {};
@@ -11751,8 +11758,11 @@ bcInit();
 	function itemPatch(kind, item, wf, armedBrewC = null, armedMachine = null) {
 		const stored = item[TARGETS[kind].field] || {};
 		const all = kind === "recipe" ? recipeFields(wf) : favouriteFields(wf);
+		const steamT = Number(((wf || {}).steamSettings || {}).targetTemperature);
+		const steamOff = Number.isFinite(steamT) && steamT < 135;
 		const known = {};
 		for (const k of Object.keys(all)) {
+			if (steamOff && STEAM_KEYS.indexOf(k) !== -1) continue;
 			if (stored[k] == null && !movedSinceArming(k, all[k], armedMachine)) continue;
 			if (k === "brewC" && (armedBrewC == null || all.brewC === armedBrewC)) continue;
 			known[k] = all[k];

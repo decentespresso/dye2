@@ -145,6 +145,9 @@ const MACHINE_MAP: Record<string, [string, string]> = {
   flushFlowMls: ["rinseData", "flow"],
 };
 
+/** The steam settings as a group: all four are withheld while steam is off (dye2#30). */
+const STEAM_KEYS = ["steamTempC", "steamTimeS", "steamFlowMls", "steamStopAtTempC"];
+
 /** Everything the live workflow says that a recipe could hold, in dashboardVariables names. */
 export function recipeFields(wf: AnyRecord): AnyRecord {
   const out: AnyRecord = {};
@@ -266,10 +269,18 @@ export function itemPatch(
 ): AnyRecord {
   const stored = item[TARGETS[kind].field] || {};
   const all = kind === "recipe" ? recipeFields(wf) : favouriteFields(wf);
+  // Steam off is a machine state, not a recipe's: Decaid reads a target below 135 as off
+  // (de1_controller.dart updateWorkflowSettings), and Streamline's steam-time 0 sends
+  // targetTemperature 0 alongside duration 0. Recording either would turn steam off on every
+  // later apply of this item (dye2#30). A recipe set to "Off" in the editor is unaffected —
+  // that is a save, not a recording.
+  const steamT = Number((((wf || {}) as AnyRecord).steamSettings || {}).targetTemperature);
+  const steamOff = Number.isFinite(steamT) && steamT < 135;
   // apply writes every machine setting the item holds (the mode fields only choose what the
   // editor shows, and are never written), so a held field's live value is the user's.
   const known: AnyRecord = {};
   for (const k of Object.keys(all)) {
+    if (steamOff && STEAM_KEYS.indexOf(k) !== -1) continue;
     if (stored[k] == null && !movedSinceArming(k, all[k], armedMachine)) continue;
     if (k === "brewC" && (armedBrewC == null || all.brewC === armedBrewC)) continue;
     known[k] = all[k];
