@@ -208,15 +208,15 @@ var createPlugin = (function() {
 	function devPageShell(title, content, styles = "", scripts = [], opts = {}) {
 		return html(_templateObject || (_templateObject = _taggedTemplateLiteral([
 			"<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <!-- interactive-widget=overlays-content: on-screen keyboard overlays the page instead of resizing/shrinking it -->\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1, interactive-widget=overlays-content\" />\n  <title>DYE2 - ",
-			"</title>\n  ",
-			"\n  <style>",
+			"</title>\n  <style>",
 			"</style>\n  <style>",
 			"",
 			"</style>\n</head>\n<body>\n  ",
 			"\n  <script>",
 			"<\/script>\n  ",
+			"\n  ",
 			"\n</body>\n</html>"
-		])), title, opts.plotly ? "<script src=\"plotly\" charset=\"utf-8\"><\/script>" : "", tailwind_generated_default, cssVarFallbacks(), styles, content, fitScript, scripts.map((s) => `<script>${s}<\/script>`).join("\n"));
+		])), title, tailwind_generated_default, cssVarFallbacks(), styles, content, fitScript, scripts.map((s) => `<script>${s}<\/script>`).join("\n"), opts.plotly ? "<script src=\"plotly\" charset=\"utf-8\"><\/script>" : "");
 	}
 	//#endregion
 	//#region src/utils/dev-api.ts
