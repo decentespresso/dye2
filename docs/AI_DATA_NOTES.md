@@ -47,7 +47,7 @@ Three things about this store matter more than the schemas:
    those in the store is pointless — they will be regenerated.
    `updateRecipe(id, patch)` takes only the fields that changed (`recipeChanges(baseline, form)`,
    `dashboardVariables` key by key; a cleared field is `null`) and lays them on the re-read
-   record, because dial-in recording writes recipes while the editor is open.
+   record, because a record can write the same recipe while the editor is open.
 
 `baskets` is transitional. Decaid PR #727 adds a real `/api/v1/equipment` resource; check
 whether it has landed before building anything new against the `baskets` key.
@@ -115,11 +115,18 @@ make a claim about a field.
 Bean deletion: `DELETE /beans/{id}` removes only the bean row, and batches reference it with no cascade
 while the host enforces foreign keys, so delete every batch first, archived included (`bean-delete.ts`).
 
-### Dial-in recording: the plugin runtime watches the workflow
+### Dial-in recording: opt-in, and the plugin runtime tracks the workflow
 
 `src/utils/workflow-record.ts` (plugin runtime, DOM-free, node-tested) folds dashboard
-dial-in edits back into whichever recipe or favourite is **armed**. It is the only place
-DYE2 reacts to a workflow change it did not make.
+dial-in edits into whichever recipe or favourite is **armed** — but only when asked.
+`trackWorkflow()` runs on every `workflowUpdated` and **never writes**: it disarms on drift
+and fills in any baseline the arm did not have. `recordWorkflow()` does the write, called
+from the `record` route (the skin's "Save changes"). It is the only place DYE2 reacts to a
+workflow change it did not make.
+
+Why: a workflow change is not by itself a decision to change the recipe. Recording every
+change meant the machine's state became the recipe — steam switched off on the machine, a
+one-off dose, a stale value from another app (dye2#30, #31, #33 were all this).
 
 - The host pushes `workflowUpdated` with the **whole** workflow on every revision change
   (`events.workflow` permission; `plugin_manager.dart:3091`). There is no per-write payload,

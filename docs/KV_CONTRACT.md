@@ -47,34 +47,49 @@ consumer (skin/dashboard) is **read-only**: `GET` these keys, never `POST` them.
 Do not merge, dedupe, or write back — you will clobber concurrent DYE2 edits.
 
 This includes "dialling in" from the Streamline dashboard. DYE2's plugin runtime
-records edits to the live workflow onto the armed recipe/favourite itself (below);
-a skin must not read-modify-write the arrays to do the same. (Older skin builds that
+writes edits from the live workflow onto the armed recipe/favourite itself, when asked
+(below); a skin must not read-modify-write the arrays to do the same. (Older skin builds that
 still do are being retired; until they are, the host store's last-write-wins applies.)
 
 ### Selection: which item is being dialled in
 
 DYE2 tracks one **armed** item, `{ kind: 'recipe' | 'favourite', id }`. DYE2's own
-dashboard arms it whenever the user applies a recipe or favourite. While armed, each
-host `workflowUpdated` event (debounced ~1.5 s) patches **only the changed fields of
-that one item**: dose, drink, grind and — for a recipe only — brew temperature,
-steam, hot-water and flush values in `dashboardVariables`; a favourite's `snapshot`
-gets dose, drink and grindSetting only. The item's embedded `workflow.context` is kept
-in step. The selection clears when the profile changes (fingerprint drift), when a
-`recent:` entry is applied (unstable id), or when the item is deleted. DYE2's own
-apply is not recorded back (echo guard).
+dashboard arms it whenever the user applies a recipe or favourite.
+
+**Arming selects; it does not record.** A `workflowUpdated` event never writes to the
+item. The write happens only when the barista asks, by posting to `record` (the skin's
+"Save changes" on the strip's long-press menu). Applying an item is not a decision to
+change it: the automatic version made the machine's state quietly become the recipe,
+which is where steam-off, a one-off dose and another app's stale values came from
+(dye2#30, #31, #33).
+
+A `record` patches **only the changed fields of that one item**: dose, drink, grind and
+— for a recipe only — brew temperature, steam, hot-water and flush values in
+`dashboardVariables`; a favourite's `snapshot` gets dose, drink and grindSetting only.
+"Changed" is measured against what the item held when it was applied, so the arm-time
+baselines still matter. The item's embedded `workflow.context` is kept in step.
+
+The selection still clears when the profile changes (fingerprint drift), when a
+`recent:` entry is applied (unstable id), or when the item is deleted — `workflowUpdated`
+is tracked for exactly that. DYE2's own apply is not adopted as a change (echo guard).
 
 ```
 GET  /api/v1/plugins/dye2.reaplugin/selection              -> { kind, id, profileFingerprint } | null
 POST /api/v1/plugins/dye2.reaplugin/selection {kind, id}   -> arms (call after the PUT /workflow that applied it)
 POST /api/v1/plugins/dye2.reaplugin/selection {}           -> clears
+POST /api/v1/plugins/dye2.reaplugin/record                 -> { saved, kind, id } writes the dial-in onto the armed item
 ```
+
+`record` answers `{ saved: false }` with a `reason` when nothing is armed, nothing moved,
+or the workflow could not be read — never an error for "no change".
 
 The selection is persisted in plugin storage, so it survives page navigation and
 reloads. Plugin storage shares the KV namespace, so a consumer can also read the armed
 item directly at `GET /api/v1/store/dye2.reaplugin/selection` (`null` when none).
-`brewC` is recorded only if the live brew temperature moves after arming (apply sets it,
-so the baseline is the applied value); apply writes every steam / hot-water / flush setting a recipe holds, so
-changes to any held one are recorded. The mode fields themselves are never written by dial-in.
+`brewC` is written only if the live brew temperature moved after arming (apply sets it,
+so the baseline is the applied value); apply writes every steam / hot-water / flush setting a
+recipe holds, so a change to any held one is written. The mode fields themselves are never
+written by a record.
 The steam settings are the exception: they are **not** recorded from a workflow whose steam is
 off (`steamSettings.targetTemperature` below 135, which Decaid reads as off), because that is a
 machine state and recording it would turn steam off on every later apply of the item. A recipe

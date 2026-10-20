@@ -237,6 +237,13 @@ See "Visualizer" below.
 `DYE Settings → Recipes` opens **Edit Recipes**. There are five recipe slots — one per tab
 across the top (`Recipe 1` … `Recipe 5`).
 
+**Loading a recipe does not tie your next changes to it.** Tap a recipe and it fills in the
+dose, grind and the rest; nudge any of them afterwards and the recipe itself is left alone, so
+a one-off change stays a one-off. When you have dialled something in and want to keep it, long
+press that recipe's button on the Streamline strip and choose **Save changes** — only the
+values you actually moved are written. Favourites work the same way. (Earlier versions saved
+every change back automatically, which meant the machine's state quietly became the recipe.)
+
 - **Left column** — recipe name, the coffee it's for, the profile it uses, beverage type,
   barista and drinker.
 - **Right column ("Dashboard Variables")** — dose, drink, brew temperature, steam (as flow
