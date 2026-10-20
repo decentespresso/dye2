@@ -66,9 +66,9 @@ offline and pages are single self-contained documents.
 
 ## Styling Rules
 
-- **Style against the CSS variables**, never the hex fallbacks. `cssVarFallbacks()` in
-  `dev-shell.ts:129` only fires on the dev server; REA injects the real, theme-dependent
-  values in production. See `AI_RUNTIME_NOTES.md`.
+- **Style against the CSS variables**, never a hex. `cssVarFallbacks()` in `dev-shell.ts`
+  is where the tokens (and their dark values) are defined; the host injects nothing. See
+  "Dark mode" below.
 - Common variables: `--bgmain-color`, `--box-color`, `--mimoja-blue`,
   `--profile-button-outline-color`, `--text-primary`, `--text-primary-disabled`, plus the
   `--dye-*` redesign extras (chart colours, surface, border).
@@ -79,6 +79,30 @@ offline and pages are single self-contained documents.
   px**. Sizes are written in plain CSS pixels at that reference — the shell scales them.
 - The page **never scrolls**. `body` is `overflow: hidden` and fitted by transform. Content
   that overflows needs its own scrollable container.
+
+## Dark Mode
+
+DYE2 follows the Streamline skin's theme and never writes it. `devPageShell` puts a
+bootstrap script (`src/utils/theme.ts`) first in `<head>` that sets `data-theme` on `<html>`
+before first paint, from two inputs:
+
+- `?theme=dark|light` in the URL — the skin passes it when it opens a plugin as an overlay.
+  It wins over everything, and is how you preview dark on the dev server
+  (`/dashboard?theme=dark`; the dev bridge's KV may already say dark).
+- KV `streamlineSettings/theme` (read-only), cached in `localStorage.dye2Theme` so a repeat
+  visit never flashes. The first visit can flip one frame once the KV answer lands.
+
+The full-page DYE route passes no param, so the KV read is what makes it follow the skin.
+Failures (404, no bridge, storage refused) leave the page on what it already applied. Not
+built on purpose: no toggle in DYE2, no live update while a page is open, no
+`prefers-color-scheme` fallback (the WebView's OS theme is not the skin's preference).
+
+`cssVarFallbacks()` is the only place colour is decided: `:root` holds light, and
+`:root[data-theme="dark"]` the skin's dark values. **New markup uses tokens, not hexes.**
+Colour that stays literal is semantic on purpose: white text on `--mimoja-blue`, the
+`#E53935`/`#2E8B57`/`#2E7D32`/`#0ca581` status colours, bean/roast swatches and the
+`--dye-chart-*` set. Browser code that cannot use CSS variables (Plotly in `chart.ts`) reads
+`document.documentElement.getAttribute('data-theme')` at render time instead.
 
 ## Touch And Selection
 

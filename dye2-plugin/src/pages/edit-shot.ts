@@ -26,7 +26,7 @@ const styles = `
   .beans-card-notes { font-size: 20px; font-weight: 400; color: var(--text-primary); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
   .beans-read-more { font-size: 20px; font-weight: 700; color: var(--mimoja-blue); cursor: pointer; margin-top: 4px; }
   .notes-overlay {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: none; position: fixed; inset: 0; background: var(--overlay-scrim-light);
     z-index: 100; align-items: center; justify-content: center;
   }
   .notes-overlay.open { display: flex; }
@@ -120,7 +120,7 @@ function buildContent(): string {
   <div class="flex flex-1 overflow-hidden">
 
     <!-- LEFT COLUMN -->
-    <div class="flex flex-col w-[960px] shrink-0 bg-white border-r border-[var(--profile-button-outline-color)] overflow-y-auto px-[38px] py-[32px] gap-[28px]">
+    <div class="flex flex-col w-[960px] shrink-0 bg-[var(--card-bg)] border-r border-[var(--profile-button-outline-color)] overflow-y-auto px-[38px] py-[32px] gap-[28px]">
 
       <!-- Dose / Drink (top row) -->
       <div class="flex items-center gap-[60px]">
@@ -320,7 +320,7 @@ function makeValueEditable(valueId, min, max, formatter, onChange) {
     input.type = 'text';
     input.inputMode = 'decimal';
     input.value = isNaN(cur) ? '' : String(cur);
-    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:#fff;color:inherit;outline:none;padding:2px 4px';
+    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:var(--input-bg);color:inherit;outline:none;padding:2px 4px';
     valEl.textContent = '';
     valEl.appendChild(input);
     input.focus(); input.select();
@@ -360,7 +360,7 @@ function makeTextEditable(displayId, onCommit) {
   const input = document.createElement('input');
   input.type = 'text';
   input.value = prev;
-  input.style.cssText = 'width:100%;font:inherit;border:1px solid var(--mimoja-blue);border-radius:8px;background:#fff;color:inherit;outline:none;padding:4px 8px';
+  input.style.cssText = 'width:100%;font:inherit;border:1px solid var(--mimoja-blue);border-radius:8px;background:var(--input-bg);color:inherit;outline:none;padding:4px 8px';
   el.textContent = '';
   el.appendChild(input);
   input.focus(); input.select();

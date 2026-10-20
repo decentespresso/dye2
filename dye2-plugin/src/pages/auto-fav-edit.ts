@@ -199,7 +199,7 @@ function buildContent(): string {
   <div class="flex flex-1 overflow-hidden">
 
     <!-- LEFT: metadata fields -->
-    <div class="flex flex-col w-[720px] shrink-0 bg-white border-r border-[var(--profile-button-outline-color)] overflow-y-auto px-[48px] py-[36px] gap-[28px]">
+    <div class="flex flex-col w-[720px] shrink-0 bg-[var(--card-bg)] border-r border-[var(--profile-button-outline-color)] overflow-y-auto px-[48px] py-[36px] gap-[28px]">
 
       <div>
         <div class="afe-label">Favourite Title</div>

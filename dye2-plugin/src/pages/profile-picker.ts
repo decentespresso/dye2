@@ -37,7 +37,7 @@ const styles = `
   .dye-card.dye-card-selected .dye-card-readmore { color: #fff; text-decoration: underline; }
 
   /* Full-note modal */
-  .pp-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  .pp-modal-backdrop { position: fixed; inset: 0; background: var(--overlay-scrim);
     display: none; align-items: center; justify-content: center; z-index: 1000; }
   .pp-modal-backdrop.open { display: flex; }
   .pp-modal { background: var(--box-color); color: var(--text-primary); border-radius: 18px;
@@ -53,7 +53,7 @@ const styles = `
 
   .dye-search-wrap { position: relative; width: 100%; margin-bottom: 10px; }
   .dye-search-input {
-    width: 100%; height: 54px; border-radius: 12px; border: none; background: #EDF0F4;
+    width: 100%; height: 54px; border-radius: 12px; border: none; background: var(--field-bg);
     padding: 0 46px 0 16px; font-family: 'Inter', sans-serif; font-size: 19px;
     color: var(--text-primary); outline: none;
   }

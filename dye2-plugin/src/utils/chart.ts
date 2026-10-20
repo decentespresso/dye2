@@ -12,7 +12,12 @@
 export const chartScript = `
 var CHART_SMOOTHING = 0.1;
 
-var CHART_COLORS = {
+// Light values are dye2's originals. Dark values are the skin's DARK_TRACE_COLORS
+// (streamline_project chart.js) where it has a counterpart, so a shot reads the same on
+// the skin's chart and here. Flow is the exception: the skin has no dark flow trace (it
+// keeps the light #0358cf), but that blue is too dim on the dark ground, so #4d82e8 is
+// dye2's own choice.
+var CHART_COLORS_LIGHT = {
   pressure:          '#17c29a',
   flow:              '#0358cf',
   targetPressure:    '#bde2d5',
@@ -21,6 +26,24 @@ var CHART_COLORS = {
   targetTemperature: '#F9ebec',
   weight:            '#D8BDA8',
 };
+var CHART_COLORS_DARK = {
+  pressure:          '#00B087',
+  flow:              '#4d82e8',
+  targetPressure:    '#374D47',
+  targetFlow:        '#23416C',
+  temperature:       '#653F43',
+  targetTemperature: '#3E3233',
+  weight:            '#695F57',
+};
+
+// Read at render time, not load time: the shell's bootstrap may still be flipping the
+// theme from the KV answer when this script first runs, and plotHistoricalShot redraws
+// per shot. A chart already on screen keeps the colours it was drawn with (no live theme
+// updates; the theme cannot change while a DYE2 page is open).
+function chartIsDark() {
+  return document.documentElement.getAttribute('data-theme') === 'dark';
+}
+function chartColors() { return chartIsDark() ? CHART_COLORS_DARK : CHART_COLORS_LIGHT; }
 
 function chartGetAnnotations(tracks) {
   var skip = ['targetPressure', 'targetFlow', 'targetTemperature'];
@@ -35,7 +58,7 @@ function chartGetAnnotations(tracks) {
         name:  nameMap[key] || key,
         x:     tr.x[tr.x.length - 1],
         y:     tr.y[tr.y.length - 1],
-        color: CHART_COLORS[key] || '#999',
+        color: chartColors()[key] || chartAxisText(),
       });
     }
   });
@@ -65,27 +88,35 @@ function chartGetAnnotations(tracks) {
   return annotations;
 }
 
+// Axis text, grid and line colours: light is dye2's slate, dark is the skin's baseLayout.
+function chartAxisText() { return chartIsDark() ? '#606579' : '#64748b'; }
+function chartGridColor() { return chartIsDark() ? '#1E202B' : '#e2e8f0'; }
+function chartAxisLine() { return chartIsDark() ? '#606579' : '#e2e8f0'; }
+// The step-marker vertical line.
+function chartMarkerColor() { return chartIsDark() ? '#606579' : '#94a3b8'; }
+
 function chartBuildLayout(shapes, annotations) {
+  var text = chartAxisText(), grid = chartGridColor(), axisLine = chartAxisLine();
   return {
     plot_bgcolor:  'transparent',
     paper_bgcolor: 'transparent',
-    font: { family: 'Inter, sans-serif', color: '#64748b', size: 13 },
+    font: { family: 'Inter, sans-serif', color: text, size: 13 },
     shapes:      shapes      || [],
     annotations: annotations || [],
     xaxis: {
-      gridcolor:  '#e2e8f0',
-      linecolor:  '#e2e8f0',
-      tickcolor:  '#e2e8f0',
-      tickfont:   { color: '#64748b' },
+      gridcolor:  grid,
+      linecolor:  axisLine,
+      tickcolor:  axisLine,
+      tickfont:   { color: text },
       dtick:      1,
       fixedrange: true,
       zeroline:   false,
     },
     yaxis: {
-      gridcolor:  '#e2e8f0',
-      linecolor:  '#e2e8f0',
-      tickcolor:  '#e2e8f0',
-      tickfont:   { color: '#64748b' },
+      gridcolor:  grid,
+      linecolor:  axisLine,
+      tickcolor:  axisLine,
+      tickfont:   { color: text },
       range:      [0, 10],
       dtick:      1,
       fixedrange: true,
@@ -98,14 +129,15 @@ function chartBuildLayout(shapes, annotations) {
 }
 
 function chartMakeTracks() {
+  var c = chartColors();
   return {
-    pressure:          { x: [], y: [], name: 'Pressure',         type: 'scatter', mode: 'lines', line: { color: '#17c29a', width: 2 },              hoverinfo: 'name' },
-    flow:              { x: [], y: [], name: 'Flow',             type: 'scatter', mode: 'lines', line: { color: '#0358cf', width: 2 },              hoverinfo: 'name' },
-    targetPressure:    { x: [], y: [], name: 'Target Pressure',  type: 'scatter', mode: 'lines', line: { color: '#bde2d5', width: 1.5, dash: 'dot' }, hoverinfo: 'name' },
-    targetFlow:        { x: [], y: [], name: 'Target Flow',      type: 'scatter', mode: 'lines', line: { color: '#cdd9f5', width: 1.5, dash: 'dot' }, hoverinfo: 'name' },
-    temperature:       { x: [], y: [], name: '°C',               type: 'scatter', mode: 'lines', line: { color: '#ff97a1', width: 2 },              hoverinfo: 'name' },
-    targetTemperature: { x: [], y: [], name: 'Target °C',        type: 'scatter', mode: 'lines', line: { color: '#F9ebec', width: 1.5, dash: 'dot' }, hoverinfo: 'name' },
-    weight:            { x: [], y: [], name: 'Weight',           type: 'scatter', mode: 'lines', line: { color: '#D8BDA8', width: 2 },              hoverinfo: 'name' },
+    pressure:          { x: [], y: [], name: 'Pressure',         type: 'scatter', mode: 'lines', line: { color: c.pressure, width: 2 },              hoverinfo: 'name' },
+    flow:              { x: [], y: [], name: 'Flow',             type: 'scatter', mode: 'lines', line: { color: c.flow, width: 2 },              hoverinfo: 'name' },
+    targetPressure:    { x: [], y: [], name: 'Target Pressure',  type: 'scatter', mode: 'lines', line: { color: c.targetPressure, width: 1.5, dash: 'dot' }, hoverinfo: 'name' },
+    targetFlow:        { x: [], y: [], name: 'Target Flow',      type: 'scatter', mode: 'lines', line: { color: c.targetFlow, width: 1.5, dash: 'dot' }, hoverinfo: 'name' },
+    temperature:       { x: [], y: [], name: '°C',               type: 'scatter', mode: 'lines', line: { color: c.temperature, width: 2 },              hoverinfo: 'name' },
+    targetTemperature: { x: [], y: [], name: 'Target °C',        type: 'scatter', mode: 'lines', line: { color: c.targetTemperature, width: 1.5, dash: 'dot' }, hoverinfo: 'name' },
+    weight:            { x: [], y: [], name: 'Weight',           type: 'scatter', mode: 'lines', line: { color: c.weight, width: 2 },              hoverinfo: 'name' },
   };
 }
 
@@ -183,7 +215,7 @@ function plotHistoricalShot(measurements, workflow) {
           if (prevSubstate !== null && sub !== prevSubstate) {
             shapes.push({
               type: 'line', x0: t, x1: t, y0: 0, y1: 1, yref: 'paper',
-              line: { color: '#94a3b8', width: 1.5, dash: 'longdash' },
+              line: { color: chartMarkerColor(), width: 1.5, dash: 'longdash' },
             });
           }
           prevSubstate = sub;

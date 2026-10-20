@@ -189,7 +189,7 @@ const content = `
   <div class="flex justify-between items-center px-[37px] border-b border-[var(--profile-button-outline-color)] bg-[var(--box-color)] h-[165px]">
     <h1 id="dye-add-bean-title" class="text-[38px] font-bold text-[var(--text-primary)] no-select">Add New Beans</h1>
     <div class="flex items-center gap-[16px]">
-      <button id="dye-delete-btn" style="display:none" class="flex justify-center items-center w-[240px] h-[82px] py-[27px] rounded-[68px] font-bold text-[24px] text-[#C0392B]">
+      <button id="dye-delete-btn" style="display:none" class="flex justify-center items-center w-[240px] h-[82px] py-[27px] rounded-[68px] font-bold text-[24px] text-[var(--danger-text)]">
         DELETE
       </button>
       <button id="dye-cancel-btn" class="flex justify-center items-center w-[240px] h-[82px] py-[27px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)]">
@@ -200,7 +200,7 @@ const content = `
       </button>
     </div>
   </div>
-  <div id="dye-delete-error" style="display:none" class="px-[37px] py-[12px] text-[20px] text-[#C0392B]"></div>
+  <div id="dye-delete-error" style="display:none" class="px-[37px] py-[12px] text-[20px] text-[var(--danger-text)]"></div>
   <div class="flex-1 overflow-y-auto flex justify-center">
     <div id="dye-add-bean-form" class="flex flex-col gap-[30px] w-[1200px] py-[40px]">
       <div class="flex gap-[30px] items-center">
@@ -506,8 +506,8 @@ async function initializeDyeAddBean() {
       if (!beanPayload.name || !beanPayload.roaster) {
         const nameWrap = nameInput.closest('.dye-form-input-wrap');
         const roasterWrap = roasterInput.closest('.dye-form-input-wrap');
-        if (nameWrap) nameWrap.style.borderColor = beanPayload.name ? '' : '#DA515E';
-        if (roasterWrap) roasterWrap.style.borderColor = beanPayload.roaster ? '' : '#DA515E';
+        if (nameWrap) nameWrap.style.borderColor = beanPayload.name ? '' : 'var(--danger)';
+        if (roasterWrap) roasterWrap.style.borderColor = beanPayload.roaster ? '' : 'var(--danger)';
         return;
       }
 

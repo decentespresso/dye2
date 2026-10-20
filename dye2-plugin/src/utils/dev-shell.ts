@@ -3,6 +3,7 @@ import { html } from "./html";
 // so pages style themselves with no network — the offline tablet has no CDN.
 // Regenerate via `npm run build:css` (runs automatically as part of `npm run build`).
 import tailwindCss from "../styles/tailwind.generated.css?inline";
+import { themeBootstrap } from "./theme";
 
 interface DevShellOptions {
   plotly?: boolean;
@@ -125,7 +126,16 @@ const fitScript = `
 })();
 `;
 
-/** CSS variable fallbacks for dev server (REA host injects real values in production) */
+/**
+ * The colour tokens every page is styled against. The host injects nothing into plugin
+ * pages (grep plugin_manager.dart / webui_service.dart), so these values ARE the production
+ * ones, not dev-server stand-ins. Names match the Streamline skin's where it has an
+ * equivalent; the dark values are the skin's own (main.css `[data-theme='dark']`).
+ *
+ * This block is the only place colour is decided: new markup uses a token, not a hex.
+ * `:root[data-theme="dark"]` (not bare `[data-theme="dark"]`) so a page that redeclares a
+ * token in its own `:root` rule, which comes later in the cascade, cannot beat it.
+ */
 function cssVarFallbacks(): string {
   return `
     :root {
@@ -138,6 +148,24 @@ function cssVarFallbacks(): string {
       --low-contrast-white: #94a3b8;
       --fav-button-wait: #e2e8f0;
       --profile-button-background-color: #f8fafc;
+      /* Beyond the skin's names. Light value = the literal each one replaced. */
+      --card-bg: #ffffff;
+      --input-bg: #ffffff;
+      --input-text: #111111;
+      --input-placeholder: #9ca3af;
+      --field-bg: #edf0f4;
+      --button-grey: #ededed;
+      --toggle-off: #d1d5db;
+      --chip-stroke: #c5cdda;
+      --chip-text: #5f7ba8;
+      --tab-idle: #b6c3d7;
+      --box-border: #c9c9c9;
+      --ink: #121212;
+      --muted-grey: #959595;
+      --danger: #da515e;
+      --danger-text: #c0392b;
+      --overlay-scrim: rgba(0, 0, 0, 0.45);
+      --overlay-scrim-light: rgba(0, 0, 0, 0.4);
       /* DYE2 redesign extras */
       --dye-chart-red:   #C0392B;
       --dye-chart-blue:  #2F6BD1;
@@ -146,6 +174,49 @@ function cssVarFallbacks(): string {
       --dye-surface:     #F8FAFC;
       --dye-border:      #E5E9EE;
     }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --bgmain-color: #101217;
+      --mimoja-blue: #415996;
+      --profile-button-outline-color: #3d4255;
+      --box-color: #17191e;
+      --text-primary: #e8e8e8;
+      --text-primary-disabled: #4a4a4a;
+      --low-contrast-white: #707485;
+      --fav-button-wait: #353948;
+      --profile-button-background-color: #292c38;
+      --card-bg: #101217;
+      --input-bg: #17191e;
+      --input-text: #e8e8e8;
+      --input-placeholder: #707485;
+      --field-bg: #292c38;
+      --button-grey: #292c38;
+      --toggle-off: #353948;
+      --chip-stroke: #3d4255;
+      /* dye2's own pick: the Figma slate-blue is too dim on the dark ground. */
+      --chip-text: #8da2cf;
+      --tab-idle: #707485;
+      --box-border: #3d4255;
+      --ink: #e8e8e8;
+      --muted-grey: #707485;
+      --danger: #da515e;
+      --danger-text: #e8626c;
+      --overlay-scrim: rgba(0, 0, 0, 0.65);
+      --overlay-scrim-light: rgba(0, 0, 0, 0.65);
+      --dye-surface:     #17191e;
+      --dye-border:      #3d4255;
+    }
+    /* Text with no colour of its own would fall back to the UA black. Dark only: in light mode
+       that default is part of the look. */
+    :root[data-theme="dark"] body { color: var(--text-primary); }
+    /* The skin's themed scrollbars (dark-mode.css): a light scrollbar on a dark panel is the
+       obvious tell. Pages that size their own scrollbar keep their width; colour comes from
+       the tokens. */
+    :root[data-theme="dark"] { scrollbar-color: #707485 transparent; }
+    [data-theme="dark"] ::-webkit-scrollbar { width: 10px; height: 10px; }
+    [data-theme="dark"] ::-webkit-scrollbar-track { background: transparent; }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb { background-color: #707485; border-radius: 8px; }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background-color: #8a8fa3; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     /* Pages are authored at the fixed 1920x1200 design reference and fit into the
        viewport by the fit script, which scales+positions <body> directly (see
@@ -180,21 +251,22 @@ function cssVarFallbacks(): string {
     }
     .no-select { user-select: none; -webkit-user-select: none; }
 
-    /* Focus mode: the field being edited goes white so it stands out across the page.
-       Fields drawn transparent inside a bordered wrapper paint the wrapper instead. */
+    /* Focus mode: the field being edited goes white (light) / lifts to --box-color (dark) so
+       it stands out across the page. Fields drawn transparent inside a bordered wrapper
+       paint the wrapper instead. */
     input:focus, textarea:focus, select:focus, [contenteditable="true"]:focus {
-      background: #fff;
-      color: #111;
+      background: var(--input-bg);
+      color: var(--input-text);
       caret-color: var(--mimoja-blue);
     }
-    input:focus::placeholder, textarea:focus::placeholder { color: #9CA3AF; }
+    input:focus::placeholder, textarea:focus::placeholder { color: var(--input-placeholder); }
     .dye-form-input-wrap:focus-within, .re-input-row:focus-within {
-      background: #fff;
+      background: var(--input-bg);
       border-color: var(--mimoja-blue);
     }
     .dye-form-input-wrap:focus-within .dye-form-input,
     .dye-form-input-wrap:focus-within .dye-form-textarea,
-    .re-input-row:focus-within .re-input { color: #111; }
+    .re-input-row:focus-within .re-input { color: var(--input-text); }
   `;
 }
 
@@ -216,6 +288,8 @@ export function devPageShell(
   <!-- interactive-widget=overlays-content: on-screen keyboard overlays the page instead of resizing/shrinking it -->
   <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=overlays-content" />
   <title>DYE2 - ${title}</title>
+  <!-- First in <head>, ahead of the stylesheets, so data-theme is set before first paint. -->
+  <script>${themeBootstrap}</script>
   <style>${tailwindCss}</style>
   <style>${cssVarFallbacks()}${styles}</style>
 </head>

@@ -32,6 +32,10 @@ KV lives at `/api/v1/store/dye2.reaplugin/{key}`. Read with GET, **write with PO
 PUT). `kvGetArray` coerces anything non-array — including the `null` an unwritten key
 returns — to `[]`.
 
+DYE2 also **reads** (never writes) one key it does not own: `GET /store/streamlineSettings/theme`
+(a JSON string, `"light"` or `"dark"`; 404 if unset), the skin's durable theme preference.
+The page shell does it in the browser; see "Dark mode" in `AI_UI_NOTES.md`.
+
 Three things about this store matter more than the schemas:
 
 1. **It is unscoped.** Any skin or plugin can read *and write* these keys. DYE2's ownership

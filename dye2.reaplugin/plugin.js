@@ -13,7 +13,45 @@ var createPlugin = (function() {
 	}
 	//#endregion
 	//#region src/styles/tailwind.generated.css?inline
-	var tailwind_generated_default = "*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:\"\"}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.\\!container{width:100%!important}.container{width:100%}@media (min-width:640px){.\\!container{max-width:640px!important}.container{max-width:640px}}@media (min-width:768px){.\\!container{max-width:768px!important}.container{max-width:768px}}@media (min-width:1024px){.\\!container{max-width:1024px!important}.container{max-width:1024px}}@media (min-width:1280px){.\\!container{max-width:1280px!important}.container{max-width:1280px}}@media (min-width:1536px){.\\!container{max-width:1536px!important}.container{max-width:1536px}}.visible{visibility:visible}.invisible{visibility:hidden}.collapse{visibility:collapse}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.mb-8{margin-bottom:2rem}.mb-\\[14px\\]{margin-bottom:14px}.ml-\\[16px\\]{margin-left:16px}.ml-auto{margin-left:auto}.mr-\\[24px\\]{margin-right:24px}.mt-16{margin-top:4rem}.mt-8{margin-top:2rem}.mt-\\[20px\\]{margin-top:20px}.mt-\\[4px\\]{margin-top:4px}.mt-\\[6px\\]{margin-top:6px}.mt-auto{margin-top:auto}.block{display:block}.inline{display:inline}.flex{display:flex}.table{display:table}.\\!grid{display:grid!important}.grid{display:grid}.hidden{display:none}.h-\\[110px\\]{height:110px}.h-\\[124px\\]{height:124px}.h-\\[134px\\]{height:134px}.h-\\[150px\\]{height:150px}.h-\\[165px\\]{height:165px}.h-\\[2px\\]{height:2px}.h-\\[40px\\]{height:40px}.h-\\[54px\\]{height:54px}.h-\\[60px\\]{height:60px}.h-\\[62px\\]{height:62px}.h-\\[70px\\]{height:70px}.h-\\[72px\\]{height:72px}.h-\\[76px\\]{height:76px}.h-\\[82px\\]{height:82px}.h-\\[90px\\]{height:90px}.h-full{height:100%}.min-h-0{min-height:0}.min-h-\\[330px\\]{min-height:330px}.w-1\\/2{width:50%}.w-\\[1200px\\]{width:1200px}.w-\\[150px\\]{width:150px}.w-\\[180px\\]{width:180px}.w-\\[1px\\]{width:1px}.w-\\[240px\\]{width:240px}.w-\\[2px\\]{width:2px}.w-\\[300px\\]{width:300px}.w-\\[310px\\]{width:310px}.w-\\[60px\\]{width:60px}.w-\\[69px\\]{width:69px}.w-\\[720px\\]{width:720px}.w-\\[72px\\]{width:72px}.w-\\[75px\\]{width:75px}.w-\\[820px\\]{width:820px}.w-\\[960px\\]{width:960px}.w-full{width:100%}.min-w-0{min-width:0}.flex-1{flex:1 1 0%}.flex-shrink{flex-shrink:1}.flex-shrink-0{flex-shrink:0}.shrink{flex-shrink:1}.shrink-0{flex-shrink:0}.flex-grow,.grow{flex-grow:1}.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.resize{resize:both}.auto-cols-\\[225px\\]{grid-auto-columns:225px}.grid-flow-col{grid-auto-flow:column}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-rows-\\[repeat\\(2\\2c 60px\\)\\]{grid-template-rows:repeat(2,60px)}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.items-baseline{align-items:baseline}.items-stretch{align-items:stretch}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0{gap:0}.gap-\\[10px\\]{gap:10px}.gap-\\[12px\\]{gap:12px}.gap-\\[14px\\]{gap:14px}.gap-\\[15px\\]{gap:15px}.gap-\\[16px\\]{gap:16px}.gap-\\[18px\\]{gap:18px}.gap-\\[20px\\]{gap:20px}.gap-\\[22px\\]{gap:22px}.gap-\\[24px\\]{gap:24px}.gap-\\[27px\\]{gap:27px}.gap-\\[28px\\]{gap:28px}.gap-\\[30px\\]{gap:30px}.gap-\\[45px\\]{gap:45px}.gap-\\[48px\\]{gap:48px}.gap-\\[60px\\]{gap:60px}.gap-\\[68px\\]{gap:68px}.gap-\\[8px\\]{gap:8px}.gap-\\[90px\\]{gap:90px}.gap-x-\\[40px\\]{-moz-column-gap:40px;column-gap:40px}.gap-y-\\[6px\\]{row-gap:6px}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded-\\[12px\\]{border-radius:12px}.rounded-\\[15px\\]{border-radius:15px}.rounded-\\[23px\\]{border-radius:23px}.rounded-\\[68px\\]{border-radius:68px}.rounded-\\[8px\\]{border-radius:8px}.rounded-\\[9999px\\]{border-radius:9999px}.border{border-width:1px}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\\[var\\(--mimoja-blue\\)\\]{border-color:var(--mimoja-blue)}.border-\\[var\\(--profile-button-outline-color\\)\\]{border-color:var(--profile-button-outline-color)}.bg-\\[\\#EDEDED\\]{--tw-bg-opacity:1;background-color:rgb(237 237 237/var(--tw-bg-opacity,1))}.bg-\\[var\\(--bgmain-color\\)\\]{background-color:var(--bgmain-color)}.bg-\\[var\\(--box-color\\)\\]{background-color:var(--box-color)}.bg-\\[var\\(--mimoja-blue\\)\\]{background-color:var(--mimoja-blue)}.bg-\\[var\\(--profile-button-outline-color\\)\\]{background-color:var(--profile-button-outline-color)}.bg-transparent{background-color:transparent}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.p-\\[30px\\]{padding:30px}.px-\\[14px\\]{padding-left:14px;padding-right:14px}.px-\\[16px\\]{padding-left:16px;padding-right:16px}.px-\\[20px\\]{padding-left:20px;padding-right:20px}.px-\\[24px\\]{padding-left:24px;padding-right:24px}.px-\\[30px\\]{padding-left:30px;padding-right:30px}.px-\\[37px\\]{padding-left:37px;padding-right:37px}.px-\\[38px\\]{padding-left:38px;padding-right:38px}.px-\\[40px\\]{padding-left:40px;padding-right:40px}.px-\\[48px\\]{padding-left:48px;padding-right:48px}.py-\\[12px\\]{padding-top:12px;padding-bottom:12px}.py-\\[1px\\]{padding-top:1px;padding-bottom:1px}.py-\\[27px\\]{padding-top:27px;padding-bottom:27px}.py-\\[28px\\]{padding-top:28px;padding-bottom:28px}.py-\\[32px\\]{padding-top:32px;padding-bottom:32px}.py-\\[36px\\]{padding-top:36px;padding-bottom:36px}.py-\\[40px\\]{padding-top:40px;padding-bottom:40px}.pb-\\[28px\\]{padding-bottom:28px}.pb-\\[40px\\]{padding-bottom:40px}.pl-\\[37px\\]{padding-left:37px}.pr-\\[20px\\]{padding-right:20px}.pr-\\[30px\\]{padding-right:30px}.pt-\\[20px\\]{padding-top:20px}.pt-\\[23px\\]{padding-top:23px}.pt-\\[28px\\]{padding-top:28px}.pt-\\[30px\\]{padding-top:30px}.pt-\\[32px\\]{padding-top:32px}.text-center{text-align:center}.font-\\[\\'Inter\\'\\2c sans-serif\\]{font-family:Inter,sans-serif}.text-\\[16px\\]{font-size:16px}.text-\\[18px\\]{font-size:18px}.text-\\[20px\\]{font-size:20px}.text-\\[21px\\]{font-size:21px}.text-\\[22px\\]{font-size:22px}.text-\\[24px\\]{font-size:24px}.text-\\[26px\\]{font-size:26px}.text-\\[30px\\]{font-size:30px}.text-\\[36px\\]{font-size:36px}.text-\\[38px\\]{font-size:38px}.font-bold{font-weight:700}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.italic{font-style:italic}.leading-\\[1\\.2\\]{line-height:1.2}.text-\\[\\#C0392B\\]{--tw-text-opacity:1;color:rgb(192 57 43/var(--tw-text-opacity,1))}.text-\\[var\\(--low-contrast-white\\)\\]{color:var(--low-contrast-white)}.text-\\[var\\(--mimoja-blue\\)\\]{color:var(--mimoja-blue)}.text-\\[var\\(--text-primary\\)\\]{color:var(--text-primary)}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.underline{text-decoration-line:underline}.opacity-40{opacity:.4}.opacity-50{opacity:.5}.opacity-60{opacity:.6}.shadow{--tw-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color),0 1px 2px -1px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.outline-none{outline:2px solid transparent;outline-offset:2px}.outline{outline-style:solid}.ring{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.blur{--tw-blur:blur(8px)}.blur,.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}";
+	var tailwind_generated_default = "*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:\"\"}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.\\!container{width:100%!important}.container{width:100%}@media (min-width:640px){.\\!container{max-width:640px!important}.container{max-width:640px}}@media (min-width:768px){.\\!container{max-width:768px!important}.container{max-width:768px}}@media (min-width:1024px){.\\!container{max-width:1024px!important}.container{max-width:1024px}}@media (min-width:1280px){.\\!container{max-width:1280px!important}.container{max-width:1280px}}@media (min-width:1536px){.\\!container{max-width:1536px!important}.container{max-width:1536px}}.visible{visibility:visible}.invisible{visibility:hidden}.collapse{visibility:collapse}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.mb-8{margin-bottom:2rem}.mb-\\[14px\\]{margin-bottom:14px}.ml-\\[16px\\]{margin-left:16px}.ml-auto{margin-left:auto}.mr-\\[24px\\]{margin-right:24px}.mt-16{margin-top:4rem}.mt-8{margin-top:2rem}.mt-\\[20px\\]{margin-top:20px}.mt-\\[4px\\]{margin-top:4px}.mt-\\[6px\\]{margin-top:6px}.mt-auto{margin-top:auto}.block{display:block}.inline{display:inline}.flex{display:flex}.table{display:table}.\\!grid{display:grid!important}.grid{display:grid}.hidden{display:none}.h-\\[110px\\]{height:110px}.h-\\[124px\\]{height:124px}.h-\\[134px\\]{height:134px}.h-\\[150px\\]{height:150px}.h-\\[165px\\]{height:165px}.h-\\[2px\\]{height:2px}.h-\\[40px\\]{height:40px}.h-\\[54px\\]{height:54px}.h-\\[60px\\]{height:60px}.h-\\[62px\\]{height:62px}.h-\\[70px\\]{height:70px}.h-\\[72px\\]{height:72px}.h-\\[76px\\]{height:76px}.h-\\[82px\\]{height:82px}.h-\\[90px\\]{height:90px}.h-full{height:100%}.min-h-0{min-height:0}.min-h-\\[330px\\]{min-height:330px}.w-1\\/2{width:50%}.w-\\[1200px\\]{width:1200px}.w-\\[150px\\]{width:150px}.w-\\[180px\\]{width:180px}.w-\\[1px\\]{width:1px}.w-\\[240px\\]{width:240px}.w-\\[2px\\]{width:2px}.w-\\[300px\\]{width:300px}.w-\\[310px\\]{width:310px}.w-\\[60px\\]{width:60px}.w-\\[69px\\]{width:69px}.w-\\[720px\\]{width:720px}.w-\\[72px\\]{width:72px}.w-\\[75px\\]{width:75px}.w-\\[820px\\]{width:820px}.w-\\[960px\\]{width:960px}.w-full{width:100%}.min-w-0{min-width:0}.flex-1{flex:1 1 0%}.flex-shrink{flex-shrink:1}.flex-shrink-0{flex-shrink:0}.shrink{flex-shrink:1}.shrink-0{flex-shrink:0}.flex-grow,.grow{flex-grow:1}.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.resize{resize:both}.auto-cols-\\[225px\\]{grid-auto-columns:225px}.grid-flow-col{grid-auto-flow:column}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-rows-\\[repeat\\(2\\2c 60px\\)\\]{grid-template-rows:repeat(2,60px)}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.items-baseline{align-items:baseline}.items-stretch{align-items:stretch}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0{gap:0}.gap-\\[10px\\]{gap:10px}.gap-\\[12px\\]{gap:12px}.gap-\\[14px\\]{gap:14px}.gap-\\[15px\\]{gap:15px}.gap-\\[16px\\]{gap:16px}.gap-\\[18px\\]{gap:18px}.gap-\\[20px\\]{gap:20px}.gap-\\[22px\\]{gap:22px}.gap-\\[24px\\]{gap:24px}.gap-\\[27px\\]{gap:27px}.gap-\\[28px\\]{gap:28px}.gap-\\[30px\\]{gap:30px}.gap-\\[45px\\]{gap:45px}.gap-\\[48px\\]{gap:48px}.gap-\\[60px\\]{gap:60px}.gap-\\[68px\\]{gap:68px}.gap-\\[8px\\]{gap:8px}.gap-\\[90px\\]{gap:90px}.gap-x-\\[40px\\]{-moz-column-gap:40px;column-gap:40px}.gap-y-\\[6px\\]{row-gap:6px}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded-\\[12px\\]{border-radius:12px}.rounded-\\[15px\\]{border-radius:15px}.rounded-\\[23px\\]{border-radius:23px}.rounded-\\[68px\\]{border-radius:68px}.rounded-\\[8px\\]{border-radius:8px}.rounded-\\[9999px\\]{border-radius:9999px}.border{border-width:1px}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\\[var\\(--mimoja-blue\\)\\]{border-color:var(--mimoja-blue)}.border-\\[var\\(--profile-button-outline-color\\)\\]{border-color:var(--profile-button-outline-color)}.bg-\\[var\\(--bgmain-color\\)\\]{background-color:var(--bgmain-color)}.bg-\\[var\\(--box-color\\)\\]{background-color:var(--box-color)}.bg-\\[var\\(--button-grey\\)\\]{background-color:var(--button-grey)}.bg-\\[var\\(--card-bg\\)\\]{background-color:var(--card-bg)}.bg-\\[var\\(--mimoja-blue\\)\\]{background-color:var(--mimoja-blue)}.bg-\\[var\\(--profile-button-outline-color\\)\\]{background-color:var(--profile-button-outline-color)}.bg-transparent{background-color:transparent}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.p-\\[30px\\]{padding:30px}.px-\\[14px\\]{padding-left:14px;padding-right:14px}.px-\\[16px\\]{padding-left:16px;padding-right:16px}.px-\\[20px\\]{padding-left:20px;padding-right:20px}.px-\\[24px\\]{padding-left:24px;padding-right:24px}.px-\\[30px\\]{padding-left:30px;padding-right:30px}.px-\\[37px\\]{padding-left:37px;padding-right:37px}.px-\\[38px\\]{padding-left:38px;padding-right:38px}.px-\\[40px\\]{padding-left:40px;padding-right:40px}.px-\\[48px\\]{padding-left:48px;padding-right:48px}.py-\\[12px\\]{padding-top:12px;padding-bottom:12px}.py-\\[1px\\]{padding-top:1px;padding-bottom:1px}.py-\\[27px\\]{padding-top:27px;padding-bottom:27px}.py-\\[28px\\]{padding-top:28px;padding-bottom:28px}.py-\\[32px\\]{padding-top:32px;padding-bottom:32px}.py-\\[36px\\]{padding-top:36px;padding-bottom:36px}.py-\\[40px\\]{padding-top:40px;padding-bottom:40px}.pb-\\[28px\\]{padding-bottom:28px}.pb-\\[40px\\]{padding-bottom:40px}.pl-\\[37px\\]{padding-left:37px}.pr-\\[20px\\]{padding-right:20px}.pr-\\[30px\\]{padding-right:30px}.pt-\\[20px\\]{padding-top:20px}.pt-\\[23px\\]{padding-top:23px}.pt-\\[28px\\]{padding-top:28px}.pt-\\[30px\\]{padding-top:30px}.pt-\\[32px\\]{padding-top:32px}.text-center{text-align:center}.font-\\[\\'Inter\\'\\2c sans-serif\\]{font-family:Inter,sans-serif}.text-\\[16px\\]{font-size:16px}.text-\\[18px\\]{font-size:18px}.text-\\[20px\\]{font-size:20px}.text-\\[21px\\]{font-size:21px}.text-\\[22px\\]{font-size:22px}.text-\\[24px\\]{font-size:24px}.text-\\[26px\\]{font-size:26px}.text-\\[30px\\]{font-size:30px}.text-\\[36px\\]{font-size:36px}.text-\\[38px\\]{font-size:38px}.font-bold{font-weight:700}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.italic{font-style:italic}.leading-\\[1\\.2\\]{line-height:1.2}.text-\\[var\\(--danger-text\\)\\]{color:var(--danger-text)}.text-\\[var\\(--low-contrast-white\\)\\]{color:var(--low-contrast-white)}.text-\\[var\\(--mimoja-blue\\)\\]{color:var(--mimoja-blue)}.text-\\[var\\(--text-primary\\)\\]{color:var(--text-primary)}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.underline{text-decoration-line:underline}.opacity-40{opacity:.4}.opacity-50{opacity:.5}.opacity-60{opacity:.6}.shadow{--tw-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color),0 1px 2px -1px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.outline-none{outline:2px solid transparent;outline-offset:2px}.outline{outline-style:solid}.ring{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.blur{--tw-blur:blur(8px)}.blur,.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}";
+	/** Inline in <head>, before the stylesheet, so the attribute is set before first paint. */
+	var themeBootstrap = `
+(function () {
+  
+function normalizeTheme(v) { return v === 'dark' || v === 'light' ? v : null; }
+// param/cached/remote are raw (possibly junk or absent); junk counts as absent.
+// theme = what to apply. cache = what to store in dye2Theme (null = leave it alone).
+function resolveTheme(o) {
+  var param = normalizeTheme(o.param);
+  var cached = normalizeTheme(o.cached);
+  var remote = normalizeTheme(o.remote);
+  return {
+    theme: param || remote || cached || 'light',
+    cache: remote,
+  };
+}
+
+  var root = document.documentElement;
+  var param = null, cached = null;
+  // The WebView can refuse storage (private mode, blocked site data): every access is guarded.
+  try { param = new URLSearchParams(location.search).get('theme'); } catch (e) {}
+  try { cached = localStorage.getItem('dye2Theme'); } catch (e) {}
+  root.setAttribute('data-theme', resolveTheme({ param: param, cached: cached }).theme);
+  // Refresh from the skin's durable copy. Absolute path, same origin as the page: on the
+  // tablet and through the dev server's proxy alike. 404 (never set), no Decaid, junk: all
+  // swallowed, and the page stays on what it already applied.
+  try {
+    fetch('/api/v1/store/streamlineSettings/theme')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (remote) {
+        var r = resolveTheme({ param: param, cached: cached, remote: remote });
+        if (r.cache) { try { localStorage.setItem('dye2Theme', r.cache); } catch (e) {} }
+        if (root.getAttribute('data-theme') !== r.theme) root.setAttribute('data-theme', r.theme);
+      })
+      .catch(function () {});
+  } catch (e) {}
+})();
+`;
 	//#endregion
 	//#region \0@oxc-project+runtime@0.124.0/helpers/taggedTemplateLiteral.js
 	function _taggedTemplateLiteral(e, t) {
@@ -129,7 +167,16 @@ var createPlugin = (function() {
   document.addEventListener('focusout', kbSoon);
 })();
 `;
-	/** CSS variable fallbacks for dev server (REA host injects real values in production) */
+	/**
+	* The colour tokens every page is styled against. The host injects nothing into plugin
+	* pages (grep plugin_manager.dart / webui_service.dart), so these values ARE the production
+	* ones, not dev-server stand-ins. Names match the Streamline skin's where it has an
+	* equivalent; the dark values are the skin's own (main.css `[data-theme='dark']`).
+	*
+	* This block is the only place colour is decided: new markup uses a token, not a hex.
+	* `:root[data-theme="dark"]` (not bare `[data-theme="dark"]`) so a page that redeclares a
+	* token in its own `:root` rule, which comes later in the cascade, cannot beat it.
+	*/
 	function cssVarFallbacks() {
 		return `
     :root {
@@ -142,6 +189,24 @@ var createPlugin = (function() {
       --low-contrast-white: #94a3b8;
       --fav-button-wait: #e2e8f0;
       --profile-button-background-color: #f8fafc;
+      /* Beyond the skin's names. Light value = the literal each one replaced. */
+      --card-bg: #ffffff;
+      --input-bg: #ffffff;
+      --input-text: #111111;
+      --input-placeholder: #9ca3af;
+      --field-bg: #edf0f4;
+      --button-grey: #ededed;
+      --toggle-off: #d1d5db;
+      --chip-stroke: #c5cdda;
+      --chip-text: #5f7ba8;
+      --tab-idle: #b6c3d7;
+      --box-border: #c9c9c9;
+      --ink: #121212;
+      --muted-grey: #959595;
+      --danger: #da515e;
+      --danger-text: #c0392b;
+      --overlay-scrim: rgba(0, 0, 0, 0.45);
+      --overlay-scrim-light: rgba(0, 0, 0, 0.4);
       /* DYE2 redesign extras */
       --dye-chart-red:   #C0392B;
       --dye-chart-blue:  #2F6BD1;
@@ -150,6 +215,49 @@ var createPlugin = (function() {
       --dye-surface:     #F8FAFC;
       --dye-border:      #E5E9EE;
     }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --bgmain-color: #101217;
+      --mimoja-blue: #415996;
+      --profile-button-outline-color: #3d4255;
+      --box-color: #17191e;
+      --text-primary: #e8e8e8;
+      --text-primary-disabled: #4a4a4a;
+      --low-contrast-white: #707485;
+      --fav-button-wait: #353948;
+      --profile-button-background-color: #292c38;
+      --card-bg: #101217;
+      --input-bg: #17191e;
+      --input-text: #e8e8e8;
+      --input-placeholder: #707485;
+      --field-bg: #292c38;
+      --button-grey: #292c38;
+      --toggle-off: #353948;
+      --chip-stroke: #3d4255;
+      /* dye2's own pick: the Figma slate-blue is too dim on the dark ground. */
+      --chip-text: #8da2cf;
+      --tab-idle: #707485;
+      --box-border: #3d4255;
+      --ink: #e8e8e8;
+      --muted-grey: #707485;
+      --danger: #da515e;
+      --danger-text: #e8626c;
+      --overlay-scrim: rgba(0, 0, 0, 0.65);
+      --overlay-scrim-light: rgba(0, 0, 0, 0.65);
+      --dye-surface:     #17191e;
+      --dye-border:      #3d4255;
+    }
+    /* Text with no colour of its own would fall back to the UA black. Dark only: in light mode
+       that default is part of the look. */
+    :root[data-theme="dark"] body { color: var(--text-primary); }
+    /* The skin's themed scrollbars (dark-mode.css): a light scrollbar on a dark panel is the
+       obvious tell. Pages that size their own scrollbar keep their width; colour comes from
+       the tokens. */
+    :root[data-theme="dark"] { scrollbar-color: #707485 transparent; }
+    [data-theme="dark"] ::-webkit-scrollbar { width: 10px; height: 10px; }
+    [data-theme="dark"] ::-webkit-scrollbar-track { background: transparent; }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb { background-color: #707485; border-radius: 8px; }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background-color: #8a8fa3; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     /* Pages are authored at the fixed 1920x1200 design reference and fit into the
        viewport by the fit script, which scales+positions <body> directly (see
@@ -184,21 +292,22 @@ var createPlugin = (function() {
     }
     .no-select { user-select: none; -webkit-user-select: none; }
 
-    /* Focus mode: the field being edited goes white so it stands out across the page.
-       Fields drawn transparent inside a bordered wrapper paint the wrapper instead. */
+    /* Focus mode: the field being edited goes white (light) / lifts to --box-color (dark) so
+       it stands out across the page. Fields drawn transparent inside a bordered wrapper
+       paint the wrapper instead. */
     input:focus, textarea:focus, select:focus, [contenteditable="true"]:focus {
-      background: #fff;
-      color: #111;
+      background: var(--input-bg);
+      color: var(--input-text);
       caret-color: var(--mimoja-blue);
     }
-    input:focus::placeholder, textarea:focus::placeholder { color: #9CA3AF; }
+    input:focus::placeholder, textarea:focus::placeholder { color: var(--input-placeholder); }
     .dye-form-input-wrap:focus-within, .re-input-row:focus-within {
-      background: #fff;
+      background: var(--input-bg);
       border-color: var(--mimoja-blue);
     }
     .dye-form-input-wrap:focus-within .dye-form-input,
     .dye-form-input-wrap:focus-within .dye-form-textarea,
-    .re-input-row:focus-within .re-input { color: #111; }
+    .re-input-row:focus-within .re-input { color: var(--input-text); }
   `;
 	}
 	/**
@@ -208,7 +317,8 @@ var createPlugin = (function() {
 	function devPageShell(title, content, styles = "", scripts = [], opts = {}) {
 		return html(_templateObject || (_templateObject = _taggedTemplateLiteral([
 			"<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <!-- interactive-widget=overlays-content: on-screen keyboard overlays the page instead of resizing/shrinking it -->\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1, interactive-widget=overlays-content\" />\n  <title>DYE2 - ",
-			"</title>\n  <style>",
+			"</title>\n  <!-- First in <head>, ahead of the stylesheets, so data-theme is set before first paint. -->\n  <script>",
+			"<\/script>\n  <style>",
 			"</style>\n  <style>",
 			"",
 			"</style>\n</head>\n<body>\n  ",
@@ -216,7 +326,7 @@ var createPlugin = (function() {
 			"<\/script>\n  ",
 			"\n  ",
 			"\n</body>\n</html>"
-		])), title, tailwind_generated_default, cssVarFallbacks(), styles, content, fitScript, scripts.map((s) => `<script>${s}<\/script>`).join("\n"), opts.plotly ? "<script src=\"plotly\" charset=\"utf-8\"><\/script>" : "");
+		])), title, themeBootstrap, tailwind_generated_default, cssVarFallbacks(), styles, content, fitScript, scripts.map((s) => `<script>${s}<\/script>`).join("\n"), opts.plotly ? "<script src=\"plotly\" charset=\"utf-8\"><\/script>" : "");
 	}
 	//#endregion
 	//#region src/utils/dev-api.ts
@@ -908,7 +1018,7 @@ function buildGrinderBody(fields, isEdit) {
   .dye-search-wrap { position: relative; width: 100%; margin-bottom: 10px; }
   .dye-search-input {
     width: 100%; height: 54px; border-radius: 12px; border: none;
-    background: #EDF0F4; padding: 0 46px 0 16px;
+    background: var(--field-bg); padding: 0 46px 0 16px;
     font-family: 'Inter', sans-serif; font-size: 19px;
     color: var(--text-primary); outline: none;
   }
@@ -926,7 +1036,7 @@ function buildGrinderBody(fields, isEdit) {
 
   /* Add/edit modal */
   .dye-modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    position: fixed; inset: 0; background: var(--overlay-scrim);
     display: none; align-items: center; justify-content: center; z-index: 50;
   }
   .dye-modal-backdrop.open { display: flex; }
@@ -942,7 +1052,7 @@ function buildGrinderBody(fields, isEdit) {
   .dye-field input, .dye-field select, .dye-field textarea {
     width: 100%; height: 50px; border-radius: 10px;
     border: 1px solid var(--profile-button-outline-color);
-    background: #EDF0F4; padding: 0 14px; font-size: 19px;
+    background: var(--field-bg); padding: 0 14px; font-size: 19px;
     color: var(--text-primary); font-family: 'Inter', sans-serif; outline: none;
   }
   .dye-field textarea { height: auto; padding: 12px 14px; resize: vertical; }
@@ -955,8 +1065,8 @@ function buildGrinderBody(fields, isEdit) {
   }
   .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
-  .dye-btn-danger { background: transparent; color: #C0392B; margin-right: auto; }
-  .dye-modal-error { color: #C0392B; font-size: 18px; margin-top: 12px; }
+  .dye-btn-danger { background: transparent; color: var(--danger-text); margin-right: auto; }
+  .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
 	var content$10 = `
@@ -1328,7 +1438,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   .dye-search-wrap { position: relative; width: 100%; margin-bottom: 10px; }
   .dye-search-input {
     width: 100%; height: 54px; border-radius: 12px; border: none;
-    background: #EDF0F4; padding: 0 46px 0 16px;
+    background: var(--field-bg); padding: 0 46px 0 16px;
     font-family: 'Inter', sans-serif; font-size: 19px;
     color: var(--text-primary); outline: none;
   }
@@ -1346,7 +1456,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
 
   /* Add/edit modal */
   .dye-modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    position: fixed; inset: 0; background: var(--overlay-scrim);
     display: none; align-items: center; justify-content: center; z-index: 50;
   }
   .dye-modal-backdrop.open { display: flex; }
@@ -1362,7 +1472,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   .dye-field input, .dye-field select, .dye-field textarea {
     width: 100%; height: 50px; border-radius: 10px;
     border: 1px solid var(--profile-button-outline-color);
-    background: #EDF0F4; padding: 0 14px; font-size: 19px;
+    background: var(--field-bg); padding: 0 14px; font-size: 19px;
     color: var(--text-primary); font-family: 'Inter', sans-serif; outline: none;
   }
   .dye-field textarea { height: auto; padding: 12px 14px; resize: vertical; }
@@ -1375,7 +1485,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   }
   .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
-  .dye-modal-error { color: #C0392B; font-size: 18px; margin-top: 12px; }
+  .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
 	var content$9 = `
@@ -1665,7 +1775,7 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
   .dye-search-wrap { position: relative; width: 100%; margin-bottom: 10px; }
   .dye-search-input {
     width: 100%; height: 54px; border-radius: 12px; border: none;
-    background: #EDF0F4; padding: 0 46px 0 16px;
+    background: var(--field-bg); padding: 0 46px 0 16px;
     font-family: 'Inter', sans-serif; font-size: 19px;
     color: var(--text-primary); outline: none;
   }
@@ -1683,7 +1793,7 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
 
   /* Add/edit modal */
   .dye-modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    position: fixed; inset: 0; background: var(--overlay-scrim);
     display: none; align-items: center; justify-content: center; z-index: 50;
   }
   .dye-modal-backdrop.open { display: flex; }
@@ -1699,14 +1809,14 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
   .dye-field input {
     width: 100%; height: 50px; border-radius: 10px;
     border: 1px solid var(--profile-button-outline-color);
-    background: #EDF0F4; padding: 0 14px; font-size: 19px;
+    background: var(--field-bg); padding: 0 14px; font-size: 19px;
     color: var(--text-primary); font-family: 'Inter', sans-serif; outline: none;
   }
   .dye-field-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
   .dye-field-row input { flex: 1; }
   .dye-field-remove {
     flex-shrink: 0; width: 40px; height: 40px; border-radius: 9999px; border: none;
-    background: transparent; color: #C0392B; font-size: 24px; cursor: pointer;
+    background: transparent; color: var(--danger-text); font-size: 24px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
   }
   .dye-add-field-btn {
@@ -1723,7 +1833,7 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
   .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
   .dye-btn-danger { background: transparent; color: #E53935; border: 2px solid #E53935; margin-right: auto; }
-  .dye-modal-error { color: #C0392B; font-size: 18px; margin-top: 12px; }
+  .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
 	var content$8 = `
@@ -2084,7 +2194,7 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
   .dye-search-wrap { position: relative; width: 100%; margin-bottom: 10px; }
   .dye-search-input {
     width: 100%; height: 54px; border-radius: 12px; border: none;
-    background: #EDF0F4; padding: 0 46px 0 16px;
+    background: var(--field-bg); padding: 0 46px 0 16px;
     font-family: 'Inter', sans-serif; font-size: 19px;
     color: var(--text-primary); outline: none;
   }
@@ -2476,7 +2586,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   .dye-search-wrap { position: relative; width: 100%; margin-bottom: 10px; }
   .dye-search-input {
     width: 100%; height: 54px; border-radius: 12px; border: none;
-    background: #EDF0F4; padding: 0 46px 0 16px;
+    background: var(--field-bg); padding: 0 46px 0 16px;
     font-family: 'Inter', sans-serif; font-size: 19px;
     color: var(--text-primary); outline: none;
   }
@@ -2494,7 +2604,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 
   /* Add-grinder modal (shown inline instead of navigating to /grinders) */
   .dye-modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    position: fixed; inset: 0; background: var(--overlay-scrim);
     display: none; align-items: center; justify-content: center; z-index: 50;
   }
   .dye-modal-backdrop.open { display: flex; }
@@ -2510,7 +2620,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   .dye-field input, .dye-field select, .dye-field textarea {
     width: 100%; height: 50px; border-radius: 10px;
     border: 1px solid var(--profile-button-outline-color);
-    background: #EDF0F4; padding: 0 14px; font-size: 19px;
+    background: var(--field-bg); padding: 0 14px; font-size: 19px;
     color: var(--text-primary); font-family: 'Inter', sans-serif; outline: none;
   }
   .dye-field textarea { height: auto; padding: 12px 14px; resize: vertical; }
@@ -2523,7 +2633,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   }
   .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
-  .dye-modal-error { color: #C0392B; font-size: 18px; margin-top: 12px; }
+  .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
 	var content$6 = `
@@ -2962,7 +3072,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   .dye-search-wrap { position: relative; width: 100%; margin-bottom: 10px; }
   .dye-search-input {
     width: 100%; height: 54px; border-radius: 12px; border: none;
-    background: #EDF0F4; padding: 0 46px 0 16px;
+    background: var(--field-bg); padding: 0 46px 0 16px;
     font-family: 'Inter', sans-serif; font-size: 19px;
     color: var(--text-primary); outline: none;
   }
@@ -2980,7 +3090,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
 
   /* Add-basket modal (shown inline instead of navigating to /baskets) */
   .dye-modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    position: fixed; inset: 0; background: var(--overlay-scrim);
     display: none; align-items: center; justify-content: center; z-index: 50;
   }
   .dye-modal-backdrop.open { display: flex; }
@@ -2996,7 +3106,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   .dye-field input, .dye-field select, .dye-field textarea {
     width: 100%; height: 50px; border-radius: 10px;
     border: 1px solid var(--profile-button-outline-color);
-    background: #EDF0F4; padding: 0 14px; font-size: 19px;
+    background: var(--field-bg); padding: 0 14px; font-size: 19px;
     color: var(--text-primary); font-family: 'Inter', sans-serif; outline: none;
   }
   .dye-field textarea { height: auto; padding: 12px 14px; resize: vertical; }
@@ -3009,7 +3119,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   }
   .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
-  .dye-modal-error { color: #C0392B; font-size: 18px; margin-top: 12px; }
+  .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
 	var content$5 = `
@@ -3336,7 +3446,7 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
   .dye-card.dye-card-selected .dye-card-readmore { color: #fff; text-decoration: underline; }
 
   /* Full-note modal */
-  .pp-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  .pp-modal-backdrop { position: fixed; inset: 0; background: var(--overlay-scrim);
     display: none; align-items: center; justify-content: center; z-index: 1000; }
   .pp-modal-backdrop.open { display: flex; }
   .pp-modal { background: var(--box-color); color: var(--text-primary); border-radius: 18px;
@@ -3352,7 +3462,7 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
 
   .dye-search-wrap { position: relative; width: 100%; margin-bottom: 10px; }
   .dye-search-input {
-    width: 100%; height: 54px; border-radius: 12px; border: none; background: #EDF0F4;
+    width: 100%; height: 54px; border-radius: 12px; border: none; background: var(--field-bg);
     padding: 0 46px 0 16px; font-family: 'Inter', sans-serif; font-size: 19px;
     color: var(--text-primary); outline: none;
   }
@@ -3926,21 +4036,21 @@ async function deleteBeanWithBatches(beanId, api) {
   .dye-dp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
   .dye-dp-title { font-size: 24px; font-weight: 700; color: var(--mimoja-blue); }
   .dye-dp-nav {
-    width: 52px; height: 52px; border-radius: 15px; border: 2px solid #C5CDDA;
+    width: 52px; height: 52px; border-radius: 15px; border: 2px solid var(--chip-stroke);
     background: var(--box-color); color: var(--mimoja-blue);
     font-size: 26px; font-weight: 700; line-height: 48px; text-align: center; cursor: pointer;
   }
   .dye-dp-nav:active { background: var(--mimoja-blue); color: #fff; }
   .dye-dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-  .dye-dp-dow { font-size: 18px; font-weight: 700; color: #959595; text-align: center; padding: 6px 0; }
+  .dye-dp-dow { font-size: 18px; font-weight: 700; color: var(--muted-grey); text-align: center; padding: 6px 0; }
   .dye-dp-day {
     height: 52px; line-height: 48px; text-align: center; border-radius: 12px;
     font-size: 21px; font-weight: 600; color: var(--text-primary); cursor: pointer;
     border: 2px solid transparent;
   }
-  .dye-dp-day:active { background: #EDEDED; }
-  .dye-dp-day.dye-dp-muted { color: #C5CDDA; cursor: default; }
-  .dye-dp-day.dye-dp-today { border-color: #C5CDDA; }
+  .dye-dp-day:active { background: var(--button-grey); }
+  .dye-dp-day.dye-dp-muted { color: var(--chip-stroke); cursor: default; }
+  .dye-dp-day.dye-dp-today { border-color: var(--chip-stroke); }
   .dye-dp-day.dye-dp-sel { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
   .dye-dp-foot { display: flex; gap: 12px; margin-top: 16px; }
   .dye-dp-btn {
@@ -4153,7 +4263,7 @@ async function deleteBeanWithBatches(beanId, api) {
 		return `
   .dye-stepper-btn {
     display: flex; align-items: center; justify-content: center;
-    width: 72px; height: 72px; background: #EDEDED;
+    width: 72px; height: 72px; background: var(--button-grey);
     border-radius: 15px; cursor: pointer; flex-shrink: 0;
   }
   .dye-stepper-val {
@@ -4202,7 +4312,7 @@ async function deleteBeanWithBatches(beanId, api) {
 		return `
   .dye-toggle-track {
     position: relative; width: 64px; height: 36px; border-radius: 9999px;
-    background: #D1D5DB; transition: background 0.2s; cursor: pointer;
+    background: var(--toggle-off); transition: background 0.2s; cursor: pointer;
     flex-shrink: 0; display: flex; align-items: center; padding: 4px;
   }
   .dye-toggle-track.on { background: var(--mimoja-blue); justify-content: flex-end; }
@@ -4535,7 +4645,7 @@ function syncPresetActive(idPrefix, currentVal) {
   <div class="flex justify-between items-center px-[37px] border-b border-[var(--profile-button-outline-color)] bg-[var(--box-color)] h-[165px]">
     <h1 id="dye-add-bean-title" class="text-[38px] font-bold text-[var(--text-primary)] no-select">Add New Beans</h1>
     <div class="flex items-center gap-[16px]">
-      <button id="dye-delete-btn" style="display:none" class="flex justify-center items-center w-[240px] h-[82px] py-[27px] rounded-[68px] font-bold text-[24px] text-[#C0392B]">
+      <button id="dye-delete-btn" style="display:none" class="flex justify-center items-center w-[240px] h-[82px] py-[27px] rounded-[68px] font-bold text-[24px] text-[var(--danger-text)]">
         DELETE
       </button>
       <button id="dye-cancel-btn" class="flex justify-center items-center w-[240px] h-[82px] py-[27px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)]">
@@ -4546,7 +4656,7 @@ function syncPresetActive(idPrefix, currentVal) {
       </button>
     </div>
   </div>
-  <div id="dye-delete-error" style="display:none" class="px-[37px] py-[12px] text-[20px] text-[#C0392B]"></div>
+  <div id="dye-delete-error" style="display:none" class="px-[37px] py-[12px] text-[20px] text-[var(--danger-text)]"></div>
   <div class="flex-1 overflow-y-auto flex justify-center">
     <div id="dye-add-bean-form" class="flex flex-col gap-[30px] w-[1200px] py-[40px]">
       <div class="flex gap-[30px] items-center">
@@ -4870,8 +4980,8 @@ async function initializeDyeAddBean() {
       if (!beanPayload.name || !beanPayload.roaster) {
         const nameWrap = nameInput.closest('.dye-form-input-wrap');
         const roasterWrap = roasterInput.closest('.dye-form-input-wrap');
-        if (nameWrap) nameWrap.style.borderColor = beanPayload.name ? '' : '#DA515E';
-        if (roasterWrap) roasterWrap.style.borderColor = beanPayload.roaster ? '' : '#DA515E';
+        if (nameWrap) nameWrap.style.borderColor = beanPayload.name ? '' : 'var(--danger)';
+        if (roasterWrap) roasterWrap.style.borderColor = beanPayload.roaster ? '' : 'var(--danger)';
         return;
       }
 
@@ -5068,7 +5178,12 @@ async function stepToOlderShot() {
 	var chartScript = `
 var CHART_SMOOTHING = 0.1;
 
-var CHART_COLORS = {
+// Light values are dye2's originals. Dark values are the skin's DARK_TRACE_COLORS
+// (streamline_project chart.js) where it has a counterpart, so a shot reads the same on
+// the skin's chart and here. Flow is the exception: the skin has no dark flow trace (it
+// keeps the light #0358cf), but that blue is too dim on the dark ground, so #4d82e8 is
+// dye2's own choice.
+var CHART_COLORS_LIGHT = {
   pressure:          '#17c29a',
   flow:              '#0358cf',
   targetPressure:    '#bde2d5',
@@ -5077,6 +5192,24 @@ var CHART_COLORS = {
   targetTemperature: '#F9ebec',
   weight:            '#D8BDA8',
 };
+var CHART_COLORS_DARK = {
+  pressure:          '#00B087',
+  flow:              '#4d82e8',
+  targetPressure:    '#374D47',
+  targetFlow:        '#23416C',
+  temperature:       '#653F43',
+  targetTemperature: '#3E3233',
+  weight:            '#695F57',
+};
+
+// Read at render time, not load time: the shell's bootstrap may still be flipping the
+// theme from the KV answer when this script first runs, and plotHistoricalShot redraws
+// per shot. A chart already on screen keeps the colours it was drawn with (no live theme
+// updates; the theme cannot change while a DYE2 page is open).
+function chartIsDark() {
+  return document.documentElement.getAttribute('data-theme') === 'dark';
+}
+function chartColors() { return chartIsDark() ? CHART_COLORS_DARK : CHART_COLORS_LIGHT; }
 
 function chartGetAnnotations(tracks) {
   var skip = ['targetPressure', 'targetFlow', 'targetTemperature'];
@@ -5091,7 +5224,7 @@ function chartGetAnnotations(tracks) {
         name:  nameMap[key] || key,
         x:     tr.x[tr.x.length - 1],
         y:     tr.y[tr.y.length - 1],
-        color: CHART_COLORS[key] || '#999',
+        color: chartColors()[key] || chartAxisText(),
       });
     }
   });
@@ -5121,27 +5254,35 @@ function chartGetAnnotations(tracks) {
   return annotations;
 }
 
+// Axis text, grid and line colours: light is dye2's slate, dark is the skin's baseLayout.
+function chartAxisText() { return chartIsDark() ? '#606579' : '#64748b'; }
+function chartGridColor() { return chartIsDark() ? '#1E202B' : '#e2e8f0'; }
+function chartAxisLine() { return chartIsDark() ? '#606579' : '#e2e8f0'; }
+// The step-marker vertical line.
+function chartMarkerColor() { return chartIsDark() ? '#606579' : '#94a3b8'; }
+
 function chartBuildLayout(shapes, annotations) {
+  var text = chartAxisText(), grid = chartGridColor(), axisLine = chartAxisLine();
   return {
     plot_bgcolor:  'transparent',
     paper_bgcolor: 'transparent',
-    font: { family: 'Inter, sans-serif', color: '#64748b', size: 13 },
+    font: { family: 'Inter, sans-serif', color: text, size: 13 },
     shapes:      shapes      || [],
     annotations: annotations || [],
     xaxis: {
-      gridcolor:  '#e2e8f0',
-      linecolor:  '#e2e8f0',
-      tickcolor:  '#e2e8f0',
-      tickfont:   { color: '#64748b' },
+      gridcolor:  grid,
+      linecolor:  axisLine,
+      tickcolor:  axisLine,
+      tickfont:   { color: text },
       dtick:      1,
       fixedrange: true,
       zeroline:   false,
     },
     yaxis: {
-      gridcolor:  '#e2e8f0',
-      linecolor:  '#e2e8f0',
-      tickcolor:  '#e2e8f0',
-      tickfont:   { color: '#64748b' },
+      gridcolor:  grid,
+      linecolor:  axisLine,
+      tickcolor:  axisLine,
+      tickfont:   { color: text },
       range:      [0, 10],
       dtick:      1,
       fixedrange: true,
@@ -5154,14 +5295,15 @@ function chartBuildLayout(shapes, annotations) {
 }
 
 function chartMakeTracks() {
+  var c = chartColors();
   return {
-    pressure:          { x: [], y: [], name: 'Pressure',         type: 'scatter', mode: 'lines', line: { color: '#17c29a', width: 2 },              hoverinfo: 'name' },
-    flow:              { x: [], y: [], name: 'Flow',             type: 'scatter', mode: 'lines', line: { color: '#0358cf', width: 2 },              hoverinfo: 'name' },
-    targetPressure:    { x: [], y: [], name: 'Target Pressure',  type: 'scatter', mode: 'lines', line: { color: '#bde2d5', width: 1.5, dash: 'dot' }, hoverinfo: 'name' },
-    targetFlow:        { x: [], y: [], name: 'Target Flow',      type: 'scatter', mode: 'lines', line: { color: '#cdd9f5', width: 1.5, dash: 'dot' }, hoverinfo: 'name' },
-    temperature:       { x: [], y: [], name: '°C',               type: 'scatter', mode: 'lines', line: { color: '#ff97a1', width: 2 },              hoverinfo: 'name' },
-    targetTemperature: { x: [], y: [], name: 'Target °C',        type: 'scatter', mode: 'lines', line: { color: '#F9ebec', width: 1.5, dash: 'dot' }, hoverinfo: 'name' },
-    weight:            { x: [], y: [], name: 'Weight',           type: 'scatter', mode: 'lines', line: { color: '#D8BDA8', width: 2 },              hoverinfo: 'name' },
+    pressure:          { x: [], y: [], name: 'Pressure',         type: 'scatter', mode: 'lines', line: { color: c.pressure, width: 2 },              hoverinfo: 'name' },
+    flow:              { x: [], y: [], name: 'Flow',             type: 'scatter', mode: 'lines', line: { color: c.flow, width: 2 },              hoverinfo: 'name' },
+    targetPressure:    { x: [], y: [], name: 'Target Pressure',  type: 'scatter', mode: 'lines', line: { color: c.targetPressure, width: 1.5, dash: 'dot' }, hoverinfo: 'name' },
+    targetFlow:        { x: [], y: [], name: 'Target Flow',      type: 'scatter', mode: 'lines', line: { color: c.targetFlow, width: 1.5, dash: 'dot' }, hoverinfo: 'name' },
+    temperature:       { x: [], y: [], name: '°C',               type: 'scatter', mode: 'lines', line: { color: c.temperature, width: 2 },              hoverinfo: 'name' },
+    targetTemperature: { x: [], y: [], name: 'Target °C',        type: 'scatter', mode: 'lines', line: { color: c.targetTemperature, width: 1.5, dash: 'dot' }, hoverinfo: 'name' },
+    weight:            { x: [], y: [], name: 'Weight',           type: 'scatter', mode: 'lines', line: { color: c.weight, width: 2 },              hoverinfo: 'name' },
   };
 }
 
@@ -5239,7 +5381,7 @@ function plotHistoricalShot(measurements, workflow) {
           if (prevSubstate !== null && sub !== prevSubstate) {
             shapes.push({
               type: 'line', x0: t, x1: t, y0: 0, y1: 1, yref: 'paper',
-              line: { color: '#94a3b8', width: 1.5, dash: 'longdash' },
+              line: { color: chartMarkerColor(), width: 1.5, dash: 'longdash' },
             });
           }
           prevSubstate = sub;
@@ -5464,7 +5606,7 @@ function shotWeights(shot) {
     font-family: 'Inter', sans-serif;
     font-size: 24px;
     font-weight: 600;
-    color: #B6C3D7;
+    color: var(--tab-idle);
     cursor: pointer;
     white-space: nowrap;
     flex-shrink: 0;
@@ -5485,9 +5627,9 @@ function shotWeights(shot) {
     align-items: center;
     justify-content: center;
     padding: 0 14px;
-    border: 2px solid #C5CDDA;
-    background: white;
-    color: #5F7BA8;
+    border: 2px solid var(--chip-stroke);
+    background: var(--card-bg);
+    color: var(--chip-text);
     transition: background 0.15s, color 0.15s;
   }
   .dye-recipe-pill.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
@@ -5518,7 +5660,7 @@ function shotWeights(shot) {
   /* ── Visualizer modal ────────────────────────────────── */
   .viz-overlay {
     display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.45); z-index: 200;
+    background: var(--overlay-scrim); z-index: 200;
     align-items: center; justify-content: center;
   }
   .viz-overlay.open { display: flex; }
@@ -5576,7 +5718,7 @@ function shotWeights(shot) {
   <div class="flex flex-1 overflow-hidden">
 
     <!-- LEFT PANEL: Last Shot Review -->
-    <div class="flex flex-col w-1/2 shrink-0 bg-white border-r border-[var(--profile-button-outline-color)] overflow-hidden">
+    <div class="flex flex-col w-1/2 shrink-0 bg-[var(--card-bg)] border-r border-[var(--profile-button-outline-color)] overflow-hidden">
       <div class="flex flex-col gap-[27px] px-[38px] pt-[32px] pb-[40px] flex-1 overflow-hidden">
 
         <!-- Header row -->
@@ -5728,20 +5870,20 @@ function shotWeights(shot) {
               <div class="flex items-center gap-[18px]">
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">Dose</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-dose-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[#EDEDED] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-dose-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                   <span id="dye-dose-value" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center">—</span>
-                  <button id="dye-dose-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[#EDEDED] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-dose-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
               <div class="flex items-center gap-[18px]">
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">Drink</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-drink-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[#EDEDED] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-drink-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                   <div class="flex flex-col items-center w-[72px]">
                     <span id="dye-drink-value" class="font-bold text-[26px] text-[var(--text-primary)] text-center">—</span>
                     <span id="dye-drink-ratio" class="font-semibold text-[18px] text-[var(--text-primary)] text-center"></span>
                   </div>
-                  <button id="dye-drink-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[#EDEDED] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-drink-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
             </div>
@@ -5766,17 +5908,17 @@ function shotWeights(shot) {
               <div class="flex items-center gap-[18px]">
                 <span id="dye-grind-label" class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px] cursor-pointer">Grind</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-grind-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[#EDEDED] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-grind-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                   <span id="dye-grind-value" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center">—</span>
-                  <button id="dye-grind-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[#EDEDED] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-grind-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
               <div class="flex items-center gap-[18px]">
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">RPM</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-rpm-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[#EDEDED] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-rpm-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                   <span id="dye-rpm-value" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center">—</span>
-                  <button id="dye-rpm-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[#EDEDED] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-rpm-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
             </div>
@@ -6856,7 +6998,7 @@ function makeValueEditable(valueId, min, max, formatter, onChange) {
     input.type = 'text';
     input.inputMode = 'decimal';
     input.value = isNaN(cur) ? '' : String(cur);
-    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:#fff;color:inherit;outline:none;padding:2px 4px';
+    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:var(--input-bg);color:inherit;outline:none;padding:2px 4px';
     valEl.textContent = '';
     valEl.appendChild(input);
     input.focus(); input.select();
@@ -7415,7 +7557,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   .beans-card-notes { font-size: 20px; font-weight: 400; color: var(--text-primary); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
   .beans-read-more { font-size: 20px; font-weight: 700; color: var(--mimoja-blue); cursor: pointer; margin-top: 4px; }
   .notes-overlay {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: none; position: fixed; inset: 0; background: var(--overlay-scrim-light);
     z-index: 100; align-items: center; justify-content: center;
   }
   .notes-overlay.open { display: flex; }
@@ -7507,7 +7649,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   <div class="flex flex-1 overflow-hidden">
 
     <!-- LEFT COLUMN -->
-    <div class="flex flex-col w-[960px] shrink-0 bg-white border-r border-[var(--profile-button-outline-color)] overflow-y-auto px-[38px] py-[32px] gap-[28px]">
+    <div class="flex flex-col w-[960px] shrink-0 bg-[var(--card-bg)] border-r border-[var(--profile-button-outline-color)] overflow-y-auto px-[38px] py-[32px] gap-[28px]">
 
       <!-- Dose / Drink (top row) -->
       <div class="flex items-center gap-[60px]">
@@ -7702,7 +7844,7 @@ function makeValueEditable(valueId, min, max, formatter, onChange) {
     input.type = 'text';
     input.inputMode = 'decimal';
     input.value = isNaN(cur) ? '' : String(cur);
-    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:#fff;color:inherit;outline:none;padding:2px 4px';
+    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:var(--input-bg);color:inherit;outline:none;padding:2px 4px';
     valEl.textContent = '';
     valEl.appendChild(input);
     input.focus(); input.select();
@@ -7742,7 +7884,7 @@ function makeTextEditable(displayId, onCommit) {
   const input = document.createElement('input');
   input.type = 'text';
   input.value = prev;
-  input.style.cssText = 'width:100%;font:inherit;border:1px solid var(--mimoja-blue);border-radius:8px;background:#fff;color:inherit;outline:none;padding:4px 8px';
+  input.style.cssText = 'width:100%;font:inherit;border:1px solid var(--mimoja-blue);border-radius:8px;background:var(--input-bg);color:inherit;outline:none;padding:4px 8px';
   el.textContent = '';
   el.appendChild(input);
   input.focus(); input.select();
@@ -8497,11 +8639,11 @@ function decideCardTap(selectedId, favId) {
   .afav {
     --af-page: var(--box-color, #FFFFFF);
     --af-surface: var(--bgmain-color, #F6F8FA);
-    --af-border: #C9C9C9;
-    --af-text: #121212;
+    --af-border: var(--box-border);
+    --af-text: var(--ink);
     --af-action: var(--mimoja-blue, #385A92);
-    --af-tab-stroke: #C5CDDA;
-    --af-tab-text: #5F7BA8;
+    --af-tab-stroke: var(--chip-stroke);
+    --af-tab-text: var(--chip-text);
   }
   html, body { background: var(--box-color, #FFFFFF); }
   .afav { background: var(--af-page); }
@@ -8833,7 +8975,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   .equip-edit-icon { display: flex; flex-shrink: 0; color: var(--mimoja-blue); }
   .read-from-item:hover .equip-edit-icon { color: #fff; }
   .eq-values-overlay {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: none; position: fixed; inset: 0; background: var(--overlay-scrim-light);
     z-index: 100; align-items: center; justify-content: center;
   }
   .eq-values-overlay.open { display: flex; }
@@ -9178,7 +9320,7 @@ function initEquipmentField(field) {
   <div class="flex flex-1 overflow-hidden">
 
     <!-- LEFT: metadata fields -->
-    <div class="flex flex-col w-[720px] shrink-0 bg-white border-r border-[var(--profile-button-outline-color)] overflow-y-auto px-[48px] py-[36px] gap-[28px]">
+    <div class="flex flex-col w-[720px] shrink-0 bg-[var(--card-bg)] border-r border-[var(--profile-button-outline-color)] overflow-y-auto px-[48px] py-[36px] gap-[28px]">
 
       <div>
         <div class="afe-label">Favourite Title</div>
@@ -9744,14 +9886,14 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   ${stepperCss()}
   ${presetStripCss()}
   ${equipmentFieldCss}
-  /* Figma 2396:728: fixed 270x60 pills, stroke #C5CDDA, text #5F7BA8 */
+  /* Figma 2396:728: fixed 270x60 pills, stroke var(--chip-stroke), text var(--chip-text) */
   .re-tab {
     width: 270px; height: 60px; border-radius: 15px;
     /* ponytail: block + line-height, not flex — text-overflow:ellipsis only works on a block box */
     display: block; line-height: 56px; text-align: center;
     font-family: 'Inter', sans-serif; font-weight: 600; font-size: 21px;
-    border: 2px solid #C5CDDA;
-    background: var(--box-color); color: #5F7BA8;
+    border: 2px solid var(--chip-stroke);
+    background: var(--box-color); color: var(--chip-text);
     cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     flex-shrink: 0; padding: 0 20px;
   }
@@ -9759,10 +9901,10 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   .re-label { font-size: 24px; font-weight: 700; color: var(--mimoja-blue); margin-bottom: 8px; }
   /* Figma 2396:747: label sits inline beside the input, 164px wide */
   .re-field-label { font-size: 24px; font-weight: 700; color: var(--mimoja-blue); width: 164px; flex-shrink: 0; }
-  /* Figma 2396:749: one bordered box (2px #C9C9C9, square) holding text + edit icon */
+  /* Figma 2396:749: one bordered box (2px var(--box-border), square) holding text + edit icon */
   .re-input-row {
     display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;
-    border: 2px solid #C9C9C9; background: var(--box-color);
+    border: 2px solid var(--box-border); background: var(--box-color);
     height: 80px; padding: 0 15px 0 22px;
   }
   .re-input-row:focus-within { border-color: var(--mimoja-blue); }
@@ -9800,8 +9942,8 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-box-pack: center;
     -webkit-line-clamp: 2; overflow: hidden; text-align: center;
     font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 600; line-height: 1.2;
-    border: 2px solid #C5CDDA;
-    background: var(--box-color); color: #5F7BA8;
+    border: 2px solid var(--chip-stroke);
+    background: var(--box-color); color: var(--chip-text);
     cursor: pointer; padding: 6px 16px;
   }
   .re-chip.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
@@ -9824,7 +9966,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   .re-grinder-chip {
     background: none; border: none; padding: 0;
     font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 600;
-    color: #B6C3D7;
+    color: var(--tab-idle);
     cursor: pointer; white-space: nowrap; flex-shrink: 0;
   }
   .re-grinder-chip.active { color: var(--mimoja-blue); font-weight: 700; }
@@ -9908,7 +10050,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   <div class="flex flex-1 overflow-hidden">
 
     <!-- LEFT: recipe metadata -->
-    <div id="re-left" class="flex flex-col w-1/2 shrink-0 bg-white border-r border-[var(--profile-button-outline-color)] overflow-y-auto px-[38px] py-[28px] gap-[30px]">
+    <div id="re-left" class="flex flex-col w-1/2 shrink-0 bg-[var(--card-bg)] border-r border-[var(--profile-button-outline-color)] overflow-y-auto px-[38px] py-[28px] gap-[30px]">
 
       <div class="flex items-center gap-[30px]">
         <span class="re-field-label">Recipe Name</span>
@@ -9970,7 +10112,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
     </div>
 
     <!-- RIGHT: Dashboard Variables (2-column, matches Figma) -->
-    <div id="re-right" class="flex flex-col flex-1 bg-white overflow-y-auto px-[38px] py-[28px] gap-[30px]">
+    <div id="re-right" class="flex flex-col flex-1 bg-[var(--card-bg)] overflow-y-auto px-[38px] py-[28px] gap-[30px]">
       <div class="text-[30px] font-bold text-[var(--mimoja-blue)]">Dashboard Variables</div>
 
       <!-- Row: Dose | Drink -->
@@ -10325,7 +10467,7 @@ function makeValueEditable(valueId, min, max, formatter) {
     input.type = 'text';
     input.inputMode = 'decimal';
     input.value = isNaN(cur) ? '' : String(cur);
-    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:#fff;color:inherit;outline:none;padding:2px 4px';
+    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:var(--input-bg);color:inherit;outline:none;padding:2px 4px';
     valEl.textContent = '';
     valEl.appendChild(input);
     input.focus(); input.select();
@@ -11335,7 +11477,7 @@ function bcMapEquipment(json) {
   .bc-report .bc-add  { color: #2E7D32; }
   .bc-report .bc-upd  { color: var(--mimoja-blue); }
   .bc-report .bc-skip { color: var(--low-contrast-white); }
-  .bc-report .bc-err  { color: #DA515E; }
+  .bc-report .bc-err  { color: var(--danger); }
 `;
 	var content = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">

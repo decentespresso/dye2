@@ -103,7 +103,7 @@ const styles = `
   .dye-search-wrap { position: relative; width: 100%; margin-bottom: 10px; }
   .dye-search-input {
     width: 100%; height: 54px; border-radius: 12px; border: none;
-    background: #EDF0F4; padding: 0 46px 0 16px;
+    background: var(--field-bg); padding: 0 46px 0 16px;
     font-family: 'Inter', sans-serif; font-size: 19px;
     color: var(--text-primary); outline: none;
   }

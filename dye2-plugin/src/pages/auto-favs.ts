@@ -20,11 +20,11 @@ const styles = `
   .afav {
     --af-page: var(--box-color, #FFFFFF);
     --af-surface: var(--bgmain-color, #F6F8FA);
-    --af-border: #C9C9C9;
-    --af-text: #121212;
+    --af-border: var(--box-border);
+    --af-text: var(--ink);
     --af-action: var(--mimoja-blue, #385A92);
-    --af-tab-stroke: #C5CDDA;
-    --af-tab-text: #5F7BA8;
+    --af-tab-stroke: var(--chip-stroke);
+    --af-tab-text: var(--chip-text);
   }
   html, body { background: var(--box-color, #FFFFFF); }
   .afav { background: var(--af-page); }

@@ -62,7 +62,7 @@ const styles = `
   .dye-search-wrap { position: relative; width: 100%; margin-bottom: 10px; }
   .dye-search-input {
     width: 100%; height: 54px; border-radius: 12px; border: none;
-    background: #EDF0F4; padding: 0 46px 0 16px;
+    background: var(--field-bg); padding: 0 46px 0 16px;
     font-family: 'Inter', sans-serif; font-size: 19px;
     color: var(--text-primary); outline: none;
   }
@@ -80,7 +80,7 @@ const styles = `
 
   /* Add/edit modal */
   .dye-modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    position: fixed; inset: 0; background: var(--overlay-scrim);
     display: none; align-items: center; justify-content: center; z-index: 50;
   }
   .dye-modal-backdrop.open { display: flex; }
@@ -96,7 +96,7 @@ const styles = `
   .dye-field input, .dye-field select, .dye-field textarea {
     width: 100%; height: 50px; border-radius: 10px;
     border: 1px solid var(--profile-button-outline-color);
-    background: #EDF0F4; padding: 0 14px; font-size: 19px;
+    background: var(--field-bg); padding: 0 14px; font-size: 19px;
     color: var(--text-primary); font-family: 'Inter', sans-serif; outline: none;
   }
   .dye-field textarea { height: auto; padding: 12px 14px; resize: vertical; }
@@ -109,7 +109,7 @@ const styles = `
   }
   .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
-  .dye-modal-error { color: #C0392B; font-size: 18px; margin-top: 12px; }
+  .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
 

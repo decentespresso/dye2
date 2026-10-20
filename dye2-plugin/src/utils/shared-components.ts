@@ -95,7 +95,7 @@ export function stepperCss(): string {
   return `
   .dye-stepper-btn {
     display: flex; align-items: center; justify-content: center;
-    width: 72px; height: 72px; background: #EDEDED;
+    width: 72px; height: 72px; background: var(--button-grey);
     border-radius: 15px; cursor: pointer; flex-shrink: 0;
   }
   .dye-stepper-val {
@@ -166,7 +166,7 @@ export function toggleCss(): string {
   return `
   .dye-toggle-track {
     position: relative; width: 64px; height: 36px; border-radius: 9999px;
-    background: #D1D5DB; transition: background 0.2s; cursor: pointer;
+    background: var(--toggle-off); transition: background 0.2s; cursor: pointer;
     flex-shrink: 0; display: flex; align-items: center; padding: 4px;
   }
   .dye-toggle-track.on { background: var(--mimoja-blue); justify-content: flex-end; }

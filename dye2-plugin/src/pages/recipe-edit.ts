@@ -20,14 +20,14 @@ const styles = `
   ${stepperCss()}
   ${presetStripCss()}
   ${equipmentFieldCss}
-  /* Figma 2396:728: fixed 270x60 pills, stroke #C5CDDA, text #5F7BA8 */
+  /* Figma 2396:728: fixed 270x60 pills, stroke var(--chip-stroke), text var(--chip-text) */
   .re-tab {
     width: 270px; height: 60px; border-radius: 15px;
     /* ponytail: block + line-height, not flex — text-overflow:ellipsis only works on a block box */
     display: block; line-height: 56px; text-align: center;
     font-family: 'Inter', sans-serif; font-weight: 600; font-size: 21px;
-    border: 2px solid #C5CDDA;
-    background: var(--box-color); color: #5F7BA8;
+    border: 2px solid var(--chip-stroke);
+    background: var(--box-color); color: var(--chip-text);
     cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     flex-shrink: 0; padding: 0 20px;
   }
@@ -35,10 +35,10 @@ const styles = `
   .re-label { font-size: 24px; font-weight: 700; color: var(--mimoja-blue); margin-bottom: 8px; }
   /* Figma 2396:747: label sits inline beside the input, 164px wide */
   .re-field-label { font-size: 24px; font-weight: 700; color: var(--mimoja-blue); width: 164px; flex-shrink: 0; }
-  /* Figma 2396:749: one bordered box (2px #C9C9C9, square) holding text + edit icon */
+  /* Figma 2396:749: one bordered box (2px var(--box-border), square) holding text + edit icon */
   .re-input-row {
     display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;
-    border: 2px solid #C9C9C9; background: var(--box-color);
+    border: 2px solid var(--box-border); background: var(--box-color);
     height: 80px; padding: 0 15px 0 22px;
   }
   .re-input-row:focus-within { border-color: var(--mimoja-blue); }
@@ -76,8 +76,8 @@ const styles = `
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-box-pack: center;
     -webkit-line-clamp: 2; overflow: hidden; text-align: center;
     font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 600; line-height: 1.2;
-    border: 2px solid #C5CDDA;
-    background: var(--box-color); color: #5F7BA8;
+    border: 2px solid var(--chip-stroke);
+    background: var(--box-color); color: var(--chip-text);
     cursor: pointer; padding: 6px 16px;
   }
   .re-chip.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
@@ -100,7 +100,7 @@ const styles = `
   .re-grinder-chip {
     background: none; border: none; padding: 0;
     font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 600;
-    color: #B6C3D7;
+    color: var(--tab-idle);
     cursor: pointer; white-space: nowrap; flex-shrink: 0;
   }
   .re-grinder-chip.active { color: var(--mimoja-blue); font-weight: 700; }
@@ -193,7 +193,7 @@ function buildContent(): string {
   <div class="flex flex-1 overflow-hidden">
 
     <!-- LEFT: recipe metadata -->
-    <div id="re-left" class="flex flex-col w-1/2 shrink-0 bg-white border-r border-[var(--profile-button-outline-color)] overflow-y-auto px-[38px] py-[28px] gap-[30px]">
+    <div id="re-left" class="flex flex-col w-1/2 shrink-0 bg-[var(--card-bg)] border-r border-[var(--profile-button-outline-color)] overflow-y-auto px-[38px] py-[28px] gap-[30px]">
 
       <div class="flex items-center gap-[30px]">
         <span class="re-field-label">Recipe Name</span>
@@ -255,7 +255,7 @@ function buildContent(): string {
     </div>
 
     <!-- RIGHT: Dashboard Variables (2-column, matches Figma) -->
-    <div id="re-right" class="flex flex-col flex-1 bg-white overflow-y-auto px-[38px] py-[28px] gap-[30px]">
+    <div id="re-right" class="flex flex-col flex-1 bg-[var(--card-bg)] overflow-y-auto px-[38px] py-[28px] gap-[30px]">
       <div class="text-[30px] font-bold text-[var(--mimoja-blue)]">Dashboard Variables</div>
 
       <!-- Row: Dose | Drink -->
@@ -548,7 +548,7 @@ function makeValueEditable(valueId, min, max, formatter) {
     input.type = 'text';
     input.inputMode = 'decimal';
     input.value = isNaN(cur) ? '' : String(cur);
-    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:#fff;color:inherit;outline:none;padding:2px 4px';
+    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:var(--input-bg);color:inherit;outline:none;padding:2px 4px';
     valEl.textContent = '';
     valEl.appendChild(input);
     input.focus(); input.select();

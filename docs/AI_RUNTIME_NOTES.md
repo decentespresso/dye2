@@ -77,7 +77,7 @@ Every live page uses one shell:
 devPageShell(title, content, styles, scripts, opts)   // src/utils/dev-shell.ts:205
 ```
 
-It injects, in order: the `interactive-widget=overlays-content` viewport tag, compiled
+It injects, in order: the theme bootstrap script (`utils/theme.ts`), the `interactive-widget=overlays-content` viewport tag, compiled
 Tailwind (inlined — the tablet is offline, never a CDN), `cssVarFallbacks()` plus the
 page's own `styles`, then `content`, then `fitScript`, then each entry of `scripts` as its
 own `<script>`.
@@ -90,14 +90,14 @@ Do not make it absolute.
 There is one shell and one visual language, not two. Ignore the file; do not extend it.
 Same for `src/components/` and `src/api/client.ts`.
 
-## CSS Variables Are Host-Injected
+## CSS Variables Are Plugin-Defined
 
-`cssVarFallbacks()` (`dev-shell.ts:129`) defines `--mimoja-blue`, `--box-color`,
-`--text-primary` and friends **for the dev server only**. In production REA injects the real
-values, which differ and follow the user's theme.
+`cssVarFallbacks()` (`dev-shell.ts`) defines `--mimoja-blue`, `--box-color`, `--text-primary`
+and friends, and **those values are the production ones**: Decaid injects no CSS or theme
+into plugin pages (nothing in `plugin_manager.dart` or `webui_service.dart`). Names match the
+Streamline skin's; the dark values are the skin's too. See "Dark mode" in `AI_UI_NOTES.md`.
 
-So: style against the variables, never against the fallback hex. A colour that looks right
-at `localhost:4444` proves nothing about the tablet.
+Style against the variables, never a hex, so that dark mode reaches your markup.
 
 ## Scaling — Do Not "Fix" The Stretch
 
@@ -164,7 +164,7 @@ assumption for any value reaching HTML should be "needs escaping".
 | New page works in dev but not on tablet | Missing `api[]` entry in `manifest.src.json` |
 | Edit to a page does nothing | `npm run dev` not running; server serves built `plugin.js` |
 | Page renders ~15% wide on desktop | Expected. `MAX_STRETCH`, `dev-shell.ts:23` — not a bug |
-| Colours wrong on tablet, right in dev | Styled against `cssVarFallbacks()` hex instead of the variable |
+| Colour wrong in dark mode | A hex in markup instead of a token from `cssVarFallbacks()` |
 | Script silently does nothing on tablet | Typo in a browser-code string — no build check covers it |
 | `${...}` produced plugin values, not browser ones | Unescaped `${` inside a script string; use `\${` |
 | Page squashes while typing | Refit guard bypassed; see the geometry-only rule above |

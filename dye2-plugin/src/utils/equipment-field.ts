@@ -39,7 +39,7 @@ export const equipmentFieldCss = `
   .equip-edit-icon { display: flex; flex-shrink: 0; color: var(--mimoja-blue); }
   .read-from-item:hover .equip-edit-icon { color: #fff; }
   .eq-values-overlay {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: none; position: fixed; inset: 0; background: var(--overlay-scrim-light);
     z-index: 100; align-items: center; justify-content: center;
   }
   .eq-values-overlay.open { display: flex; }

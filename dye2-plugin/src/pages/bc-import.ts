@@ -34,7 +34,7 @@ const styles = `
   .bc-report .bc-add  { color: #2E7D32; }
   .bc-report .bc-upd  { color: var(--mimoja-blue); }
   .bc-report .bc-skip { color: var(--low-contrast-white); }
-  .bc-report .bc-err  { color: #DA515E; }
+  .bc-report .bc-err  { color: var(--danger); }
 `;
 
 const content = `
