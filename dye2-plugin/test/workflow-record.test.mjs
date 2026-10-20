@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   armSelection, clearSelection, getSelection, setSelectionListener, restoreSelection,
-  profileFingerprint, profileDrifted, itemPatch, recordWorkflow, scheduleWorkflowRecord,
+  profileFingerprint, profileDrifted, itemPatch, recordWorkflow, trackWorkflow,
   suppress, profileAtBrewC, syncSelectionMarker, withMachineSettings, readMachineSettings,
 } from '../src/utils/workflow-record.ts';
 
@@ -185,7 +185,7 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
 
   armSelection({ kind: 'recipe', id: '1' }, wf(), 0);
   assert.ok(getSelection());
-  scheduleWorkflowRecord(wf({ profile: { ...profile(93), title: 'Other' } }), async () => { throw new Error('no'); }, null, null, 10_000, 0);
+  trackWorkflow(wf({ profile: { ...profile(93), title: 'Other' } }), 10_000);
   assert.equal(getSelection(), null, 'drifted workflow clears the armed item');
 }
 
@@ -193,7 +193,7 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
 {
   const withCtx = (extra) => wf({ context: { targetDoseWeight: 18, targetYield: 36, grinderSetting: '4.2', ...extra } });
   const never = async () => { throw new Error('no'); };
-  const run = (w) => scheduleWorkflowRecord(w, never, null, null, 10_000, 0);
+  const run = (w) => trackWorkflow(w, 10_000);
 
   armSelection({ kind: 'recipe', id: '1' }, withCtx({ beanBatchId: 'b1', grinderId: 'g1' }), 0);
   assert.equal(getSelection().armedBeanBatchId, 'b1');
@@ -461,9 +461,14 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   const s = fakeStore({ recipes: [recipe()] });
   const applied = withMachineSettings(wf(), { flushTemp: 88, flushFlow: 4 });
   armSelection({ kind: 'recipe', id: '1' }, applied, 1000);
-  scheduleWorkflowRecord(wf(), s.fetchFn, undefined, undefined, 1200, 0);
-  await new Promise((r) => setTimeout(r, 5));
-  assert.deepEqual(s.writes, [], "the apply's own event is still an echo");
+  const armedMachineAtArm = JSON.stringify(getSelection().armedMachine);
+  // Nothing records automatically any more, so the guard's job is the baseline: the apply's
+  // own event must not be adopted as "what the barista changed", or the DE1 pair the apply
+  // read would look like a dial-in the next explicit save writes back.
+  trackWorkflow(wf(), 1200);
+  assert.equal(JSON.stringify(getSelection().armedMachine), armedMachineAtArm,
+    "the apply's own event is still an echo: the arm-time baseline stands");
+  assert.deepEqual(s.writes, [], 'and a workflow event writes nothing by itself');
   clearSelection();
   console.log('ok   flush temperature and flow are read from the DE1');
 }
@@ -564,4 +569,30 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(cleared.extras.note, null, 'including the nested extras');
   assert.ok(Object.keys(cleared).length > 5, 'and it still clears the rest of the context');
   console.log('ok   Clear sends only nulls the bridge accepts');
+}
+
+// --- recording is opt-in: a workflow change alone writes nothing -----------------------
+{
+  clearSelection();
+  const s = fakeStore({ recipes: [recipe()] });
+  armSelection({ kind: 'recipe', id: '1' }, wf(), 0);
+
+  // A genuine barista change, not the apply's own echo.
+  const dialled = wf({ context: { targetDoseWeight: 19.5, targetYield: 36, grinderSetting: '4.2' } });
+  trackWorkflow(dialled, 10_000);
+  assert.ok(getSelection(), 'the item stays selected');
+  assert.deepEqual(s.writes, [], 'but nothing is written: a workflow change is not a decision');
+
+  // Only the explicit save writes, and only the fields that moved.
+  const wrote = await recordWorkflow(dialled, s.fetchFn, getSelection());
+  assert.equal(wrote, true, 'the explicit save writes');
+  assert.equal(s.store.recipes[0].dashboardVariables.dose, 19.5, 'the dialled dose lands');
+  assert.equal(s.store.recipes[0].dashboardVariables.drink, 36, 'and the yield');
+
+  // Saving again with nothing further changed writes nothing.
+  const before = s.writes.length;
+  await recordWorkflow(dialled, s.fetchFn, getSelection());
+  assert.equal(s.writes.length, before, 'a second save with no change is a no-op');
+  clearSelection();
+  console.log('ok   recording is opt-in: the event tracks, only an explicit save writes');
 }

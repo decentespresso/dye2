@@ -11865,7 +11865,6 @@ bcInit();
 	}
 	//#endregion
 	//#region src/utils/workflow-record.ts
-	var DEBOUNCE_MS = 1500;
 	var ECHO_WINDOW_MS = 3e3;
 	var TARGETS = {
 		recipe: {
@@ -12263,11 +12262,12 @@ bcInit();
 		return true;
 	}
 	/**
-	* Entry point for a `workflowUpdated` event. Drift disarms immediately; our own apply
-	* is ignored; anything else is debounced (latest workflow wins) then recorded.
-	* `onWrote` runs after a successful write (plugin.ts emits `changed` there).
+	* Entry point for a `workflowUpdated` event. Recording is explicit now -- the skin's
+	* "Save changes" posts to the `record` route -- so this never writes. It only keeps the armed
+	* selection honest: drift disarms it, and a selection armed before the workflow was known
+	* adopts its baselines here, so a later change still reads as the barista's.
 	*/
-	function scheduleWorkflowRecord(wf, fetchFn, onWrote, onError, now = Date.now(), delay = DEBOUNCE_MS) {
+	function trackWorkflow(wf, now = Date.now()) {
 		if (!selection || !wf) return;
 		if (profileDrifted(selection, wf) || contextDrifted(selection, wf)) {
 			clearSelection();
@@ -12280,17 +12280,6 @@ bcInit();
 			armedBeanBatchId: selection.armedBeanBatchId || idOf(wf.context && wf.context.beanBatchId),
 			armedGrinderId: selection.armedGrinderId || idOf(wf.context && wf.context.grinderId)
 		});
-		cancelPending();
-		const armed = selection;
-		timer = setTimeout(() => {
-			timer = null;
-			if (selection !== armed) return;
-			recordWorkflow(wf, fetchFn, armed).then((wrote) => {
-				if (wrote && onWrote) onWrote();
-			}).catch((e) => {
-				if (onError) onError(e);
-			});
-		}, delay);
 	}
 	//#endregion
 	//#region src/plugin.ts
@@ -12362,6 +12351,45 @@ bcInit();
 			}
 			return json(request, 200, armSelection(body, wf));
 		}
+		async function handleRecord(request) {
+			const armed = getSelection();
+			if (!armed) return json(request, 200, {
+				saved: false,
+				reason: "nothing is selected"
+			});
+			if (typeof fetch !== "function") return json(request, 503, {
+				saved: false,
+				reason: "no api permission"
+			});
+			let wf = null;
+			try {
+				const res = await fetch("http://localhost:8080/api/v1/workflow");
+				if (res.ok) wf = await res.json();
+			} catch (e) {
+				log(`record: could not read workflow: ${e instanceof Error ? e.message : String(e)}`);
+			}
+			if (!wf) return json(request, 502, {
+				saved: false,
+				reason: "could not read the workflow"
+			});
+			wf = withMachineSettings(wf, await readMachineSettings(fetch, "http://localhost:8080/api/v1"));
+			try {
+				const wrote = await recordWorkflow(wf, fetch, armed);
+				if (wrote) announce({ what: "workflow" });
+				return json(request, 200, {
+					saved: wrote,
+					kind: armed.kind,
+					id: armed.id
+				});
+			} catch (e) {
+				const msg = e instanceof Error ? e.message : String(e);
+				log(`record failed: ${msg}`);
+				return json(request, 502, {
+					saved: false,
+					reason: msg
+				});
+			}
+		}
 		return {
 			id: "dye2.reaplugin",
 			version: "0.1.0",
@@ -12387,10 +12415,7 @@ bcInit();
 						const restored = getSelection();
 						announcedSelection = restored ? restored.kind + ":" + restored.id : null;
 					}
-				} else if (event.name === "workflowUpdated") {
-					if (typeof fetch !== "function") return;
-					scheduleWorkflowRecord(event.payload, fetch, () => announce({ what: "workflow" }), (e) => log(`workflow record failed: ${e instanceof Error ? e.message : String(e)}`));
-				}
+				} else if (event.name === "workflowUpdated") trackWorkflow(event.payload);
 			},
 			__httpRequestHandler(request) {
 				log(`HTTP ${request.method} ${request.endpoint}`);
@@ -12433,6 +12458,7 @@ bcInit();
 							};
 						});
 					case "selection": return handleSelection(request);
+					case "record": return handleRecord(request);
 					case "skin": return json(request, 200, {
 						version: 1,
 						surfaces: [],

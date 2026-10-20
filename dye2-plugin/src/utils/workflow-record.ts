@@ -9,8 +9,11 @@
  * is injected; plugin.ts wires it to the real `fetch` and persists the selection.
  *
  * Flow: dashboard applies an item -> POST /selection -> armSelection(). The host fires
- * `workflowUpdated` on every workflow change -> scheduleWorkflowRecord() debounces ->
- * recordWorkflow() patches ONLY the fields that differ on that ONE item.
+ * `workflowUpdated` on every workflow change -> trackWorkflow(), which disarms on drift and
+ * fills in any missing baseline but NEVER writes. The barista saves explicitly ("Save changes"
+ * on the strip's long-press menu -> POST /record) -> recordWorkflow() patches ONLY the fields
+ * that differ on that ONE item. A workflow change is not by itself a decision to change the
+ * recipe, which is what the automatic version got wrong (dye2#30, #31, #33).
  */
 
 type AnyRecord = Record<string, any>;
@@ -51,7 +54,6 @@ export interface Selection {
   armedMachine: AnyRecord | null;
 }
 
-const DEBOUNCE_MS = 1500;
 const ECHO_WINDOW_MS = 3000;
 
 // kind -> KV key and the sub-object holding the dashboard-derived values.
@@ -374,7 +376,7 @@ export function clearSelection() {
 // clear (dye-context.js) acts only on keys whose value is exactly `true`, so the nested
 // object is ignored there.
 //
-// No loop: the PUT fires `workflowUpdated`, but scheduleWorkflowRecord only ever writes KV
+// No loop: the PUT fires `workflowUpdated`, but trackWorkflow never writes, and a record only writes KV
 // (never the workflow), and only when recipeFields/favouriteFields differ from the item —
 // extras.dye is in neither, so the marker's own event diffs to an empty patch (and inside the
 // echo window is dropped earlier). The PUT is also gated on the selected {kind,id} actually
@@ -552,23 +554,18 @@ export async function recordWorkflow(
 }
 
 /**
- * Entry point for a `workflowUpdated` event. Drift disarms immediately; our own apply
- * is ignored; anything else is debounced (latest workflow wins) then recorded.
- * `onWrote` runs after a successful write (plugin.ts emits `changed` there).
+ * Entry point for a `workflowUpdated` event. Recording is explicit now -- the skin's
+ * "Save changes" posts to the `record` route -- so this never writes. It only keeps the armed
+ * selection honest: drift disarms it, and a selection armed before the workflow was known
+ * adopts its baselines here, so a later change still reads as the barista's.
  */
-export function scheduleWorkflowRecord(
-  wf: AnyRecord,
-  fetchFn: FetchLike,
-  onWrote?: () => void,
-  onError?: (e: unknown) => void,
-  now = Date.now(),
-  delay = DEBOUNCE_MS
-) {
+export function trackWorkflow(wf: AnyRecord, now = Date.now()): void {
   if (!selection || !wf) return;
   if (profileDrifted(selection, wf) || contextDrifted(selection, wf)) {
     clearSelection();
     return;
   }
+  // Our own apply: its values are the baseline already, set at arm time.
   if (isEcho(wf, now)) return;
   // The skin armed us before the profile was known (no fetch at arm time): adopt it now.
   if (!selection.profileFingerprint) {
@@ -587,18 +584,4 @@ export function scheduleWorkflowRecord(
       armedGrinderId: selection.armedGrinderId || idOf(wf.context && wf.context.grinderId),
     });
   }
-
-  cancelPending();
-  const armed = selection;
-  timer = setTimeout(() => {
-    timer = null;
-    if (selection !== armed) return;
-    recordWorkflow(wf, fetchFn, armed)
-      .then((wrote) => {
-        if (wrote && onWrote) onWrote();
-      })
-      .catch((e) => {
-        if (onError) onError(e);
-      });
-  }, delay);
 }

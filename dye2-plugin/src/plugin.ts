@@ -24,7 +24,8 @@ import {
   restoreSelection,
   withMachineSettings,
   readMachineSettings,
-  scheduleWorkflowRecord,
+  trackWorkflow,
+  recordWorkflow,
   setSelectionListener,
   syncSelectionMarker,
 } from "./utils/workflow-record";
@@ -139,6 +140,37 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     return json(request, 200, sel);
   }
 
+  // "Save changes": patch the selected recipe or favourite with what the live workflow now
+  // says, using the same diff the old automatic path used (itemPatch against the arm-time
+  // baselines), so only fields the barista actually moved are written.
+  async function handleRecord(request: HttpRequest): Promise<HttpResponse> {
+    const armed = getSelection();
+    if (!armed) return json(request, 200, { saved: false, reason: "nothing is selected" });
+    if (typeof fetch !== "function") {
+      return json(request, 503, { saved: false, reason: "no api permission" });
+    }
+    let wf: any = null;
+    try {
+      const res = await fetch("http://localhost:8080/api/v1/workflow");
+      if (res.ok) wf = await res.json();
+    } catch (e) {
+      log(`record: could not read workflow: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    if (!wf) return json(request, 502, { saved: false, reason: "could not read the workflow" });
+    // Flush temperature and flow live on the DE1, not the workflow, so they need their own
+    // read or they could never be saved (dye2#23).
+    wf = withMachineSettings(wf, await readMachineSettings(fetch, "http://localhost:8080/api/v1"));
+    try {
+      const wrote = await recordWorkflow(wf, fetch, armed);
+      if (wrote) announce({ what: "workflow" });
+      return json(request, 200, { saved: wrote, kind: armed.kind, id: armed.id });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      log(`record failed: ${msg}`);
+      return json(request, 502, { saved: false, reason: msg });
+    }
+  }
+
   return {
     id: "dye2.reaplugin",
     version: "0.1.0",
@@ -172,13 +204,9 @@ export default function createPlugin(host: PluginHost): PluginInstance {
           announcedSelection = restored ? restored.kind + ":" + restored.id : null;
         }
       } else if (event.name === "workflowUpdated") {
-        if (typeof fetch !== "function") return;
-        scheduleWorkflowRecord(
-          event.payload,
-          fetch,
-          () => announce({ what: "workflow" }),
-          (e) => log(`workflow record failed: ${e instanceof Error ? e.message : String(e)}`)
-        );
+        // Tracking only: nothing is written onto the selected item unless the barista asks,
+        // through the `record` route below. Drift still disarms here.
+        trackWorkflow(event.payload);
       }
     },
 
@@ -264,6 +292,11 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         // Not pages: arm/clear/read the recipe or favourite being dialled in.
         case "selection":
           return handleSelection(request);
+
+        // Not a page: write the dial-in the barista has made onto the selected item. Explicit,
+        // because a workflow change is not by itself a decision to change the recipe.
+        case "record":
+          return handleRecord(request);
 
         // Streamline surface discovery: no surfaces (the F/R strip is the skin's own
         // code), just the live socket so the skin re-reads when `changed` pushes.

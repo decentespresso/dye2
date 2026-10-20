@@ -101,6 +101,11 @@
       "data": {}
     },
     {
+      "id": "record",
+      "type": "http",
+      "data": {}
+    },
+    {
       "id": "skin",
       "type": "http",
       "data": {}
