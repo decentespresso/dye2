@@ -24,25 +24,29 @@ function makeEnv() {
     return { items: items.slice(opts.offset, opts.offset + opts.limit), total, limit: opts.limit, offset: opts.offset };
   };
   return new Function('getShots', shotPagingScript +
-    '\nreturn { loadShots, loadMoreShots, stepToOlderShot, state: () => ({ shots, shotsTotal, currentShotIndex, shotFilter }) };'
+    '\nreturn { loadShots, loadMoreShots, stepToOlderShot, SHOT_PAGE, state: () => ({ shots, shotsTotal, currentShotIndex, shotFilter }) };'
   )(getShots);
 }
 
 // --- paging ------------------------------------------------------------------
 let env = makeEnv();
+// Derived from the page size rather than written out, so tuning SHOT_PAGE for the bridge's
+// per-row cost does not mean editing assertions that are really about the paging mechanics.
+const PAGE = env.SHOT_PAGE;
+assert.ok(PAGE >= 1 && PAGE <= 100, 'the bridge clamps limit to 1..100');
 await env.loadShots(null);
-assert.equal(env.state().shots.length, 50, 'first load holds one page');
+assert.equal(env.state().shots.length, PAGE, 'first load holds one page');
 assert.equal(env.state().shotsTotal, 120, 'total comes from the bridge, not the page');
-assert.deepEqual(calls[0], { limit: 50, offset: 0, order: 'desc' }, 'unfiltered first page');
+assert.deepEqual(calls[0], { limit: PAGE, offset: 0, order: 'desc' }, 'unfiltered first page');
 
-for (let i = 0; i < 49; i++) await env.stepToOlderShot();
-assert.equal(env.state().currentShotIndex, 49, 'walked to the end of the loaded page');
+for (let i = 0; i < PAGE - 1; i++) await env.stepToOlderShot();
+assert.equal(env.state().currentShotIndex, PAGE - 1, 'walked to the end of the loaded page');
 assert.equal(calls.length, 1, 'walking inside the page fetches nothing');
 
 await env.stepToOlderShot();
-assert.equal(env.state().shots.length, 100, 'stepping off the end pulls the next page');
-assert.equal(env.state().currentShotIndex, 50, 'and lands on shot 51, not back at the top');
-assert.equal(calls[1].offset, 50, 'the second request asks for the next 50');
+assert.equal(env.state().shots.length, PAGE * 2, 'stepping off the end pulls the next page');
+assert.equal(env.state().currentShotIndex, PAGE, 'and lands on the first shot of page two');
+assert.equal(calls[1].offset, PAGE, 'the second request asks for the page after the first');
 
 // Walk to the true end of history, then confirm it wraps rather than dead-ending.
 while (env.state().currentShotIndex < 119) await env.stepToOlderShot();
