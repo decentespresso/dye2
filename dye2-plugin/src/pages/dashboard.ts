@@ -1706,7 +1706,12 @@ function setupBottomButtons() {
     // finalBeverageType belongs to other writers, and roastDate is not a real
     // WorkflowContext field (the bridge drops it).
     currentWorkflow.context = {
-      targetDoseWeight: null, targetYield: null,
+      // targetYield is left out on purpose: the bridge rejects an explicit null for it
+      // (workflow_handler.dart rejectExplicitNulls) and 400s the WHOLE body, so listing it
+      // cleared nothing at all. WorkflowContext.toJson also omits a null targetYield, so a
+      // merge cannot remove one either -- it is simply not clearable through PUT /workflow.
+      // ponytail: the drink stays until it is overwritten; needs a host change to clear.
+      targetDoseWeight: null,
       beanBatchId: null, coffeeName: null, coffeeRoaster: null,
       grinderId: null, grinderModel: null, grinderSetting: null,
       baristaName: null, drinkerName: null,

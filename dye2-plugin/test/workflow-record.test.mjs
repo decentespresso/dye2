@@ -546,3 +546,22 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.ok(!('profile' in (await build(null))), 'an unresolvable profile is left out entirely');
   console.log('ok   an unresolvable profile is omitted rather than stubbed');
 }
+
+// --- Clear sends no null the bridge refuses -------------------------------------------
+{
+  const src = readFileSync(new URL('../src/pages/dashboard.ts', import.meta.url), 'utf8');
+  const at = src.indexOf('currentWorkflow.context = {', src.indexOf("getElementById('dye-clear-btn')"));
+  const literal = src.slice(src.indexOf('{', at), src.indexOf('};', at) + 1);
+  const cleared = new Function('return ' + literal + ';')();
+
+  // The bridge 400s the WHOLE body for an explicit null in any of these, so one of them in the
+  // clear object means Clear-then-Done clears nothing at all (workflow_handler.dart
+  // rejectExplicitNulls / validatePatchFieldTypes).
+  for (const field of ['targetYield']) {
+    assert.ok(!(field in cleared), 'Clear must not send ' + field + ': null -- the bridge refuses it');
+  }
+  assert.equal(cleared.targetDoseWeight, null, 'the fields it does send are explicit nulls');
+  assert.equal(cleared.extras.note, null, 'including the nested extras');
+  assert.ok(Object.keys(cleared).length > 5, 'and it still clears the rest of the context');
+  console.log('ok   Clear sends only nulls the bridge accepts');
+}
