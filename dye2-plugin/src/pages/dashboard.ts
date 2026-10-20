@@ -829,6 +829,25 @@ function renderShotStats(shot) {
 
 // Bumped on every render so a slow measurements fetch cannot stamp a shot the user has since left.
 let shotRenderToken = 0;
+// +1 while stepping to older shots, -1 to newer, 0 before the user has moved. Used only to
+// prefetch the shot they are heading towards, so the next tap has its chart already.
+let shotStepDir = 0;
+
+// Warm the next shot in the direction of travel. Fire and forget: it only fills in
+// measurements, never touches the DOM, and merges by id so a shifting window is harmless.
+// One shot ahead only -- each costs the bridge a blob decode, so this is not a crawl.
+function prefetchNeighbourShot(idx) {
+  if (!shotStepDir) return;
+  const next = shots[idx + shotStepDir];
+  if (!next || next.measurements || next.__prefetching) return;
+  next.__prefetching = true;
+  getShot(next.id).then(function (full) {
+    const at = shots.findIndex(s => s && s.id === next.id);
+    if (at >= 0 && !shots[at].measurements) {
+      shots[at] = Object.assign({}, shots[at], { measurements: full.measurements });
+    }
+  }).catch(function () { next.__prefetching = false; });
+}
 
 async function renderLastShot() {
   const renderToken = ++shotRenderToken;
@@ -914,8 +933,16 @@ async function renderLastShot() {
     // The text above is already the new shot's, so drop the previous shot's trace rather than
     // leave it sitting under it for the length of the fetch (prev/next). chartShowPlaceholder
     // purges Plotly's state and plotHistoricalShot clears the placeholder before it replots.
-    chartShowPlaceholder(document.getElementById('plotly-chart'), 'Loading...');
+    // Only show the placeholder if the fetch is actually slow. Clearing the chart instantly
+    // means every step flashes "Loading...", and a chart that is one tap stale for 150ms reads
+    // better than one that blinks on every tap. Cancelled the moment the data lands.
+    const slowChart = setTimeout(function () {
+      if (renderToken === shotRenderToken) {
+        chartShowPlaceholder(document.getElementById('plotly-chart'), 'Loading...');
+      }
+    }, 150);
     getShot(shot.id).then(function (fullShot) {
+      clearTimeout(slowChart);
       if (renderToken !== shotRenderToken) return;
       // By id, not the captured index: ensureShotsPage can swap the array underneath while the
       // displayed shot stays the same, in which case nothing re-renders and the token is still
@@ -928,9 +955,11 @@ async function renderLastShot() {
       if (merged.measurements && merged.measurements.length > 0) {
         plotHistoricalShot(merged.measurements, merged.workflow);
       }
-    }).catch(function (e) { console.warn('Could not fetch full shot data:', e); });
+      prefetchNeighbourShot(at);
+    }).catch(function (e) { clearTimeout(slowChart); console.warn('Could not fetch full shot data:', e); });
   } else if (shot.measurements.length > 0) {
     plotHistoricalShot(shot.measurements, shot.workflow);
+    prefetchNeighbourShot(idx);
   }
 }
 
@@ -1019,10 +1048,12 @@ function setupShotNavigation() {
 
   // Wrap around so the ends are never dead: prev past oldest → newest, next past newest → oldest.
   if (prevBtn) prevBtn.addEventListener('click', async () => {
+    shotStepDir = 1;
     if (await stepToOlderShot()) renderLastShot().catch(e => console.warn(e));
   });
 
   if (nextBtn) nextBtn.addEventListener('click', async () => {
+    shotStepDir = -1;
     await ensureShotsPage();   // the seed alone is one shot, so wrapping would be a no-op
     if (shots.length < 2) return;
     currentShotIndex = (currentShotIndex - 1 + shots.length) % shots.length;
