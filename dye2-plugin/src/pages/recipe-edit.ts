@@ -1156,6 +1156,25 @@ function setupStreamlineToggle() {
   });
 }
 
+// The live Workflow still holds the pre-save values of the armed recipe, so the next workflow
+// change of any kind would record them back over the save (dye2#33). Apply the save and re-arm
+// on it — PUT first, then POST, as the dashboard does: the plugin reads the live workflow to
+// fingerprint the profile and to suppress the apply's own echo. Only for the armed recipe; a
+// save of any other slot leaves the Workflow alone.
+async function reapplyIfSelected(saved) {
+  if (!saved || !saved.workflow) return false;
+  let sel = null;
+  try { sel = await (await fetch('/api/v1/plugins/dye2.reaplugin/selection')).json(); }
+  catch (e) { console.warn('selection read failed', e); return false; }
+  if (!sel || sel.kind !== 'recipe' || String(sel.id) !== String(saved.id)) return false;
+  await updateWorkflow(saved.workflow);
+  await fetch('/api/v1/plugins/dye2.reaplugin/selection', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind: 'recipe', id: String(saved.id) }),
+  });
+  return true;
+}
+
 function setupFooter() {
   const rfBtn  = document.getElementById('re-read-from-btn');
   const rfDrop = document.getElementById('re-read-from-dropdown');
@@ -1190,7 +1209,8 @@ function setupFooter() {
     const recipe = recipes[currentRecipeIdx];
     try {
       if (recipe && recipe.id) {
-        await updateRecipe(recipe.id, recipeChanges(recipeBaselines[currentRecipeIdx] || {}, data));
+        const saved = await updateRecipe(recipe.id, recipeChanges(recipeBaselines[currentRecipeIdx] || {}, data));
+        await reapplyIfSelected(saved);
       }
       leaveRecipeEdit();
     } catch (e) { console.error('Failed to save recipe:', e); }

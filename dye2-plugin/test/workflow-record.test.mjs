@@ -500,3 +500,29 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.deepEqual(patch(base, shifted), { profile: { title: 'P', steps: [{ temperature: 92 }] } }, 'a profile arrives whole');
   console.log('ok   the dashboard PUTs only its own edits');
 }
+
+// --- the editor's save re-applies and re-arms the selected recipe (dye2#33) ----------
+{
+  const src = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
+  const start = src.indexOf('async function reapplyIfSelected(');
+  const body = src.slice(start, src.indexOf('\n}\n', start) + 2);
+  const run = async (sel, saved) => {
+    const calls = [];
+    const fetchFn = async (url, init) => { calls.push([url, (init && init.method) || 'GET']); return { ok: true, json: async () => sel }; };
+    const updateWorkflow = async (wf) => { calls.push(['PUT /workflow', JSON.stringify(wf)]); };
+    const ok = await new Function('fetch', 'updateWorkflow', 'saved', body + '; return reapplyIfSelected(saved);')(fetchFn, updateWorkflow, saved);
+    return { ok, calls };
+  };
+  const saved = { id: '1', workflow: { context: { targetDoseWeight: 19.5 } } };
+  let r = await run({ kind: 'recipe', id: '1' }, saved);
+  assert.equal(r.ok, true);
+  assert.equal(r.calls[1][0], 'PUT /workflow', 'the save is applied to the live workflow');
+  assert.equal(r.calls[1][1], '{"context":{"targetDoseWeight":19.5}}', 'with the saved values');
+  assert.equal(r.calls[2][1], 'POST', 're-armed AFTER the PUT, so the apply is the new baseline');
+  for (const other of [null, { kind: 'recipe', id: '2' }, { kind: 'favourite', id: '1' }]) {
+    r = await run(other, saved);
+    assert.equal(r.ok, false);
+    assert.equal(r.calls.length, 1, 'not the armed recipe: the workflow is left alone');
+  }
+  console.log('ok   saving the armed recipe applies it and re-arms');
+}
