@@ -13,10 +13,14 @@ const store = Array.from({ length: 120 }, (_, i) => ({
 }));
 
 const calls = [];
+let failNextGetShots = false;
 function makeEnv() {
   calls.length = 0;
+  failNextGetShots = false;
   const getShots = async (opts) => {
     calls.push(opts);
+    // fetchShotPage swallows a rejection into an empty page, which is what we want to simulate.
+    if (failNextGetShots) { failNextGetShots = false; return null; }
     let items = store;
     if (opts.coffeeName) items = items.filter(s => s.coffeeName === opts.coffeeName);
     if (opts.coffeeRoaster) items = items.filter(s => s.coffeeRoaster === opts.coffeeRoaster);
@@ -24,7 +28,7 @@ function makeEnv() {
     return { items: items.slice(opts.offset, opts.offset + opts.limit), total, limit: opts.limit, offset: opts.offset };
   };
   return new Function('getShots', shotPagingScript +
-    '\nreturn { loadShots, loadMoreShots, stepToOlderShot, SHOT_PAGE, state: () => ({ shots, shotsTotal, currentShotIndex, shotFilter }) };'
+    '\nreturn { loadShots, loadMoreShots, stepToOlderShot, seedLatestShot, ensureShotsPage, SHOT_PAGE, state: () => ({ shots, shotsTotal, currentShotIndex, shotFilter, shotsPageLoaded }) };'
   )(getShots);
 }
 
@@ -92,3 +96,86 @@ assert.equal(urls[2], '/api/v1/shots?limit=50&order=desc&search=yirgacheffe+%26+
 
 console.log('ok   getShots query serialization');
 
+
+// --- the open seeds one shot and loads the page behind it (option 2) ------------------
+{
+  // The seed is what GET /shots/latest returns: one row, same shape as a list row.
+  const latest = store[0];
+
+  // 1. seeded state: one shot on screen, the real total already known, page not loaded
+  let env = makeEnv();
+  env.seedLatestShot(latest, 120);
+  assert.equal(env.state().shots.length, 1, 'the seed holds exactly the newest shot');
+  assert.equal(env.state().shotsTotal, 120, 'the total comes from the cheap count, not the page');
+  assert.equal(env.state().shotsPageLoaded, false, 'and the real page is still outstanding');
+  assert.equal(calls.length, 0, 'seeding asks the bridge for no page at all');
+
+  // 2. the page replaces the seed and keeps the user on the same shot
+  await env.ensureShotsPage();
+  assert.equal(env.state().shots.length, env.SHOT_PAGE, 'the page replaces the seed');
+  assert.equal(env.state().shotsTotal, 120, 'total still right');
+  assert.equal(env.state().shotsPageLoaded, true, 'marked loaded');
+  assert.equal(env.state().shots[env.state().currentShotIndex].id, latest.id,
+    'still on the shot that was on screen');
+  assert.equal(calls.length, 1, 'one page request');
+  await env.ensureShotsPage();
+  assert.equal(calls.length, 1, 'already loaded: no second request');
+
+  // 3. single-flight: concurrent callers share one request
+  env = makeEnv();
+  env.seedLatestShot(latest, 120);
+  await Promise.all([env.ensureShotsPage(), env.ensureShotsPage(), env.ensureShotsPage()]);
+  assert.equal(calls.length, 1, 'three concurrent callers make one request');
+  assert.equal(env.state().shots.length, env.SHOT_PAGE, 'and the page landed');
+
+  // 4. THE one that matters: navigating off the seed loads the page first rather than
+  //    refusing because shots.length is 1, or paging from offset 1 on top of the seed.
+  env = makeEnv();
+  env.seedLatestShot(latest, 120);
+  assert.equal(await env.stepToOlderShot(), true, 'stepping off the seed works');
+  assert.equal(calls[0].offset, 0, 'it loads page zero, not offset 1 on top of the seed');
+  assert.equal(env.state().shots.length, env.SHOT_PAGE, 'a full page is loaded');
+  assert.equal(env.state().currentShotIndex, 1, 'and it stepped to the second-newest shot');
+  assert.equal(env.state().shots[1].id, store[1].id, 'which is the right shot');
+
+  // 5. a filtered view is always a real page, so it is never re-fetched as a seed
+  env = makeEnv();
+  await env.loadShots({ coffeeName: 'Red Brick' });
+  assert.equal(env.state().shotsPageLoaded, true, 'loadShots marks the page loaded');
+  const after = calls.length;
+  await env.ensureShotsPage();
+  assert.equal(calls.length, after, 'ensureShotsPage does nothing after a filtered load');
+
+  // 6. a transient bridge failure must not blank the panel while history exists
+  env = makeEnv();
+  env.seedLatestShot(latest, 120);
+  failNextGetShots = true;
+  await env.ensureShotsPage();
+  assert.equal(env.state().shots.length, 1, 'the seed survives a failed page load');
+  assert.equal(env.state().shotsPageLoaded, false, 'and stays unloaded so it retries');
+  await env.ensureShotsPage();
+  assert.equal(env.state().shots.length, env.SHOT_PAGE, 'the retry succeeds');
+  assert.equal(env.state().shotsPageLoaded, true, 'and marks loaded');
+
+  // 7. genuinely empty history: no seed, empty page, settled
+  env = makeEnv();
+  env.seedLatestShot(null, 0);
+  assert.equal(env.state().shots.length, 0, 'no shots, no seed');
+  await env.ensureShotsPage();
+  assert.equal(env.state().shotsPageLoaded, true, 'an empty history still settles as loaded');
+
+  // 8. seeding again after a page has loaded must go back to being a seed, or the fresh
+  //    one-shot window would be treated as a full page and never widen.
+  env = makeEnv();
+  await env.loadShots(null);
+  assert.equal(env.state().shotsPageLoaded, true, 'page loaded');
+  env.seedLatestShot(latest, 120);
+  assert.equal(env.state().shotsPageLoaded, false, 'seeding resets the loaded flag');
+  assert.equal(env.state().shots.length, 1, 'and the window is the seed again');
+  const before8 = calls.length;
+  await env.ensureShotsPage();
+  assert.equal(calls.length, before8 + 1, 'so the page is fetched again');
+  assert.equal(env.state().shots.length, env.SHOT_PAGE, 'and the window widens');
+
+  console.log('ok   the open seeds the newest shot and loads the page behind it');
+}

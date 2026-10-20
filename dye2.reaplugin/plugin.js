@@ -4939,6 +4939,8 @@ let currentShotIndex = 0;
 let sameBeanFilter = false;
 let shotFilter = null;       // {coffeeName, coffeeRoaster} while Same Beans is on
 let loadingShots = false;
+let shotsPageLoaded = false; // has a real page replaced the one-shot seed?
+let shotsPagePromise = null;
 
 async function fetchShotPage(offset) {
   const opts = { limit: SHOT_PAGE, offset: offset, order: 'desc' };
@@ -4955,6 +4957,55 @@ async function loadShots(filter) {
   shots = page.items;
   shotsTotal = page.total;
   currentShotIndex = 0;
+  // A filtered view is always a real page: GET /shots/latest takes no filter parameters.
+  shotsPageLoaded = true;
+  shotsPagePromise = null;
+}
+
+// Seed the newest shot from GET /shots/latest, whose response is the same shape as a list row
+// (the bridge serves both from toJsonWithoutMeasurements), so rendering needs no special case.
+// total comes from a separate limit=1 read, whose count is a plain SQL COUNT on the bridge.
+function seedLatestShot(shot, total) {
+  shots = shot ? [shot] : [];
+  shotsTotal = typeof total === 'number' ? total : shots.length;
+  currentShotIndex = 0;
+  shotsPageLoaded = false;
+  shotsPagePromise = null;
+}
+
+// Everything that needs more than the seeded shot waits here: navigation, delete, anything
+// reading a window of history. Single-flight, so concurrent callers share the one request.
+// The bridge decodes and discards a measurements blob per row, so this is the expensive read
+// and it is deliberately off the open's critical path.
+async function ensureShotsPage() {
+  if (shotsPageLoaded) return true;
+  if (!shotsPagePromise) {
+    const seeded = shots.length ? shots[0] : null;
+    const seededId = seeded ? seeded.id : null;
+    shotsPagePromise = (async () => {
+      const page = await fetchShotPage(0);
+      // fetchShotPage swallows errors into an empty page, which is indistinguishable from an
+      // empty history. We know a shot exists when there is a seed, so keep it and stay
+      // unloaded rather than blanking the panel on a transient failure; the next caller retries.
+      if (!page.items.length && seededId) return;
+      shots = page.items;
+      shotsTotal = page.total;
+      // Stay on the shot already on screen. It is index 0 in both views unless a shot was
+      // stored between the two reads, in which case index 0 is the newer one, which is what
+      // "Last Shot" means anyway.
+      const at = seededId ? shots.findIndex(s => s && s.id === seededId) : -1;
+      currentShotIndex = at >= 0 ? at : 0;
+      // The seed may already hold the measurements the chart fetched. A page row never does, so
+      // without this the swap throws them away and the next render fetches them again.
+      if (at >= 0 && seeded && seeded.measurements) {
+        shots[at] = Object.assign({}, shots[at], { measurements: seeded.measurements });
+      }
+      shotsPageLoaded = true;
+    })().catch(e => { console.warn('shot page load failed', e); })
+        .then(() => { shotsPagePromise = null; });
+  }
+  await shotsPagePromise;
+  return shotsPageLoaded;
 }
 
 // Only ever called when navigation actually runs off the end of what is loaded.
@@ -4975,6 +5026,10 @@ async function loadMoreShots() {
 // Step one shot older. Wrapping is the last resort: step off the loaded window and the next
 // page is fetched first, so history is limited by what the machine stored, not by SHOT_PAGE.
 async function stepToOlderShot() {
+  // Before any loadMoreShots: with only the seed, shots.length is 1 and shotsTotal the real
+  // total, so loadMoreShots would page from offset 1 on top of the seed instead of loading
+  // page zero cleanly.
+  await ensureShotsPage();
   if (currentShotIndex + 1 >= shots.length) await loadMoreShots();
   if (shots.length < 2) return false;
   currentShotIndex = (currentShotIndex + 1) % shots.length;
@@ -6346,7 +6401,8 @@ function setupShotNavigation() {
     if (await stepToOlderShot()) renderLastShot().catch(e => console.warn(e));
   });
 
-  if (nextBtn) nextBtn.addEventListener('click', () => {
+  if (nextBtn) nextBtn.addEventListener('click', async () => {
+    await ensureShotsPage();   // the seed alone is one shot, so wrapping would be a no-op
     if (shots.length < 2) return;
     currentShotIndex = (currentShotIndex - 1 + shots.length) % shots.length;
     renderLastShot().catch(e => console.warn(e));
@@ -6822,6 +6878,9 @@ function setupDeleteShot() {
     if (!shot) return;
     if (!confirm('Delete this shot? This cannot be undone.')) return;
     try {
+      // Against the seed alone, removing the shot would empty shots while shotsTotal still
+      // counted the rest, and the panel would read "No shots recorded" with history intact.
+      await ensureShotsPage();
       await deleteShot(shot.id);
       shots = shots.filter(s => s.id !== shot.id);
       shotsTotal = Math.max(0, shotsTotal - 1);
@@ -7135,20 +7194,28 @@ async function initializeDyeDashboard() {
   // The unfiltered KV favourites array, read in the same batch as everything else.
   let allFavs = [];
   try {
-    const [shotsResult, workflowResult, grindersResult, recipesResult, autoResult] = await Promise.all([
-      fetchShotPage(0),
+    // The newest shot and the total come from two reads the bridge answers without touching a
+    // measurements blob (GET /shots/latest, and limit=1 for its SQL COUNT). The real page is
+    // the expensive read and loads behind the first paint, in ensureShotsPage below.
+    const [latestResult, countResult, workflowResult, grindersResult, recipesResult, autoResult] = await Promise.all([
+      getLatestShot().catch(() => null),
+      getShots({ limit: 1, offset: 0, order: 'desc' }).catch(() => null),
       getWorkflow().catch(() => null),
       getGrinders().catch(() => []),
       getRecipes().catch(() => []),
       getAutoFavourites().catch(() => []),
     ]);
-    shots = shotsResult.items;
-    shotsTotal = shotsResult.total;
-    // Returning from edit-shot: land back on the shot they were editing, not the newest.
+    seedLatestShot(latestResult, countResult && typeof countResult.total === 'number' ? countResult.total : null);
+    // Returning from edit-shot: land back on the shot they were editing, not the newest. That
+    // needs the real window, so this one path waits for it rather than painting the newest and
+    // jumping. Every other open paints from the seed.
     const editedId = sessionStorage.getItem('dye_editShotId');
     sessionStorage.removeItem('dye_editShotId');
-    const editedIdx = editedId ? shots.findIndex(s => String(s.id) === editedId) : -1;
-    currentShotIndex = editedIdx >= 0 ? editedIdx : 0;
+    if (editedId) {
+      await ensureShotsPage();
+      const editedIdx = shots.findIndex(s => String(s.id) === editedId);
+      if (editedIdx >= 0) currentShotIndex = editedIdx;
+    }
     currentWorkflow = workflowResult;
     baseWorkflow = workflowResult ? JSON.parse(JSON.stringify(workflowResult)) : null;
     grinders = Array.isArray(grindersResult) ? grindersResult : (grindersResult && grindersResult.items ? grindersResult.items : []);
@@ -7183,6 +7250,20 @@ async function initializeDyeDashboard() {
 
   initChart();
   await renderLastShot();
+
+  // Not awaited: the text is already up. This only widens the loaded window so navigation can
+  // move, and the counter was already correct from the cheap total, so there is normally nothing
+  // to redraw. Re-render only if the page put a different shot on screen, which happens when a
+  // shot is stored between the two reads, or when the seed was empty and the page is not.
+  if (!shotsPageLoaded) {
+    const seededId = shots[0] && shots[0].id;
+    ensureShotsPage()
+      .then(() => {
+        const shownId = shots[currentShotIndex] && shots[currentShotIndex].id;
+        if (shownId !== seededId) return renderLastShot();
+      })
+      .catch(e => console.warn('could not load the shot page:', e));
+  }
   renderNextShot();
 
   // Recompute recents from the latest shot history in the background — same round

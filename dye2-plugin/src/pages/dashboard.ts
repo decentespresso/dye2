@@ -1017,7 +1017,8 @@ function setupShotNavigation() {
     if (await stepToOlderShot()) renderLastShot().catch(e => console.warn(e));
   });
 
-  if (nextBtn) nextBtn.addEventListener('click', () => {
+  if (nextBtn) nextBtn.addEventListener('click', async () => {
+    await ensureShotsPage();   // the seed alone is one shot, so wrapping would be a no-op
     if (shots.length < 2) return;
     currentShotIndex = (currentShotIndex - 1 + shots.length) % shots.length;
     renderLastShot().catch(e => console.warn(e));
@@ -1493,6 +1494,9 @@ function setupDeleteShot() {
     if (!shot) return;
     if (!confirm('Delete this shot? This cannot be undone.')) return;
     try {
+      // Against the seed alone, removing the shot would empty shots while shotsTotal still
+      // counted the rest, and the panel would read "No shots recorded" with history intact.
+      await ensureShotsPage();
       await deleteShot(shot.id);
       shots = shots.filter(s => s.id !== shot.id);
       shotsTotal = Math.max(0, shotsTotal - 1);
@@ -1806,20 +1810,28 @@ async function initializeDyeDashboard() {
   // The unfiltered KV favourites array, read in the same batch as everything else.
   let allFavs = [];
   try {
-    const [shotsResult, workflowResult, grindersResult, recipesResult, autoResult] = await Promise.all([
-      fetchShotPage(0),
+    // The newest shot and the total come from two reads the bridge answers without touching a
+    // measurements blob (GET /shots/latest, and limit=1 for its SQL COUNT). The real page is
+    // the expensive read and loads behind the first paint, in ensureShotsPage below.
+    const [latestResult, countResult, workflowResult, grindersResult, recipesResult, autoResult] = await Promise.all([
+      getLatestShot().catch(() => null),
+      getShots({ limit: 1, offset: 0, order: 'desc' }).catch(() => null),
       getWorkflow().catch(() => null),
       getGrinders().catch(() => []),
       getRecipes().catch(() => []),
       getAutoFavourites().catch(() => []),
     ]);
-    shots = shotsResult.items;
-    shotsTotal = shotsResult.total;
-    // Returning from edit-shot: land back on the shot they were editing, not the newest.
+    seedLatestShot(latestResult, countResult && typeof countResult.total === 'number' ? countResult.total : null);
+    // Returning from edit-shot: land back on the shot they were editing, not the newest. That
+    // needs the real window, so this one path waits for it rather than painting the newest and
+    // jumping. Every other open paints from the seed.
     const editedId = sessionStorage.getItem('dye_editShotId');
     sessionStorage.removeItem('dye_editShotId');
-    const editedIdx = editedId ? shots.findIndex(s => String(s.id) === editedId) : -1;
-    currentShotIndex = editedIdx >= 0 ? editedIdx : 0;
+    if (editedId) {
+      await ensureShotsPage();
+      const editedIdx = shots.findIndex(s => String(s.id) === editedId);
+      if (editedIdx >= 0) currentShotIndex = editedIdx;
+    }
     currentWorkflow = workflowResult;
     baseWorkflow = workflowResult ? JSON.parse(JSON.stringify(workflowResult)) : null;
     grinders = Array.isArray(grindersResult) ? grindersResult : (grindersResult && grindersResult.items ? grindersResult.items : []);
@@ -1854,6 +1866,20 @@ async function initializeDyeDashboard() {
 
   initChart();
   await renderLastShot();
+
+  // Not awaited: the text is already up. This only widens the loaded window so navigation can
+  // move, and the counter was already correct from the cheap total, so there is normally nothing
+  // to redraw. Re-render only if the page put a different shot on screen, which happens when a
+  // shot is stored between the two reads, or when the seed was empty and the page is not.
+  if (!shotsPageLoaded) {
+    const seededId = shots[0] && shots[0].id;
+    ensureShotsPage()
+      .then(() => {
+        const shownId = shots[currentShotIndex] && shots[currentShotIndex].id;
+        if (shownId !== seededId) return renderLastShot();
+      })
+      .catch(e => console.warn('could not load the shot page:', e));
+  }
   renderNextShot();
 
   // Recompute recents from the latest shot history in the background — same round
