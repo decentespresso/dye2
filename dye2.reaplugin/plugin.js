@@ -11838,6 +11838,8 @@ bcInit();
 	var TAIL_DAYS = 120;
 	var DAY_MS = 864e5;
 	var STALE_DAYS = 60;
+	var SUGGEST_AFTER = RECENT_MAX;
+	var SUGGEST_MIN_SHOTS = 2;
 	var INDEX_KEY = "shotIndex";
 	var INDEX_VERSION = 1;
 	function norm(v) {
@@ -11921,13 +11923,15 @@ bcInit();
 				vol: 0,
 				sum: 0,
 				n: 0,
-				newestTs: 0
+				newestTs: 0,
+				shots: 0
 			};
 			g.vol += Math.pow(.5, Math.max(0, now - t.ts) / DAY_MS / HALF_LIFE_DAYS);
 			if (t.rating != null) {
 				g.sum += t.rating;
 				g.n++;
 			}
+			g.shots++;
 			g.newestTs = Math.max(g.newestTs, t.ts);
 			groups.set(t.key, g);
 		}
@@ -11938,7 +11942,9 @@ bcInit();
 			ranked.push({
 				key,
 				score: quality * g.vol / (g.vol + 1),
-				newestTs: g.newestTs
+				newestTs: g.newestTs,
+				shots: g.shots,
+				quality
 			});
 		});
 		return ranked.sort((a, b) => b.score - a.score || b.newestTs - a.newestTs || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
@@ -12243,11 +12249,13 @@ bcInit();
 			idx.builtAt = now;
 			await kvWrite(INDEX_KEY, idx);
 		}
-		const recents = applyTitleDisambiguation(rankGroups(idx.tail, now).slice(0, RECENT_MAX).map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
+		const all = rankGroups(idx.tail, now);
+		const recents = applyTitleDisambiguation(all.slice(0, RECENT_MAX).map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
 		const storeVal = await kvRead("autoFavourites");
 		const saved = (Array.isArray(storeVal) ? storeVal : []).filter((x) => x && !x.auto);
 		const placedRecents = assignSlots(recents, saved);
 		await kvWrite("autoFavourites", [...placedRecents, ...saved]);
+		const worthy = applyTitleDisambiguation(all.slice(SUGGEST_AFTER).filter((r) => r.shots >= SUGGEST_MIN_SHOTS && r.quality >= PRIOR).map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
 		const recipes = await kvRead("recipes").then((v) => Array.isArray(v) ? v : []);
 		const kept = recipes.filter((r) => r && !r.suggested);
 		const occupied = new Set(kept.map((r) => String(r.id)));
@@ -12257,7 +12265,7 @@ bcInit();
 			"3",
 			"4",
 			"5"
-		].filter((n) => !occupied.has(n)).map((slot, i) => recents[i] ? toSuggestedRecipe(recents[i], slot) : null).filter(Boolean);
+		].filter((n) => !occupied.has(n)).map((slot, i) => worthy[i] ? toSuggestedRecipe(worthy[i], slot) : null).filter(Boolean);
 		const next = [...kept, ...suggested];
 		if (JSON.stringify(next) !== JSON.stringify(recipes)) await kvWrite("recipes", next);
 		return placedRecents;

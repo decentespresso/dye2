@@ -389,9 +389,8 @@ const scans = (calls) => calls.filter((c) => c.indexOf('/shots?limit=100') >= 0)
   assert.equal(byId['1'].name, 'Mine'); assert.equal(byId['4'].name, 'Also mine');
   assert.ok(!byId['1'].suggested && !byId['4'].suggested, 'real recipes are never touched');
   assert.equal(byId['stray-uuid'].name, 'stray');
-  assert.equal(byId['2'].suggested, true); assert.equal(byId['3'].suggested, true);
-  assert.equal(byId['5'], undefined, 'only as many suggestions as ranked groups');
-  assert.equal(byId['2'].name, autos[0].title, 'suggestions follow rank, old suggestion replaced');
+  assert.equal(byId['2'], undefined, 'old suggestion dropped; only 2 groups, both on the F strip, so none suggested');
+  assert.equal(byId['3'], undefined);
   assert.equal(kv.shotIndex.v, 1);
   assert.equal(kv.shotIndex.total, 3);
 }
@@ -443,15 +442,36 @@ const scans = (calls) => calls.filter((c) => c.indexOf('/shots?limit=100') >= 0)
 }
 
 {
+  // Suggestions never repeat an F-strip group: 7 groups (2 shots each) -> F gets 5, R gets ranks 6-7
+  // in the free slots; an unqualified group (one shot) is never suggested.
+  const shots = [];
+  for (let g = 0; g < 7; g++) { shots.push(shotAt('g' + g + 'a', 1 + g * 0.1, 'G' + g)); shots.push(shotAt('g' + g + 'b', 2 + g * 0.1, 'G' + g)); }
+  shots.push(shotAt('lone', 0.5, 'LONE'));
+  shots.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+  const kv = { recipes: [{ id: '1', name: 'Mine' }] };
+  await refreshRecentFavourites(makeBridge(shots, kv).fetchFn, BASE);
+  const sug = kv.recipes.filter((r) => r.suggested);
+  assert.equal(sug.length, 2, 'ranks 6 and 7 qualify; "lone" has one shot');
+  assert.deepEqual(sug.map((r) => r.id), ['2', '3']);
+  const fBeans = new Set(kv.autoFavourites.filter((a) => a.auto).map((a) => a.workflow.context.beanBatchId));
+  sug.forEach((r) => assert.equal(fBeans.has(r.workflow.context.beanBatchId), false, 'an F-strip group is never suggested'));
+}
+
+{
   // Accepted (flag dropped) rows are real recipes: the next run keeps them.
-  const shots = [shotAt('s1', 1, 'A')];
+  const shots = [];
+  for (let g = 0; g < 6; g++) { shots.push(shotAt('g' + g + 'a', 1 + g * 0.1, 'G' + g)); shots.push(shotAt('g' + g + 'b', 2 + g * 0.1, 'G' + g)); }
+  shots.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
   const kv = { recipes: [] };
   await refreshRecentFavourites(makeBridge(shots, kv).fetchFn, BASE);
   assert.equal(kv.recipes[0].suggested, true);
+  const name = kv.recipes[0].name;
   delete kv.recipes[0].suggested;
   shots.unshift(shotAt('s2', 0, 'Z'));
   await refreshRecentFavourites(makeBridge(shots, kv).fetchFn, BASE);
-  assert.equal(kv.recipes.find((r) => r.id === '1').suggested, undefined, 'an accepted suggestion is kept as is');
+  const kept = kv.recipes.find((r) => r.id === '1');
+  assert.equal(kept.suggested, undefined, 'an accepted suggestion is kept as is');
+  assert.equal(kept.name, name);
 }
 
 console.log('ok   refreshRecentFavourites: full build, cached startup, delta, prune, rating patch, suggested rows');

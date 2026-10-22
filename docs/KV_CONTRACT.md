@@ -315,7 +315,8 @@ volume  = Σ w(shot) over the group's shots
 score   = quality × volume / (volume + 1)
 ```
 
-Ties: newest shot desc, then group key asc. Shots excluded: cleaning/calibrate `beverage_type`,
+"Shots" in the score (`volume`, `n`) means shots inside `TAIL_DAYS`, never lifetime: the index keeps no
+per-group lifetime counters. Ties: newest shot desc, then group key asc. Shots excluded: cleaning/calibrate `beverage_type`,
 no bean identity, and an aborted `stopReason` (`error`, `disconnected`, `aborted`, `cancelled`;
 any other value counts). Constants (`recent-favs.ts`): `TAIL_DAYS = 120`, `STALE_DAYS = 60` (a
 group whose newest shot is older is dropped from the strip) and `UNRATED_SCORES_AT_PRIOR = true`
@@ -329,6 +330,9 @@ group whose newest shot is older is dropped from the strip) and `UNRATED_SCORES_
   tail: [ { id, ts, rating /* 0..1 | null */, key } ]                                   // last TAIL_DAYS, bounded
 }
 ```
+
+`suggested` recipe rows come from groups ranked after the five on the F strip, and only groups with at
+least `SUGGEST_MIN_SHOTS = 2` shots in the tail and `quality >= prior`; fewer qualify, fewer rows.
 
 A cache, safe to delete (it is rebuilt from the last `TAIL_DAYS` of history). Skins and other
 plugins should not read it.

@@ -20,8 +20,12 @@ type FetchLike = (
 const RECENT_MAX = 5;
 const SHOT_PAGE_LIMIT = 100;
 const SKIPPED_BEVERAGE_TYPES = new Set(["cleaning", "calibrate"]);
-// stopReason is an open set (ShotDecisionReason.name, or a string from an import): exclude the
-// clearly-aborted values and tolerate everything else.
+// stopReason is an open set. Decaid writes ShotDecisionReason.name (reaprime
+// lib/src/models/data/shot_state_event.dart:8): noScale, targetWeight, targetVolume, apiStop,
+// appStop, machineEnded, profileAdvance, profileSkip, error, disconnected, stoppingBackstop.
+// Only `error` and `disconnected` are excluded. `aborted`/`cancelled`/`canceled` are not Decaid
+// values; they are kept only for imported shots. `stoppingBackstop` is deliberately NOT excluded:
+// it is a safety stop, and whether that means a bad shot is a judgement call not yet made.
 const ABORTED_STOP_REASONS = new Set(["error", "disconnected", "aborted", "cancelled", "canceled"]);
 
 // --- Ranking constants (docs/KV_CONTRACT.md, "Auto (recent) entries") ---------------------
@@ -34,6 +38,10 @@ const DAY_MS = 86400000;
 const UNRATED_SCORES_AT_PRIOR = true;
 // NOT user-confirmed: a group whose newest shot is older than this is dropped from the strip.
 const STALE_DAYS = 60;
+// R strip suggestions: groups ranked after the F strip's RECENT_MAX, and only those with enough
+// evidence and a rated quality at or above the prior. Fewer qualify => fewer suggestions, no padding.
+const SUGGEST_AFTER = RECENT_MAX;
+const SUGGEST_MIN_SHOTS = 2;
 const INDEX_KEY = "shotIndex";
 const INDEX_VERSION = 1;
 
@@ -140,20 +148,21 @@ export function pruneTail(idx: ShotIndex, now: number, liveIds?: Set<string>): v
  *   score   = quality × volume / (volume + 1)
  * Groups whose newest shot is older than STALE_DAYS are dropped. Ties: newest shot desc, key asc.
  */
-export function rankGroups(tail: TailEntry[], now: number): { key: string; score: number; newestTs: number }[] {
-  const groups = new Map<string, { vol: number; sum: number; n: number; newestTs: number }>();
+export function rankGroups(tail: TailEntry[], now: number): { key: string; score: number; newestTs: number; shots: number; quality: number }[] {
+  const groups = new Map<string, { vol: number; sum: number; n: number; newestTs: number; shots: number }>();
   for (const t of tail) {
-    const g = groups.get(t.key) || { vol: 0, sum: 0, n: 0, newestTs: 0 };
+    const g = groups.get(t.key) || { vol: 0, sum: 0, n: 0, newestTs: 0, shots: 0 };
     g.vol += Math.pow(0.5, Math.max(0, now - t.ts) / DAY_MS / HALF_LIFE_DAYS);
     if (t.rating != null) { g.sum += t.rating; g.n++; }
+    g.shots++;
     g.newestTs = Math.max(g.newestTs, t.ts);
     groups.set(t.key, g);
   }
-  const ranked: { key: string; score: number; newestTs: number }[] = [];
+  const ranked: { key: string; score: number; newestTs: number; shots: number; quality: number }[] = [];
   groups.forEach((g, key) => {
     if (now - g.newestTs > STALE_DAYS * DAY_MS) return;
     const quality = g.n === 0 && !UNRATED_SCORES_AT_PRIOR ? 0 : (g.sum + PRIOR_WEIGHT * PRIOR) / (g.n + PRIOR_WEIGHT);
-    ranked.push({ key, score: (quality * g.vol) / (g.vol + 1), newestTs: g.newestTs });
+    ranked.push({ key, score: (quality * g.vol) / (g.vol + 1), newestTs: g.newestTs, shots: g.shots, quality });
   });
   return ranked.sort((a, b) => b.score - a.score || b.newestTs - a.newestTs || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
 }
@@ -398,6 +407,8 @@ async function runRefresh(fetchFn: FetchLike, base: string): Promise<AnyRecord[]
     if (have) reps[key] = slim(have);
     else if (idx.reps[key] && idx.reps[key].id === e.id) reps[key] = idx.reps[key];
     else {
+      // Rare (a deleted or re-keyed rep). The host's `?ids=` list route would not help: it answers
+      // with toJson(), measurements included, same as by-id (shots_handler.dart:64-80), so use by-id.
       const res = await fetchFn(base + "/shots/" + encodeURIComponent(e.id));
       if (!res.ok) throw new Error("HTTP " + res.status + " fetching shot " + e.id);
       reps[key] = slim(await res.json());
@@ -409,8 +420,8 @@ async function runRefresh(fetchFn: FetchLike, base: string): Promise<AnyRecord[]
     await kvWrite(INDEX_KEY, idx);
   }
 
-  const ranked = rankGroups(idx.tail, now).slice(0, RECENT_MAX);
-  const recents = applyTitleDisambiguation(ranked.map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
+  const all = rankGroups(idx.tail, now);
+  const recents = applyTitleDisambiguation(all.slice(0, RECENT_MAX).map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
 
   const storeVal = await kvRead("autoFavourites");
   const saved = (Array.isArray(storeVal) ? storeVal : []).filter((x: AnyRecord) => x && !x.auto);
@@ -418,12 +429,16 @@ async function runRefresh(fetchFn: FetchLike, base: string): Promise<AnyRecord[]
   await kvWrite("autoFavourites", [...placedRecents, ...saved]);
 
   // R strip: fill slots a barista has not claimed with `suggested` rows; never touch a real recipe.
-  // ponytail: the same top groups feed the F and R strips, with no de-duplication against existing recipes.
+  // Drawn from the groups ranked after the F strip, so the two strips never show the same item.
+  // ponytail: no de-duplication against existing real recipes of the same bean and profile.
+  const worthy = applyTitleDisambiguation(all.slice(SUGGEST_AFTER)
+    .filter((r) => r.shots >= SUGGEST_MIN_SHOTS && r.quality >= PRIOR)
+    .map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
   const recipes: AnyRecord[] = await kvRead("recipes").then((v) => (Array.isArray(v) ? v : []));
   const kept = recipes.filter((r) => r && !r.suggested);
   const occupied = new Set(kept.map((r) => String(r.id)));
   const suggested = ["1", "2", "3", "4", "5"].filter((n) => !occupied.has(n))
-    .map((slot, i) => (recents[i] ? toSuggestedRecipe(recents[i], slot) : null)).filter(Boolean);
+    .map((slot, i) => (worthy[i] ? toSuggestedRecipe(worthy[i], slot) : null)).filter(Boolean);
   const next = [...kept, ...suggested];
   if (JSON.stringify(next) !== JSON.stringify(recipes)) await kvWrite("recipes", next);
 
