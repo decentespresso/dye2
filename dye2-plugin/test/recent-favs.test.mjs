@@ -9,7 +9,12 @@
 import assert from 'node:assert/strict';
 import {
   recentGroupKey,
-  pickRecentShots,
+  rankGroups,
+  foldShot,
+  pruneTail,
+  allocateRecipeSlot,
+  toSuggestedRecipe,
+  noteShotUpdated,
   toRecentFavourite,
   isExecutableRecordedProfile,
   applyTitleDisambiguation,
@@ -78,53 +83,6 @@ function makeShot(id, timestamp, overrides) {
 }
 
 console.log('ok   recentGroupKey: trim/lowercase, id-vs-name splits, skip rules');
-
-// --- pickRecentShots -------------------------------------------------------------
-
-// Order by the group's newest shot, newest first — even when an older group has more shots.
-{
-  const b5 = makeShot('b5', 't5', { context: { beanBatchId: 'B' } });   // group B, newest overall
-  const a4 = makeShot('a4', 't4', { context: { beanBatchId: 'A' } });
-  const a3 = makeShot('a3', 't3', { context: { beanBatchId: 'A' } });
-  const a2 = makeShot('a2', 't2', { context: { beanBatchId: 'A' } });   // group A has 3 shots, group B has 1
-  const b1 = makeShot('b1', 't1', { context: { beanBatchId: 'B' } });
-  const items = [b5, a4, a3, a2, b1];   // newest-first, as the bridge returns it
-  const getPage = async (offset) => (offset === 0 ? { items, total: items.length } : { items: [], total: items.length });
-  const picked = await pickRecentShots(getPage, 5, 5);
-  assert.deepEqual(picked.map((s) => s.id), ['b5', 'a4'], "group B's newest shot ranks before group A's, despite A having more shots");
-}
-
-// Paging: exactly one shots request when the first page already has 5 groups.
-{
-  let calls = 0;
-  const items = Array.from({ length: 250 }, (_, i) => makeShot('s' + i, 't' + (250 - i), { context: { beanBatchId: 'group-' + (i % 5) } }));
-  const getPage = async (offset) => { calls++; return offset === 0 ? { items, total: 250 } : { items: [], total: 250 }; };
-  const picked = await pickRecentShots(getPage, 5, 5);
-  assert.equal(picked.length, 5, 'found all 5 distinct groups');
-  assert.equal(calls, 1, 'stopped after the first page once 5 groups were found');
-}
-
-// Paging: stops at 5 pages when 5 groups never turn up.
-{
-  let calls = 0;
-  const getPage = async () => {
-    calls++;
-    // Every page is a single cleaning run — never contributes a group.
-    return { items: [makeShot('c' + calls, 't' + calls, { profile: { beverage_type: 'cleaning' } })], total: 999 };
-  };
-  const picked = await pickRecentShots(getPage, 5, 5);
-  assert.deepEqual(picked, [], 'no group ever qualified');
-  assert.equal(calls, 5, 'gave up after maxPages, not before');
-}
-
-// Paging: an empty first page is an empty result, not an error.
-{
-  const getPage = async () => ({ items: [], total: 0 });
-  const picked = await pickRecentShots(getPage, 5, 5);
-  assert.deepEqual(picked, []);
-}
-
-console.log('ok   pickRecentShots: newest-group-first ordering, page/group caps, empty history');
 
 // --- toRecentFavourite -------------------------------------------------------------
 
@@ -270,88 +228,254 @@ console.log('ok   applyTitleDisambiguation: profile title then grinder model, on
 
 console.log('ok   assignSlots: saved claims win, alwaysOnDashboard:false claims nothing, overflow gets no slot');
 
-// --- refreshRecentFavourites -------------------------------------------------------------
+// --- rankGroups -------------------------------------------------------------------------------
 
-function makeFetch(getShotsPage, store, calls) {
-  return async (url, init) => {
-    if (calls) calls.push({ url: url, method: (init && init.method) || 'GET' });
+const DAY = 86400000;
+const NOW = Date.parse('2026-06-01T12:00:00Z');
+const t = (id, key, daysAgo, rating = null) => ({ id, key, ts: NOW - daysAgo * DAY, rating });
+const many = (prefix, key, n, daysAgo, rating = null) => Array.from({ length: n }, (_, i) => t(prefix + i, key, daysAgo, rating));
+
+{
+  // The month rule: six unrated shots a month old beat a one-off this week, but lose to a
+  // well-rated group pulled this week.
+  const tail = [
+    ...many('old', 'six-stale', 6, 30),
+    t('one', 'one-off', 0),
+    ...many('good', 'rated-fresh', 3, 1, 0.9),
+  ];
+  const order = rankGroups(tail, NOW).map((r) => r.key);
+  assert.deepEqual(order, ['rated-fresh', 'six-stale', 'one-off']);
+}
+
+{
+  // Rated vs unrated: same recency, a high rating outranks the prior, a low one falls below it.
+  const tail = [t('a', 'loved', 1, 1), t('b', 'unrated', 1), t('c', 'hated', 1, 0)];
+  assert.deepEqual(rankGroups(tail, NOW).map((r) => r.key), ['loved', 'unrated', 'hated']);
+  const s = Object.fromEntries(rankGroups(tail, NOW).map((r) => [r.key, r.score]));
+  const w = Math.pow(0.5, 1 / 15);
+  assert.ok(Math.abs(s.unrated - 0.6 * w / (w + 1)) < 1e-12, 'unrated scores at the prior');
+}
+
+{
+  // Stale cutoff: newest shot older than 60 days is dropped; 59 days stays.
+  const tail = [t('a', 'stale', 61), t('b', 'edge', 59), t('c', 'stale', 90)];
+  assert.deepEqual(rankGroups(tail, NOW).map((r) => r.key), ['edge']);
+}
+
+{
+  // Monotonic: more shots, better rating, or a newer shot never lowers the score.
+  const score = (tail) => rankGroups(tail, NOW)[0].score;
+  assert.ok(score([t('a', 'k', 1), t('b', 'k', 2)]) > score([t('a', 'k', 1)]), 'more shots');
+  assert.ok(score([t('a', 'k', 1, 0.8)]) > score([t('a', 'k', 1, 0.7)]), 'better rating');
+  assert.ok(score([t('a', 'k', 1, 0.8)]) > score([t('a', 'k', 10, 0.8)]), 'newer shot');
+}
+
+{
+  // Ties: same score and same newest shot -> key ascending; stable under input order.
+  const a = [t('1', 'b', 2), t('2', 'a', 2), t('3', 'c', 2)];
+  const order = (x) => rankGroups(x, NOW).map((r) => r.key);
+  assert.deepEqual(order(a), ['a', 'b', 'c']);
+  assert.deepEqual(order(a.slice().reverse()), ['a', 'b', 'c']);
+}
+
+console.log('ok   rankGroups: month rule, rated vs unrated, stale cutoff, monotonic, tie-break');
+
+// --- allocateRecipeSlot / toSuggestedRecipe -----------------------------------------------------
+
+{
+  const row = (id, extra) => ({ id, ...extra });
+  assert.deepEqual(allocateRecipeSlot([]), { slot: '1' });
+  assert.deepEqual(allocateRecipeSlot([row('1'), row('3')]), { slot: '2' }, 'lowest free');
+  assert.deepEqual(allocateRecipeSlot([row('1', { suggested: true })]), { slot: '1' }, 'a suggested row is free');
+  assert.deepEqual(allocateRecipeSlot([row('uuid-stray')]), { slot: '1' }, 'strays do not occupy a slot');
+  const full = ['1', '2', '3', '4', '5'].map((id) => row(id));
+  assert.deepEqual(allocateRecipeSlot(full), { taken: ['1', '2', '3', '4', '5'] }, 'full -> caller 409s');
+  assert.deepEqual(allocateRecipeSlot(full, 4), { slot: '4' }, 'explicit slot honoured (overwrites)');
+  assert.deepEqual(allocateRecipeSlot(full, 9), { taken: ['1', '2', '3', '4', '5'] }, 'out-of-range slot ignored');
+
+  const fav = toRecentFavourite(makeShot('s1', '2026-05-30T00:00:00Z'), 1);
+  const r = toSuggestedRecipe(fav, '2');
+  assert.equal(r.id, '2');
+  assert.equal(r.suggested, true);
+  assert.equal(r.dashboardVariables.dose, 18);
+  assert.deepEqual(r.workflow, fav.workflow);
+}
+
+console.log('ok   allocateRecipeSlot / toSuggestedRecipe');
+
+// --- foldShot / pruneTail ------------------------------------------------------------------------
+
+{
+  const idx = { tail: [] };
+  const a = makeShot('a', '2026-05-30T00:00:00Z');
+  a.annotations = { enjoyment: 5 };
+  foldShot(idx, a);
+  assert.equal(idx.tail[0].rating, 0.5, 'enjoyment 0..10 -> 0..1');
+  a.annotations = { enjoyment: 9 };
+  foldShot(idx, a);
+  assert.equal(idx.tail.length, 1, 'same id replaces');
+  assert.equal(idx.tail[0].rating, 0.9, 'rating patch');
+  foldShot(idx, makeShot('x', '2026-05-30T00:00:00Z', { profile: { beverage_type: 'cleaning' } }));
+  const ab = makeShot('ab', '2026-05-30T00:00:00Z'); ab.stopReason = 'error';
+  foldShot(idx, ab);
+  assert.equal(idx.tail.length, 1, 'cleaning and aborted shots never count');
+  const ok = makeShot('ok', '2026-05-30T00:00:00Z'); ok.stopReason = 'someFutureReason';
+  foldShot(idx, ok);
+  assert.equal(idx.tail.length, 2, 'an unknown stopReason is tolerated');
+  pruneTail(idx, Date.parse('2026-06-01T00:00:00Z'), new Set(['ok']));
+  assert.deepEqual(idx.tail.map((x) => x.id), ['ok'], 'prune drops ids the bridge no longer lists');
+  pruneTail(idx, Date.parse('2027-06-01T00:00:00Z'));
+  assert.equal(idx.tail.length, 0, 'prune drops rows past TAIL_DAYS');
+}
+
+console.log('ok   foldShot / pruneTail');
+
+// --- refreshRecentFavourites (index + strips) ---------------------------------------------------
+
+const BASE = 'http://localhost:8080/api/v1';
+const recent = (days) => new Date(Date.now() - days * DAY).toISOString();
+
+// A fake bridge: shots (newest first), a KV map, and a log of every call.
+function makeBridge(shots, kv) {
+  const calls = [];
+  const fetchFn = async (url, init) => {
+    const method = (init && init.method) || 'GET';
+    calls.push(method + ' ' + url.replace(BASE, ''));
+    const ok = (v) => ({ ok: true, status: 200, json: async () => v });
     if (url.indexOf('/shots?') >= 0) {
-      const offset = Number(new URL(url).searchParams.get('offset')) || 0;
-      const page = getShotsPage(offset);
-      return { ok: true, status: 200, json: async () => page };
+      const q = new URL(url).searchParams;
+      const off = Number(q.get('offset')) || 0, lim = Number(q.get('limit'));
+      return ok({ items: shots.slice(off, off + lim), total: shots.length });
     }
-    if (url.endsWith('/store/dye2.reaplugin/autoFavourites')) {
-      if (init && init.method === 'POST') {
-        store.value = JSON.parse(init.body);
-        return { ok: true, status: 200, json: async () => ({}) };
-      }
-      return { ok: true, status: 200, json: async () => store.value };
+    if (url.endsWith('/shots/ids')) return ok(shots.map((s) => s.id));
+    const one = url.match(/\/shots\/([^/?]+)$/);
+    if (one) return ok(shots.find((s) => s.id === decodeURIComponent(one[1])));
+    const k = url.match(/\/store\/dye2\.reaplugin\/(\w+)$/);
+    if (k) {
+      if (method === 'POST') { kv[k[1]] = JSON.parse(init.body); return ok({}); }
+      return ok(k[1] in kv ? kv[k[1]] : null);
     }
     throw new Error('Unexpected URL: ' + url);
   };
+  return { fetchFn, calls };
 }
+const shotAt = (id, days, bean, extra) => makeShot(id, recent(days), { context: { beanBatchId: bean }, ...(extra || {}) });
+const scans = (calls) => calls.filter((c) => c.indexOf('/shots?limit=100') >= 0).length;
 
-// Store write shape: saved favourites pass through untouched, a stale auto entry is
-// replaced (not appended to), and the array is autos-then-saved.
 {
-  const shot = makeShot('w1', 't1');
-  const store = { value: [
-    { id: 'recent:old', auto: true, recentRank: 1, title: 'Stale' },
-    { id: 'saved-1', title: 'My Favourite', favSlot: 2 },
-    { id: 'saved-2', title: 'Another', alwaysOnDashboard: false },
-  ] };
-  const fetchFn = makeFetch((offset) => (offset === 0 ? { items: [shot], total: 1 } : { items: [], total: 1 }), store);
-  const autos = await refreshRecentFavourites(fetchFn, 'http://localhost:8080/api/v1');
+  // Full build, saved favourites untouched, autos first, suggested recipes only in free slots.
+  const shots = [shotAt('s3', 1, 'B'), shotAt('s2', 2, 'A'), shotAt('s1', 3, 'A')];
+  const kv = {
+    autoFavourites: [
+      { id: 'recent:old', auto: true, recentRank: 1, title: 'Stale' },
+      { id: 'saved-1', title: 'My Favourite', favSlot: 2 },
+    ],
+    recipes: [
+      { id: '1', name: 'Mine' },
+      { id: '4', name: 'Also mine' },
+      { id: '2', suggested: true, name: 'old suggestion' },
+      { id: 'stray-uuid', name: 'stray' },
+    ],
+  };
+  const { fetchFn } = makeBridge(shots, kv);
+  const autos = await refreshRecentFavourites(fetchFn, BASE);
 
-  assert.equal(autos.length, 1);
-  assert.equal(autos[0].sourceShotId, 'w1');
+  assert.deepEqual(autos.map((a) => a.sourceShotId), ['s2', 's3'], 'group A (2 shots) outranks group B (1)');
+  assert.equal(kv.autoFavourites[0].id, 'recent:s2', 'autos first');
+  assert.deepEqual(kv.autoFavourites.at(-1), { id: 'saved-1', title: 'My Favourite', favSlot: 2 }, 'saved passes through');
+  assert.equal(kv.autoFavourites.some((a) => a.id === 'recent:old'), false, 'stale auto replaced');
 
-  const written = store.value;
-  assert.equal(written.length, 3, 'one new recent + the two saved favourites — the stale recent is gone');
-  assert.equal(written[0].id, 'recent:w1', 'autos come first');
-  assert.deepEqual(written[1], { id: 'saved-1', title: 'My Favourite', favSlot: 2 }, 'a saved favourite is passed through untouched');
-  assert.deepEqual(written[2], { id: 'saved-2', title: 'Another', alwaysOnDashboard: false });
+  const byId = Object.fromEntries(kv.recipes.map((r) => [r.id, r]));
+  assert.equal(byId['1'].name, 'Mine'); assert.equal(byId['4'].name, 'Also mine');
+  assert.ok(!byId['1'].suggested && !byId['4'].suggested, 'real recipes are never touched');
+  assert.equal(byId['stray-uuid'].name, 'stray');
+  assert.equal(byId['2'].suggested, true); assert.equal(byId['3'].suggested, true);
+  assert.equal(byId['5'], undefined, 'only as many suggestions as ranked groups');
+  assert.equal(byId['2'].name, autos[0].title, 'suggestions follow rank, old suggestion replaced');
+  assert.equal(kv.shotIndex.v, 1);
+  assert.equal(kv.shotIndex.total, 3);
 }
 
-console.log('ok   refreshRecentFavourites: replaces old autos, leaves saved favourites untouched, autos-then-saved');
+{
+  // Cached: nothing changed -> one probe, no scanning, no re-write of the index.
+  const shots = [shotAt('s2', 1, 'B'), shotAt('s1', 2, 'A')];
+  const kv = {};
+  const first = makeBridge(shots, kv);
+  await refreshRecentFavourites(first.fetchFn, BASE);
+  assert.equal(scans(first.calls), 1, 'full build pages once for a small history');
+  const second = makeBridge(shots, kv);
+  await refreshRecentFavourites(second.fetchFn, BASE);
+  assert.equal(scans(second.calls), 0, 'unchanged history: no scanning at all');
+  assert.equal(second.calls.filter((c) => c.indexOf('POST /store/dye2.reaplugin/shotIndex') >= 0).length, 0, 'index not rewritten');
+
+  // Delta: a new shot is folded in without a full re-scan; deletes are pruned via /shots/ids.
+  shots.unshift(shotAt('s3', 0, 'C'));
+  const third = makeBridge(shots, kv);
+  const autos = await refreshRecentFavourites(third.fetchFn, BASE);
+  assert.ok(autos.some((a) => a.sourceShotId === 's3'));
+  assert.equal(third.calls.some((c) => c.indexOf('/shots/ids') >= 0), false, 'a pure add never reconciles');
+  assert.equal(kv.shotIndex.tail.length, 3);
+
+  shots.splice(0, 1);   // delete s3
+  const fourth = makeBridge(shots, kv);
+  const after = await refreshRecentFavourites(fourth.fetchFn, BASE);
+  assert.ok(fourth.calls.some((c) => c.indexOf('/shots/ids') >= 0), 'a total mismatch reconciles against /shots/ids');
+  assert.equal(after.some((a) => a.sourceShotId === 's3'), false, 'the deleted shot is pruned');
+  assert.equal(kv.shotIndex.tail.length, 2);
+}
+
+{
+  // A rating edit (shotUpdated) re-ranks without a rescan: it folds into the tail.
+  const A = [shotAt('a1', 1, 'A'), shotAt('a2', 2, 'A')];
+  const B = [shotAt('b1', 1.5, 'B'), shotAt('b2', 2.5, 'B')];
+  const shots = [A[0], B[0], A[1], B[1]];
+  const kv = {};
+  await refreshRecentFavourites(makeBridge(shots, kv).fetchFn, BASE);
+  const before = kv.autoFavourites.filter((a) => a.auto).map((a) => a.sourceShotId);
+  const edited = { ...B[0], annotations: { enjoyment: 10 } };
+  noteShotUpdated(edited);
+  const bridge = makeBridge(shots, kv);
+  await refreshRecentFavourites(bridge.fetchFn, BASE);
+  assert.equal(scans(bridge.calls), 0, 'no rescan for a rating edit');
+  const afterIds = kv.autoFavourites.filter((a) => a.auto).map((a) => a.sourceShotId);
+  assert.deepEqual(afterIds, ['b1', 'a1']);
+  assert.notDeepEqual(before, afterIds, 'the rating moved B above A');
+}
+
+{
+  // Accepted (flag dropped) rows are real recipes: the next run keeps them.
+  const shots = [shotAt('s1', 1, 'A')];
+  const kv = { recipes: [] };
+  await refreshRecentFavourites(makeBridge(shots, kv).fetchFn, BASE);
+  assert.equal(kv.recipes[0].suggested, true);
+  delete kv.recipes[0].suggested;
+  shots.unshift(shotAt('s2', 0, 'Z'));
+  await refreshRecentFavourites(makeBridge(shots, kv).fetchFn, BASE);
+  assert.equal(kv.recipes.find((r) => r.id === '1').suggested, undefined, 'an accepted suggestion is kept as is');
+}
+
+console.log('ok   refreshRecentFavourites: full build, cached startup, delta, prune, rating patch, suggested rows');
 
 // Overlap: two calls made back to back coalesce into the in-flight run, then a rerun
-// (triggered by the second caller's flag) picks up a shot stored in between — so the
-// last write reflects the latest shots, and at most two runs ever happen.
+// picks up a shot stored in between — the last write reflects the latest shots.
 {
-  let shotsSource = [makeShot('o1', 't1', { context: { beanBatchId: 'X' } })];
-  const store = { value: [] };
+  let shots = [shotAt('o1', 1, 'X')];
+  const kv = {};
   const puts = [];
+  const inner = makeBridge(shots, kv).fetchFn;
   const fetchFn = async (url, init) => {
-    if (url.indexOf('/shots?') >= 0) {
-      const snapshot = shotsSource;   // captured synchronously — a later reassignment of
-                                      // shotsSource must not leak into an already-started run
-      return { ok: true, status: 200, json: async () => ({ items: snapshot, total: snapshot.length }) };
-    }
-    if (url.endsWith('/store/dye2.reaplugin/autoFavourites')) {
-      if (init && init.method === 'POST') {
-        store.value = JSON.parse(init.body);
-        puts.push(store.value);
-        return { ok: true, status: 200, json: async () => ({}) };
-      }
-      return { ok: true, status: 200, json: async () => store.value };
-    }
-    throw new Error('Unexpected URL: ' + url);
+    if (url.indexOf('/shots') >= 0 && url.indexOf('/store/') < 0) return makeBridge(shots.slice(), kv).fetchFn(url, init);
+    if (init && init.method === 'POST' && url.endsWith('/autoFavourites')) puts.push(JSON.parse(init.body));
+    return inner(url, init);
   };
-
-  const p1 = refreshRecentFavourites(fetchFn, 'http://localhost:8080/api/v1');
-  const p2 = refreshRecentFavourites(fetchFn, 'http://localhost:8080/api/v1');
+  const p1 = refreshRecentFavourites(fetchFn, BASE);
+  const p2 = refreshRecentFavourites(fetchFn, BASE);
   assert.equal(p1, p2, 'a call made while one is in flight gets the SAME in-flight promise back');
-
-  // A shot lands mid-refresh — group X's representative moves to the newer shot.
-  shotsSource = [makeShot('o2', 't2', { context: { beanBatchId: 'X' } })];
-
+  shots = [shotAt('o2', 0, 'X'), ...shots];
   await p1;
   for (let i = 0; i < 200 && puts.length < 2; i++) await new Promise((r) => setTimeout(r, 2));
-
   assert.equal(puts.length, 2, 'the coalesced call plus exactly one rerun — never more');
-  const lastRecents = puts[puts.length - 1].filter((f) => f.auto);
-  assert.equal(lastRecents[0].sourceShotId, 'o2', 'the rerun (last write) reflects the shot stored mid-refresh');
+  assert.equal(puts[1].filter((f) => f.auto)[0].sourceShotId, 'o2', 'the rerun reflects the shot stored mid-refresh');
 }
 
 console.log('ok   refreshRecentFavourites: overlapping calls coalesce, rerun reflects the latest shots');

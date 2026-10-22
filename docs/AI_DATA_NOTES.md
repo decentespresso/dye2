@@ -204,6 +204,22 @@ again. DYE2's editor and Decaid's own history editor both clear with `''`, so on
 clients that follow the contract hit this. The fix is to copy the pre-shot
 note into `annotations.espressoNotes` when the shot is stored, then drop the fallback.
 
+## Ranking And The Shot Index
+
+Auto-favourites ranking and caching live in the **plugin runtime** (`src/utils/recent-favs.ts`),
+not the pages, and there is no IndexedDB (no DOM in `flutter_js`). The cache is the KV key
+`shotIndex` (schema and score in `KV_CONTRACT.md`). Lifecycle: each run `GET /shots?limit=1`
+(`If-None-Match` on the stored etag when fetch exposes headers); same newest id and total means
+no scanning. Otherwise it pages newest-first until the stored newest id or past `TAIL_DAYS`. A
+total that does not add up reconciles against `GET /shots/ids` (a delete). `shotUpdated` queues
+the edited shot (`noteShotUpdated`) and the next run replaces its tail row, so a rating edit
+re-ranks without a rescan. A missing index or a different `v` is a full build of the last
+`TAIL_DAYS` only. Scoring uses the tail alone, so a shot older than that cannot change a rank and
+editing one needs no work. Pages read the resulting `autoFavourites` / `recipes`, never the index.
+The same top groups also fill empty recipe slots with `suggested: true` rows; real recipes are
+never overwritten. Writers of `recipes` that act on a row (`record`, an apply, `updateRecipe`)
+drop the flag first.
+
 ## Cross-Plugin Calls
 
 `/api/v1/plugins/visualizer.reaplugin/*` — settings, `verifyCredentials`, `upload`. These

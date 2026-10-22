@@ -493,6 +493,7 @@ async function updateRecipe(id, patch) {
   const fresh = arr.find(x => x && x.id === id) || {};
   const { dashboardVariables, ...rest } = patch || {};
   const item = { ...fresh, ...rest, id, capturedAt: new Date().toISOString() };
+  delete item.suggested;   // an edit accepts a plugin-suggested row (recent-favs.ts)
   if (dashboardVariables) item.dashboardVariables = { ...(fresh.dashboardVariables || {}), ...dashboardVariables };
   item.title = item.name || ('Recipe ' + id);
   item.subtitle = recipeSubtitle(item);

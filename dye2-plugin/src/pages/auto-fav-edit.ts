@@ -191,7 +191,7 @@ function buildContent(): string {
     </div>
     <div class="flex items-center gap-[16px]">
       <button id="afe-cancel-btn" class="flex justify-center items-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)]">CANCEL</button>
-      <button id="afe-save-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[310px] h-[82px] rounded-[68px] font-bold text-[24px]">SAVE FAVOURITE</button>
+      <button id="afe-save-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[310px] h-[82px] rounded-[68px] font-bold text-[24px]">SAVE TO RECIPE</button>
     </div>
   </div>
 
@@ -652,18 +652,49 @@ function setupControls() {
 
   el('afe-cancel-btn')?.addEventListener('click', () => window.history.back());
 
+  // SAVE TO RECIPE: writes recipes[] (id = the slot picked above), not autoFavourites. A slot that
+  // already holds a real recipe needs a second tap on the relabelled button.
+  let overwriteArmed = null;
+  document.querySelectorAll('.afe-fav-num').forEach(btn => btn.addEventListener('click', () => {
+    overwriteArmed = null;
+    el('afe-save-btn').textContent = 'SAVE TO RECIPE';
+  }));
   el('afe-save-btn')?.addEventListener('click', async () => {
     const data = collectFavData();
+    const slot = String(getAssignedSlot() || 1);
+    const s = data.snapshot;
     try {
-      if (currentFav && currentFav.id) await updateAutoFavourite(currentFav.id, data);
-      else await createAutoFavourite(data);
-      // A saved favourite can claim a dashboard slot a recent would otherwise have
-      // filled (or free one up) — recompute so the pill row / picker reflect it
-      // immediately rather than waiting for the next shot or plugin reload.
+      const existing = (await getRecipes()).find(r => r && String(r.id) === slot);
+      const overwrite = !!existing && !existing.suggested;
+      if (overwrite && overwriteArmed !== slot) {
+        overwriteArmed = slot;
+        el('afe-save-btn').textContent = 'OVERWRITE RECIPE ' + slot + '?';
+        return;
+      }
+      // updateRecipe merges onto the stored row, so overwriting starts from an empty one.
+      if (existing) await kvSetArray('recipes', (await getRecipes()).filter(r => !(r && String(r.id) === slot)));
+      await updateRecipe(slot, {
+        name: data.title || s.coffeeName || ('Recipe ' + slot), beverage: data.beverage || '',
+        beanName: s.coffeeName, beanRoaster: s.coffeeRoaster, beanBatchId: s.beanBatchId,
+        profileId: s.profileId, profileTitle: s.profileTitle, profileSnapshot: s.profileSnapshot,
+        barista: s.barista, drinker: s.drinker,
+        dashboardVariables: {
+          dose: s.dose, drink: s.drink, grind: s.grindSetting, rpm: s.rpm,
+          grinderId: s.grinderId, grinderModel: s.grinderModel, basketId: s.basketId, basketName: s.basketName,
+          equipmentIds: s.equipmentIds, equipmentNames: s.equipmentNames, equipmentCustom: s.equipmentCustom,
+        },
+      });
       fetch('/api/v1/plugins/dye2.reaplugin/recent-favs', { method: 'POST' }).catch(() => {});
       window.history.back();
-    } catch (e) { console.error('Failed to save auto-favourite:', e); }
+    } catch (e) { console.error('Failed to save recipe:', e); }
   });
+
+  // Default the picker to the lowest free recipe slot (all taken: it stays on 1 and asks to overwrite).
+  getRecipes().then(rs => {
+    const taken = new Set(rs.filter(r => r && !r.suggested).map(r => String(r.id)));
+    const free = [1, 2, 3, 4, 5].find(n => !taken.has(String(n))) || 1;
+    document.querySelectorAll('.afe-fav-num').forEach(b => b.classList.toggle('active', parseInt(b.dataset.num) === free));
+  }).catch(() => {});
 }
 
 function snapshotFromWorkflow(wf) {

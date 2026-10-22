@@ -109,7 +109,7 @@ workflow whose steam is off (`targetTemperature` below 135).
 
 **`save-recipe`** builds the row from the live workflow (`dashboardVariables` from
 `recipeFields`, bean/grinder/profile from `context`/`profile`, `workflow` the live one trimmed,
-`extras.dye` rebuilt as `markDye` flags for the fields the row carries, without `recipeId`/`selection`), appends it to `recipes`, and PUTs its id as `recipeId`. The name is the
+`extras.dye` rebuilt as `markDye` flags for the fields the row carries, without `recipeId`/`selection`), stores it in the lowest free slot `'1'..'5'` (or the body's `slot`, replacing that row; a `suggested` row counts as free; all five taken and no `slot` answers 409 with the occupied slots) and PUTs its id as `recipeId`. The name is the
 body's `name`, else `<first word of profile title> <drink>`: a generic title word (Default,
 Advanced, Custom, Profile, New, Untitled) is dropped; drink is, in order, steam on and set
 (duration <=20 s Flat White, <=35 s Cappuccino, otherwise or unknown Latte), hot water set
@@ -294,11 +294,10 @@ CONFIRM handler in `basket-picker.ts`), not a full context replacement.
 ```
 
 **Auto (recent) entries.** Entries with `auto: true` are computed by DYE2 from shot
-history (up to 5, the most recently used bean-batch + profile + grinder combinations,
-newest first by `recentRank`) and are rewritten wholesale by DYE2's plugin runtime
-after every stored or edited shot and on DYE2 page loads. They fill the dashboard
-slots (1–5) that saved favourites don't claim; entries that don't fit have
-`alwaysOnDashboard: false`. Their `workflow.profile` is the full recorded profile of
+history (up to 5 bean-batch + profile + grinder groups, best first by `recentRank`) and are
+rewritten wholesale by DYE2's plugin runtime after every stored or edited shot and on DYE2 page
+loads. They fill the dashboard slots (1–5) that saved favourites don't claim; entries that don't
+fit have `alwaysOnDashboard: false`. Their `workflow.profile` is the full recorded profile of
 the source shot, and `workflow.context` carries explicit `null` for bean/grinder
 fields the source shot lacked. Consumers read them like any favourite; never edit or
 write them, and don't key UI state on their `id` (it changes when a newer shot takes
@@ -306,11 +305,45 @@ over the group). Note: the host store is last-write-wins, so DYE2 is now two wri
 (plugin runtime + pages) on this key — both only replace their own entries, but a
 write at the same instant can lose one side's change.
 
+**Ranking.** Computed from the `shotIndex` tail (shots of the last `TAIL_DAYS`); `now` is a
+parameter, so it is deterministic. Rating is `annotations.enjoyment / 10` (0..1).
+
+```
+quality = (Σ rating + m·prior) / (n + m)       n = rated shots in the group; m = 2, prior = 0.6
+w(shot) = 0.5 ^ (ageDays / 15)                 HALF_LIFE_DAYS = 15
+volume  = Σ w(shot) over the group's shots
+score   = quality × volume / (volume + 1)
+```
+
+Ties: newest shot desc, then group key asc. Shots excluded: cleaning/calibrate `beverage_type`,
+no bean identity, and an aborted `stopReason` (`error`, `disconnected`, `aborted`, `cancelled`;
+any other value counts). Constants (`recent-favs.ts`): `TAIL_DAYS = 120`, `STALE_DAYS = 60` (a
+group whose newest shot is older is dropped from the strip) and `UNRATED_SCORES_AT_PRIOR = true`
+(an unrated group scores at the prior). The last two are not yet confirmed product decisions.
+
+### `shotIndex` (object, not an array; written only by the plugin runtime)
+
+```
+{ v: 1, builtAt, newestShotId, newestTs, total, etag,
+  reps: { <groupKey>: { id, timestamp, workflow, annotations?: { extras: { rpm } } } },  // newest shot per group
+  tail: [ { id, ts, rating /* 0..1 | null */, key } ]                                   // last TAIL_DAYS, bounded
+}
+```
+
+A cache, safe to delete (it is rebuilt from the last `TAIL_DAYS` of history). Skins and other
+plugins should not read it.
+
 ### `recipes[]`
 
 ```
 {
-  id,                          // '1'..'5'
+  id,                          // '1'..'5' — the strip slot. `save-recipe` takes the lowest free slot, or
+                                // the body's `slot` (overwriting); all five taken and no `slot` -> 409
+                                // { error, taken }. A row with a non-1..5 id is a stray.
+  suggested,                   // optional true: DYE2 filled this empty slot from the best-ranked recent
+                                // groups; not a barista's recipe. Re-ranking replaces it; applying it,
+                                // editing it or recording onto it drops the flag. Never set on a row
+                                // you write. Skins may render it differently (dye2 does not).
   name, beverage, barista, drinker,
   beanId, beanName, profileId, profileTitle,
   beanBatchId, beanRoaster,    // optional — the batch/roaster picked with the bean; apply sets

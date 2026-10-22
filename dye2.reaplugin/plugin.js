@@ -835,6 +835,7 @@ async function updateRecipe(id, patch) {
   const fresh = arr.find(x => x && x.id === id) || {};
   const { dashboardVariables, ...rest } = patch || {};
   const item = { ...fresh, ...rest, id, capturedAt: new Date().toISOString() };
+  delete item.suggested;   // an edit accepts a plugin-suggested row (recent-favs.ts)
   if (dashboardVariables) item.dashboardVariables = { ...(fresh.dashboardVariables || {}), ...dashboardVariables };
   item.title = item.name || ('Recipe ' + id);
   item.subtitle = recipeSubtitle(item);
@@ -9345,7 +9346,7 @@ function initEquipmentField(field) {
     </div>
     <div class="flex items-center gap-[16px]">
       <button id="afe-cancel-btn" class="flex justify-center items-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)]">CANCEL</button>
-      <button id="afe-save-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[310px] h-[82px] rounded-[68px] font-bold text-[24px]">SAVE FAVOURITE</button>
+      <button id="afe-save-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[310px] h-[82px] rounded-[68px] font-bold text-[24px]">SAVE TO RECIPE</button>
     </div>
   </div>
 
@@ -9809,18 +9810,49 @@ function setupControls() {
 
   el('afe-cancel-btn')?.addEventListener('click', () => window.history.back());
 
+  // SAVE TO RECIPE: writes recipes[] (id = the slot picked above), not autoFavourites. A slot that
+  // already holds a real recipe needs a second tap on the relabelled button.
+  let overwriteArmed = null;
+  document.querySelectorAll('.afe-fav-num').forEach(btn => btn.addEventListener('click', () => {
+    overwriteArmed = null;
+    el('afe-save-btn').textContent = 'SAVE TO RECIPE';
+  }));
   el('afe-save-btn')?.addEventListener('click', async () => {
     const data = collectFavData();
+    const slot = String(getAssignedSlot() || 1);
+    const s = data.snapshot;
     try {
-      if (currentFav && currentFav.id) await updateAutoFavourite(currentFav.id, data);
-      else await createAutoFavourite(data);
-      // A saved favourite can claim a dashboard slot a recent would otherwise have
-      // filled (or free one up) — recompute so the pill row / picker reflect it
-      // immediately rather than waiting for the next shot or plugin reload.
+      const existing = (await getRecipes()).find(r => r && String(r.id) === slot);
+      const overwrite = !!existing && !existing.suggested;
+      if (overwrite && overwriteArmed !== slot) {
+        overwriteArmed = slot;
+        el('afe-save-btn').textContent = 'OVERWRITE RECIPE ' + slot + '?';
+        return;
+      }
+      // updateRecipe merges onto the stored row, so overwriting starts from an empty one.
+      if (existing) await kvSetArray('recipes', (await getRecipes()).filter(r => !(r && String(r.id) === slot)));
+      await updateRecipe(slot, {
+        name: data.title || s.coffeeName || ('Recipe ' + slot), beverage: data.beverage || '',
+        beanName: s.coffeeName, beanRoaster: s.coffeeRoaster, beanBatchId: s.beanBatchId,
+        profileId: s.profileId, profileTitle: s.profileTitle, profileSnapshot: s.profileSnapshot,
+        barista: s.barista, drinker: s.drinker,
+        dashboardVariables: {
+          dose: s.dose, drink: s.drink, grind: s.grindSetting, rpm: s.rpm,
+          grinderId: s.grinderId, grinderModel: s.grinderModel, basketId: s.basketId, basketName: s.basketName,
+          equipmentIds: s.equipmentIds, equipmentNames: s.equipmentNames, equipmentCustom: s.equipmentCustom,
+        },
+      });
       fetch('/api/v1/plugins/dye2.reaplugin/recent-favs', { method: 'POST' }).catch(() => {});
       window.history.back();
-    } catch (e) { console.error('Failed to save auto-favourite:', e); }
+    } catch (e) { console.error('Failed to save recipe:', e); }
   });
+
+  // Default the picker to the lowest free recipe slot (all taken: it stays on 1 and asks to overwrite).
+  getRecipes().then(rs => {
+    const taken = new Set(rs.filter(r => r && !r.suggested).map(r => String(r.id)));
+    const free = [1, 2, 3, 4, 5].find(n => !taken.has(String(n))) || 1;
+    document.querySelectorAll('.afe-fav-num').forEach(b => b.classList.toggle('active', parseInt(b.dataset.num) === free));
+  }).catch(() => {});
 }
 
 function snapshotFromWorkflow(wf) {
@@ -11791,8 +11823,23 @@ bcInit();
 	//#endregion
 	//#region src/utils/recent-favs.ts
 	var RECENT_MAX = 5;
-	var RECENT_MAX_PAGES = 5;
+	var SHOT_PAGE_LIMIT = 100;
 	var SKIPPED_BEVERAGE_TYPES = new Set(["cleaning", "calibrate"]);
+	var ABORTED_STOP_REASONS = new Set([
+		"error",
+		"disconnected",
+		"aborted",
+		"cancelled",
+		"canceled"
+	]);
+	var PRIOR = .6;
+	var PRIOR_WEIGHT = 2;
+	var HALF_LIFE_DAYS = 15;
+	var TAIL_DAYS = 120;
+	var DAY_MS = 864e5;
+	var STALE_DAYS = 60;
+	var INDEX_KEY = "shotIndex";
+	var INDEX_VERSION = 1;
 	function norm(v) {
 		return String(v == null ? "" : v).trim().toLowerCase();
 	}
@@ -11818,8 +11865,8 @@ bcInit();
 		].join("|");
 	}
 	/**
-	* Can this shotUpdated patch change a recent? Only the workflow (recentGroupKey, the
-	* recorded profile) and the rpm annotation (resolveRpm) feed them; a star tap or a note
+	* Can this shotUpdated patch change a recent? The workflow (recentGroupKey, the recorded
+	* profile), the rpm annotation (resolveRpm) and the rating (the ranking) feed them; a note
 	* edit does not. A patch that is missing or unreadable answers true (fail safe).
 	*/
 	function shotPatchAffectsRecents(patch) {
@@ -11831,35 +11878,124 @@ bcInit();
 		}
 		if (!p || typeof p !== "object") return true;
 		if ("workflow" in p) return true;
+		if (p.annotations && "enjoyment" in p.annotations) return true;
 		const extras = p.annotations && p.annotations.extras;
 		return !!extras && typeof extras === "object" && "rpm" in extras;
 	}
+	/** The index row for a shot, or null if it never counts (no group, aborted, no usable time). */
+	function tailEntry(shot) {
+		const key = recentGroupKey(shot);
+		const ts = Date.parse(shot && shot.timestamp);
+		if (!key || isNaN(ts) || ABORTED_STOP_REASONS.has(norm(shot.stopReason))) return null;
+		const e = shot.annotations && shot.annotations.enjoyment;
+		return {
+			id: shot.id,
+			ts,
+			key,
+			rating: typeof e === "number" ? Math.min(10, Math.max(0, e)) / 10 : null
+		};
+	}
+	/** Folds one full shot into the index (insert, or replace the same id). Pure apart from `idx`/`known`. */
+	function foldShot(idx, shot, known) {
+		idx.tail = idx.tail.filter((t) => t.id !== shot.id);
+		const e = tailEntry(shot);
+		if (e) idx.tail.push(e);
+		if (known) known.set(shot.id, shot);
+	}
+	/** Drops tail rows outside TAIL_DAYS, and rows whose id is not in `liveIds` when given. */
+	function pruneTail(idx, now, liveIds) {
+		idx.tail = idx.tail.filter((t) => now - t.ts <= TAIL_DAYS * DAY_MS && (!liveIds || liveIds.has(t.id)));
+	}
 	/**
-	* Scans shot history newest-first, one page at a time via getPage, and returns the
-	* first (= newest) shot for up to `max` distinct recentGroupKey groups. Because both
-	* the page order and each page's own order are newest-first, the first occurrence of
-	* each key is already in "by the group's newest shot, newest first" order — no
-	* separate sort needed. Stops as soon as `max` groups are found or `maxPages` pages
-	* have been scanned, whichever comes first.
+	* Every group in the tail, scored and ordered. now is a parameter, never Date.now(), so this is
+	* deterministic.
+	*   quality = (Σ rating + m·prior) / (n + m)          rating 0..1, n = rated shots
+	*   w(shot) = 0.5 ^ (ageDays / HALF_LIFE_DAYS);  volume = Σ w
+	*   score   = quality × volume / (volume + 1)
+	* Groups whose newest shot is older than STALE_DAYS are dropped. Ties: newest shot desc, key asc.
 	*/
-	async function pickRecentShots(getPage, max = RECENT_MAX, maxPages = RECENT_MAX_PAGES) {
-		const shotByKey = /* @__PURE__ */ new Map();
-		const order = [];
-		let offset = 0;
-		for (let page = 0; page < maxPages; page++) {
-			const { items, total } = await getPage(offset);
-			const list = Array.isArray(items) ? items : [];
-			for (const shot of list) {
-				const key = recentGroupKey(shot);
-				if (!key || shotByKey.has(key)) continue;
-				shotByKey.set(key, shot);
-				order.push(key);
-				if (order.length >= max) return order.map((k) => shotByKey.get(k));
+	function rankGroups(tail, now) {
+		const groups = /* @__PURE__ */ new Map();
+		for (const t of tail) {
+			const g = groups.get(t.key) || {
+				vol: 0,
+				sum: 0,
+				n: 0,
+				newestTs: 0
+			};
+			g.vol += Math.pow(.5, Math.max(0, now - t.ts) / DAY_MS / HALF_LIFE_DAYS);
+			if (t.rating != null) {
+				g.sum += t.rating;
+				g.n++;
 			}
-			offset += list.length;
-			if (list.length === 0 || offset >= (total || 0)) break;
+			g.newestTs = Math.max(g.newestTs, t.ts);
+			groups.set(t.key, g);
 		}
-		return order.map((k) => shotByKey.get(k));
+		const ranked = [];
+		groups.forEach((g, key) => {
+			if (now - g.newestTs > STALE_DAYS * DAY_MS) return;
+			const quality = (g.n, (g.sum + PRIOR_WEIGHT * PRIOR) / (g.n + PRIOR_WEIGHT));
+			ranked.push({
+				key,
+				score: quality * g.vol / (g.vol + 1),
+				newestTs: g.newestTs
+			});
+		});
+		return ranked.sort((a, b) => b.score - a.score || b.newestTs - a.newestTs || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+	}
+	/**
+	* The lowest free recipe slot '1'..'5', or the requested one (which overwrites). A `suggested`
+	* row counts as free. No slot requested and none free: `{ taken }`, for the caller's 409.
+	*/
+	function allocateRecipeSlot(recipes, requested) {
+		const taken = [
+			"1",
+			"2",
+			"3",
+			"4",
+			"5"
+		].filter((n) => (recipes || []).some((r) => r && String(r.id) === n && !r.suggested));
+		if (requested != null && [
+			"1",
+			"2",
+			"3",
+			"4",
+			"5"
+		].includes(String(requested))) return { slot: String(requested) };
+		const free = [
+			"1",
+			"2",
+			"3",
+			"4",
+			"5"
+		].find((n) => !taken.includes(n));
+		return free ? { slot: free } : { taken };
+	}
+	/** A recipe row (R strip) built from a recent favourite. `suggested` until the barista uses it. */
+	function toSuggestedRecipe(fav, slot) {
+		const s = fav.snapshot;
+		return {
+			id: slot,
+			name: fav.title,
+			title: fav.title,
+			subtitle: s.coffeeName || "",
+			suggested: true,
+			beanName: s.coffeeName,
+			beanRoaster: s.coffeeRoaster,
+			beanBatchId: s.beanBatchId,
+			profileTitle: s.profileTitle,
+			profileSnapshot: fav.workflow.profile,
+			dashboardVariables: {
+				dose: s.dose,
+				drink: s.drink,
+				grind: s.grindSetting,
+				rpm: s.rpm,
+				grinderId: s.grinderId,
+				grinderModel: s.grinderModel
+			},
+			workflow: fav.workflow,
+			capturedAt: fav.capturedAt
+		};
 	}
 	/**
 	* RPM as corrected in Edit Shot wins over the pre-shot value, same precedence as
@@ -11990,29 +12126,140 @@ bcInit();
 	}
 	var refreshInFlight = null;
 	var rerunRequested = false;
+	var pendingUpdates = [];
+	/** Queue an edited shot (shotUpdated's `shot`) for the next refresh to fold in. */
+	function noteShotUpdated(shot) {
+		if (shot && typeof shot === "object" && shot.id) pendingUpdates.push(shot);
+	}
+	var slim = (shot) => {
+		const rpm = shot.annotations && shot.annotations.extras && shot.annotations.extras.rpm;
+		return {
+			id: shot.id,
+			timestamp: shot.timestamp,
+			workflow: shot.workflow,
+			...rpm != null ? { annotations: { extras: { rpm } } } : {}
+		};
+	};
 	async function runRefresh(fetchFn, base) {
-		async function getPage(offset) {
-			const res = await fetchFn(base + "/shots?limit=100&offset=" + offset + "&order=desc");
+		const kvUrl = (k) => base + "/store/dye2.reaplugin/" + k;
+		async function kvRead(k) {
+			const res = await fetchFn(kvUrl(k));
+			if (!res.ok) throw new Error("HTTP " + res.status + " reading " + k);
+			return res.json();
+		}
+		async function kvWrite(k, v) {
+			const res = await fetchFn(kvUrl(k), {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(v)
+			});
+			if (!res.ok) throw new Error("HTTP " + res.status + " writing " + k);
+		}
+		async function getPage(offset, limit = SHOT_PAGE_LIMIT, init) {
+			const res = await fetchFn(base + "/shots?limit=" + limit + "&offset=" + offset + "&order=desc", init);
+			if (res.status === 304) return {
+				notModified: true,
+				items: [],
+				total: 0,
+				etag: null
+			};
 			if (!res.ok) throw new Error("HTTP " + res.status + " fetching shots");
 			const data = await res.json();
 			const items = Array.isArray(data) ? data : data && data.items ? data.items : [];
+			const etag = res.headers && res.headers.get ? res.headers.get("ETag") : null;
 			return {
+				notModified: false,
 				items,
-				total: data && typeof data.total === "number" ? data.total : items.length
+				total: data && typeof data.total === "number" ? data.total : items.length,
+				etag
 			};
 		}
-		const recents = applyTitleDisambiguation((await pickRecentShots(getPage, RECENT_MAX, RECENT_MAX_PAGES)).map((shot, i) => toRecentFavourite(shot, i + 1)));
-		const storeRes = await fetchFn(base + "/store/dye2.reaplugin/autoFavourites");
-		if (!storeRes.ok) throw new Error("HTTP " + storeRes.status + " reading autoFavourites");
-		const storeVal = await storeRes.json();
+		const now = Date.now();
+		const stored = await kvRead(INDEX_KEY);
+		const fresh = !stored || stored.v !== INDEX_VERSION || !Array.isArray(stored.tail);
+		const idx = fresh ? {
+			v: INDEX_VERSION,
+			builtAt: now,
+			newestShotId: null,
+			newestTs: null,
+			total: 0,
+			etag: null,
+			reps: {},
+			tail: []
+		} : stored;
+		const before = JSON.stringify(idx);
+		const known = /* @__PURE__ */ new Map();
+		const probe = await getPage(0, 1, !fresh && idx.etag ? { headers: { "If-None-Match": idx.etag } } : void 0);
+		const head = probe.items[0];
+		if (!(!fresh && (probe.notModified || probe.total === idx.total && (head ? head.id : null) === idx.newestShotId))) {
+			let offset = 0, added = 0, hitKnown = false;
+			while (!hitKnown) {
+				const page = await getPage(offset);
+				for (const shot of page.items) {
+					if (!fresh && shot.id === idx.newestShotId) {
+						hitKnown = true;
+						break;
+					}
+					if (now - Date.parse(shot.timestamp) > TAIL_DAYS * DAY_MS) {
+						hitKnown = true;
+						break;
+					}
+					foldShot(idx, shot, known);
+					added++;
+				}
+				offset += page.items.length;
+				if (page.items.length === 0 || offset >= page.total) break;
+			}
+			if (!fresh && probe.total !== idx.total + added) {
+				const res = await fetchFn(base + "/shots/ids");
+				if (!res.ok) throw new Error("HTTP " + res.status + " fetching shot ids");
+				pruneTail(idx, now, new Set(await res.json()));
+			}
+			idx.newestShotId = head ? head.id : null;
+			idx.newestTs = head ? Date.parse(head.timestamp) : null;
+			idx.total = probe.total;
+			idx.etag = probe.etag;
+		}
+		for (const shot of pendingUpdates.splice(0)) foldShot(idx, shot, known);
+		pruneTail(idx, now);
+		const newest = /* @__PURE__ */ new Map();
+		idx.tail.forEach((t) => {
+			const n = newest.get(t.key);
+			if (!n || t.ts > n.ts || t.ts === n.ts && t.id < n.id) newest.set(t.key, t);
+		});
+		const reps = {};
+		for (const [key, e] of newest) {
+			const have = known.get(e.id);
+			if (have) reps[key] = slim(have);
+			else if (idx.reps[key] && idx.reps[key].id === e.id) reps[key] = idx.reps[key];
+			else {
+				const res = await fetchFn(base + "/shots/" + encodeURIComponent(e.id));
+				if (!res.ok) throw new Error("HTTP " + res.status + " fetching shot " + e.id);
+				reps[key] = slim(await res.json());
+			}
+		}
+		idx.reps = reps;
+		if (JSON.stringify(idx) !== before) {
+			idx.builtAt = now;
+			await kvWrite(INDEX_KEY, idx);
+		}
+		const recents = applyTitleDisambiguation(rankGroups(idx.tail, now).slice(0, RECENT_MAX).map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
+		const storeVal = await kvRead("autoFavourites");
 		const saved = (Array.isArray(storeVal) ? storeVal : []).filter((x) => x && !x.auto);
 		const placedRecents = assignSlots(recents, saved);
-		const putRes = await fetchFn(base + "/store/dye2.reaplugin/autoFavourites", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify([...placedRecents, ...saved])
-		});
-		if (!putRes.ok) throw new Error("HTTP " + putRes.status + " writing autoFavourites");
+		await kvWrite("autoFavourites", [...placedRecents, ...saved]);
+		const recipes = await kvRead("recipes").then((v) => Array.isArray(v) ? v : []);
+		const kept = recipes.filter((r) => r && !r.suggested);
+		const occupied = new Set(kept.map((r) => String(r.id)));
+		const suggested = [
+			"1",
+			"2",
+			"3",
+			"4",
+			"5"
+		].filter((n) => !occupied.has(n)).map((slot, i) => recents[i] ? toSuggestedRecipe(recents[i], slot) : null).filter(Boolean);
+		const next = [...kept, ...suggested];
+		if (JSON.stringify(next) !== JSON.stringify(recipes)) await kvWrite("recipes", next);
 		return placedRecents;
 	}
 	/**
@@ -12487,6 +12734,17 @@ bcInit();
 				return null;
 			}
 		}
+		async function acceptSuggested(recipes, rid) {
+			const row = recipes.find((r) => r && String(r.id) === rid);
+			if (!row || !row.suggested) return;
+			delete row.suggested;
+			const res = await fetch(`${API}/store/${NS}/recipes`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(recipes)
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status} accepting suggested recipe`);
+		}
 		async function derive(wf, known) {
 			const [recipes, favourites] = await Promise.all([known || kv("recipes"), kv("autoFavourites")]);
 			const hist = await recipeFor(recipeIdOf(wf), recipes);
@@ -12502,6 +12760,7 @@ bcInit();
 			let recipes;
 			if (rid) {
 				recipes = await kv("recipes");
+				await acceptSuggested(recipes, rid);
 				const recipe = await recipeFor(rid, recipes);
 				const known = baseline && baseline.id === rid ? baseline : null;
 				if ((known || cold) && idProfileChanged(known, recipe, wf)) {
@@ -12589,6 +12848,7 @@ bcInit();
 				saved: false,
 				reason: "no recipe is selected"
 			});
+			await acceptSuggested(await kv("recipes"), sel.id);
 			wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
 			try {
 				const armed = baseline && baseline.id === sel.id ? baseline : null;
@@ -12620,7 +12880,12 @@ bcInit();
 				const body = parseBody(request);
 				const ctx = wf.context || {};
 				const name = body && typeof body.name === "string" && body.name.trim() || proposeRecipeName(wf, recipes.map((r) => r && (r.name || r.title)));
-				const id = globalThis.crypto?.randomUUID?.() || `recipe-${Date.now()}`;
+				const alloc = allocateRecipeSlot(recipes, body && body.slot);
+				if ("taken" in alloc) return json(request, 409, {
+					error: "all five recipe slots are taken",
+					taken: alloc.taken
+				});
+				const id = alloc.slot;
 				wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
 				const { dye, ...extras } = ctx.extras || {};
 				const flags = {};
@@ -12678,7 +12943,7 @@ bcInit();
 				const res = await fetch(`${API}/store/${NS}/recipes`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(recipes.concat(row))
+					body: JSON.stringify(recipes.filter((r) => !(r && String(r.id) === id)).concat(row))
 				});
 				if (!res.ok) throw new Error(`HTTP ${res.status} writing recipes`);
 				await putWorkflow({ context: { extras: { dye: {
@@ -12730,7 +12995,10 @@ bcInit();
 			onEvent(event) {
 				if (event.name === "shotStored") refreshRecents();
 				else if (event.name === "shotUpdated") {
-					if (shotPatchAffectsRecents(event.payload && event.payload.patch)) refreshRecents();
+					if (shotPatchAffectsRecents(event.payload && event.payload.patch)) {
+						noteShotUpdated(event.payload && event.payload.shot);
+						refreshRecents();
+					}
 				} else if (event.name === "storageRead") {
 					if (event.payload && event.payload.key === "selectionMigrated" && !event.payload.value) migrate();
 				} else if (event.name === "workflowUpdated") trackWorkflow(event.payload);

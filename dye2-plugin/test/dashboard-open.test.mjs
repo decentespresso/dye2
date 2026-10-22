@@ -78,14 +78,14 @@ function stripComments(src) {
 }
 
 // 5. Recents recompute only when a shotUpdated patch can change them.
-assert.equal(shotPatchAffectsRecents({ annotations: { enjoyment: 80 } }), false, "star tap");
+assert.equal(shotPatchAffectsRecents({ annotations: { enjoyment: 8 } }), true, "star tap (feeds the ranking)");
 assert.equal(shotPatchAffectsRecents({ annotations: { espressoNotes: "x" } }), false, "note edit");
 assert.equal(shotPatchAffectsRecents({ workflow: { context: {} } }), true, "workflow");
 assert.equal(shotPatchAffectsRecents({ annotations: { extras: { rpm: 900 } } }), true, "rpm");
 assert.equal(shotPatchAffectsRecents({ annotations: { extras: { basketId: "b" } } }), false, "other extras");
 assert.equal(shotPatchAffectsRecents(undefined), true, "missing patch fails safe");
 assert.equal(shotPatchAffectsRecents("{not json"), true, "unparseable patch fails safe");
-assert.equal(shotPatchAffectsRecents('{"annotations":{"enjoyment":1}}'), false, "json string patch");
+assert.equal(shotPatchAffectsRecents('{"annotations":{"espressoNotes":"x"}}'), false, "json string patch");
 
 {
   const del = dash.slice(dash.indexOf("function setupDeleteShot("));
