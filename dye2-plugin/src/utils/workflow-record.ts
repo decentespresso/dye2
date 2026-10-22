@@ -577,6 +577,17 @@ export function recipeProfileChanged(recipe: AnyRecord, wf: AnyRecord): boolean 
   return !!mine && !!live && mine !== live;
 }
 
+/**
+ * Did the profile change under the selected recipe? Live-vs-live against the fingerprint taken
+ * when the id first appeared (same source, so host serialisation differences cannot read as a
+ * change, cf. dye2#32); only with no baseline (plugin restarted) compare the stored profile.
+ */
+export function idProfileChanged(base: Selection | null, recipe: AnyRecord | null, wf: AnyRecord): boolean {
+  if (!base) return !!recipe && recipeProfileChanged(recipe, wf);
+  const live = profileFingerprint(wf && wf.profile);
+  return !!base.profileFingerprint && !!live && live !== base.profileFingerprint;
+}
+
 /** A saved favourite compares against its snapshot, a recent (auto: true) against its workflow. */
 export function favouriteMatches(fav: AnyRecord, wf: AnyRecord): boolean {
   const src = fav.auto ? favouriteFields(fav.workflow) : fav.snapshot || {};
@@ -586,9 +597,11 @@ export function favouriteMatches(fav: AnyRecord, wf: AnyRecord): boolean {
 }
 
 export interface Derived {
-  kind: "recipe" | "favourite" | "recent";
+  kind: "recipe" | "favourite";
   id: string;
   modified: boolean;
+  /** A recent reports kind "favourite" + auto: true, the only shape the current skin renders. */
+  auto?: true;
 }
 
 /** recipeId wins when it resolves; else the first matching row (saved before recents). */
@@ -602,7 +615,10 @@ export function deriveSelection(
   if (recipe) return { kind: "recipe", id: rid as string, modified: recipeModified(recipe, wf) };
   const favs = (rows.favourites || []).filter((f) => f && f.id != null);
   const hit = favs.filter((f) => !f.auto).concat(favs.filter((f) => f.auto)).find((f) => favouriteMatches(f, wf));
-  return hit ? { kind: hit.auto ? "recent" : "favourite", id: String(hit.id), modified: false } : null;
+  if (!hit) return null;
+  return hit.auto
+    ? { kind: "favourite", id: String(hit.id), modified: false, auto: true }
+    : { kind: "favourite", id: String(hit.id), modified: false };
 }
 
 /**

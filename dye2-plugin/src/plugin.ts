@@ -21,7 +21,8 @@ import {
   deriveSelection,
   recipeIdOf,
   recipeModified,
-  recipeProfileChanged,
+  idProfileChanged,
+  profileFingerprint,
   resolveRecipeFromHistory,
   proposeRecipeName,
   ownedRecipeFields,
@@ -69,7 +70,7 @@ export default function createPlugin(host: PluginHost): PluginInstance {
 
   // dye2#36: the selection is derived from the live workflow, never stored. It is mirrored to
   // plugin storage (= the KV key `selection`) so the skin keeps reading the same place.
-  type Derived = { kind: string; id: string; modified: boolean } | null;
+  type Derived = { kind: string; id: string; modified: boolean; auto?: true } | null;
   let mirrored: string | null = null;
 
   async function kv(key: string): Promise<any[]> {
@@ -100,8 +101,8 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     }
   }
 
-  async function derive(wf: any): Promise<Derived> {
-    const [recipes, favourites] = await Promise.all([kv("recipes"), kv("autoFavourites")]);
+  async function derive(wf: any, known?: any[]): Promise<Derived> {
+    const [recipes, favourites] = await Promise.all([known || kv("recipes"), kv("autoFavourites")]);
     const hist = await recipeFor(recipeIdOf(wf), recipes);
     return deriveSelection(wf, { recipes: hist ? recipes.concat(hist) : recipes, favourites });
   }
@@ -110,14 +111,18 @@ export default function createPlugin(host: PluginHost): PluginInstance {
   // ponytail: in memory only; after a plugin restart those fields are simply not adopted.
   let baseline: Selection | null = null;
 
-  async function workflowChanged(wf: any): Promise<void> {
+  async function workflowChanged(wf: any, cold: boolean): Promise<void> {
     if (!wf) return;
     const rid = recipeIdOf(wf);
+    let recipes: any[] | undefined;
     if (rid) {
-      const recipes = await kv("recipes");
+      recipes = await kv("recipes");
       const recipe = await recipeFor(rid, recipes);
       // A recipe's identity is its profile: a profile change from any source drops the id.
-      if (recipe && recipeProfileChanged(recipe, wf)) {
+      // A new id's first event is the apply itself, so only the baseline (or, right after a
+      // plugin restart, the stored profile) is compared, never a stored profile against a fresh apply.
+      const known = baseline && baseline.id === rid ? baseline : null;
+      if ((known || cold) && idProfileChanged(known, recipe, wf)) {
         await putWorkflow({ context: { extras: { dye: { recipeId: null } } } });
         return; // the PUT fires another workflowUpdated, which mirrors the result
       }
@@ -125,13 +130,13 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         const full = withMachineSettings(wf, await readMachineSettings(fetch, API));
         const live = ownedRecipeFields(wf).brewC;
         baseline = {
-          kind: "recipe", id: rid, profileFingerprint: null,
+          kind: "recipe", id: rid, profileFingerprint: profileFingerprint(wf.profile),
           armedBrewC: live === undefined ? null : live,
           armedBeanBatchId: null, armedGrinderId: null, armedMachine: machineFields(full),
         };
       }
     } else baseline = null;
-    const sel = await derive(wf);
+    const sel = await derive(wf, recipes);
     const key = sel ? `${sel.kind}:${sel.id}:${sel.modified}` : null;
     if (key === mirrored) return;
     mirrored = key;
@@ -141,10 +146,10 @@ export default function createPlugin(host: PluginHost): PluginInstance {
   }
 
   let chain: Promise<void> = Promise.resolve();
-  function trackWorkflow(wf: any): void {
+  function trackWorkflow(wf: any, cold = false): void {
     if (typeof fetch !== "function" || typeof host.storage !== "function") return;
     chain = chain
-      .then(() => workflowChanged(wf))
+      .then(() => workflowChanged(wf, cold))
       .catch((e: unknown) => log(`selection sync failed: ${e instanceof Error ? e.message : String(e)}`));
   }
 
@@ -230,10 +235,19 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       const ctx = wf.context || {};
       const name =
         (body && typeof body.name === "string" && body.name.trim()) ||
-        proposeRecipeName(wf, recipes.map((r) => r && r.name));
+        proposeRecipeName(wf, recipes.map((r) => r && (r.name || r.title)));
       const id = (globalThis as any).crypto?.randomUUID?.() || `recipe-${Date.now()}`;
       wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
+      // The plugin-side markDye: this blob is what a later apply PUTs, and Streamline's post-shot
+      // clear acts on these flags. recipeId and selection stay out.
       const { dye, ...extras } = ctx.extras || {};
+      const flags: any = {};
+      const topKeys = ["beanBatchId", "coffeeName", "coffeeRoaster", "grinderId", "grinderModel", "baristaName", "drinkerName"];
+      for (const k of topKeys.concat(["basketId", "basketName", "rpm", "note"])) {
+        const v = topKeys.includes(k) ? ctx[k] : extras[k];
+        if (v !== undefined) flags[k] = v === null ? null : true;
+      }
+      if (Object.keys(flags).length) extras.dye = { v: 1, ...flags };
       const dashboardVariables: any = ownedRecipeFields(wf);
       if (ctx.grinderId) {
         dashboardVariables.grinderId = ctx.grinderId;
@@ -290,6 +304,8 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         host.storage({ type: "read", key: "selectionMigrated", namespace: NS });
       }
       refreshRecents();
+      // A restart loses the baseline: look at the workflow once, comparing the stored profile.
+      if (typeof fetch === "function") liveWorkflow().then((wf) => trackWorkflow(wf, true));
     },
 
     onUnload() {

@@ -60,7 +60,7 @@ workflow; a highlight means "the live workflow is this item":
 | --- | --- |
 | recipe | `workflow.context.extras.dye.recipeId` names it |
 | favourite | the live workflow equals its `snapshot` on the fields the snapshot holds (dose, drink, grindSetting, rpm) |
-| recent (`auto: true`) | same comparison against that row's own `workflow` |
+| recent (`auto: true`) | reported as `kind: 'favourite'` + `auto: true` (the only shape the current skin renders); same comparison against that row's own `workflow` |
 
 A recipe keeps its highlight when fields drift and reports `modified: true` (the `*`): the live
 `recipeFields` differ from `dashboardVariables`, on the fields the recipe holds only (steam is
@@ -73,13 +73,18 @@ tried before recents.
 a favourite or recent, pasting a shot, or any profile change from any source (including the
 Streamline P strip: the plugin compares `profileFingerprint` on every `workflowUpdated`) sets it
 to `null`; tile edits (dose / yield / grind) and machine-originated changes leave it alone.
+**Consumer side:** an apply made by DYE2's dashboard nulls the id itself, but a skin applying a
+favourite, recent or profile from its own strip must also PUT
+`context.extras.dye.recipeId: null`, or a favourite naming no profile leaves a stale recipe
+highlight. That is the streamline-js#159 dependency.
+
 Decaid copies the whole workflow onto each `ShotRecord` (`de1_state_manager.dart`), so shots
 carry `workflow.context.extras.dye.recipeId`. An id with no recipe row (deleted, or made on
 another Decaid) is recovered from the newest of the last 50 shots carrying it; none found means
 no highlight, quietly.
 
 ```
-GET  /api/v1/plugins/dye2.reaplugin/selection    -> { kind: 'recipe'|'favourite'|'recent', id, modified } | null
+GET  /api/v1/plugins/dye2.reaplugin/selection    -> { kind: 'recipe'|'favourite', id, modified, auto? } | null
 POST /api/v1/plugins/dye2.reaplugin/selection {kind, id}  -> compat shim, stores nothing: {kind:'recipe'} PUTs
                                                    recipeId, anything else nulls it; returns the derived selection.
                                                    Going away with streamline-js#159.
@@ -104,7 +109,7 @@ workflow whose steam is off (`targetTemperature` below 135).
 
 **`save-recipe`** builds the row from the live workflow (`dashboardVariables` from
 `recipeFields`, bean/grinder/profile from `context`/`profile`, `workflow` the live one trimmed,
-`extras.dye` stripped), appends it to `recipes`, and PUTs its id as `recipeId`. The name is the
+`extras.dye` rebuilt as `markDye` flags for the fields the row carries, without `recipeId`/`selection`), appends it to `recipes`, and PUTs its id as `recipeId`. The name is the
 body's `name`, else `<first word of profile title> <drink>`: a generic title word (Default,
 Advanced, Custom, Profile, New, Untitled) is dropped; drink is, in order, steam on and set
 (duration <=20 s Flat White, <=35 s Cappuccino, otherwise or unknown Latte), hot water set

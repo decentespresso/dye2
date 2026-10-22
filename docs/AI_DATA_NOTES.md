@@ -136,8 +136,9 @@ change meant the machine's state became the recipe (dye2#30, #31, #33).
 - The state is `context.extras.dye.recipeId`. The dashboard sets it on a recipe apply
   (`setRecipeId` in `dashboard.ts`, inside the one `PUT /workflow` diff) and nulls it on a
   favourite/recent apply and a pasted shot. The plugin nulls it when the live
-  `profileFingerprint` differs from the recipe's own profile, so a profile change from any
-  source clears it. A recipe naming no profile has no fingerprint and keeps the id.
+  `profileFingerprint` differs from the one taken when the id first appeared (live vs live; only
+  after a plugin restart is the recipe's stored profile compared), so a profile change from any
+  source clears it. After a restart, a recipe naming no profile has nothing to compare and keeps the id.
 - Reuse `recipeFields` / `favouriteFields` / `changedFields` / `heldFields`; never re-derive a
   field map, or every cell is permanently starred. Compare **held fields only**.
 - The host pushes `workflowUpdated` with the **whole** workflow (`events.workflow`;

@@ -9,7 +9,7 @@ import {
   profileFingerprint, profileDrifted, itemPatch, recordWorkflow, trackWorkflow,
   suppress, profileAtBrewC, withMachineSettings, readMachineSettings,
   recipeIdOf, heldFields, recipeModified, recipeProfileChanged, favouriteMatches, deriveSelection,
-  resolveRecipeFromHistory, proposeRecipeName,
+  resolveRecipeFromHistory, proposeRecipeName, idProfileChanged,
 } from '../src/utils/workflow-record.ts';
 
 const profile = (temp) => ({ title: 'P', tank_temperature: 0, steps: [{ name: 's', temperature: temp }] });
@@ -630,8 +630,8 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
 
   // recents: compared against the row's own workflow; a saved favourite beats the recent duplicating it
   const recent = { id: 'recent:1', auto: true, workflow: wf() };
-  assert.equal(deriveSelection(wf(), { favourites: [recent] }).kind, 'recent');
-  assert.equal(deriveSelection(wf(), { favourites: [recent, fav()] }).kind, 'favourite', 'saved before recents');
+  assert.deepEqual(deriveSelection(wf(), { favourites: [recent] }), { kind: 'favourite', id: 'recent:1', modified: false, auto: true }, 'a recent reports favourite + auto');
+  assert.equal(deriveSelection(wf(), { favourites: [recent, fav()] }).id, 'af1', 'saved before recents');
   assert.equal(deriveSelection(wf({ context: { targetDoseWeight: 19, targetYield: 36, grinderSetting: '4.2' } }), { favourites: [recent] }), null, 'recents deselect on drift');
   // a recipeId that resolves beats a matching favourite
   assert.equal(deriveSelection(withId('1'), rows()).kind, 'recipe');
@@ -659,6 +659,19 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(await resolveRecipeFromHistory(shotsFetch([shot('9', 20)]), '1'), null, 'no such shot: no highlight');
   assert.equal(deriveSelection(withId('1'), { recipes: [] }), null, 'dangling id, no history: quiet');
   assert.equal(await resolveRecipeFromHistory(async () => ({ ok: false, status: 500, json: async () => null }), '1'), null);
+
+  // The drift compare is live-vs-live once a baseline exists, so a stored snapshot that
+  // serialises differently from the host's profile cannot null a fresh apply.
+  const skewed = { ...r1(), workflow: { profile: { ...profile(93), title: 'P', extraHostKey: 1 } } };
+  assert.equal(recipeProfileChanged(skewed, wf()), false, 'extra top-level key is not in the fingerprint');
+  const reordered = { ...r1(), workflow: { profile: { title: 'P', tank_temperature: 0, steps: [{ temperature: 93, name: 's', extra: 1 }] } } };
+  assert.equal(recipeProfileChanged(reordered, wf()), true, 'a stored snapshot that differs in shape reads as changed...');
+  const base = { profileFingerprint: profileFingerprint(wf().profile) };
+  assert.equal(idProfileChanged(base, reordered, wf()), false, '...but with a baseline taken from the live apply it does not');
+  assert.equal(idProfileChanged(base, reordered, wf({ profile: other })), true, 'baseline: a real profile change still nulls');
+  assert.equal(idProfileChanged(base, reordered, wf({ profile: profile(96) })), false, 'baseline: temperature edit is not a change');
+  assert.equal(idProfileChanged(null, reordered, wf()), true, 'no baseline (restart): the stored profile is compared');
+  assert.equal(idProfileChanged(null, recipe(), wf({ profile: other })), false, 'no baseline, recipe names no profile');
 
   // AC6: the id rides in the workflow, which Decaid copies onto the shot. Decaid keeps the
   // whole workflow (shot_record / workflow context extras round-trip), so the contract here is

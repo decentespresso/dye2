@@ -12353,6 +12353,16 @@ bcInit();
 		const live = profileFingerprint(wf && wf.profile);
 		return !!mine && !!live && mine !== live;
 	}
+	/**
+	* Did the profile change under the selected recipe? Live-vs-live against the fingerprint taken
+	* when the id first appeared (same source, so host serialisation differences cannot read as a
+	* change, cf. dye2#32); only with no baseline (plugin restarted) compare the stored profile.
+	*/
+	function idProfileChanged(base, recipe, wf) {
+		if (!base) return !!recipe && recipeProfileChanged(recipe, wf);
+		const live = profileFingerprint(wf && wf.profile);
+		return !!base.profileFingerprint && !!live && live !== base.profileFingerprint;
+	}
 	/** A saved favourite compares against its snapshot, a recent (auto: true) against its workflow. */
 	function favouriteMatches(fav, wf) {
 		const src = fav.auto ? favouriteFields(fav.workflow) : fav.snapshot || {};
@@ -12371,11 +12381,17 @@ bcInit();
 		};
 		const favs = (rows.favourites || []).filter((f) => f && f.id != null);
 		const hit = favs.filter((f) => !f.auto).concat(favs.filter((f) => f.auto)).find((f) => favouriteMatches(f, wf));
-		return hit ? {
-			kind: hit.auto ? "recent" : "favourite",
+		if (!hit) return null;
+		return hit.auto ? {
+			kind: "favourite",
+			id: String(hit.id),
+			modified: false,
+			auto: true
+		} : {
+			kind: "favourite",
 			id: String(hit.id),
 			modified: false
-		} : null;
+		};
 	}
 	/**
 	* A recipe id with no row (deleted, or made on another Decaid): the newest shot carrying it
@@ -12471,8 +12487,8 @@ bcInit();
 				return null;
 			}
 		}
-		async function derive(wf) {
-			const [recipes, favourites] = await Promise.all([kv("recipes"), kv("autoFavourites")]);
+		async function derive(wf, known) {
+			const [recipes, favourites] = await Promise.all([known || kv("recipes"), kv("autoFavourites")]);
 			const hist = await recipeFor(recipeIdOf(wf), recipes);
 			return deriveSelection(wf, {
 				recipes: hist ? recipes.concat(hist) : recipes,
@@ -12480,12 +12496,15 @@ bcInit();
 			});
 		}
 		let baseline = null;
-		async function workflowChanged(wf) {
+		async function workflowChanged(wf, cold) {
 			if (!wf) return;
 			const rid = recipeIdOf(wf);
+			let recipes;
 			if (rid) {
-				const recipe = await recipeFor(rid, await kv("recipes"));
-				if (recipe && recipeProfileChanged(recipe, wf)) {
+				recipes = await kv("recipes");
+				const recipe = await recipeFor(rid, recipes);
+				const known = baseline && baseline.id === rid ? baseline : null;
+				if ((known || cold) && idProfileChanged(known, recipe, wf)) {
 					await putWorkflow({ context: { extras: { dye: { recipeId: null } } } });
 					return;
 				}
@@ -12495,7 +12514,7 @@ bcInit();
 					baseline = {
 						kind: "recipe",
 						id: rid,
-						profileFingerprint: null,
+						profileFingerprint: profileFingerprint(wf.profile),
 						armedBrewC: live === void 0 ? null : live,
 						armedBeanBatchId: null,
 						armedGrinderId: null,
@@ -12503,7 +12522,7 @@ bcInit();
 					};
 				}
 			} else baseline = null;
-			const sel = await derive(wf);
+			const sel = await derive(wf, recipes);
 			const key = sel ? `${sel.kind}:${sel.id}:${sel.modified}` : null;
 			if (key === mirrored) return;
 			mirrored = key;
@@ -12516,9 +12535,9 @@ bcInit();
 			announce({ what: "workflow" });
 		}
 		let chain = Promise.resolve();
-		function trackWorkflow(wf) {
+		function trackWorkflow(wf, cold = false) {
 			if (typeof fetch !== "function" || typeof host.storage !== "function") return;
-			chain = chain.then(() => workflowChanged(wf)).catch((e) => log(`selection sync failed: ${e instanceof Error ? e.message : String(e)}`));
+			chain = chain.then(() => workflowChanged(wf, cold)).catch((e) => log(`selection sync failed: ${e instanceof Error ? e.message : String(e)}`));
 		}
 		function json(request, status, body) {
 			return {
@@ -12600,10 +12619,33 @@ bcInit();
 				const recipes = await kv("recipes");
 				const body = parseBody(request);
 				const ctx = wf.context || {};
-				const name = body && typeof body.name === "string" && body.name.trim() || proposeRecipeName(wf, recipes.map((r) => r && r.name));
+				const name = body && typeof body.name === "string" && body.name.trim() || proposeRecipeName(wf, recipes.map((r) => r && (r.name || r.title)));
 				const id = globalThis.crypto?.randomUUID?.() || `recipe-${Date.now()}`;
 				wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
 				const { dye, ...extras } = ctx.extras || {};
+				const flags = {};
+				const topKeys = [
+					"beanBatchId",
+					"coffeeName",
+					"coffeeRoaster",
+					"grinderId",
+					"grinderModel",
+					"baristaName",
+					"drinkerName"
+				];
+				for (const k of topKeys.concat([
+					"basketId",
+					"basketName",
+					"rpm",
+					"note"
+				])) {
+					const v = topKeys.includes(k) ? ctx[k] : extras[k];
+					if (v !== void 0) flags[k] = v === null ? null : true;
+				}
+				if (Object.keys(flags).length) extras.dye = {
+					v: 1,
+					...flags
+				};
 				const dashboardVariables = ownedRecipeFields(wf);
 				if (ctx.grinderId) {
 					dashboardVariables.grinderId = ctx.grinderId;
@@ -12680,6 +12722,7 @@ bcInit();
 					namespace: NS
 				});
 				refreshRecents();
+				if (typeof fetch === "function") liveWorkflow().then((wf) => trackWorkflow(wf, true));
 			},
 			onUnload() {
 				log("DYE2 plugin unloaded");
