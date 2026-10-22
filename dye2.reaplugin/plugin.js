@@ -13,7 +13,7 @@ var createPlugin = (function() {
 	}
 	//#endregion
 	//#region src/styles/tailwind.generated.css?inline
-	var tailwind_generated_default = "*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:\"\"}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.\\!container{width:100%!important}.container{width:100%}@media (min-width:640px){.\\!container{max-width:640px!important}.container{max-width:640px}}@media (min-width:768px){.\\!container{max-width:768px!important}.container{max-width:768px}}@media (min-width:1024px){.\\!container{max-width:1024px!important}.container{max-width:1024px}}@media (min-width:1280px){.\\!container{max-width:1280px!important}.container{max-width:1280px}}@media (min-width:1536px){.\\!container{max-width:1536px!important}.container{max-width:1536px}}.visible{visibility:visible}.invisible{visibility:hidden}.collapse{visibility:collapse}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.mb-8{margin-bottom:2rem}.mb-\\[14px\\]{margin-bottom:14px}.ml-\\[16px\\]{margin-left:16px}.ml-auto{margin-left:auto}.mr-\\[24px\\]{margin-right:24px}.mt-16{margin-top:4rem}.mt-8{margin-top:2rem}.mt-\\[20px\\]{margin-top:20px}.mt-\\[4px\\]{margin-top:4px}.mt-\\[6px\\]{margin-top:6px}.mt-auto{margin-top:auto}.block{display:block}.inline{display:inline}.flex{display:flex}.table{display:table}.\\!grid{display:grid!important}.grid{display:grid}.hidden{display:none}.h-\\[110px\\]{height:110px}.h-\\[124px\\]{height:124px}.h-\\[134px\\]{height:134px}.h-\\[150px\\]{height:150px}.h-\\[165px\\]{height:165px}.h-\\[2px\\]{height:2px}.h-\\[40px\\]{height:40px}.h-\\[54px\\]{height:54px}.h-\\[60px\\]{height:60px}.h-\\[62px\\]{height:62px}.h-\\[70px\\]{height:70px}.h-\\[72px\\]{height:72px}.h-\\[76px\\]{height:76px}.h-\\[82px\\]{height:82px}.h-\\[90px\\]{height:90px}.h-full{height:100%}.min-h-0{min-height:0}.min-h-\\[330px\\]{min-height:330px}.w-1\\/2{width:50%}.w-\\[1200px\\]{width:1200px}.w-\\[150px\\]{width:150px}.w-\\[180px\\]{width:180px}.w-\\[1px\\]{width:1px}.w-\\[240px\\]{width:240px}.w-\\[2px\\]{width:2px}.w-\\[300px\\]{width:300px}.w-\\[310px\\]{width:310px}.w-\\[60px\\]{width:60px}.w-\\[69px\\]{width:69px}.w-\\[720px\\]{width:720px}.w-\\[72px\\]{width:72px}.w-\\[75px\\]{width:75px}.w-\\[820px\\]{width:820px}.w-\\[960px\\]{width:960px}.w-full{width:100%}.min-w-0{min-width:0}.flex-1{flex:1 1 0%}.flex-shrink{flex-shrink:1}.flex-shrink-0{flex-shrink:0}.shrink{flex-shrink:1}.shrink-0{flex-shrink:0}.flex-grow,.grow{flex-grow:1}.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.resize{resize:both}.auto-cols-\\[225px\\]{grid-auto-columns:225px}.grid-flow-col{grid-auto-flow:column}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-rows-\\[repeat\\(2\\2c 60px\\)\\]{grid-template-rows:repeat(2,60px)}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.items-baseline{align-items:baseline}.items-stretch{align-items:stretch}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0{gap:0}.gap-\\[10px\\]{gap:10px}.gap-\\[12px\\]{gap:12px}.gap-\\[14px\\]{gap:14px}.gap-\\[15px\\]{gap:15px}.gap-\\[16px\\]{gap:16px}.gap-\\[18px\\]{gap:18px}.gap-\\[20px\\]{gap:20px}.gap-\\[22px\\]{gap:22px}.gap-\\[24px\\]{gap:24px}.gap-\\[27px\\]{gap:27px}.gap-\\[28px\\]{gap:28px}.gap-\\[30px\\]{gap:30px}.gap-\\[45px\\]{gap:45px}.gap-\\[48px\\]{gap:48px}.gap-\\[60px\\]{gap:60px}.gap-\\[68px\\]{gap:68px}.gap-\\[8px\\]{gap:8px}.gap-\\[90px\\]{gap:90px}.gap-x-\\[40px\\]{-moz-column-gap:40px;column-gap:40px}.gap-y-\\[6px\\]{row-gap:6px}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded-\\[12px\\]{border-radius:12px}.rounded-\\[15px\\]{border-radius:15px}.rounded-\\[23px\\]{border-radius:23px}.rounded-\\[68px\\]{border-radius:68px}.rounded-\\[8px\\]{border-radius:8px}.rounded-\\[9999px\\]{border-radius:9999px}.border{border-width:1px}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\\[var\\(--mimoja-blue\\)\\]{border-color:var(--mimoja-blue)}.border-\\[var\\(--profile-button-outline-color\\)\\]{border-color:var(--profile-button-outline-color)}.bg-\\[var\\(--bgmain-color\\)\\]{background-color:var(--bgmain-color)}.bg-\\[var\\(--box-color\\)\\]{background-color:var(--box-color)}.bg-\\[var\\(--button-grey\\)\\]{background-color:var(--button-grey)}.bg-\\[var\\(--card-bg\\)\\]{background-color:var(--card-bg)}.bg-\\[var\\(--mimoja-blue\\)\\]{background-color:var(--mimoja-blue)}.bg-\\[var\\(--profile-button-outline-color\\)\\]{background-color:var(--profile-button-outline-color)}.bg-transparent{background-color:transparent}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.p-\\[30px\\]{padding:30px}.px-\\[14px\\]{padding-left:14px;padding-right:14px}.px-\\[16px\\]{padding-left:16px;padding-right:16px}.px-\\[20px\\]{padding-left:20px;padding-right:20px}.px-\\[24px\\]{padding-left:24px;padding-right:24px}.px-\\[30px\\]{padding-left:30px;padding-right:30px}.px-\\[37px\\]{padding-left:37px;padding-right:37px}.px-\\[38px\\]{padding-left:38px;padding-right:38px}.px-\\[40px\\]{padding-left:40px;padding-right:40px}.px-\\[48px\\]{padding-left:48px;padding-right:48px}.py-\\[12px\\]{padding-top:12px;padding-bottom:12px}.py-\\[1px\\]{padding-top:1px;padding-bottom:1px}.py-\\[27px\\]{padding-top:27px;padding-bottom:27px}.py-\\[28px\\]{padding-top:28px;padding-bottom:28px}.py-\\[32px\\]{padding-top:32px;padding-bottom:32px}.py-\\[36px\\]{padding-top:36px;padding-bottom:36px}.py-\\[40px\\]{padding-top:40px;padding-bottom:40px}.pb-\\[28px\\]{padding-bottom:28px}.pb-\\[40px\\]{padding-bottom:40px}.pl-\\[37px\\]{padding-left:37px}.pr-\\[20px\\]{padding-right:20px}.pr-\\[30px\\]{padding-right:30px}.pt-\\[20px\\]{padding-top:20px}.pt-\\[23px\\]{padding-top:23px}.pt-\\[28px\\]{padding-top:28px}.pt-\\[30px\\]{padding-top:30px}.pt-\\[32px\\]{padding-top:32px}.text-center{text-align:center}.font-\\[\\'Inter\\'\\2c sans-serif\\]{font-family:Inter,sans-serif}.text-\\[16px\\]{font-size:16px}.text-\\[18px\\]{font-size:18px}.text-\\[20px\\]{font-size:20px}.text-\\[21px\\]{font-size:21px}.text-\\[22px\\]{font-size:22px}.text-\\[24px\\]{font-size:24px}.text-\\[26px\\]{font-size:26px}.text-\\[30px\\]{font-size:30px}.text-\\[36px\\]{font-size:36px}.text-\\[38px\\]{font-size:38px}.font-bold{font-weight:700}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.italic{font-style:italic}.leading-\\[1\\.2\\]{line-height:1.2}.text-\\[var\\(--danger-text\\)\\]{color:var(--danger-text)}.text-\\[var\\(--low-contrast-white\\)\\]{color:var(--low-contrast-white)}.text-\\[var\\(--mimoja-blue\\)\\]{color:var(--mimoja-blue)}.text-\\[var\\(--text-primary\\)\\]{color:var(--text-primary)}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.underline{text-decoration-line:underline}.opacity-40{opacity:.4}.opacity-50{opacity:.5}.opacity-60{opacity:.6}.shadow{--tw-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color),0 1px 2px -1px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.outline-none{outline:2px solid transparent;outline-offset:2px}.outline{outline-style:solid}.ring{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.blur{--tw-blur:blur(8px)}.blur,.invert{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.invert{--tw-invert:invert(100%)}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}";
+	var tailwind_generated_default = "*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:\"\"}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.\\!container{width:100%!important}.container{width:100%}@media (min-width:640px){.\\!container{max-width:640px!important}.container{max-width:640px}}@media (min-width:768px){.\\!container{max-width:768px!important}.container{max-width:768px}}@media (min-width:1024px){.\\!container{max-width:1024px!important}.container{max-width:1024px}}@media (min-width:1280px){.\\!container{max-width:1280px!important}.container{max-width:1280px}}@media (min-width:1536px){.\\!container{max-width:1536px!important}.container{max-width:1536px}}.visible{visibility:visible}.invisible{visibility:hidden}.collapse{visibility:collapse}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.mb-8{margin-bottom:2rem}.mb-\\[14px\\]{margin-bottom:14px}.ml-\\[16px\\]{margin-left:16px}.ml-auto{margin-left:auto}.mr-\\[24px\\]{margin-right:24px}.mt-16{margin-top:4rem}.mt-8{margin-top:2rem}.mt-\\[20px\\]{margin-top:20px}.mt-\\[4px\\]{margin-top:4px}.mt-\\[6px\\]{margin-top:6px}.mt-auto{margin-top:auto}.block{display:block}.inline{display:inline}.flex{display:flex}.table{display:table}.\\!grid{display:grid!important}.grid{display:grid}.hidden{display:none}.h-\\[110px\\]{height:110px}.h-\\[124px\\]{height:124px}.h-\\[134px\\]{height:134px}.h-\\[150px\\]{height:150px}.h-\\[165px\\]{height:165px}.h-\\[2px\\]{height:2px}.h-\\[40px\\]{height:40px}.h-\\[42px\\]{height:42px}.h-\\[54px\\]{height:54px}.h-\\[60px\\]{height:60px}.h-\\[62px\\]{height:62px}.h-\\[70px\\]{height:70px}.h-\\[72px\\]{height:72px}.h-\\[76px\\]{height:76px}.h-\\[82px\\]{height:82px}.h-\\[90px\\]{height:90px}.h-full{height:100%}.min-h-0{min-height:0}.min-h-\\[330px\\]{min-height:330px}.w-1\\/2{width:50%}.w-\\[1200px\\]{width:1200px}.w-\\[150px\\]{width:150px}.w-\\[180px\\]{width:180px}.w-\\[1px\\]{width:1px}.w-\\[240px\\]{width:240px}.w-\\[2px\\]{width:2px}.w-\\[300px\\]{width:300px}.w-\\[310px\\]{width:310px}.w-\\[60px\\]{width:60px}.w-\\[69px\\]{width:69px}.w-\\[720px\\]{width:720px}.w-\\[72px\\]{width:72px}.w-\\[75px\\]{width:75px}.w-\\[820px\\]{width:820px}.w-\\[960px\\]{width:960px}.w-full{width:100%}.min-w-0{min-width:0}.flex-1{flex:1 1 0%}.flex-shrink{flex-shrink:1}.flex-shrink-0{flex-shrink:0}.shrink{flex-shrink:1}.shrink-0{flex-shrink:0}.flex-grow,.grow{flex-grow:1}.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.resize{resize:both}.auto-cols-\\[225px\\]{grid-auto-columns:225px}.grid-flow-col{grid-auto-flow:column}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-rows-\\[repeat\\(2\\2c 60px\\)\\]{grid-template-rows:repeat(2,60px)}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.items-baseline{align-items:baseline}.items-stretch{align-items:stretch}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0{gap:0}.gap-\\[10px\\]{gap:10px}.gap-\\[12px\\]{gap:12px}.gap-\\[14px\\]{gap:14px}.gap-\\[15px\\]{gap:15px}.gap-\\[16px\\]{gap:16px}.gap-\\[18px\\]{gap:18px}.gap-\\[20px\\]{gap:20px}.gap-\\[22px\\]{gap:22px}.gap-\\[24px\\]{gap:24px}.gap-\\[27px\\]{gap:27px}.gap-\\[28px\\]{gap:28px}.gap-\\[30px\\]{gap:30px}.gap-\\[45px\\]{gap:45px}.gap-\\[48px\\]{gap:48px}.gap-\\[60px\\]{gap:60px}.gap-\\[68px\\]{gap:68px}.gap-\\[8px\\]{gap:8px}.gap-\\[90px\\]{gap:90px}.gap-x-\\[40px\\]{-moz-column-gap:40px;column-gap:40px}.gap-y-\\[6px\\]{row-gap:6px}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded-\\[12px\\]{border-radius:12px}.rounded-\\[15px\\]{border-radius:15px}.rounded-\\[23px\\]{border-radius:23px}.rounded-\\[68px\\]{border-radius:68px}.rounded-\\[8px\\]{border-radius:8px}.rounded-\\[9999px\\]{border-radius:9999px}.border{border-width:1px}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\\[var\\(--mimoja-blue\\)\\]{border-color:var(--mimoja-blue)}.border-\\[var\\(--profile-button-outline-color\\)\\]{border-color:var(--profile-button-outline-color)}.bg-\\[var\\(--bgmain-color\\)\\]{background-color:var(--bgmain-color)}.bg-\\[var\\(--box-color\\)\\]{background-color:var(--box-color)}.bg-\\[var\\(--button-grey\\)\\]{background-color:var(--button-grey)}.bg-\\[var\\(--card-bg\\)\\]{background-color:var(--card-bg)}.bg-\\[var\\(--mimoja-blue\\)\\]{background-color:var(--mimoja-blue)}.bg-\\[var\\(--profile-button-outline-color\\)\\]{background-color:var(--profile-button-outline-color)}.bg-transparent{background-color:transparent}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.p-\\[30px\\]{padding:30px}.px-\\[14px\\]{padding-left:14px;padding-right:14px}.px-\\[16px\\]{padding-left:16px;padding-right:16px}.px-\\[20px\\]{padding-left:20px;padding-right:20px}.px-\\[24px\\]{padding-left:24px;padding-right:24px}.px-\\[30px\\]{padding-left:30px;padding-right:30px}.px-\\[37px\\]{padding-left:37px;padding-right:37px}.px-\\[38px\\]{padding-left:38px;padding-right:38px}.px-\\[40px\\]{padding-left:40px;padding-right:40px}.px-\\[48px\\]{padding-left:48px;padding-right:48px}.py-\\[12px\\]{padding-top:12px;padding-bottom:12px}.py-\\[1px\\]{padding-top:1px;padding-bottom:1px}.py-\\[27px\\]{padding-top:27px;padding-bottom:27px}.py-\\[28px\\]{padding-top:28px;padding-bottom:28px}.py-\\[32px\\]{padding-top:32px;padding-bottom:32px}.py-\\[36px\\]{padding-top:36px;padding-bottom:36px}.py-\\[40px\\]{padding-top:40px;padding-bottom:40px}.pb-\\[28px\\]{padding-bottom:28px}.pb-\\[40px\\]{padding-bottom:40px}.pl-\\[37px\\]{padding-left:37px}.pr-\\[20px\\]{padding-right:20px}.pr-\\[30px\\]{padding-right:30px}.pt-\\[20px\\]{padding-top:20px}.pt-\\[23px\\]{padding-top:23px}.pt-\\[28px\\]{padding-top:28px}.pt-\\[30px\\]{padding-top:30px}.pt-\\[32px\\]{padding-top:32px}.text-center{text-align:center}.font-\\[\\'Inter\\'\\2c sans-serif\\]{font-family:Inter,sans-serif}.text-\\[16px\\]{font-size:16px}.text-\\[18px\\]{font-size:18px}.text-\\[20px\\]{font-size:20px}.text-\\[21px\\]{font-size:21px}.text-\\[22px\\]{font-size:22px}.text-\\[24px\\]{font-size:24px}.text-\\[26px\\]{font-size:26px}.text-\\[30px\\]{font-size:30px}.text-\\[36px\\]{font-size:36px}.text-\\[38px\\]{font-size:38px}.font-bold{font-weight:700}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.italic{font-style:italic}.leading-\\[1\\.2\\]{line-height:1.2}.text-\\[var\\(--danger-text\\)\\]{color:var(--danger-text)}.text-\\[var\\(--low-contrast-white\\)\\]{color:var(--low-contrast-white)}.text-\\[var\\(--mimoja-blue\\)\\]{color:var(--mimoja-blue)}.text-\\[var\\(--text-primary\\)\\]{color:var(--text-primary)}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.underline{text-decoration-line:underline}.opacity-40{opacity:.4}.opacity-50{opacity:.5}.opacity-60{opacity:.6}.shadow{--tw-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color),0 1px 2px -1px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.outline-none{outline:2px solid transparent;outline-offset:2px}.outline{outline-style:solid}.ring{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.blur{--tw-blur:blur(8px)}.blur,.invert{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.invert{--tw-invert:invert(100%)}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}";
 	/** Inline in <head>, before the stylesheet, so the attribute is set before first paint. */
 	var themeBootstrap = `
 (function () {
@@ -5858,6 +5858,7 @@ function shotWeights(shot) {
             <button id="dye-history-btn" class="cursor-pointer" title="Undo — reverts your last change here; tap again to redo it" aria-label="Undo last change">
               <img src="${iconHistory}" width="42" height="42" alt="History" />
             </button>
+            <button id="dye-save-recipe-btn" class="border-2 border-[var(--mimoja-blue)] text-[var(--mimoja-blue)] font-semibold text-[20px] rounded-[23px] h-[42px] px-[20px] cursor-pointer">Save to recipes</button>
             <button id="dye-clipboard-btn" class="cursor-pointer">
               <img src="${iconClipboard}" width="42" height="42" alt="Clipboard" />
             </button>
@@ -6086,17 +6087,12 @@ function noteApplied(kind, item) {
   const id = item && item.id;
   lastApplied = (id != null && String(id).indexOf('recent:') !== 0) ? kind + ':' + id : 'other';
 }
-// Tell the plugin runtime which item was just applied so it records later dial-in
-// edits onto it (workflow-record.ts). Call AFTER the apply's PUT /workflow: the plugin
-// reads the live workflow to fingerprint the profile. A recent: id clears the selection.
-function postSelection(kind, item) {
-  const id = item && item.id;
-  const body = (id != null && String(id).indexOf('recent:') !== 0) ? { kind: kind, id: String(id) } : {};
-  return fetch('/api/v1/plugins/dye2.reaplugin/selection', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }).catch(e => console.warn('selection post failed', e));
+// The recipe being dialled in rides in the workflow itself (extras.dye.recipeId, dye2#36): set
+// by a recipe apply, null for anything else that replaces the profile. The plugin runtime
+// derives the selection from it; there is no separate POST. A tile edit leaves it alone.
+function setRecipeId(ctx, id) {
+  const ex = ctx.extras || {};
+  ctx.extras = { ...ex, dye: { ...(ex.dye || {}), v: 1, recipeId: id == null ? null : String(id) } };
 }
 
 // The subset of "cur" that differs from "base", recursing into plain objects: the body for a
@@ -6149,6 +6145,22 @@ function snapshotWorkflow() {
   lastEditSnapshot = JSON.stringify({ context: currentWorkflow.context || {}, profile: currentWorkflow.profile || null });
   const btn = document.getElementById('dye-history-btn');
   if (btn) btn.style.opacity = '';
+}
+
+// Save the live workflow as a new recipe, which the plugin runtime also selects (dye2#36).
+function setupSaveRecipe() {
+  const btn = document.getElementById('dye-save-recipe-btn');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/v1/plugins/dye2.reaplugin/save-recipe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const saved = await res.json();
+      showTransientMessage('Saved as ' + saved.name);
+    } catch (e) { console.warn('save-recipe failed', e); showTransientMessage('Could not save the recipe'); }
+  });
 }
 
 function setupHistoryRevert() {
@@ -6795,7 +6807,7 @@ function renderRecipePills(workflow) {
       if (isRecent) {
         await applyAutoFavourite(item);
         noteApplied('favourite', item);
-        pushWorkflow().then(() => postSelection('favourite', item)).catch(e => console.warn(e));
+        pushWorkflow().catch(e => console.warn(e));
       } else {
         // The list was read at page load; dial-in recording may have changed this recipe since,
         // so apply the stored record. Fall back to the loaded one if the re-read fails or the
@@ -6804,7 +6816,7 @@ function renderRecipePills(workflow) {
         try { fresh = (await getRecipe(item.id)) || item; } catch (e) { console.warn('recipe re-read failed', e); }
         await applyRecipe(fresh);
         noteApplied('recipe', fresh);
-        pushWorkflow().then(() => postSelection('recipe', fresh)).catch(e => console.warn(e));
+        pushWorkflow().catch(e => console.warn(e));
       }
     });
     container.appendChild(pill);
@@ -6872,6 +6884,7 @@ async function applyRecipe(recipe) {
   if (recipe.barista) { ctx.baristaName = recipe.barista; wrote.push('baristaName'); }
   if (recipe.drinker) { ctx.drinkerName = recipe.drinker; wrote.push('drinkerName'); }
   markDye(ctx, wrote);
+  setRecipeId(ctx, recipe.id);
   currentWorkflow.context = ctx;
   if (recipe.profileId || recipe.profileTitle) {
     if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps)) {
@@ -6952,6 +6965,7 @@ async function applyAutoFavourite(fav) {
     }
   }
   markDye(ctx, wrote);
+  setRecipeId(ctx, null);
   currentWorkflow.context = ctx;
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
     if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps)) {
@@ -7247,6 +7261,7 @@ function setupClipboardPaste() {
       extras:           shotWorkflowExtras(shot),
     };
     markDye(currentWorkflow.context);   // the pasted shot's own flags are its past; flag what is set now
+    setRecipeId(currentWorkflow.context, null);   // a pasted shot brings its own profile
     if (wf.profile) currentWorkflow.profile = { ...wf.profile };
     renderNextShot();
     // Show the copied shot's profile name (only revealed on clipboard copy).
@@ -7392,6 +7407,7 @@ function wireDashboardControls() {
   setupReadNote();
   setupAddNote();
   setupHistoryRevert();
+  setupSaveRecipe();
   const pills = document.getElementById('dye-recipe-pills');
   document.getElementById('dye-recipe-prev')?.addEventListener('click', () => pills?.scrollBy({ left: -pills.clientWidth, behavior: 'smooth' }));
   document.getElementById('dye-recipe-next')?.addEventListener('click', () => pills?.scrollBy({ left: pills.clientWidth, behavior: 'smooth' }));
@@ -7455,7 +7471,6 @@ async function initializeDyeDashboard() {
         await applyAutoFavourite(fav);
         noteApplied('favourite', fav);
         await pushWorkflow().catch(e => console.warn(e));
-        await postSelection('favourite', fav);
       } else if (selFavId.indexOf('recent:') === 0) {
         // A recent's id is not stable — it changes as soon as a newer shot takes over
         // its group — so the one the picker sent back can already be gone by the time
@@ -12025,7 +12040,6 @@ bcInit();
 	}
 	//#endregion
 	//#region src/utils/workflow-record.ts
-	var ECHO_WINDOW_MS = 3e3;
 	var TARGETS = {
 		recipe: {
 			key: "recipes",
@@ -12038,8 +12052,6 @@ bcInit();
 	};
 	var selection = null;
 	var onSelectionChange = null;
-	var timer = null;
-	var suppressed = null;
 	function profileFingerprint(profile) {
 		if (!profile) return null;
 		const steps = Array.isArray(profile.steps) ? profile.steps.map(({ temperature, limiter, ...rest }) => ({
@@ -12051,21 +12063,6 @@ bcInit();
 			tank_temperature: profile.tank_temperature,
 			steps
 		});
-	}
-	/** Has the live workflow's profile moved away from the one the selection was armed on? */
-	function profileDrifted(sel, workflow) {
-		if (!sel) return false;
-		const fp = profileFingerprint(workflow && workflow.profile);
-		return !!(sel.profileFingerprint && fp && fp !== sel.profileFingerprint);
-	}
-	/** Has the workflow's bean batch or grinder moved off what the selection was armed on? */
-	function contextDrifted(sel, workflow) {
-		if (!sel) return false;
-		const ctx = workflow && workflow.context || {};
-		return !!sel.armedBeanBatchId && sel.armedBeanBatchId !== idOf(ctx.beanBatchId) || !!sel.armedGrinderId && sel.armedGrinderId !== idOf(ctx.grinderId);
-	}
-	function idOf(v) {
-		return v == null ? "" : String(v);
 	}
 	function num(v) {
 		if (v == null || v === "") return void 0;
@@ -12101,6 +12098,11 @@ bcInit();
 		"steamFlowMls",
 		"steamStopAtTempC"
 	];
+	/** Decaid reads a steam target below 135 as off (de1_controller.dart updateWorkflowSettings). */
+	function steamOff(wf) {
+		const t = Number((wf && wf.steamSettings || {}).targetTemperature);
+		return Number.isFinite(t) && t < 135;
+	}
 	/** Everything the live workflow says that a recipe could hold, in dashboardVariables names. */
 	function recipeFields(wf) {
 		const out = {};
@@ -12199,11 +12201,10 @@ bcInit();
 	function itemPatch(kind, item, wf, armedBrewC = null, armedMachine = null) {
 		const stored = item[TARGETS[kind].field] || {};
 		const all = kind === "recipe" ? recipeFields(wf) : favouriteFields(wf);
-		const steamT = Number(((wf || {}).steamSettings || {}).targetTemperature);
-		const steamOff = Number.isFinite(steamT) && steamT < 135;
+		const off = steamOff(wf);
 		const known = {};
 		for (const k of Object.keys(all)) {
-			if (steamOff && STEAM_KEYS.indexOf(k) !== -1) continue;
+			if (off && STEAM_KEYS.indexOf(k) !== -1) continue;
 			if (stored[k] == null && !movedSinceArming(k, all[k], armedMachine)) continue;
 			if (k === "brewC" && (armedBrewC == null || all.brewC === armedBrewC)) continue;
 			known[k] = all[k];
@@ -12237,22 +12238,6 @@ bcInit();
 			})
 		};
 	}
-	function getSelection() {
-		return selection;
-	}
-	/** plugin.ts registers this to persist the selection whenever it changes. */
-	function setSelectionListener(fn) {
-		onSelectionChange = fn;
-	}
-	function cancelPending() {
-		if (timer != null && typeof clearTimeout === "function") clearTimeout(timer);
-		timer = null;
-	}
-	function setSel(next) {
-		cancelPending();
-		selection = next;
-		if (onSelectionChange) onSelectionChange(next);
-	}
 	function liveBrewC(wf) {
 		const v = recipeFields(wf).brewC;
 		return v === void 0 ? null : v;
@@ -12260,91 +12245,6 @@ bcInit();
 	function updateSelection(sel, changes) {
 		Object.assign(sel, changes);
 		if (selection === sel && onSelectionChange) onSelectionChange(sel);
-	}
-	function clearSelection() {
-		setSel(null);
-	}
-	var markedKey = null;
-	var markChain = Promise.resolve();
-	var selectionKey = (s) => s ? s.kind + ":" + s.id : null;
-	/**
-	* Bring the workflow's extras.dye.selection in step with the armed selection. Serialised, and
-	* each step reads the selection as it runs, so an arm then a quick clear cannot land out of
-	* order. Rejects when the PUT fails; the caller logs it, and the next change retries.
-	*/
-	function syncSelectionMarker(fetchFn, base = "http://localhost:8080/api/v1") {
-		const run = markChain.then(async () => {
-			const key = selectionKey(selection);
-			if (key === markedKey) return;
-			const res = await fetchFn(base + "/workflow", {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ context: { extras: { dye: {
-					v: 1,
-					selection: selection ? {
-						kind: selection.kind,
-						id: selection.id
-					} : null
-				} } } })
-			});
-			if (!res.ok) throw new Error("HTTP " + res.status + " writing selection marker");
-			markedKey = key;
-		});
-		markChain = run.catch(() => {});
-		return run;
-	}
-	/** Restore a persisted selection at load; does not notify the persistence listener. */
-	function restoreSelection(raw) {
-		const s = raw;
-		selection = s && (s.kind === "recipe" || s.kind === "favourite") && s.id != null && String(s.id).indexOf("recent:") !== 0 ? {
-			kind: s.kind,
-			id: String(s.id),
-			profileFingerprint: s.profileFingerprint || null,
-			armedBrewC: typeof s.armedBrewC === "number" ? s.armedBrewC : null,
-			armedBeanBatchId: typeof s.armedBeanBatchId === "string" ? s.armedBeanBatchId : null,
-			armedGrinderId: typeof s.armedGrinderId === "string" ? s.armedGrinderId : null,
-			armedMachine: s.armedMachine && typeof s.armedMachine === "object" ? s.armedMachine : null
-		} : null;
-		markedKey = selectionKey(selection);
-	}
-	/**
-	* Arm `{kind,id}` on the live workflow `wf` (used for the profile fingerprint). A
-	* `recent:` id is not stable (docs/KV_CONTRACT.md, "Auto (recent) entries"), so arming
-	* one clears the selection instead. Arming happens right after the dashboard's apply,
-	* so it also records that apply as an echo (see suppress).
-	*/
-	function armSelection(req, wf, now = Date.now()) {
-		const kind = req && req.kind;
-		const id = req && req.id;
-		if (kind !== "recipe" && kind !== "favourite" || id == null || id === "" || String(id).indexOf("recent:") === 0) {
-			clearSelection();
-			return null;
-		}
-		setSel({
-			kind,
-			id: String(id),
-			profileFingerprint: profileFingerprint(wf && wf.profile),
-			armedBrewC: wf ? liveBrewC(wf) : null,
-			armedBeanBatchId: wf ? idOf(wf.context && wf.context.beanBatchId) : null,
-			armedGrinderId: wf ? idOf(wf.context && wf.context.grinderId) : null,
-			armedMachine: wf ? machineFields(wf) : null
-		});
-		if (wf) suppress(wf, now);
-		return selection;
-	}
-	function echoKey(wf) {
-		const fields = recipeFields(wf);
-		for (const k of Object.keys(DE1_ONLY)) delete fields[k];
-		return JSON.stringify([fields, favouriteFields(wf)]);
-	}
-	function suppress(wf, now = Date.now()) {
-		suppressed = {
-			values: echoKey(wf),
-			at: now
-		};
-	}
-	function isEcho(wf, now) {
-		return !!suppressed && now - suppressed.at < ECHO_WINDOW_MS && suppressed.values === echoKey(wf);
 	}
 	/**
 	* Patch the armed item for workflow `wf`. Returns true if it wrote. Re-reads the KV
@@ -12421,29 +12321,115 @@ bcInit();
 		if (!put.ok) throw new Error("HTTP " + put.status + " writing " + key);
 		return true;
 	}
+	function recipeIdOf(wf) {
+		const id = wf && wf.context && wf.context.extras && wf.context.extras.dye && wf.context.extras.dye.recipeId;
+		return id == null || id === "" ? null : String(id);
+	}
+	/** The entries of `fields` that `stored` holds (non-null): the fields the item owns only. */
+	function heldFields(fields, stored) {
+		const out = {};
+		for (const [k, v] of Object.entries(fields || {})) if (stored && stored[k] != null) out[k] = v;
+		return out;
+	}
+	/** recipeFields minus the steam group while steam is off: a machine state, not a recipe's. */
+	function ownedRecipeFields(wf) {
+		const out = recipeFields(wf);
+		if (steamOff(wf)) for (const k of STEAM_KEYS) delete out[k];
+		return out;
+	}
+	/** Has the live workflow drifted off the recipe's own fields? (the `*`) */
+	function recipeModified(recipe, wf) {
+		const stored = recipe.dashboardVariables || {};
+		const held = heldFields(ownedRecipeFields(wf), stored);
+		if (!profileOf(recipe)) delete held.brewC;
+		return Object.keys(changedFields(held, stored)).length > 0;
+	}
+	function profileOf(recipe) {
+		return recipe.workflow && recipe.workflow.profile || recipe.profileSnapshot || null;
+	}
+	/** Does the live profile differ from the recipe's own? A recipe naming none never differs. */
+	function recipeProfileChanged(recipe, wf) {
+		const mine = profileFingerprint(profileOf(recipe));
+		const live = profileFingerprint(wf && wf.profile);
+		return !!mine && !!live && mine !== live;
+	}
+	/** A saved favourite compares against its snapshot, a recent (auto: true) against its workflow. */
+	function favouriteMatches(fav, wf) {
+		const src = fav.auto ? favouriteFields(fav.workflow) : fav.snapshot || {};
+		const held = heldFields(favouriteFields(wf), src);
+		return Object.keys(held).length > 0 && Object.keys(changedFields(held, src)).length === 0;
+	}
+	/** recipeId wins when it resolves; else the first matching row (saved before recents). */
+	function deriveSelection(wf, rows) {
+		if (!wf) return null;
+		const rid = recipeIdOf(wf);
+		const recipe = rid && (rows.recipes || []).find((r) => r && String(r.id) === rid);
+		if (recipe) return {
+			kind: "recipe",
+			id: rid,
+			modified: recipeModified(recipe, wf)
+		};
+		const favs = (rows.favourites || []).filter((f) => f && f.id != null);
+		const hit = favs.filter((f) => !f.auto).concat(favs.filter((f) => f.auto)).find((f) => favouriteMatches(f, wf));
+		return hit ? {
+			kind: hit.auto ? "recent" : "favourite",
+			id: String(hit.id),
+			modified: false
+		} : null;
+	}
 	/**
-	* Entry point for a `workflowUpdated` event. Recording is explicit now -- the skin's
-	* "Save changes" posts to the `record` route -- so this never writes. It only keeps the armed
-	* selection honest: drift disarms it, and a selection armed before the workflow was known
-	* adopts its baselines here, so a later change still reads as the barista's.
+	* A recipe id with no row (deleted, or made on another Decaid): the newest shot carrying it
+	* stands in as the recipe. Null when none, so nothing is highlighted.
 	*/
-	function trackWorkflow(wf, now = Date.now()) {
-		if (!selection || !wf) return;
-		if (profileDrifted(selection, wf) || contextDrifted(selection, wf)) {
-			clearSelection();
-			return;
-		}
-		if (isEcho(wf, now)) return;
-		if (!selection.profileFingerprint) updateSelection(selection, { profileFingerprint: profileFingerprint(wf.profile) });
-		if (!selection.armedMachine) updateSelection(selection, { armedMachine: machineFields(wf) });
-		if (!selection.armedBeanBatchId || !selection.armedGrinderId) updateSelection(selection, {
-			armedBeanBatchId: selection.armedBeanBatchId || idOf(wf.context && wf.context.beanBatchId),
-			armedGrinderId: selection.armedGrinderId || idOf(wf.context && wf.context.grinderId)
-		});
+	async function resolveRecipeFromHistory(fetchFn, recipeId, base = "http://localhost:8080/api/v1") {
+		const res = await fetchFn(base + "/shots?limit=50&order=desc");
+		if (!res.ok) return null;
+		const data = await res.json();
+		const shot = (Array.isArray(data) ? data : data && data.items || []).find((s) => s && recipeIdOf(s.workflow) === recipeId);
+		return shot ? {
+			id: recipeId,
+			dashboardVariables: recipeFields(shot.workflow),
+			workflow: shot.workflow
+		} : null;
+	}
+	var GENERIC_PROFILE = /^(default|advanced|custom|profile|new|untitled)$/i;
+	/** `<first word of profile title> <drink type>`; see docs/KV_CONTRACT.md for the drink table. */
+	function proposeRecipeName(wf, existingNames = []) {
+		const word = String(wf && wf.profile && wf.profile.title || "").trim().split(/\s+/)[0] || "";
+		const ctx = wf && wf.context || {};
+		const steamT = Number(wf && wf.steamSettings && wf.steamSettings.targetTemperature);
+		const steamS = wf && wf.steamSettings && wf.steamSettings.duration;
+		const hw = wf && wf.hotWaterData || {};
+		const ratio = Math.round(Number(ctx.targetYield) / Number(ctx.targetDoseWeight) * 100) / 100;
+		let drink = "Espresso";
+		if (steamT >= 135 && Number(steamS) !== 0) {
+			const s = Number(steamS);
+			drink = s > 0 && s <= 20 ? "Flat White" : s > 0 && s <= 35 ? "Cappuccino" : "Latte";
+		} else if (Number(hw.duration) > 0 || Number(hw.volume) > 0) drink = "Americano";
+		else if (Number.isFinite(ratio) && ratio > 0) drink = ratio < 1.6 ? "Ristretto" : ratio <= 2.4 ? "Espresso" : "Lungo";
+		const base = (GENERIC_PROFILE.test(word) ? "" : word + " ") + drink;
+		const taken = (n) => existingNames.some((x) => String(x).toLowerCase() === n.toLowerCase());
+		if (!taken(base)) return base;
+		const bean = String(ctx.coffeeName || "").trim().split(/\s+/)[0];
+		const named = bean ? base + " " + bean : base;
+		if (!taken(named)) return named;
+		let n = 2;
+		while (taken(named + " " + n)) n++;
+		return named + " " + n;
 	}
 	//#endregion
 	//#region src/plugin.ts
-	var SELECTION_STORAGE_KEY = "selection";
+	var API = "http://localhost:8080/api/v1";
+	var NS = "dye2.reaplugin";
+	var EMPTY_BASELINE = {
+		kind: "recipe",
+		id: "",
+		profileFingerprint: null,
+		armedBrewC: null,
+		armedBeanBatchId: null,
+		armedGrinderId: null,
+		armedMachine: null
+	};
 	function createPlugin(host) {
 		function log(msg) {
 			host.log(`[dye2] ${msg}`);
@@ -12461,24 +12447,79 @@ bcInit();
 				log(`emit failed: ${e instanceof Error ? e.message : String(e)}`);
 			}
 		}
-		function persistSelection() {
-			if (typeof host.storage !== "function") return;
-			host.storage({
-				type: "write",
-				key: SELECTION_STORAGE_KEY,
-				namespace: "dye2.reaplugin",
-				data: getSelection() || {}
+		let mirrored = null;
+		async function kv(key) {
+			const res = await fetch(`${API}/store/${NS}/${key}`);
+			const val = res.ok ? await res.json() : null;
+			return Array.isArray(val) ? val : [];
+		}
+		async function putWorkflow(body) {
+			const res = await fetch(`${API}/workflow`, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body)
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status} writing workflow`);
+		}
+		async function recipeFor(rid, recipes) {
+			if (!rid) return null;
+			const row = recipes.find((r) => r && String(r.id) === rid);
+			if (row) return row;
+			try {
+				return await resolveRecipeFromHistory(fetch, rid, API);
+			} catch (e) {
+				return null;
+			}
+		}
+		async function derive(wf) {
+			const [recipes, favourites] = await Promise.all([kv("recipes"), kv("autoFavourites")]);
+			const hist = await recipeFor(recipeIdOf(wf), recipes);
+			return deriveSelection(wf, {
+				recipes: hist ? recipes.concat(hist) : recipes,
+				favourites
 			});
 		}
-		let announcedSelection = null;
-		setSelectionListener((sel) => {
-			persistSelection();
-			if (typeof fetch === "function") syncSelectionMarker(fetch).catch((e) => log(`selection marker failed: ${e instanceof Error ? e.message : String(e)}`));
-			const key = sel ? sel.kind + ":" + sel.id : null;
-			if (key === announcedSelection) return;
-			announcedSelection = key;
+		let baseline = null;
+		async function workflowChanged(wf) {
+			if (!wf) return;
+			const rid = recipeIdOf(wf);
+			if (rid) {
+				const recipe = await recipeFor(rid, await kv("recipes"));
+				if (recipe && recipeProfileChanged(recipe, wf)) {
+					await putWorkflow({ context: { extras: { dye: { recipeId: null } } } });
+					return;
+				}
+				if (!baseline || baseline.id !== rid) {
+					const full = withMachineSettings(wf, await readMachineSettings(fetch, API));
+					const live = ownedRecipeFields(wf).brewC;
+					baseline = {
+						kind: "recipe",
+						id: rid,
+						profileFingerprint: null,
+						armedBrewC: live === void 0 ? null : live,
+						armedBeanBatchId: null,
+						armedGrinderId: null,
+						armedMachine: machineFields(full)
+					};
+				}
+			} else baseline = null;
+			const sel = await derive(wf);
+			const key = sel ? `${sel.kind}:${sel.id}:${sel.modified}` : null;
+			if (key === mirrored) return;
+			mirrored = key;
+			host.storage({
+				type: "write",
+				key: "selection",
+				namespace: NS,
+				data: sel || {}
+			});
 			announce({ what: "workflow" });
-		});
+		}
+		let chain = Promise.resolve();
+		function trackWorkflow(wf) {
+			if (typeof fetch !== "function" || typeof host.storage !== "function") return;
+			chain = chain.then(() => workflowChanged(wf)).catch((e) => log(`selection sync failed: ${e instanceof Error ? e.message : String(e)}`));
+		}
 		function json(request, status, body) {
 			return {
 				requestId: request.requestId,
@@ -12487,59 +12528,60 @@ bcInit();
 				body: JSON.stringify(body)
 			};
 		}
-		async function handleSelection(request) {
-			if (request.method === "GET") return json(request, 200, getSelection());
+		async function liveWorkflow() {
+			try {
+				const res = await fetch(`${API}/workflow`);
+				return res.ok ? await res.json() : null;
+			} catch (e) {
+				log(`could not read workflow: ${e instanceof Error ? e.message : String(e)}`);
+				return null;
+			}
+		}
+		function parseBody(request) {
 			let body = request.body;
 			if (typeof body === "string") try {
 				body = JSON.parse(body);
 			} catch (e) {
 				body = null;
 			}
-			if (!body || !body.kind) {
-				clearSelection();
-				return json(request, 200, null);
+			return body;
+		}
+		async function handleSelection(request) {
+			if (typeof fetch !== "function") return json(request, 503, { error: "no api permission" });
+			if (request.method !== "GET") {
+				const body = parseBody(request);
+				await putWorkflow({ context: { extras: { dye: { recipeId: body && body.kind === "recipe" && body.id != null ? String(body.id) : null } } } });
 			}
-			let wf = null;
-			if (typeof fetch === "function") {
-				try {
-					const res = await fetch("http://localhost:8080/api/v1/workflow");
-					if (res.ok) wf = await res.json();
-				} catch (e) {
-					log(`selection: could not read workflow: ${e instanceof Error ? e.message : String(e)}`);
-				}
-				if (wf) wf = withMachineSettings(wf, await readMachineSettings(fetch, "http://localhost:8080/api/v1"));
-			}
-			return json(request, 200, armSelection(body, wf));
+			const wf = await liveWorkflow();
+			return json(request, 200, wf ? await derive(wf) : null);
 		}
 		async function handleRecord(request) {
-			const armed = getSelection();
-			if (!armed) return json(request, 200, {
-				saved: false,
-				reason: "nothing is selected"
-			});
 			if (typeof fetch !== "function") return json(request, 503, {
 				saved: false,
 				reason: "no api permission"
 			});
-			let wf = null;
-			try {
-				const res = await fetch("http://localhost:8080/api/v1/workflow");
-				if (res.ok) wf = await res.json();
-			} catch (e) {
-				log(`record: could not read workflow: ${e instanceof Error ? e.message : String(e)}`);
-			}
+			let wf = await liveWorkflow();
 			if (!wf) return json(request, 502, {
 				saved: false,
 				reason: "could not read the workflow"
 			});
-			wf = withMachineSettings(wf, await readMachineSettings(fetch, "http://localhost:8080/api/v1"));
+			const sel = await derive(wf);
+			if (!sel || sel.kind !== "recipe") return json(request, 200, {
+				saved: false,
+				reason: "no recipe is selected"
+			});
+			wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
 			try {
-				const wrote = await recordWorkflow(wf, fetch, armed);
+				const armed = baseline && baseline.id === sel.id ? baseline : null;
+				const wrote = await recordWorkflow(wf, fetch, armed || {
+					...EMPTY_BASELINE,
+					id: sel.id
+				});
 				if (wrote) announce({ what: "workflow" });
 				return json(request, 200, {
 					saved: wrote,
-					kind: armed.kind,
-					id: armed.id
+					kind: sel.kind,
+					id: sel.id
 				});
 			} catch (e) {
 				const msg = e instanceof Error ? e.message : String(e);
@@ -12550,6 +12592,83 @@ bcInit();
 				});
 			}
 		}
+		async function handleSaveRecipe(request) {
+			if (typeof fetch !== "function") return json(request, 503, { error: "no api permission" });
+			let wf = await liveWorkflow();
+			if (!wf) return json(request, 502, { error: "could not read the workflow" });
+			try {
+				const recipes = await kv("recipes");
+				const body = parseBody(request);
+				const ctx = wf.context || {};
+				const name = body && typeof body.name === "string" && body.name.trim() || proposeRecipeName(wf, recipes.map((r) => r && r.name));
+				const id = globalThis.crypto?.randomUUID?.() || `recipe-${Date.now()}`;
+				wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
+				const { dye, ...extras } = ctx.extras || {};
+				const dashboardVariables = ownedRecipeFields(wf);
+				if (ctx.grinderId) {
+					dashboardVariables.grinderId = ctx.grinderId;
+					dashboardVariables.grinderModel = ctx.grinderModel;
+				}
+				const row = {
+					id,
+					name,
+					title: name,
+					barista: ctx.baristaName,
+					drinker: ctx.drinkerName,
+					beanName: ctx.coffeeName,
+					beanRoaster: ctx.coffeeRoaster,
+					beanBatchId: ctx.beanBatchId,
+					profileTitle: wf.profile && wf.profile.title,
+					profileSnapshot: wf.profile,
+					dashboardVariables,
+					workflow: {
+						context: {
+							...ctx,
+							extras
+						},
+						profile: wf.profile,
+						steamSettings: wf.steamSettings,
+						hotWaterData: wf.hotWaterData,
+						rinseData: wf.rinseData
+					},
+					capturedAt: (/* @__PURE__ */ new Date()).toISOString()
+				};
+				const res = await fetch(`${API}/store/${NS}/recipes`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(recipes.concat(row))
+				});
+				if (!res.ok) throw new Error(`HTTP ${res.status} writing recipes`);
+				await putWorkflow({ context: { extras: { dye: {
+					v: 1,
+					recipeId: id
+				} } } });
+				announce({ what: "workflow" });
+				return json(request, 200, {
+					id,
+					name
+				});
+			} catch (e) {
+				const msg = e instanceof Error ? e.message : String(e);
+				log(`save-recipe failed: ${msg}`);
+				return json(request, 502, { error: msg });
+			}
+		}
+		function migrate() {
+			host.storage({
+				type: "write",
+				key: "selection",
+				namespace: NS,
+				data: {}
+			});
+			if (typeof fetch === "function") putWorkflow({ context: { extras: { dye: { selection: null } } } }).catch((e) => log(`selection migration failed: ${e instanceof Error ? e.message : String(e)}`));
+			host.storage({
+				type: "write",
+				key: "selectionMigrated",
+				namespace: NS,
+				data: true
+			});
+		}
 		return {
 			id: "dye2.reaplugin",
 			version: "0.1.0",
@@ -12557,8 +12676,8 @@ bcInit();
 				log("DYE2 plugin loaded");
 				if (typeof host.storage === "function") host.storage({
 					type: "read",
-					key: SELECTION_STORAGE_KEY,
-					namespace: "dye2.reaplugin"
+					key: "selectionMigrated",
+					namespace: NS
 				});
 				refreshRecents();
 			},
@@ -12570,11 +12689,7 @@ bcInit();
 				else if (event.name === "shotUpdated") {
 					if (shotPatchAffectsRecents(event.payload && event.payload.patch)) refreshRecents();
 				} else if (event.name === "storageRead") {
-					if (event.payload && event.payload.key === SELECTION_STORAGE_KEY && !getSelection()) {
-						restoreSelection(event.payload.value);
-						const restored = getSelection();
-						announcedSelection = restored ? restored.kind + ":" + restored.id : null;
-					}
+					if (event.payload && event.payload.key === "selectionMigrated" && !event.payload.value) migrate();
 				} else if (event.name === "workflowUpdated") trackWorkflow(event.payload);
 			},
 			__httpRequestHandler(request) {
@@ -12619,6 +12734,7 @@ bcInit();
 						});
 					case "selection": return handleSelection(request);
 					case "record": return handleRecord(request);
+					case "save-recipe": return handleSaveRecipe(request);
 					case "skin": return json(request, 200, {
 						version: 1,
 						surfaces: [],

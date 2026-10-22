@@ -157,6 +157,12 @@ const MACHINE_MAP: Record<string, [string, string]> = {
 /** The steam settings as a group: all four are withheld while steam is off (dye2#30). */
 const STEAM_KEYS = ["steamTempC", "steamTimeS", "steamFlowMls", "steamStopAtTempC"];
 
+/** Decaid reads a steam target below 135 as off (de1_controller.dart updateWorkflowSettings). */
+function steamOff(wf: AnyRecord | null | undefined): boolean {
+  const t = Number(((wf && wf.steamSettings) || {}).targetTemperature);
+  return Number.isFinite(t) && t < 135;
+}
+
 /** Everything the live workflow says that a recipe could hold, in dashboardVariables names. */
 export function recipeFields(wf: AnyRecord): AnyRecord {
   const out: AnyRecord = {};
@@ -283,13 +289,12 @@ export function itemPatch(
   // targetTemperature 0 alongside duration 0. Recording either would turn steam off on every
   // later apply of this item (dye2#30). A recipe set to "Off" in the editor is unaffected —
   // that is a save, not a recording.
-  const steamT = Number((((wf || {}) as AnyRecord).steamSettings || {}).targetTemperature);
-  const steamOff = Number.isFinite(steamT) && steamT < 135;
+  const off = steamOff(wf);
   // apply writes every machine setting the item holds (the mode fields only choose what the
   // editor shows, and are never written), so a held field's live value is the user's.
   const known: AnyRecord = {};
   for (const k of Object.keys(all)) {
-    if (steamOff && STEAM_KEYS.indexOf(k) !== -1) continue;
+    if (off && STEAM_KEYS.indexOf(k) !== -1) continue;
     if (stored[k] == null && !movedSinceArming(k, all[k], armedMachine)) continue;
     if (k === "brewC" && (armedBrewC == null || all.brewC === armedBrewC)) continue;
     known[k] = all[k];
@@ -366,66 +371,6 @@ function updateSelection(sel: Selection, changes: Partial<Selection>) {
 
 export function clearSelection() {
   setSel(null);
-}
-
-// ── selection marker ────────────────────────────────────────────────────────
-// The armed {kind,id} is mirrored into the live workflow as context.extras.dye.selection, which
-// Decaid copies onto each Shot (decent-sync reads it instead of guessing the recipe). PUT
-// /workflow deep-merges key by key (deepMergeJson), so this body leaves every other extras
-// key, and the field flags dashboard writes put beside it, alone. Streamline's post-shot
-// clear (dye-context.js) acts only on keys whose value is exactly `true`, so the nested
-// object is ignored there.
-//
-// No loop: the PUT fires `workflowUpdated`, but trackWorkflow never writes, and a record only writes KV
-// (never the workflow), and only when recipeFields/favouriteFields differ from the item —
-// extras.dye is in neither, so the marker's own event diffs to an empty patch (and inside the
-// echo window is dropped earlier). The PUT is also gated on the selected {kind,id} actually
-// changing, so the baseline rebases that notify the selection listener never PUT.
-let markedKey: string | null = null;
-let markChain: Promise<void> = Promise.resolve();
-
-const selectionKey = (s: Selection | null) => (s ? s.kind + ":" + s.id : null);
-
-/**
- * Bring the workflow's extras.dye.selection in step with the armed selection. Serialised, and
- * each step reads the selection as it runs, so an arm then a quick clear cannot land out of
- * order. Rejects when the PUT fails; the caller logs it, and the next change retries.
- */
-export function syncSelectionMarker(fetchFn: FetchLike, base = "http://localhost:8080/api/v1"): Promise<void> {
-  const run = markChain.then(async () => {
-    const key = selectionKey(selection);
-    if (key === markedKey) return;
-    const res = await fetchFn(base + "/workflow", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        context: { extras: { dye: { v: 1, selection: selection ? { kind: selection.kind, id: selection.id } : null } } },
-      }),
-    });
-    if (!res.ok) throw new Error("HTTP " + res.status + " writing selection marker");
-    markedKey = key;
-  });
-  markChain = run.catch(() => {});
-  return run;
-}
-
-/** Restore a persisted selection at load; does not notify the persistence listener. */
-export function restoreSelection(raw: unknown) {
-  const s = raw as AnyRecord | null;
-  selection =
-    s && (s.kind === "recipe" || s.kind === "favourite") && s.id != null && String(s.id).indexOf("recent:") !== 0
-      ? {
-          kind: s.kind,
-          id: String(s.id),
-          profileFingerprint: s.profileFingerprint || null,
-          armedBrewC: typeof s.armedBrewC === "number" ? s.armedBrewC : null,
-          armedBeanBatchId: typeof s.armedBeanBatchId === "string" ? s.armedBeanBatchId : null,
-          armedGrinderId: typeof s.armedGrinderId === "string" ? s.armedGrinderId : null,
-          armedMachine: s.armedMachine && typeof s.armedMachine === "object" ? s.armedMachine : null,
-        }
-      : null;
-  // The workflow was marked when this was armed, so a later clear has something to clear.
-  markedKey = selectionKey(selection);
 }
 
 /**
@@ -584,4 +529,123 @@ export function trackWorkflow(wf: AnyRecord, now = Date.now()): void {
       armedGrinderId: selection.armedGrinderId || idOf(wf.context && wf.context.grinderId),
     });
   }
+}
+
+// ── derived selection (dye2#36) ─────────────────────────────────────────────
+// The highlight is computed from the live workflow, never stored: a recipe by the id in
+// context.extras.dye.recipeId, a favourite or recent by comparing the fields it owns.
+// (armSelection/trackWorkflow above are the retired armed-pointer API; plugin.ts no longer
+// calls them. ponytail: delete them and their tests with streamline-js#159.)
+
+export function recipeIdOf(wf: AnyRecord | null | undefined): string | null {
+  const id = wf && wf.context && wf.context.extras && wf.context.extras.dye && wf.context.extras.dye.recipeId;
+  return id == null || id === "" ? null : String(id);
+}
+
+/** The entries of `fields` that `stored` holds (non-null): the fields the item owns only. */
+export function heldFields(fields: AnyRecord, stored: AnyRecord | undefined): AnyRecord {
+  const out: AnyRecord = {};
+  for (const [k, v] of Object.entries(fields || {})) if (stored && stored[k] != null) out[k] = v;
+  return out;
+}
+
+/** recipeFields minus the steam group while steam is off: a machine state, not a recipe's. */
+export function ownedRecipeFields(wf: AnyRecord): AnyRecord {
+  const out = recipeFields(wf);
+  if (steamOff(wf)) for (const k of STEAM_KEYS) delete out[k];
+  return out;
+}
+
+/** Has the live workflow drifted off the recipe's own fields? (the `*`) */
+export function recipeModified(recipe: AnyRecord, wf: AnyRecord): boolean {
+  const stored = recipe.dashboardVariables || {};
+  const held = heldFields(ownedRecipeFields(wf), stored);
+  // brewC means nothing for a recipe that names no profile (apply cannot set it): it must
+  // not asterisk the cell for good.
+  if (!profileOf(recipe)) delete held.brewC;
+  return Object.keys(changedFields(held, stored)).length > 0;
+}
+
+function profileOf(recipe: AnyRecord): AnyRecord | null {
+  return (recipe.workflow && recipe.workflow.profile) || recipe.profileSnapshot || null;
+}
+
+/** Does the live profile differ from the recipe's own? A recipe naming none never differs. */
+export function recipeProfileChanged(recipe: AnyRecord, wf: AnyRecord): boolean {
+  const mine = profileFingerprint(profileOf(recipe));
+  const live = profileFingerprint(wf && wf.profile);
+  return !!mine && !!live && mine !== live;
+}
+
+/** A saved favourite compares against its snapshot, a recent (auto: true) against its workflow. */
+export function favouriteMatches(fav: AnyRecord, wf: AnyRecord): boolean {
+  const src = fav.auto ? favouriteFields(fav.workflow) : fav.snapshot || {};
+  const held = heldFields(favouriteFields(wf), src);
+  // An empty source must never match, or an empty row would match everything.
+  return Object.keys(held).length > 0 && Object.keys(changedFields(held, src)).length === 0;
+}
+
+export interface Derived {
+  kind: "recipe" | "favourite" | "recent";
+  id: string;
+  modified: boolean;
+}
+
+/** recipeId wins when it resolves; else the first matching row (saved before recents). */
+export function deriveSelection(
+  wf: AnyRecord | null | undefined,
+  rows: { recipes?: AnyRecord[]; favourites?: AnyRecord[] }
+): Derived | null {
+  if (!wf) return null;
+  const rid = recipeIdOf(wf);
+  const recipe = rid && (rows.recipes || []).find((r) => r && String(r.id) === rid);
+  if (recipe) return { kind: "recipe", id: rid as string, modified: recipeModified(recipe, wf) };
+  const favs = (rows.favourites || []).filter((f) => f && f.id != null);
+  const hit = favs.filter((f) => !f.auto).concat(favs.filter((f) => f.auto)).find((f) => favouriteMatches(f, wf));
+  return hit ? { kind: hit.auto ? "recent" : "favourite", id: String(hit.id), modified: false } : null;
+}
+
+/**
+ * A recipe id with no row (deleted, or made on another Decaid): the newest shot carrying it
+ * stands in as the recipe. Null when none, so nothing is highlighted.
+ */
+export async function resolveRecipeFromHistory(
+  fetchFn: FetchLike,
+  recipeId: string,
+  base = "http://localhost:8080/api/v1"
+): Promise<AnyRecord | null> {
+  const res = await fetchFn(base + "/shots?limit=50&order=desc");
+  if (!res.ok) return null;
+  const data = await res.json();
+  const items: AnyRecord[] = Array.isArray(data) ? data : (data && data.items) || [];
+  const shot = items.find((s) => s && recipeIdOf(s.workflow) === recipeId);
+  return shot ? { id: recipeId, dashboardVariables: recipeFields(shot.workflow), workflow: shot.workflow } : null;
+}
+
+const GENERIC_PROFILE = /^(default|advanced|custom|profile|new|untitled)$/i;
+
+/** `<first word of profile title> <drink type>`; see docs/KV_CONTRACT.md for the drink table. */
+export function proposeRecipeName(wf: AnyRecord, existingNames: string[] = []): string {
+  const word = String((wf && wf.profile && wf.profile.title) || "").trim().split(/\s+/)[0] || "";
+  const ctx = (wf && wf.context) || {};
+  const steamT = Number(wf && wf.steamSettings && wf.steamSettings.targetTemperature);
+  const steamS = wf && wf.steamSettings && wf.steamSettings.duration;
+  const hw = (wf && wf.hotWaterData) || {};
+  const ratio = Math.round((Number(ctx.targetYield) / Number(ctx.targetDoseWeight)) * 100) / 100; // 43.2/18 is 2.4000000000000004
+  let drink = "Espresso";
+  if (steamT >= 135 && Number(steamS) !== 0) {
+    const s = Number(steamS);
+    drink = s > 0 && s <= 20 ? "Flat White" : s > 0 && s <= 35 ? "Cappuccino" : "Latte";
+  } else if (Number(hw.duration) > 0 || Number(hw.volume) > 0) drink = "Americano";
+  else if (Number.isFinite(ratio) && ratio > 0) drink = ratio < 1.6 ? "Ristretto" : ratio <= 2.4 ? "Espresso" : "Lungo";
+  const base = (GENERIC_PROFILE.test(word) ? "" : word + " ") + drink;
+  const taken = (n: string) => existingNames.some((x) => String(x).toLowerCase() === n.toLowerCase());
+  if (!taken(base)) return base;
+  // Collision: the bean's first word after the name, then a counter.
+  const bean = String(ctx.coffeeName || "").trim().split(/\s+/)[0];
+  const named = bean ? base + " " + bean : base;
+  if (!taken(named)) return named;
+  let n = 2;
+  while (taken(named + " " + n)) n++;
+  return named + " " + n;
 }

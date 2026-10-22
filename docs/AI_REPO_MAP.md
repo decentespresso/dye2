@@ -30,7 +30,7 @@ If you are about to edit anything under `dye2-plugin/src/`, read `AI_RUNTIME_NOT
 | Auto-favourites, recipes, baskets, equipment | `src/utils/dev-api.ts` KV section | `docs/KV_CONTRACT.md`, then `AI_DATA_NOTES.md` |
 | Equipment on a shot / favourite / recipe | `src/utils/equipment-field.ts`, `pages/edit-shot.ts` | `AI_DATA_NOTES.md` |
 | Workflow, applying a favourite or recipe | `dev-api.ts` `buildFavouriteWorkflow`, `pages/dashboard.ts` | `AI_DATA_NOTES.md` |
-| Dial-in recorded onto a recipe/favourite, the armed selection, the `changed` push | `src/utils/workflow-record.ts`, `plugin.ts` | `AI_DATA_NOTES.md` |
+| Dial-in recorded onto a recipe/favourite, the derived selection, the `changed` push | `src/utils/workflow-record.ts`, `plugin.ts` | `AI_DATA_NOTES.md` |
 | Shot history, paging, ratings | `src/utils/shot-paging.ts`, `pages/edit-shot.ts` | `AI_DATA_NOTES.md` |
 | A shot's basket, RPM or note (set before the shot vs edited after) | `src/utils/recorded-shot.ts`, `pages/edit-shot.ts` | `AI_DATA_NOTES.md` |
 | Beanconqueror import | `src/utils/bc-map.ts`, `pages/bc-import.ts`, `test/bc-map.test.mjs` | `AI_DATA_NOTES.md` |

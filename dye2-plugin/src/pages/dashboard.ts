@@ -306,6 +306,7 @@ function buildContent(): string { return `
             <button id="dye-history-btn" class="cursor-pointer" title="Undo — reverts your last change here; tap again to redo it" aria-label="Undo last change">
               <img src="${iconHistory}" width="42" height="42" alt="History" />
             </button>
+            <button id="dye-save-recipe-btn" class="border-2 border-[var(--mimoja-blue)] text-[var(--mimoja-blue)] font-semibold text-[20px] rounded-[23px] h-[42px] px-[20px] cursor-pointer">Save to recipes</button>
             <button id="dye-clipboard-btn" class="cursor-pointer">
               <img src="${iconClipboard}" width="42" height="42" alt="Clipboard" />
             </button>
@@ -534,17 +535,12 @@ function noteApplied(kind, item) {
   const id = item && item.id;
   lastApplied = (id != null && String(id).indexOf('recent:') !== 0) ? kind + ':' + id : 'other';
 }
-// Tell the plugin runtime which item was just applied so it records later dial-in
-// edits onto it (workflow-record.ts). Call AFTER the apply's PUT /workflow: the plugin
-// reads the live workflow to fingerprint the profile. A recent: id clears the selection.
-function postSelection(kind, item) {
-  const id = item && item.id;
-  const body = (id != null && String(id).indexOf('recent:') !== 0) ? { kind: kind, id: String(id) } : {};
-  return fetch('/api/v1/plugins/dye2.reaplugin/selection', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }).catch(e => console.warn('selection post failed', e));
+// The recipe being dialled in rides in the workflow itself (extras.dye.recipeId, dye2#36): set
+// by a recipe apply, null for anything else that replaces the profile. The plugin runtime
+// derives the selection from it; there is no separate POST. A tile edit leaves it alone.
+function setRecipeId(ctx, id) {
+  const ex = ctx.extras || {};
+  ctx.extras = { ...ex, dye: { ...(ex.dye || {}), v: 1, recipeId: id == null ? null : String(id) } };
 }
 
 // The subset of "cur" that differs from "base", recursing into plain objects: the body for a
@@ -597,6 +593,22 @@ function snapshotWorkflow() {
   lastEditSnapshot = JSON.stringify({ context: currentWorkflow.context || {}, profile: currentWorkflow.profile || null });
   const btn = document.getElementById('dye-history-btn');
   if (btn) btn.style.opacity = '';
+}
+
+// Save the live workflow as a new recipe, which the plugin runtime also selects (dye2#36).
+function setupSaveRecipe() {
+  const btn = document.getElementById('dye-save-recipe-btn');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/v1/plugins/dye2.reaplugin/save-recipe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const saved = await res.json();
+      showTransientMessage('Saved as ' + saved.name);
+    } catch (e) { console.warn('save-recipe failed', e); showTransientMessage('Could not save the recipe'); }
+  });
 }
 
 function setupHistoryRevert() {
@@ -1243,7 +1255,7 @@ function renderRecipePills(workflow) {
       if (isRecent) {
         await applyAutoFavourite(item);
         noteApplied('favourite', item);
-        pushWorkflow().then(() => postSelection('favourite', item)).catch(e => console.warn(e));
+        pushWorkflow().catch(e => console.warn(e));
       } else {
         // The list was read at page load; dial-in recording may have changed this recipe since,
         // so apply the stored record. Fall back to the loaded one if the re-read fails or the
@@ -1252,7 +1264,7 @@ function renderRecipePills(workflow) {
         try { fresh = (await getRecipe(item.id)) || item; } catch (e) { console.warn('recipe re-read failed', e); }
         await applyRecipe(fresh);
         noteApplied('recipe', fresh);
-        pushWorkflow().then(() => postSelection('recipe', fresh)).catch(e => console.warn(e));
+        pushWorkflow().catch(e => console.warn(e));
       }
     });
     container.appendChild(pill);
@@ -1320,6 +1332,7 @@ async function applyRecipe(recipe) {
   if (recipe.barista) { ctx.baristaName = recipe.barista; wrote.push('baristaName'); }
   if (recipe.drinker) { ctx.drinkerName = recipe.drinker; wrote.push('drinkerName'); }
   markDye(ctx, wrote);
+  setRecipeId(ctx, recipe.id);
   currentWorkflow.context = ctx;
   if (recipe.profileId || recipe.profileTitle) {
     if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps)) {
@@ -1400,6 +1413,7 @@ async function applyAutoFavourite(fav) {
     }
   }
   markDye(ctx, wrote);
+  setRecipeId(ctx, null);
   currentWorkflow.context = ctx;
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
     if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps)) {
@@ -1695,6 +1709,7 @@ function setupClipboardPaste() {
       extras:           shotWorkflowExtras(shot),
     };
     markDye(currentWorkflow.context);   // the pasted shot's own flags are its past; flag what is set now
+    setRecipeId(currentWorkflow.context, null);   // a pasted shot brings its own profile
     if (wf.profile) currentWorkflow.profile = { ...wf.profile };
     renderNextShot();
     // Show the copied shot's profile name (only revealed on clipboard copy).
@@ -1840,6 +1855,7 @@ function wireDashboardControls() {
   setupReadNote();
   setupAddNote();
   setupHistoryRevert();
+  setupSaveRecipe();
   const pills = document.getElementById('dye-recipe-pills');
   document.getElementById('dye-recipe-prev')?.addEventListener('click', () => pills?.scrollBy({ left: -pills.clientWidth, behavior: 'smooth' }));
   document.getElementById('dye-recipe-next')?.addEventListener('click', () => pills?.scrollBy({ left: pills.clientWidth, behavior: 'smooth' }));
@@ -1903,7 +1919,6 @@ async function initializeDyeDashboard() {
         await applyAutoFavourite(fav);
         noteApplied('favourite', fav);
         await pushWorkflow().catch(e => console.warn(e));
-        await postSelection('favourite', fav);
       } else if (selFavId.indexOf('recent:') === 0) {
         // A recent's id is not stable — it changes as soon as a newer shot takes over
         // its group — so the one the picker sent back can already be gone by the time

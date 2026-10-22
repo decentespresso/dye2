@@ -18,19 +18,26 @@ import { renderRecipeEditPage } from "./pages/recipe-edit";
 import { renderBcImportPage } from "./pages/bc-import";
 import { refreshRecentFavourites, shotPatchAffectsRecents } from "./utils/recent-favs";
 import {
-  armSelection,
-  clearSelection,
-  getSelection,
-  restoreSelection,
+  deriveSelection,
+  recipeIdOf,
+  recipeModified,
+  recipeProfileChanged,
+  resolveRecipeFromHistory,
+  proposeRecipeName,
+  ownedRecipeFields,
+  machineFields,
   withMachineSettings,
   readMachineSettings,
-  trackWorkflow,
   recordWorkflow,
-  setSelectionListener,
-  syncSelectionMarker,
+  type Selection,
 } from "./utils/workflow-record";
 
-const SELECTION_STORAGE_KEY = "selection";
+const API = "http://localhost:8080/api/v1";
+const NS = "dye2.reaplugin";
+const EMPTY_BASELINE: Selection = {
+  kind: "recipe", id: "", profileFingerprint: null, armedBrewC: null,
+  armedBeanBatchId: null, armedGrinderId: null, armedMachine: null,
+};
 
 export default function createPlugin(host: PluginHost): PluginInstance {
   function log(msg: string) {
@@ -60,44 +67,86 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     }
   }
 
-  // The armed selection lives in workflow-record.ts memory and is mirrored to plugin
-  // storage so it survives a reload. Storage reads cannot be awaited: host.storage()
-  // returns void and the value comes back later as a `storageRead` event (handled in
-  // onEvent), so it is requested once in onLoad.
-  function persistSelection(): void {
-    if (typeof host.storage !== "function") return;
-    host.storage({
-      type: "write",
-      key: SELECTION_STORAGE_KEY,
-      namespace: "dye2.reaplugin",
-      // Never null: Decaid's plugin storage does not store a null, so a cleared selection
-      // would leave the old value in place and restoreSelection would re-arm it on reload.
-      // `{}` has no `kind`, which restoreSelection reads as "no selection".
-      data: getSelection() || {},
-    });
+  // dye2#36: the selection is derived from the live workflow, never stored. It is mirrored to
+  // plugin storage (= the KV key `selection`) so the skin keeps reading the same place.
+  type Derived = { kind: string; id: string; modified: boolean } | null;
+  let mirrored: string | null = null;
+
+  async function kv(key: string): Promise<any[]> {
+    const res = await fetch(`${API}/store/${NS}/${key}`);
+    const val = res.ok ? await res.json() : null;
+    return Array.isArray(val) ? val : [];
   }
-  // Every selection change (arm, clear, `recent:`, profile drift) persists AND pushes, so
-  // the skin re-reads its DYE strip. handleSelection must not announce again itself, and
-  // restoreSelection deliberately does not notify this listener.
-  let announcedSelection: string | null = null;
-  setSelectionListener((sel) => {
-    persistSelection();
-    // Mirror it into the workflow so each Shot carries it. A failed or unavailable PUT only
-    // logs: arming, persistence and the push below do not depend on it.
-    if (typeof fetch === "function") {
-      syncSelectionMarker(fetch).catch((e: unknown) =>
-        log(`selection marker failed: ${e instanceof Error ? e.message : String(e)}`)
-      );
+
+  async function putWorkflow(body: unknown): Promise<void> {
+    const res = await fetch(`${API}/workflow`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} writing workflow`);
+  }
+
+  // The recipe row `recipeId` names, else the newest shot carrying it (deleted recipe, or one
+  // made on another Decaid), else null.
+  async function recipeFor(rid: string | null, recipes: any[]): Promise<any | null> {
+    if (!rid) return null;
+    const row = recipes.find((r) => r && String(r.id) === rid);
+    if (row) return row;
+    try {
+      return await resolveRecipeFromHistory(fetch, rid, API);
+    } catch (e) {
+      return null;
     }
-    // updateSelection fires this listener for a baseline rebase too (armedBrewC after a
-    // record, an adopted fingerprint or bean/grinder): nothing the skin can see, and a
-    // brew-temp tweak would otherwise push on every workflowUpdated. Push only when
-    // WHICH item is selected changes.
-    const key = sel ? sel.kind + ":" + sel.id : null;
-    if (key === announcedSelection) return;
-    announcedSelection = key;
+  }
+
+  async function derive(wf: any): Promise<Derived> {
+    const [recipes, favourites] = await Promise.all([kv("recipes"), kv("autoFavourites")]);
+    const hist = await recipeFor(recipeIdOf(wf), recipes);
+    return deriveSelection(wf, { recipes: hist ? recipes.concat(hist) : recipes, favourites });
+  }
+
+  // Apply-time baselines for record (dye2#23 adoption, brewC rule), keyed by the recipeId seen.
+  // ponytail: in memory only; after a plugin restart those fields are simply not adopted.
+  let baseline: Selection | null = null;
+
+  async function workflowChanged(wf: any): Promise<void> {
+    if (!wf) return;
+    const rid = recipeIdOf(wf);
+    if (rid) {
+      const recipes = await kv("recipes");
+      const recipe = await recipeFor(rid, recipes);
+      // A recipe's identity is its profile: a profile change from any source drops the id.
+      if (recipe && recipeProfileChanged(recipe, wf)) {
+        await putWorkflow({ context: { extras: { dye: { recipeId: null } } } });
+        return; // the PUT fires another workflowUpdated, which mirrors the result
+      }
+      if (!baseline || baseline.id !== rid) {
+        const full = withMachineSettings(wf, await readMachineSettings(fetch, API));
+        const live = ownedRecipeFields(wf).brewC;
+        baseline = {
+          kind: "recipe", id: rid, profileFingerprint: null,
+          armedBrewC: live === undefined ? null : live,
+          armedBeanBatchId: null, armedGrinderId: null, armedMachine: machineFields(full),
+        };
+      }
+    } else baseline = null;
+    const sel = await derive(wf);
+    const key = sel ? `${sel.kind}:${sel.id}:${sel.modified}` : null;
+    if (key === mirrored) return;
+    mirrored = key;
+    // Never null: Decaid's plugin storage does not store a null. `{}` has no `kind`.
+    host.storage({ type: "write", key: "selection", namespace: NS, data: sel || {} });
     announce({ what: "workflow" });
-  });
+  }
+
+  let chain: Promise<void> = Promise.resolve();
+  function trackWorkflow(wf: any): void {
+    if (typeof fetch !== "function" || typeof host.storage !== "function") return;
+    chain = chain
+      .then(() => workflowChanged(wf))
+      .catch((e: unknown) => log(`selection sync failed: ${e instanceof Error ? e.message : String(e)}`));
+  }
 
   function json(request: HttpRequest, status: number, body: unknown): HttpResponse {
     return {
@@ -108,8 +157,17 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     };
   }
 
-  async function handleSelection(request: HttpRequest): Promise<HttpResponse> {
-    if (request.method === "GET") return json(request, 200, getSelection());
+  async function liveWorkflow(): Promise<any | null> {
+    try {
+      const res = await fetch(`${API}/workflow`);
+      return res.ok ? await res.json() : null;
+    } catch (e) {
+      log(`could not read workflow: ${e instanceof Error ? e.message : String(e)}`);
+      return null;
+    }
+  }
+
+  function parseBody(request: HttpRequest): any {
     let body: any = request.body;
     if (typeof body === "string") {
       try {
@@ -118,57 +176,108 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         body = null;
       }
     }
-    if (!body || !body.kind) {
-      clearSelection();
-      return json(request, 200, null);
-    }
-    // The dashboard posts this right after its PUT /workflow, so the live workflow is
-    // the applied one: fingerprint its profile and record it as the apply's echo.
-    let wf: any = null;
-    if (typeof fetch === "function") {
-      try {
-        const res = await fetch("http://localhost:8080/api/v1/workflow");
-        if (res.ok) wf = await res.json();
-      } catch (e) {
-        log(`selection: could not read workflow: ${e instanceof Error ? e.message : String(e)}`);
-      }
-      // Flush temperature and flow live on the DE1, not the workflow, so the arm-time baseline
-      // has to read them separately or they could never be recorded (dye2#23).
-      if (wf) wf = withMachineSettings(wf, await readMachineSettings(fetch, "http://localhost:8080/api/v1"));
-    }
-    const sel = armSelection(body, wf);
-    return json(request, 200, sel);
+    return body;
   }
 
-  // "Save changes": patch the selected recipe or favourite with what the live workflow now
-  // says, using the same diff the old automatic path used (itemPatch against the arm-time
-  // baselines), so only fields the barista actually moved are written.
+  // GET answers the derived selection { kind, id, modified } | null. When both a recipe and a
+  // matching favourite/recent are live, the recipe (the explicit id) wins.
+  async function handleSelection(request: HttpRequest): Promise<HttpResponse> {
+    if (typeof fetch !== "function") return json(request, 503, { error: "no api permission" });
+    if (request.method !== "GET") {
+      // ponytail: compat shim for callers that still POST; nothing is stored, the id rides in
+      // the workflow. Drop the route with streamline-js#159.
+      const body = parseBody(request);
+      const id = body && body.kind === "recipe" && body.id != null ? String(body.id) : null;
+      await putWorkflow({ context: { extras: { dye: { recipeId: id } } } });
+    }
+    const wf = await liveWorkflow();
+    return json(request, 200, wf ? await derive(wf) : null);
+  }
+
+  // "Save changes": patch the selected recipe with what the live workflow now says (itemPatch
+  // against the apply-time baseline), so only fields the barista actually moved are written.
+  // ponytail: only recipes are a save target; a favourite or recent deselects on any drift.
   async function handleRecord(request: HttpRequest): Promise<HttpResponse> {
-    const armed = getSelection();
-    if (!armed) return json(request, 200, { saved: false, reason: "nothing is selected" });
-    if (typeof fetch !== "function") {
-      return json(request, 503, { saved: false, reason: "no api permission" });
-    }
-    let wf: any = null;
-    try {
-      const res = await fetch("http://localhost:8080/api/v1/workflow");
-      if (res.ok) wf = await res.json();
-    } catch (e) {
-      log(`record: could not read workflow: ${e instanceof Error ? e.message : String(e)}`);
-    }
+    if (typeof fetch !== "function") return json(request, 503, { saved: false, reason: "no api permission" });
+    let wf = await liveWorkflow();
     if (!wf) return json(request, 502, { saved: false, reason: "could not read the workflow" });
-    // Flush temperature and flow live on the DE1, not the workflow, so they need their own
-    // read or they could never be saved (dye2#23).
-    wf = withMachineSettings(wf, await readMachineSettings(fetch, "http://localhost:8080/api/v1"));
+    const sel = await derive(wf);
+    if (!sel || sel.kind !== "recipe") return json(request, 200, { saved: false, reason: "no recipe is selected" });
+    // Flush temperature and flow live on the DE1, not the workflow (dye2#23).
+    wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
     try {
-      const wrote = await recordWorkflow(wf, fetch, armed);
+      const armed = baseline && baseline.id === sel.id ? baseline : null;
+      const wrote = await recordWorkflow(wf, fetch, armed || { ...EMPTY_BASELINE, id: sel.id });
       if (wrote) announce({ what: "workflow" });
-      return json(request, 200, { saved: wrote, kind: armed.kind, id: armed.id });
+      return json(request, 200, { saved: wrote, kind: sel.kind, id: sel.id });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       log(`record failed: ${msg}`);
       return json(request, 502, { saved: false, reason: msg });
     }
+  }
+
+  // "Save to recipes": a new recipe from the live workflow, selected at once.
+  // ponytail: writes the row directly; its `workflow` is the live one trimmed, exactly what an
+  // apply would re-PUT, so dev-api.ts buildRecipeWorkflow is not ported here.
+  async function handleSaveRecipe(request: HttpRequest): Promise<HttpResponse> {
+    if (typeof fetch !== "function") return json(request, 503, { error: "no api permission" });
+    let wf = await liveWorkflow();
+    if (!wf) return json(request, 502, { error: "could not read the workflow" });
+    try {
+      const recipes = await kv("recipes");
+      const body = parseBody(request);
+      const ctx = wf.context || {};
+      const name =
+        (body && typeof body.name === "string" && body.name.trim()) ||
+        proposeRecipeName(wf, recipes.map((r) => r && r.name));
+      const id = (globalThis as any).crypto?.randomUUID?.() || `recipe-${Date.now()}`;
+      wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
+      const { dye, ...extras } = ctx.extras || {};
+      const dashboardVariables: any = ownedRecipeFields(wf);
+      if (ctx.grinderId) {
+        dashboardVariables.grinderId = ctx.grinderId;
+        dashboardVariables.grinderModel = ctx.grinderModel;
+      }
+      const row: any = {
+        id, name, title: name,
+        barista: ctx.baristaName, drinker: ctx.drinkerName,
+        beanName: ctx.coffeeName, beanRoaster: ctx.coffeeRoaster, beanBatchId: ctx.beanBatchId,
+        profileTitle: wf.profile && wf.profile.title, profileSnapshot: wf.profile,
+        dashboardVariables,
+        workflow: {
+          context: { ...ctx, extras },
+          profile: wf.profile,
+          steamSettings: wf.steamSettings, hotWaterData: wf.hotWaterData, rinseData: wf.rinseData,
+        },
+        capturedAt: new Date().toISOString(),
+      };
+      const res = await fetch(`${API}/store/${NS}/recipes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(recipes.concat(row)),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status} writing recipes`);
+      await putWorkflow({ context: { extras: { dye: { v: 1, recipeId: id } } } });
+      announce({ what: "workflow" });
+      return json(request, 200, { id, name });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      log(`save-recipe failed: ${msg}`);
+      return json(request, 502, { error: msg });
+    }
+  }
+
+  // One-time cleanup (dye2#36): the stored armed selection and its workflow mirror no longer
+  // mean anything. The other extras.dye keys are Streamline's field flags: left alone.
+  function migrate(): void {
+    host.storage({ type: "write", key: "selection", namespace: NS, data: {} });
+    if (typeof fetch === "function") {
+      putWorkflow({ context: { extras: { dye: { selection: null } } } }).catch((e: unknown) =>
+        log(`selection migration failed: ${e instanceof Error ? e.message : String(e)}`)
+      );
+    }
+    host.storage({ type: "write", key: "selectionMigrated", namespace: NS, data: true });
   }
 
   return {
@@ -178,7 +287,7 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     onLoad(_settings: Record<string, unknown>) {
       log("DYE2 plugin loaded");
       if (typeof host.storage === "function") {
-        host.storage({ type: "read", key: SELECTION_STORAGE_KEY, namespace: "dye2.reaplugin" });
+        host.storage({ type: "read", key: "selectionMigrated", namespace: NS });
       }
       refreshRecents();
     },
@@ -195,17 +304,10 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         // annotation feed the recents. A missing or unreadable patch refreshes (fail safe).
         if (shotPatchAffectsRecents(event.payload && event.payload.patch)) refreshRecents();
       } else if (event.name === "storageRead") {
-        if (event.payload && event.payload.key === SELECTION_STORAGE_KEY && !getSelection()) {
-          restoreSelection(event.payload.value);
-          // restoreSelection does not notify the listener, so record what the skin already
-          // believes: without this a clear right after a restart would match the initial
-          // null and push nothing.
-          const restored = getSelection();
-          announcedSelection = restored ? restored.kind + ":" + restored.id : null;
-        }
+        if (event.payload && event.payload.key === "selectionMigrated" && !event.payload.value) migrate();
       } else if (event.name === "workflowUpdated") {
-        // Tracking only: nothing is written onto the selected item unless the barista asks,
-        // through the `record` route below. Drift still disarms here.
+        // Nothing is written onto a recipe unless the barista asks (`record` route); this
+        // only keeps the recipeId honest and the derived selection mirrored.
         trackWorkflow(event.payload);
       }
     },
@@ -289,7 +391,7 @@ export default function createPlugin(host: PluginHost): PluginInstance {
               };
             });
 
-        // Not pages: arm/clear/read the recipe or favourite being dialled in.
+        // Not pages: the derived selection (GET), and a compat shim (POST).
         case "selection":
           return handleSelection(request);
 
@@ -297,6 +399,10 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         // because a workflow change is not by itself a decision to change the recipe.
         case "record":
           return handleRecord(request);
+
+        // Not a page: save the live workflow as a new recipe and select it.
+        case "save-recipe":
+          return handleSaveRecipe(request);
 
         // Streamline surface discovery: no surfaces (the F/R strip is the skin's own
         // code), just the live socket so the skin re-reads when `changed` pushes.

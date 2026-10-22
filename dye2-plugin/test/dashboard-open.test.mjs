@@ -128,4 +128,18 @@ assert.equal(shotPatchAffectsRecents('{"annotations":{"enjoyment":1}}'), false, 
   assert.ok(!/shots\[idx\]\s*=/.test(tail), "and never writes by the captured index");
 }
 
+// 7. dye2#36: a plain page load writes no workflow. recipeId is written only by the apply
+// paths (recipe apply, favourite/recent apply, shot paste), never by the open path or tile edits.
+{
+  const code = stripComments(dash);
+  const callers = [...code.matchAll(/setRecipeId\(/g)].length;
+  assert.equal(callers, 4, "definition + recipe apply + favourite apply + shot paste, nothing else");
+  assert.ok(!/postSelection/.test(code), "no POST /selection round trip is left");
+  for (const fn of ["async function initializeDyeDashboard(", "function renderNextShot("]) {
+    const i = code.indexOf(fn);
+    const body = code.slice(i, code.indexOf("\n}\n", i));
+    assert.ok(i > 0 && !/setRecipeId\(/.test(body), fn + " never touches recipeId");
+  }
+}
+
 console.log("dashboard-open tests passed");

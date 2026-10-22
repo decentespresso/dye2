@@ -5,9 +5,11 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  armSelection, clearSelection, getSelection, setSelectionListener, restoreSelection,
+  armSelection, clearSelection, getSelection, setSelectionListener,
   profileFingerprint, profileDrifted, itemPatch, recordWorkflow, trackWorkflow,
-  suppress, profileAtBrewC, syncSelectionMarker, withMachineSettings, readMachineSettings,
+  suppress, profileAtBrewC, withMachineSettings, readMachineSettings,
+  recipeIdOf, heldFields, recipeModified, recipeProfileChanged, favouriteMatches, deriveSelection,
+  resolveRecipeFromHistory, proposeRecipeName,
 } from '../src/utils/workflow-record.ts';
 
 const profile = (temp) => ({ title: 'P', tank_temperature: 0, steps: [{ name: 's', temperature: temp }] });
@@ -221,13 +223,6 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   run(withCtx({ beanBatchId: 'b3', grinderId: 'g1' }));
   assert.equal(getSelection(), null);
 
-  // round-trips through persistence
-  armSelection({ kind: 'recipe', id: '1' }, withCtx({ beanBatchId: 'b1', grinderId: 'g1' }), 0);
-  const saved = JSON.parse(JSON.stringify(getSelection()));
-  clearSelection();
-  restoreSelection(saved);
-  assert.equal(getSelection().armedBeanBatchId, 'b1');
-  assert.equal(getSelection().armedGrinderId, 'g1');
   clearSelection();
 }
 
@@ -595,4 +590,112 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(s.writes.length, before, 'a second save with no change is a no-op');
   clearSelection();
   console.log('ok   recording is opt-in: the event tracks, only an explicit save writes');
+}
+
+// --- derived selection (dye2#36) -------------------------------------------------------
+{
+  const withId = (id, over) => {
+    const w = wf(over);
+    w.context = { ...w.context, ...(over && over.context), extras: { dye: { v: 1, recipeId: id } } };
+    return w;
+  };
+  const r1 = () => ({ ...recipe(), workflow: { profile: profile(93) } });
+  const rows = (extra) => ({ recipes: [r1()], favourites: [fav()], ...extra });
+  assert.equal(recipeIdOf(withId('1')), '1');
+  assert.equal(recipeIdOf(withId(null)), null);
+  assert.equal(recipeIdOf(withId('')), null);
+  assert.equal(recipeIdOf(wf()), null);
+
+  // AC1: a recipe keeps its highlight when a held field drifts, with the modified flag
+  assert.deepEqual(deriveSelection(withId('1'), rows()), { kind: 'recipe', id: '1', modified: false });
+  const drifted = withId('1', { context: { targetDoseWeight: 18, targetYield: 36, grinderSetting: '5' } });
+  assert.deepEqual(deriveSelection(drifted, rows()), { kind: 'recipe', id: '1', modified: true }, 'grind change: still selected, starred');
+  // and once saved (the recipe holds the new grind) the star clears
+  const saved = r1(); saved.dashboardVariables.grind = 5;
+  assert.equal(deriveSelection(drifted, { recipes: [saved] }).modified, false, 'save clears the star');
+  // a field the recipe does not hold never stars it; steam off never stars it
+  assert.equal(recipeModified(r1(), wf({ rinseData: { duration: 5 }, hotWaterData: { volume: 999 } })), false);
+  assert.equal(recipeModified(r1(), wf({ steamSettings: { targetTemperature: 0, duration: 0 } })), false, 'steam off is not drift');
+  const steamy = r1(); Object.assign(steamy.dashboardVariables, { steamTempC: 150 });
+  assert.equal(recipeModified(steamy, wf({ steamSettings: { targetTemperature: 0, duration: 30 } })), false, 'held steam, machine steam off');
+  assert.equal(recipeModified(steamy, wf({ steamSettings: { targetTemperature: 160, duration: 30 } })), true, 'held steam, changed');
+
+  // AC2: a favourite deselects on any drift of a field it owns
+  assert.deepEqual(deriveSelection(wf(), rows({ recipes: [] })), { kind: 'favourite', id: 'af1', modified: false });
+  assert.equal(deriveSelection(wf({ context: { targetDoseWeight: 18, targetYield: 36, grinderSetting: '5' } }), rows({ recipes: [] })), null, 'favourite + grind change: nothing');
+
+  // AC4: applying a favourite nulls recipeId, so the recipe highlight goes (nothing stored to remember it)
+  assert.equal(deriveSelection(withId(null), rows({ favourites: [] })), null);
+  assert.equal(deriveSelection(withId(null), rows()).kind, 'favourite');
+
+  // recents: compared against the row's own workflow; a saved favourite beats the recent duplicating it
+  const recent = { id: 'recent:1', auto: true, workflow: wf() };
+  assert.equal(deriveSelection(wf(), { favourites: [recent] }).kind, 'recent');
+  assert.equal(deriveSelection(wf(), { favourites: [recent, fav()] }).kind, 'favourite', 'saved before recents');
+  assert.equal(deriveSelection(wf({ context: { targetDoseWeight: 19, targetYield: 36, grinderSetting: '4.2' } }), { favourites: [recent] }), null, 'recents deselect on drift');
+  // a recipeId that resolves beats a matching favourite
+  assert.equal(deriveSelection(withId('1'), rows()).kind, 'recipe');
+
+  // heldFields / favouriteMatches edges
+  assert.deepEqual(heldFields({ a: 1, b: 2, c: 3 }, { a: 0, b: null }), { a: 1 }, 'only non-null stored keys');
+  assert.equal(favouriteMatches({ id: 'x', snapshot: {} }, wf()), false, 'an empty snapshot never matches');
+  assert.equal(favouriteMatches({ id: 'x', auto: true, workflow: {} }, wf()), false, 'nor an empty recent');
+  assert.equal(favouriteMatches({ id: 'x', snapshot: { dose: 18, grindSetting: '4.20' } }, wf()), true, '"4.20" == 4.2 numerically');
+  assert.equal(favouriteMatches({ id: 'x', snapshot: { dose: 18, grindSetting: 4.2, profileTitle: 'Other' } }, wf()), true, 'non-field keys are ignored');
+
+  // AC3: a profile change drops the recipe's identity; a temperature-only edit does not
+  const other = { ...profile(93), title: 'Other' };
+  assert.equal(recipeProfileChanged(r1(), wf({ profile: other })), true, 'P-strip profile change');
+  assert.equal(recipeProfileChanged(r1(), wf({ profile: profile(96) })), false, 'brew-temp edit is not a new profile');
+  assert.equal(recipeProfileChanged(recipe(), wf({ profile: other })), false, 'a recipe naming no profile has no fingerprint to differ from');
+
+  // AC5: a deleted recipe is recovered from the newest shot carrying its id, or quietly nothing
+  const shot = (id, dose) => ({ id: 's' + dose, workflow: withId(id, { context: { targetDoseWeight: dose, targetYield: 36, grinderSetting: '4.2' } }) });
+  const shotsFetch = (items) => async () => ({ ok: true, status: 200, json: async () => ({ items }) });
+  const hist = await resolveRecipeFromHistory(shotsFetch([shot('9', 20), shot('1', 19), shot('1', 17)]), '1');
+  assert.equal(hist.id, '1');
+  assert.equal(hist.dashboardVariables.dose, 19, 'the newest matching shot');
+  assert.deepEqual(deriveSelection(withId('1'), { recipes: [hist] }), { kind: 'recipe', id: '1', modified: true }, 'drifted from the shot: starred');
+  assert.equal(await resolveRecipeFromHistory(shotsFetch([shot('9', 20)]), '1'), null, 'no such shot: no highlight');
+  assert.equal(deriveSelection(withId('1'), { recipes: [] }), null, 'dangling id, no history: quiet');
+  assert.equal(await resolveRecipeFromHistory(async () => ({ ok: false, status: 500, json: async () => null }), '1'), null);
+
+  // AC6: the id rides in the workflow, which Decaid copies onto the shot. Decaid keeps the
+  // whole workflow (shot_record / workflow context extras round-trip), so the contract here is
+  // that the id sits in context.extras.dye, where recipeIdOf reads it back from a shot.
+  assert.equal(recipeIdOf(shot('1', 18).workflow), '1');
+  console.log('ok   selection is derived from the workflow');
+}
+
+// --- recipe name proposal -------------------------------------------------------------
+{
+  const w = (title, ctx, over) => ({
+    profile: { title, steps: [] },
+    context: { targetDoseWeight: 18, targetYield: 36, ...ctx },
+    steamSettings: { targetTemperature: 0, duration: 0 },
+    hotWaterData: { volume: 0, duration: 0 },
+    ...over,
+  });
+  const steam = (d) => ({ steamSettings: { targetTemperature: 150, duration: d } });
+  assert.equal(proposeRecipeName(w('Turbo', { targetYield: 27 })), 'Turbo Ristretto', 'ratio 1.5');
+  assert.equal(proposeRecipeName(w('Turbo', { targetYield: 38.9 })), 'Turbo Espresso', '2.16');
+  assert.equal(proposeRecipeName(w('Turbo', { targetYield: 43.2 })), 'Turbo Espresso', '2.4 is still espresso');
+  assert.equal(proposeRecipeName(w('Turbo', { targetYield: 54 })), 'Turbo Lungo', 'ratio 3');
+  assert.equal(proposeRecipeName(w('Turbo', { targetYield: undefined })), 'Turbo Espresso', 'no ratio: espresso');
+  assert.equal(proposeRecipeName(w('Default', {}, { hotWaterData: { volume: 120 } })), 'Americano', 'generic profile dropped');
+  assert.equal(proposeRecipeName(w('advanced thing', {})), 'Espresso');
+  assert.equal(proposeRecipeName(w('Turbo Shot 2', {})), 'Turbo Espresso', 'first word only');
+  assert.equal(proposeRecipeName(w('Turbo', {}, steam(20))), 'Turbo Flat White');
+  assert.equal(proposeRecipeName(w('Turbo', {}, steam(35))), 'Turbo Cappuccino');
+  assert.equal(proposeRecipeName(w('Turbo', {}, steam(36))), 'Turbo Latte');
+  assert.equal(proposeRecipeName(w('Turbo', {}, { steamSettings: { targetTemperature: 150 } })), 'Turbo Latte', 'unknown duration: latte');
+  assert.equal(proposeRecipeName(w('Turbo', {}, { ...steam(15), hotWaterData: { volume: 100 } })), 'Turbo Flat White', 'steam beats hot water');
+  assert.equal(proposeRecipeName(w('Turbo', { targetYield: 27 }, { hotWaterData: { duration: 10 } })), 'Turbo Americano', 'hot water beats ratio');
+  assert.equal(proposeRecipeName(w('Turbo', { targetYield: 27 }, steam(10))), 'Turbo Flat White', 'milk beats ratio');
+  // collisions: the bean's first word, then a counter
+  const ctx = { targetYield: 27, coffeeName: 'Ethiopia Guji' };
+  assert.equal(proposeRecipeName(w('Turbo', ctx), ['Turbo Ristretto']), 'Turbo Ristretto Ethiopia');
+  assert.equal(proposeRecipeName(w('Turbo', ctx), ['turbo ristretto', 'Turbo Ristretto Ethiopia']), 'Turbo Ristretto Ethiopia 2');
+  assert.equal(proposeRecipeName(w('Turbo', { targetYield: 27 }), ['Turbo Ristretto', 'Turbo Ristretto 2']), 'Turbo Ristretto 3', 'no bean: counter');
+  console.log('ok   recipe names are proposed from the workflow');
 }
