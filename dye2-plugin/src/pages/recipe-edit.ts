@@ -735,6 +735,47 @@ function favouriteToRecipePatch(fav) {
   };
 }
 
+// Nothing in the record for a dashboard variable? Fall back to the field's own first preset —
+// the same number the strip offers first and the same default a profile tap uses — so a read
+// leaves no blanks behind. Reads the chips themselves rather than a second copy of the numbers.
+// Grind and RPM have no preset strip, so they have no default to take and stay blank.
+function withDefaultVariables(dv) {
+  const out = { ...dv };
+  const firstChip = (prefix) => {
+    const b = document.querySelector('#' + prefix + '-presets .dye-preset');
+    return b ? (b.dataset.preset || '') : '';
+  };
+  const firstNum = (prefix) => { const n = parseFloat(firstChip(prefix)); return Number.isFinite(n) ? n : null; };
+  const fill = (key, value) => { if (out[key] == null && value != null) out[key] = value; };
+
+  fill('dose', firstNum('re-dose'));
+  // The drink strip holds ratios, not grams, so its default is a ratio against the dose.
+  const ratio = parseFloat(firstChip('re-drink').replace('1:', ''));
+  if (out.drink == null && out.dose > 0 && Number.isFinite(ratio)) {
+    out.drink = Math.round(out.dose * ratio * 10) / 10;
+    out.ratio = ratio;
+  }
+  if (out.ratio == null && out.dose > 0 && out.drink > 0) out.ratio = Math.round((out.drink / out.dose) * 10) / 10;
+  fill('brewC', firstNum('re-brew-c'));
+  fill('flushS', firstNum('re-flush'));
+  // Both halves of each pair: the mode on screen takes its own strip's first chip, the half it
+  // hides takes the first preset of the other mode (MODE_CFG), which is what the sub-line shows.
+  Object.keys(MODE_CFG).forEach((cls) => {
+    const cfg = MODE_CFG[cls];
+    Object.keys(cfg.field).forEach((mode) => {
+      const list = cfg.presets[mode] || [];
+      const n = parseFloat(list[0]);
+      fill(cfg.field[mode], Number.isFinite(n) ? n : null);
+    });
+    // Filling both halves would otherwise move the tile: renderRecipe infers the mode from
+    // whichever half is held, so a defaulted hotWaterTempC flipped Hot Water to Temp. Pin the
+    // mode the toggle is already showing; a favourite never carries one.
+    const modeKey = cls === 're-steam-mode' ? 'steamMode' : 'hotWaterMode';
+    fill(modeKey, activeMode(cls));
+  });
+  return out;
+}
+
 // Merge a patch into the current recipe (keep id/name), then re-render.
 function applyToCurrentRecipe(src) {
   if (!src) return;
@@ -1472,7 +1513,11 @@ async function initRecipeEdit() {
     sessionStorage.removeItem('dye_selectedAutoFavId');
     try {
       const fav = await getAutoFavourite(selFavId);
-      if (fav) applyToCurrentRecipe(favouriteToRecipePatch(fav));
+      if (fav) {
+        const patch = favouriteToRecipePatch(fav);
+        patch.dashboardVariables = withDefaultVariables(patch.dashboardVariables);
+        applyToCurrentRecipe(patch);
+      }
     } catch (e) { console.warn('Could not load selected auto-favourite:', e); }
   }
   renderSlots();

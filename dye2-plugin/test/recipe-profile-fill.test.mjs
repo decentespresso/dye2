@@ -208,3 +208,61 @@ const fn = (src, sig) => { const i = src.indexOf(sig); return src.slice(i, src.i
 
   console.log('ok   favouriteToRecipePatch: snapshot, workflow fallbacks, brew temp, recovered profile id');
 }
+
+// ── withDefaultVariables (recipe-edit.ts) ───────────────────────────────────
+// A favourite record is often partial, so a read fills what it does not carry from each field's
+// own first preset — read off the chips, not a second copy of the numbers.
+{
+  const page = read('../src/pages/recipe-edit.ts');
+  const src = fn(page, 'function withDefaultVariables(dv)');
+
+  const chips = {
+    're-dose-presets':     '20g',
+    're-drink-presets':    '1:2.3',
+    're-brew-c-presets':   '75°c',
+    're-flush-presets':    '5s',
+  };
+  const MODE_CFG = {
+    're-steam-mode':    { field: { time: 'steamTimeS', flow: 'steamFlowMls' },
+                          presets: { time: ['29s', '15s'], flow: ['0.8ml/s', '1ml/s'] } },
+    're-hotwater-mode': { field: { vol: 'hotWaterMl', temp: 'hotWaterTempC' },
+                          presets: { vol: ['75ml', '120ml'], temp: ['80°c', '85°c'] } },
+  };
+  const defaults = (dv, { steamMode = 'flow', hwMode = 'vol' } = {}) => new Function(
+    'document', 'MODE_CFG', 'activeMode', 'dv',
+    src + '; return withDefaultVariables(dv);',
+  )({ querySelector: (sel) => { const m = /^#([\w-]+) \.dye-preset$/.exec(sel);
+        return m && chips[m[1]] ? { dataset: { preset: chips[m[1]] } } : null; } },
+    MODE_CFG, (cls) => (cls === 're-steam-mode' ? steamMode : hwMode), dv);
+
+  let d = defaults({});
+  assert.equal(d.dose, 20, 'dose takes the first dose chip');
+  assert.equal(d.drink, 46, 'the drink strip holds ratios, so its default is 20g at 1:2.3');
+  assert.equal(d.ratio, 2.3, 'and the ratio is recorded with it');
+  assert.equal(d.brewC, 75, 'brew temperature takes its first chip');
+  assert.equal(d.flushS, 5, 'flush too');
+  assert.deepEqual([d.steamFlowMls, d.steamTimeS], [0.8, 29], 'both halves of the steam pair');
+  assert.deepEqual([d.hotWaterMl, d.hotWaterTempC], [75, 80], 'and of the hot water pair');
+  // Filling both halves would otherwise move the tile, since renderRecipe infers the mode from
+  // whichever half is held.
+  assert.deepEqual([d.steamMode, d.hotWaterMode], ['flow', 'vol'], 'the modes on screen are pinned');
+  d = defaults({}, { steamMode: 'time', hwMode: 'temp' });
+  assert.deepEqual([d.steamMode, d.hotWaterMode], ['time', 'temp'], 'whichever they are');
+
+  // Grind and RPM have no strip, so there is no default to take.
+  assert.ok(!('grind' in defaults({})) && !('rpm' in defaults({})), 'grind and rpm stay blank');
+
+  // What the record did carry is never overwritten.
+  d = defaults({ dose: 28, drink: 80, brewC: 95, flushS: 17, steamFlowMls: 16, hotWaterMl: 15 });
+  assert.deepEqual(
+    [d.dose, d.drink, d.brewC, d.flushS, d.steamFlowMls, d.hotWaterMl],
+    [28, 80, 95, 17, 16, 15], 'values from the record survive');
+  assert.equal(d.ratio, 2.9, 'a missing ratio is still derived from the pair that is there');
+  assert.equal(d.steamTimeS, 29, 'and the half the record lacks is still defaulted');
+
+  // A dose with no drink: the ratio chip is applied against that dose, not the default dose.
+  d = defaults({ dose: 10 });
+  assert.equal(d.drink, 23, '10g at 1:2.3');
+
+  console.log('ok   withDefaultVariables: first preset per field, record values untouched');
+}
