@@ -10969,9 +10969,67 @@ function renderProfileChips() {
     orderedChips(list, selectedProfileId, 5),
     p => String(p.id) === String(selectedProfileId),
     p => profileLabel(p),
-    p => { selectedProfileId = p.id; selectedProfileTitle = profileLabel(p); selectedProfileSnapshot = null; renderProfileChips(); },
+    p => { selectedProfileId = p.id; selectedProfileTitle = profileLabel(p); selectedProfileSnapshot = null; renderProfileChips(); fillFromProfile(p); },
     { beans: false, url: '/api/v1/plugins/dye2.reaplugin/profile-picker?return=/api/v1/plugins/dye2.reaplugin/recipe-edit' }
   );
+}
+
+// Tapping a profile fills the fields it can speak for, the way the Streamline index does on a
+// profile switch (streamline_project profileManager.js applyProfileRecord): the yield is the
+// profile's target_weight, and the brew temperature is its FIRST STEP — the same anchor
+// profileAtBrewC shifts the rest of the curve from. A profile carries no dose (nothing in the
+// library sets bean_weight), so the dose follows the new yield at the ratio already in play.
+// Steam / Flush / Hot Water have no profile equivalent at all, so each takes the first preset of
+// its own strip, selected, rather than being left blank.
+function fillFromProfile(record) {
+  const prof = (record && record.profile) || record || {};
+  const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+  // A yield of 0 means 'not set', not 'zero grams': plenty of profiles keep theirs in
+  // target_volume and leave target_weight at 0, and ?? only falls through on null.
+  // profileManager.js guards the same case with targetYield > 0.
+  const pos = (v) => { const n = num(v); return n != null && n > 0 ? n : null; };
+  const yieldG = pos(prof.target_weight) ?? pos(prof.target_volume);
+  const step0 = Array.isArray(prof.steps) && prof.steps.length ? prof.steps[0] : null;
+  const brewC = step0 ? num(step0.temperature) : null;
+
+  if (yieldG != null) {
+    const drinkEl = document.getElementById('re-drink-value');
+    // The recipe's own ratio if it holds one, else the first ratio chip — no magic number here.
+    const firstChip = document.querySelector('#re-drink-presets .dye-preset');
+    const ratio = num(drinkEl && drinkEl.dataset.ratio)
+      ?? num((firstChip && firstChip.dataset.preset || '').replace('1:', ''));
+    const drink = Math.round(yieldG * 10) / 10;
+    set('re-drink-value', drink + 'g');
+    if (ratio) {
+      const dose = Math.round((drink / ratio) * 2) / 2;   // the dose stepper steps by 0.5
+      set('re-dose-value', dose + 'g');
+      syncPresetActive('re-dose', dose + 'g');
+      if (drinkEl) drinkEl.dataset.ratio = String(ratio);
+      set('re-drink-sub', '(1:' + ratio + ')');
+      syncPresetActive('re-drink', '1:' + ratio);
+    }
+  }
+  if (brewC != null) {
+    const v = Math.min(100, Math.max(60, Math.round(brewC)));   // the brew stepper's own range
+    set('re-brew-c-value', v + '°c');
+    syncPresetActive('re-brew-c', v + '°c');
+  }
+  ['re-steam', 're-flush', 're-hotwater'].forEach((prefix) => {
+    const btn = document.querySelector('#' + prefix + '-presets .dye-preset');
+    if (btn) applyPreset(btn);   // the chip's own handler: value + the selected mark, one code path
+  });
+  // The half of each pair the active mode hides has no strip on screen, so take the first preset
+  // of the other mode for it — otherwise the sub-line under the value stays blank.
+  Object.keys(MODE_CFG).forEach((cls) => {
+    const cfg = MODE_CFG[cls];
+    const other = Object.keys(cfg.field).find(m => m !== activeMode(cls));
+    const n = other ? num(cfg.presets[other] && cfg.presets[other][0]) : null;
+    if (n != null) {
+      recipe.dashboardVariables = recipe.dashboardVariables || {};
+      recipe.dashboardVariables[cfg.field[other]] = n;
+    }
+    renderPairSub(cls);
+  });
 }
 
 function renderGrinderChips() {
@@ -11493,6 +11551,7 @@ async function initRecipeEdit() {
 
   // Returning from a See-All picker: restore the draft we stashed, then fold in the pick.
   // Gated on the draft so stray picker keys from other flows are never adopted here.
+  let pickedProfileId = null;   // a profile chosen in the See-All picker, filled in after the paint
   const draftRaw = sessionStorage.getItem('dye_recipeDraft');
   sessionStorage.removeItem('dye_recipeDraft');
   if (draftRaw) {
@@ -11512,6 +11571,7 @@ async function initRecipeEdit() {
       }
       const profileId = sessionStorage.getItem('dye_selectedProfileId');
       if (profileId) {
+        pickedProfileId = profileId;
         cur.profileId = profileId;
         cur.profileTitle = sessionStorage.getItem('dye_selectedProfileTitle') || '';
         cur.profileSnapshot = null;   // fresh library pick; its id will always resolve, don't let a stale ad-hoc snapshot shadow it
@@ -11545,6 +11605,12 @@ async function initRecipeEdit() {
   renderRecipe(recipe);
   renderGrinderChips();
   renderBasketChips();
+  // Picking in the picker is the same act as tapping a chip, so it fills the same fields —
+  // after renderRecipe, which has just painted the recipe's stored values over the form.
+  if (pickedProfileId) {
+    const rec = profiles.find(p => String(p.id) === String(pickedProfileId));
+    if (rec) fillFromProfile(rec);
+  }
 }
 
 initRecipeEdit().catch(e => console.error('initRecipeEdit failed:', e));
