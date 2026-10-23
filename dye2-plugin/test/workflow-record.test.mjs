@@ -276,50 +276,10 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
 // --- recipe editor: the Machine Settings section (dye2#23) -------------------------
 {
   // Six settings a recipe can hold that had no control: steppers like every other field, behind
-  // a disclosure, with a summary of what is held while it is shut. Real source again.
+  // a disclosure. Real source again.
   const src = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
   const table = src.slice(src.indexOf('const MACHINE_FIELDS = ['), src.indexOf('let machineOpen'));
   const fn = (sig) => { const i = src.indexOf(sig); return src.slice(i, src.indexOf('\n}\n', i) + 2); };
-
-  const el = () => ({ className: '', textContent: '', kids: [], appendChild(n) { this.kids.push(n); }, style: {}, dataset: {} });
-  const box = el(), list = el(), count = el();
-  let steam = 'flow', hw = 'vol';
-  const doc = {
-    getElementById: (id) => (id === 're-held-list' ? list : id === 're-machine-count' ? count : id === 're-machine-toggle' ? box : null),
-    createElement: el,
-    createTextNode: (t) => ({ text: t }),
-  };
-  const text = () => list.kids.map((r) => r.kids.map((k) => k.textContent ?? k.text).join('')).sort();
-  const render = (dv, open = false) => {
-    list.kids = [];
-    new Function('document', 'recipe', 'activeMode', 'machineOpen',
-      table + fn('function renderHeld()') + '; renderHeld();')(
-      doc, { dashboardVariables: dv }, (cls) => (cls === 're-steam-mode' ? steam : hw), open);
-  };
-
-  render({ dose: 18, steamFlowMls: 1.5, hotWaterMl: 120 });
-  assert.deepEqual(text(), [], 'nothing held but what the steppers already show');
-  assert.equal(count.textContent, '', 'and no count beside the header');
-
-  render({ steamTempC: 150, flushFlowMls: 4, steamTimeS: 30, hotWaterTempC: 85, dose: 18 });
-  assert.deepEqual(text(), ['Flush flow 4ml/s', 'Hot water temp 85°c', 'Steam temp 150°c', 'Steam time 30s'],
-    "shut: every machine setting held, plus the half of each pair the mode hides");
-  assert.equal(count.textContent, '2 held', 'the count is the machine settings, not the pair halves');
-
-  // The active half of each pair is on the Dashboard Variables steppers, so the shut summary never repeats it.
-  render({ steamFlowMls: 1.5, steamTimeS: 30, hotWaterMl: 120, hotWaterTempC: 85 });
-  assert.deepEqual(text(), ['Hot water temp 85°c', 'Steam time 30s'], 'flow + vol: steamFlowMls and hotWaterMl are not listed');
-  steam = 'time'; hw = 'temp';
-  render({ steamFlowMls: 1.5, steamTimeS: 30, hotWaterMl: 120, hotWaterTempC: 85 });
-  assert.deepEqual(text(), ['Hot water vol 120ml', 'Steam flow 1.5ml/s'], 'time + temp: the hidden halves flip');
-  steam = 'flow'; hw = 'vol';
-
-  render({ steamTempC: 150, flushFlowMls: 4, steamTimeS: 30, hotWaterTempC: 85 }, true);
-  assert.deepEqual(text(), ['Hot water temp 85°c', 'Steam time 30s'],
-    'open: the steppers show the machine settings, so only the pair halves are summarised');
-
-  render({ steamTempC: 0, steamStopAtTempC: 0 });
-  assert.deepEqual(text(), ['Milk stop Off', 'Steam temp Off'], 'a stored 0 reads as Off, not 0°c');
 
   // Reading the steppers back. The wipe to avoid: a value the section does not render must keep
   // what the recipe holds, since recipeChanges writes a null as a cleared field.

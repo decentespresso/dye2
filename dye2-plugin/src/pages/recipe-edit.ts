@@ -147,7 +147,6 @@ const styles = `
     background: none; border: none; padding: 0; cursor: pointer; text-align: left;
     font-family: 'Inter', sans-serif;
   }
-  .re-machine-count { font-size: 20px; font-weight: 600; color: var(--text-primary-disabled); }
   .re-sub-label { margin-top: 4px; font-size: 19px; font-weight: 600; color: var(--mimoja-blue); }
   /* The Machine Settings rows sit 20px apart rather than the 45px above. A stepper's value cell
      grows with its text, and a 7-character value (4.5ml/s, reachable by stepping a flow) at 45px
@@ -341,17 +340,13 @@ function buildContent(): string {
 
       <!-- The rest of the machine settings a recipe can hold (dye2#23). Collapsed by default:
            they are set once per machine rather than per dial-in, and this pane is already the
-           longest page in DYE2. The summary line under the header shows what is held while the
-           section is shut, including the half of the Steam / Hot Water pairs the active mode
-           hides. Open, they are the same steppers as every other field. -->
+           longest page in DYE2. Open, they are the same steppers as every other field. -->
       <div>
         <button id="re-machine-toggle" class="re-machine-toggle" aria-expanded="false" aria-controls="re-machine-rows">
           <span class="text-[30px] font-bold text-[var(--mimoja-blue)]">Machine Settings</span>
-          <span id="re-machine-count" class="re-machine-count"></span>
           <span class="flex-1"></span>
           <span id="re-machine-caret" class="re-machine-caret">${lucideIcon('chevron-down', 28, 'var(--mimoja-blue)', 2.5)}</span>
         </button>
-        <div id="re-held-list" class="flex flex-wrap gap-x-[40px] gap-y-[6px] text-[20px] mt-[4px]"></div>
         <div id="re-machine-rows" style="display:none" class="flex flex-col gap-[30px] mt-[20px]">
           <div class="re-machine-row flex gap-[20px]">
             <div class="re-var-block flex-1">
@@ -1000,38 +995,9 @@ function setupMachineSection() {
     if (rows) rows.style.display = machineOpen ? '' : 'none';
     if (caret) caret.classList.toggle('open', machineOpen);
     btn.setAttribute('aria-expanded', machineOpen ? 'true' : 'false');
-    renderHeld();
   });
 }
 
-// The summary under the header: what the recipe holds that is not on screen. Shut, that is every
-// machine setting; open, only the half of each pair the active mode hides.
-function renderHeld() {
-  const list = document.getElementById('re-held-list');
-  if (!list) return;
-  const dv = recipe.dashboardVariables || {};
-  const pairs = [
-    activeMode('re-steam-mode') === 'time' ? ['steamFlowMls', 'Steam flow', 'ml/s'] : ['steamTimeS', 'Steam time', 's'],
-    activeMode('re-hotwater-mode') === 'vol' ? ['hotWaterTempC', 'Hot water temp', '°c'] : ['hotWaterMl', 'Hot water vol', 'ml'],
-  ];
-  const held = MACHINE_FIELDS.filter(([, k]) => dv[k] != null);
-  const rows = (machineOpen ? [] : held.map(([, k, label, unit, , , , off]) => [k, label, unit, off]))
-    .concat(pairs.map(([k, label, unit]) => [k, label, unit, false]))
-    .filter(([k]) => dv[k] != null);
-  list.innerHTML = '';
-  for (const [k, label, unit, off] of rows) {
-    const row = document.createElement('div');
-    const name = document.createElement('span');
-    name.className = 'font-semibold';
-    name.textContent = label + ' ';
-    row.appendChild(name);
-    // textContent, not markup: these come straight out of KV.
-    row.appendChild(document.createTextNode(off && !(dv[k] > 0) ? 'Off' : dv[k] + unit));
-    list.appendChild(row);
-  }
-  const count = document.getElementById('re-machine-count');
-  if (count) count.textContent = held.length ? held.length + ' held' : '';
-}
 // Wire preset buttons within one strip (setupPresetStrips only wires what exists at load).
 function wirePresetButtons(container) {
   container.querySelectorAll('.dye-preset').forEach(btn => {
@@ -1059,8 +1025,6 @@ function applyMode(cls) {
     valEl.textContent = isNaN(n) ? '—' : n + (cfg.unit[mode] || '');
     syncPresetActive(idPrefix, valEl.textContent);
   }
-  // The mode decides which of a pair is on screen, so the read-only list moves with it.
-  renderHeld();
 }
 function setMode(cls, mode) {
   document.querySelectorAll('.' + cls).forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
