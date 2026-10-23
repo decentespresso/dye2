@@ -132,8 +132,8 @@ export function stepperHtml(
   showSub = false,
   subHtml = ''
 ): string {
-  const minusSvg = lucideIcon('minus', 28, 'var(--text-primary)', 2.5);
-  const plusSvg  = lucideIcon('plus',  28, 'var(--text-primary)', 2.5);
+  const minusSvg = lucideIcon('minus', 38, 'var(--text-primary)', 2.5);
+  const plusSvg  = lucideIcon('plus',  38, 'var(--text-primary)', 2.5);
   // subHtml renders under the label (e.g. a Flow|Time mode toggle) as a left column.
   const labelBlock = subHtml
     ? `<div class="flex flex-col" style="width:${labelWidth};flex-shrink:0">
@@ -158,12 +158,14 @@ export function stepperHtml(
 
 export function presetStripCss(): string {
   return `
+  /* Figma 2396:856: semibold 21px throughout; the chosen preset is marked by colour alone
+     (Text/Primary over Text/Tertiary), not by weight. */
   .dye-preset {
-    font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 400;
+    font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 600;
     color: var(--text-primary-disabled); background: none; border: none;
     cursor: pointer; padding: 0; white-space: nowrap;
   }
-  .dye-preset.dye-preset-active { color: var(--mimoja-blue); font-weight: 700; }
+  .dye-preset.dye-preset-active { color: var(--text-primary); }
   `;
 }
 

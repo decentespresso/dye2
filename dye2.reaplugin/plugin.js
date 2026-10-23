@@ -2364,8 +2364,8 @@ function attachCardLongPress(card, onLong) {
   `;
 	}
 	function stepperHtml(idPrefix, label, labelWidth = "75px", showSub = false, subHtml = "") {
-		const minusSvg = lucideIcon("minus", 28, "var(--text-primary)", 2.5);
-		const plusSvg = lucideIcon("plus", 28, "var(--text-primary)", 2.5);
+		const minusSvg = lucideIcon("minus", 38, "var(--text-primary)", 2.5);
+		const plusSvg = lucideIcon("plus", 38, "var(--text-primary)", 2.5);
 		return `<div class="flex items-center gap-[18px]">
     ${subHtml ? `<div class="flex flex-col" style="width:${labelWidth};flex-shrink:0">
          <span class="dye-stepper-label">${label}</span>
@@ -2383,12 +2383,14 @@ function attachCardLongPress(card, onLong) {
 	}
 	function presetStripCss() {
 		return `
+  /* Figma 2396:856: semibold 21px throughout; the chosen preset is marked by colour alone
+     (Text/Primary over Text/Tertiary), not by weight. */
   .dye-preset {
-    font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 400;
+    font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 600;
     color: var(--text-primary-disabled); background: none; border: none;
     cursor: pointer; padding: 0; white-space: nowrap;
   }
-  .dye-preset.dye-preset-active { color: var(--mimoja-blue); font-weight: 700; }
+  .dye-preset.dye-preset-active { color: var(--text-primary); }
   `;
 	}
 	function presetStripHtml(idPrefix, presets, opts = {}) {
@@ -10751,7 +10753,6 @@ function renderRecipe(recipe) {
   set('re-steam-value', steamShown || '—');
   set('re-flush-value', dv.flushS   != null ? dv.flushS + 's'        : '—');
   set('re-hotwater-value', hwShown || '—');
-  set('re-hotwater-sub',   dv.hotWaterTempC != null ? dv.hotWaterTempC + '°C' : '');
   // Point the mode toggles at the recipe's stored mode so units + presets match the value shown.
   setMode('re-steam-mode',    steamMode);
   setMode('re-hotwater-mode', hwMode);
@@ -11124,6 +11125,18 @@ const MODE_CFG = {
 };
 function activeMode(cls) { return document.querySelector('.' + cls + '.active')?.dataset.mode; }
 
+// Figma 2396:921 / 2396:973: under a pair's value sits the half the active mode hides — Steam
+// reads 31s with 0.8ml/s beneath it, Hot Water 75ml with 45°c. Blank when the recipe holds only
+// the half on show. The stepper writes the value, so this is the only reader of the other field.
+function renderPairSub(cls) {
+  const cfg = MODE_CFG[cls]; if (!cfg || !cfg.field) return;
+  const el = document.getElementById(cfg.valueId.replace('-value', '-sub'));
+  const other = Object.keys(cfg.field).find((m) => m !== activeMode(cls));
+  if (!el || !other) return;
+  const v = (recipe.dashboardVariables || {})[cfg.field[other]];
+  el.textContent = v == null ? '' : v + (cfg.unit[other] || '');
+}
+
 // The machine settings behind the Machine Settings disclosure (dye2#23): dashboardVariables key,
 // label, unit, and the adjuster's step / min / max. Steam temperature and the milk stop take
 // ‘off’ as a stored 0, so they are stepped with wireOffAdjuster; a blank field is still
@@ -11180,6 +11193,7 @@ function applyMode(cls) {
     const n = v == null ? NaN : parseFloat(v);
     valEl.textContent = isNaN(n) ? '—' : n + (cfg.unit[mode] || '');
     syncPresetActive(idPrefix, valEl.textContent);
+    renderPairSub(cls);
   }
 }
 function setMode(cls, mode) {
