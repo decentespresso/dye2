@@ -17,7 +17,7 @@ import { renderAutoFavEditPage } from "./pages/auto-fav-edit";
 import { renderRecipeEditPage } from "./pages/recipe-edit";
 import { renderSelectRecipePage } from "./pages/select-recipe";
 import { renderBcImportPage } from "./pages/bc-import";
-import { refreshRecentFavourites, shotPatchAffectsRecents, noteShotUpdated, allocateRecipeSlot, migrateRecipeSlots, dropSuggestedRecipes } from "./utils/recent-favs";
+import { refreshRecentFavourites, shotPatchAffectsRecents, noteShotUpdated, allocateRecipeSlot, migrateRecipeSlots, dropSuggestedRecipes, dedupeRecipeSlots } from "./utils/recent-favs";
 import {
   deriveSelection,
   recipeIdOf,
@@ -288,17 +288,33 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     }
   }
 
-  // Idempotent (docs/KV_CONTRACT.md recipes[]): a legacy row id '1'..'5' gains stripSlot, and the
-  // `suggested` rows an earlier release wrote are dropped. Writes only when something changed.
+  // One-time (the `recipesMigrated` storage flag, set by onLoad's storageRead): a legacy row id
+  // '1'..'5' gains stripSlot, `suggested` rows are dropped, and rows sharing a stripSlot are
+  // de-duplicated. The pages are `recipes`' only other writer, so the array is re-read right
+  // before the write and written only if the fresh copy still needs the change (docs/KV_CONTRACT.md).
+  const healRecipes = (rows: any[]) => dedupeRecipeSlots(dropSuggestedRecipes(migrateRecipeSlots(rows)));
   async function migrateRecipes(): Promise<void> {
     if (typeof fetch !== "function") return;
     const rows = await kv("recipes");
-    const next = dropSuggestedRecipes(migrateRecipeSlots(rows));
-    if (next === rows) return;
+    if (healRecipes(rows) === rows) return;
+    const fresh = await kv("recipes");
+    const next = healRecipes(fresh);
+    if (next === fresh) return;
     const res = await fetch(`${API}/store/${NS}/recipes`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status} migrating recipes`);
+  }
+
+  function runRecipeMigration(): void {
+    migrateRecipes()
+      .catch((e: unknown) => log(`recipe slot migration failed: ${e instanceof Error ? e.message : String(e)}`))
+      .then(() => {
+        // Set whether or not anything changed; a failed run is not retried (the self-heal is idempotent
+        // and the pages keep the slots exclusive from here on).
+        host.storage({ type: "write", key: "recipesMigrated", namespace: NS, data: true });
+        refreshRecents();
+      });
   }
 
   // One-time cleanup (dye2#36): the stored armed selection and its workflow mirror no longer
@@ -321,10 +337,10 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       log("DYE2 plugin loaded");
       if (typeof host.storage === "function") {
         host.storage({ type: "read", key: "selectionMigrated", namespace: NS });
+        host.storage({ type: "read", key: "recipesMigrated", namespace: NS });
       }
-      migrateRecipes()
-        .catch((e: unknown) => log(`recipe slot migration failed: ${e instanceof Error ? e.message : String(e)}`))
-        .then(refreshRecents);
+      if (typeof host.storage !== "function") runRecipeMigration();
+      else refreshRecents();
       // A restart loses the baseline: look at the workflow once, comparing the stored profile.
       if (typeof fetch === "function") liveWorkflow().then((wf) => trackWorkflow(wf, true));
     },
@@ -345,6 +361,7 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         }
       } else if (event.name === "storageRead") {
         if (event.payload && event.payload.key === "selectionMigrated" && !event.payload.value) migrate();
+        if (event.payload && event.payload.key === "recipesMigrated" && !event.payload.value) runRecipeMigration();
       } else if (event.name === "workflowUpdated") {
         // Nothing is written onto a recipe unless the barista asks (`record` route); this
         // only keeps the recipeId honest and the derived selection mirrored.

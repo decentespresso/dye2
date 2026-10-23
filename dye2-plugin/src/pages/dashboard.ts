@@ -571,7 +571,21 @@ function pushWorkflow() {
   const patch = workflowPatch(baseWorkflow, currentWorkflow);
   if (!Object.keys(patch).length) return Promise.resolve(null);
   const sent = JSON.parse(JSON.stringify(currentWorkflow));
-  return updateWorkflow(patch).then(r => { baseWorkflow = sent; return r; });
+  return updateWorkflow(patch).then(r => { baseWorkflow = sent; setTimeout(refreshDerivedSelection, 700); return r; });
+}
+
+// The plugin's derived selection ({kind, id, modified}), which the pills mark. A recipe with no
+// strip slot has no cell on the Streamline strip, so this is the only place it is visible.
+let derivedSel = null;
+let derivedSelKey = '';
+function refreshDerivedSelection() {
+  fetch('/api/v1/plugins/dye2.reaplugin/selection').then(r => (r.ok ? r.json() : null)).then(s => {
+    const key = s && s.kind ? s.kind + ':' + s.id + ':' + s.modified : '';
+    if (key === derivedSelKey) return;
+    derivedSelKey = key;
+    derivedSel = s && s.kind ? s : null;
+    if (currentWorkflow) renderRecipePills(currentWorkflow);
+  }).catch(() => {});
 }
 
 // Re-read before applying an item, so the apply lands on what the machine holds now rather
@@ -1224,7 +1238,11 @@ function renderRecipePills(workflow) {
   const recipeItems = recipes.length
     ? recipes.filter(r => r && r.stripSlot != null && r.showOnStreamlineDashboard !== false).sort((a, b) => a.stripSlot - b.stripSlot)   // the strip holds the slotted ones; the rest live in Select Recipe
     : (workflow.favorites || workflow.recipes || []);
-  const items = [...recentItems, ...recipeItems];
+  const selRecipeId = derivedSel && derivedSel.kind === 'recipe' ? String(derivedSel.id) : null;
+  const selMark = derivedSel && derivedSel.modified ? ' *' : '';
+  // The selected recipe may hold no strip slot (so recipeItems omits it): show it as a pill, first.
+  const slotless = selRecipeId && recipes.length ? recipes.find(r => r && String(r.id) === selRecipeId && r.stripSlot == null) : null;
+  const items = [...(slotless ? [slotless] : []), ...recentItems, ...recipeItems];
   container.innerHTML = '';
   if (items.length === 0) { container.innerHTML = '<span style="color:var(--low-contrast-white);font-size:21px;">No recipes yet</span>'; return; }
   const activeTitle = workflow.profile && workflow.profile.title;
@@ -1234,12 +1252,13 @@ function renderRecipePills(workflow) {
     // Pill label only (fav.title is stored and read by the Streamline skin): profile first.
     const snap = (isRecent && item.snapshot) || {};
     const pillLabel = isRecent ? ([snap.profileTitle, snap.coffeeName].filter(Boolean).join(' · ') || title) : title;
+    const isSel = !isRecent && typeof item === 'object' && selRecipeId && String(item.id) === selRecipeId;
     const pill = document.createElement('button');
-    pill.className = 'dye-recipe-pill' + (isRecent ? ' dye-pill-recent' : '') + (title === activeTitle ? ' active' : '');
+    pill.className = 'dye-recipe-pill' + (isRecent ? ' dye-pill-recent' : '') + (title === activeTitle || (isSel && item === slotless) ? ' active' : '');
     pill.title = title;
     const label = document.createElement('span');
     label.className = 'dye-recipe-pill-label';
-    label.textContent = pillLabel;
+    label.textContent = pillLabel + (isSel ? selMark : '');
     pill.appendChild(label);
     pill.addEventListener('click', async () => {
       document.querySelectorAll('.dye-recipe-pill').forEach(p => p.classList.remove('active'));
@@ -1263,6 +1282,7 @@ function renderRecipePills(workflow) {
     });
     container.appendChild(pill);
   });
+  refreshDerivedSelection();
 }
 
 // PUT /api/v1/workflow deep-merges its body onto whatever workflow is already

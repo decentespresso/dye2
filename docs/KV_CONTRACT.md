@@ -46,6 +46,15 @@ against instead of reverse-engineering it.
 consumer (skin/dashboard) is **read-only**: `GET` these keys, never `POST` them.
 Do not merge, dedupe, or write back — you will clobber concurrent DYE2 edits.
 
+**`recipes` writer rule.** The pages (`updateRecipe` and friends) are the sole routine writer of
+`recipes`. The plugin runtime writes it only (a) during the one-time migration gated by the
+`recipesMigrated` plugin-storage flag (legacy ids -> `stripSlot`, drop `suggested` rows, and the
+self-heal `dedupeRecipeSlots`: of rows sharing a `stripSlot`, the newest `capturedAt` keeps it, ties
+go to the larger id, the others become `null`), re-reading the key right before that write; and (b)
+on an explicit user action, `save-recipe`. It must not rewrite `recipes` on every load: the host
+store is last-write-wins over the whole array, and an overlapping page save and plugin write lose
+one side (this once left two rows both holding slot 1).
+
 This includes "dialling in" from the Streamline dashboard. DYE2's plugin runtime
 writes edits from the live workflow onto the selected recipe itself, when asked
 (below); a skin must not read-modify-write the arrays to do the same. (Older skin builds that
@@ -301,9 +310,8 @@ fit have `alwaysOnDashboard: false`. Their `workflow.profile` is the full record
 the source shot, and `workflow.context` carries explicit `null` for bean/grinder
 fields the source shot lacked. Consumers read them like any favourite; never edit or
 write them, and don't key UI state on their `id` (it changes when a newer shot takes
-over the group). Note: the host store is last-write-wins, so DYE2 is now two writers
-(plugin runtime + pages) on this key — both only replace their own entries, but a
-write at the same instant can lose one side's change.
+over the group). Note: the host store is last-write-wins; see the `recipes` writer rule above
+for what the plugin runtime may write on `recipes`.
 
 **Ranking.** Computed from the `shotIndex` tail (shots of the last `TAIL_DAYS`); `now` is a
 parameter, so it is deterministic. Rating is `annotations.enjoyment / 10` (0..1).
@@ -357,6 +365,7 @@ plugins should not read it.
                                 // One-off cleanup (plugin load, same pass, idempotent): an earlier release
                                 // wrote `suggested: true` rows here; every such row is dropped, the key is
                                 // written only if something was dropped, real recipes are untouched.
+                                // The same one-time pass de-duplicates a shared stripSlot (see writer rule).
                                 //
                                 // SKIN DEPENDENCY: streamline_project `recipeStripCells`
                                 // (src/modules/dye-selection.js) still reads the position off `recipe.id`. Until

@@ -154,7 +154,8 @@ change meant the machine's state became the recipe (dye2#30, #31, #33).
   `armSelection` / `trackWorkflow` / the echo guard in `workflow-record.ts` are the retired
   armed-pointer API: unused by `plugin.ts`, kept only for their tests, to delete with the shim.
 - Storage reads cannot be awaited (`host.storage` is void; the value returns as a
-  `storageRead` event); only the one-shot `selectionMigrated` flag uses it.
+  `storageRead` event); only the one-shot `selectionMigrated` and `recipesMigrated` flags use it. `recipesMigrated`
+  gates the plugin's one-time `recipes` migration/self-heal (writer rule: `KV_CONTRACT.md`).
 - `host.emit('changed', ...)` on the `changed` websocket endpoint tells Streamline to re-read. A
   payload of `{"what":"skin"}` refreshes only its surfaces, so KV changes push something else.
 

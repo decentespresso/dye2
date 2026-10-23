@@ -6171,7 +6171,21 @@ function pushWorkflow() {
   const patch = workflowPatch(baseWorkflow, currentWorkflow);
   if (!Object.keys(patch).length) return Promise.resolve(null);
   const sent = JSON.parse(JSON.stringify(currentWorkflow));
-  return updateWorkflow(patch).then(r => { baseWorkflow = sent; return r; });
+  return updateWorkflow(patch).then(r => { baseWorkflow = sent; setTimeout(refreshDerivedSelection, 700); return r; });
+}
+
+// The plugin's derived selection ({kind, id, modified}), which the pills mark. A recipe with no
+// strip slot has no cell on the Streamline strip, so this is the only place it is visible.
+let derivedSel = null;
+let derivedSelKey = '';
+function refreshDerivedSelection() {
+  fetch('/api/v1/plugins/dye2.reaplugin/selection').then(r => (r.ok ? r.json() : null)).then(s => {
+    const key = s && s.kind ? s.kind + ':' + s.id + ':' + s.modified : '';
+    if (key === derivedSelKey) return;
+    derivedSelKey = key;
+    derivedSel = s && s.kind ? s : null;
+    if (currentWorkflow) renderRecipePills(currentWorkflow);
+  }).catch(() => {});
 }
 
 // Re-read before applying an item, so the apply lands on what the machine holds now rather
@@ -6824,7 +6838,11 @@ function renderRecipePills(workflow) {
   const recipeItems = recipes.length
     ? recipes.filter(r => r && r.stripSlot != null && r.showOnStreamlineDashboard !== false).sort((a, b) => a.stripSlot - b.stripSlot)   // the strip holds the slotted ones; the rest live in Select Recipe
     : (workflow.favorites || workflow.recipes || []);
-  const items = [...recentItems, ...recipeItems];
+  const selRecipeId = derivedSel && derivedSel.kind === 'recipe' ? String(derivedSel.id) : null;
+  const selMark = derivedSel && derivedSel.modified ? ' *' : '';
+  // The selected recipe may hold no strip slot (so recipeItems omits it): show it as a pill, first.
+  const slotless = selRecipeId && recipes.length ? recipes.find(r => r && String(r.id) === selRecipeId && r.stripSlot == null) : null;
+  const items = [...(slotless ? [slotless] : []), ...recentItems, ...recipeItems];
   container.innerHTML = '';
   if (items.length === 0) { container.innerHTML = '<span style="color:var(--low-contrast-white);font-size:21px;">No recipes yet</span>'; return; }
   const activeTitle = workflow.profile && workflow.profile.title;
@@ -6834,12 +6852,13 @@ function renderRecipePills(workflow) {
     // Pill label only (fav.title is stored and read by the Streamline skin): profile first.
     const snap = (isRecent && item.snapshot) || {};
     const pillLabel = isRecent ? ([snap.profileTitle, snap.coffeeName].filter(Boolean).join(' · ') || title) : title;
+    const isSel = !isRecent && typeof item === 'object' && selRecipeId && String(item.id) === selRecipeId;
     const pill = document.createElement('button');
-    pill.className = 'dye-recipe-pill' + (isRecent ? ' dye-pill-recent' : '') + (title === activeTitle ? ' active' : '');
+    pill.className = 'dye-recipe-pill' + (isRecent ? ' dye-pill-recent' : '') + (title === activeTitle || (isSel && item === slotless) ? ' active' : '');
     pill.title = title;
     const label = document.createElement('span');
     label.className = 'dye-recipe-pill-label';
-    label.textContent = pillLabel;
+    label.textContent = pillLabel + (isSel ? selMark : '');
     pill.appendChild(label);
     pill.addEventListener('click', async () => {
       document.querySelectorAll('.dye-recipe-pill').forEach(p => p.classList.remove('active'));
@@ -6863,6 +6882,7 @@ function renderRecipePills(workflow) {
     });
     container.appendChild(pill);
   });
+  refreshDerivedSelection();
 }
 
 // PUT /api/v1/workflow deep-merges its body onto whatever workflow is already
@@ -11148,6 +11168,26 @@ function setupNameCombo(field, loader) {
   }
   function closeDrop() { drop.classList.remove('open'); }
   function commitTyping() { input.readOnly = true; closeDrop(); }
+  // A touch tap on a WebView may deliver pointerdown, mousedown or both: act on whichever comes
+  // first and ignore the rest of the same tap (a second event within 600ms).
+  let lastTap = 0;
+  function onTap(el, fn) {
+    const handler = (ev) => {
+      ev.preventDefault();
+      const now = Date.now();
+      if (now - lastTap < 600) return;
+      lastTap = now;
+      // The click this tap still produces would land on whatever is under the finger once the
+      // drop has closed (it can re-open the list, or count as an "outside" click and put the
+      // field straight back to readonly): swallow it.
+      const swallow = (c) => { c.stopPropagation(); c.preventDefault(); };
+      document.addEventListener('click', swallow, true);
+      setTimeout(() => document.removeEventListener('click', swallow, true), 450);
+      fn(ev);
+    };
+    el.addEventListener('pointerdown', handler);
+    el.addEventListener('mousedown', handler);
+  }
   async function open() {
     if (!input.readOnly) return;   // already in "type a new value" mode — let it type, don't reopen
     const opts = await options();
@@ -11155,12 +11195,14 @@ function setupNameCombo(field, loader) {
     const newRow = document.createElement('div');
     newRow.className = 're-combo-opt';
     newRow.textContent = '＋ New…';
-    newRow.addEventListener('mousedown', (ev) => {
-      ev.preventDefault();
+    onTap(newRow, () => {
       closeDrop();
-      input.readOnly = false;
+      input.readOnly = false;   // before focus(), in this same gesture task
       input.value = '';
       input.focus();
+      // A WebView may refuse a programmatic focus (no soft keyboard). If so the field is already
+      // writable and is left that way, so the user's next tap on the field itself focuses it and
+      // types; the outside-click listener below still returns it to display mode afterwards.
       // Belt-and-braces alongside the 'blur' listener below: a tap on a plain (non-focusable)
       // area doesn't reliably blur a focused input on every WebView, so also watch for a
       // click anywhere outside the field itself.
@@ -11177,8 +11219,8 @@ function setupNameCombo(field, loader) {
     } else {
       opts.slice(0, 50).forEach(o => {
         const el = document.createElement('div'); el.className = 're-combo-opt'; el.textContent = o;
-        // mousedown (not click) so the pick lands before the input's blur closes the drop.
-        el.addEventListener('mousedown', (ev) => { ev.preventDefault(); input.value = o; closeDrop(); });
+        // pointerdown/mousedown (not click) so the pick lands before the input's blur closes the drop.
+        onTap(el, () => { input.value = o; closeDrop(); });
         drop.appendChild(el);
       });
     }
@@ -12226,6 +12268,33 @@ bcInit();
 		} : r);
 	}
 	/**
+	* Self-heal: two rows must never share a `stripSlot` (updateRecipe clears the previous holder, but
+	* two writers on the `recipes` key could still interleave and leave both). For each slot held by
+	* more than one row the row with the newest `capturedAt` keeps it (ties, and rows with no valid
+	* `capturedAt`, go to the larger id by string compare); the others become `stripSlot: null` and
+	* keep everything else. Idempotent; returns the same array when no slot is shared.
+	*/
+	function dedupeRecipeSlots(recipes) {
+		if (!Array.isArray(recipes)) return recipes;
+		const ts = (r) => {
+			const t = Date.parse(String(r.capturedAt));
+			return Number.isFinite(t) ? t : -Infinity;
+		};
+		const beats = (a, b) => ts(a) !== ts(b) ? ts(a) > ts(b) : String(a.id) > String(b.id);
+		const winner = /* @__PURE__ */ new Map();
+		for (const r of recipes) {
+			if (!r || r.stripSlot == null) continue;
+			const w = winner.get(r.stripSlot);
+			if (!w || beats(r, w)) winner.set(r.stripSlot, r);
+		}
+		const loses = (r) => r && r.stripSlot != null && winner.get(r.stripSlot) !== r;
+		if (!recipes.some(loses)) return recipes;
+		return recipes.map((r) => loses(r) ? {
+			...r,
+			stripSlot: null
+		} : r);
+	}
+	/**
 	* One-off cleanup: an earlier release wrote `suggested: true` rows into `recipes`. Drops them and
 	* leaves every other row untouched. Returns the same array when there is nothing to drop.
 	*/
@@ -13179,17 +13248,31 @@ bcInit();
 				return json(request, 502, { error: msg });
 			}
 		}
+		const healRecipes = (rows) => dedupeRecipeSlots(dropSuggestedRecipes(migrateRecipeSlots(rows)));
 		async function migrateRecipes() {
 			if (typeof fetch !== "function") return;
 			const rows = await kv("recipes");
-			const next = dropSuggestedRecipes(migrateRecipeSlots(rows));
-			if (next === rows) return;
+			if (healRecipes(rows) === rows) return;
+			const fresh = await kv("recipes");
+			const next = healRecipes(fresh);
+			if (next === fresh) return;
 			const res = await fetch(`${API}/store/${NS}/recipes`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(next)
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status} migrating recipes`);
+		}
+		function runRecipeMigration() {
+			migrateRecipes().catch((e) => log(`recipe slot migration failed: ${e instanceof Error ? e.message : String(e)}`)).then(() => {
+				host.storage({
+					type: "write",
+					key: "recipesMigrated",
+					namespace: NS,
+					data: true
+				});
+				refreshRecents();
+			});
 		}
 		function migrate() {
 			host.storage({
@@ -13211,12 +13294,20 @@ bcInit();
 			version: "0.1.0",
 			onLoad(_settings) {
 				log("DYE2 plugin loaded");
-				if (typeof host.storage === "function") host.storage({
-					type: "read",
-					key: "selectionMigrated",
-					namespace: NS
-				});
-				migrateRecipes().catch((e) => log(`recipe slot migration failed: ${e instanceof Error ? e.message : String(e)}`)).then(refreshRecents);
+				if (typeof host.storage === "function") {
+					host.storage({
+						type: "read",
+						key: "selectionMigrated",
+						namespace: NS
+					});
+					host.storage({
+						type: "read",
+						key: "recipesMigrated",
+						namespace: NS
+					});
+				}
+				if (typeof host.storage !== "function") runRecipeMigration();
+				else refreshRecents();
 				if (typeof fetch === "function") liveWorkflow().then((wf) => trackWorkflow(wf, true));
 			},
 			onUnload() {
@@ -13231,6 +13322,7 @@ bcInit();
 					}
 				} else if (event.name === "storageRead") {
 					if (event.payload && event.payload.key === "selectionMigrated" && !event.payload.value) migrate();
+					if (event.payload && event.payload.key === "recipesMigrated" && !event.payload.value) runRecipeMigration();
 				} else if (event.name === "workflowUpdated") trackWorkflow(event.payload);
 			},
 			__httpRequestHandler(request) {

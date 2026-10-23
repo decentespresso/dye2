@@ -201,6 +201,28 @@ export function migrateRecipeSlots(recipes: AnyRecord[]): AnyRecord[] {
 }
 
 /**
+ * Self-heal: two rows must never share a `stripSlot` (updateRecipe clears the previous holder, but
+ * two writers on the `recipes` key could still interleave and leave both). For each slot held by
+ * more than one row the row with the newest `capturedAt` keeps it (ties, and rows with no valid
+ * `capturedAt`, go to the larger id by string compare); the others become `stripSlot: null` and
+ * keep everything else. Idempotent; returns the same array when no slot is shared.
+ */
+export function dedupeRecipeSlots(recipes: AnyRecord[]): AnyRecord[] {
+  if (!Array.isArray(recipes)) return recipes;
+  const ts = (r: AnyRecord) => { const t = Date.parse(String(r.capturedAt)); return Number.isFinite(t) ? t : -Infinity; };
+  const beats = (a: AnyRecord, b: AnyRecord) => ts(a) !== ts(b) ? ts(a) > ts(b) : String(a.id) > String(b.id);
+  const winner = new Map<unknown, AnyRecord>();
+  for (const r of recipes) {
+    if (!r || r.stripSlot == null) continue;
+    const w = winner.get(r.stripSlot);
+    if (!w || beats(r, w)) winner.set(r.stripSlot, r);
+  }
+  const loses = (r: AnyRecord) => r && r.stripSlot != null && winner.get(r.stripSlot) !== r;
+  if (!recipes.some(loses)) return recipes;
+  return recipes.map((r) => (loses(r) ? { ...r, stripSlot: null } : r));
+}
+
+/**
  * One-off cleanup: an earlier release wrote `suggested: true` rows into `recipes`. Drops them and
  * leaves every other row untouched. Returns the same array when there is nothing to drop.
  */

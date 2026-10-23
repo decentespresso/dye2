@@ -1119,6 +1119,26 @@ function setupNameCombo(field, loader) {
   }
   function closeDrop() { drop.classList.remove('open'); }
   function commitTyping() { input.readOnly = true; closeDrop(); }
+  // A touch tap on a WebView may deliver pointerdown, mousedown or both: act on whichever comes
+  // first and ignore the rest of the same tap (a second event within 600ms).
+  let lastTap = 0;
+  function onTap(el, fn) {
+    const handler = (ev) => {
+      ev.preventDefault();
+      const now = Date.now();
+      if (now - lastTap < 600) return;
+      lastTap = now;
+      // The click this tap still produces would land on whatever is under the finger once the
+      // drop has closed (it can re-open the list, or count as an "outside" click and put the
+      // field straight back to readonly): swallow it.
+      const swallow = (c) => { c.stopPropagation(); c.preventDefault(); };
+      document.addEventListener('click', swallow, true);
+      setTimeout(() => document.removeEventListener('click', swallow, true), 450);
+      fn(ev);
+    };
+    el.addEventListener('pointerdown', handler);
+    el.addEventListener('mousedown', handler);
+  }
   async function open() {
     if (!input.readOnly) return;   // already in "type a new value" mode — let it type, don't reopen
     const opts = await options();
@@ -1126,12 +1146,14 @@ function setupNameCombo(field, loader) {
     const newRow = document.createElement('div');
     newRow.className = 're-combo-opt';
     newRow.textContent = '＋ New…';
-    newRow.addEventListener('mousedown', (ev) => {
-      ev.preventDefault();
+    onTap(newRow, () => {
       closeDrop();
-      input.readOnly = false;
+      input.readOnly = false;   // before focus(), in this same gesture task
       input.value = '';
       input.focus();
+      // A WebView may refuse a programmatic focus (no soft keyboard). If so the field is already
+      // writable and is left that way, so the user's next tap on the field itself focuses it and
+      // types; the outside-click listener below still returns it to display mode afterwards.
       // Belt-and-braces alongside the 'blur' listener below: a tap on a plain (non-focusable)
       // area doesn't reliably blur a focused input on every WebView, so also watch for a
       // click anywhere outside the field itself.
@@ -1148,8 +1170,8 @@ function setupNameCombo(field, loader) {
     } else {
       opts.slice(0, 50).forEach(o => {
         const el = document.createElement('div'); el.className = 're-combo-opt'; el.textContent = o;
-        // mousedown (not click) so the pick lands before the input's blur closes the drop.
-        el.addEventListener('mousedown', (ev) => { ev.preventDefault(); input.value = o; closeDrop(); });
+        // pointerdown/mousedown (not click) so the pick lands before the input's blur closes the drop.
+        onTap(el, () => { input.value = o; closeDrop(); });
         drop.appendChild(el);
       });
     }
