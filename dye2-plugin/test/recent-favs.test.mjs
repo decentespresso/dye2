@@ -12,7 +12,6 @@ import {
   rankGroups,
   foldShot,
   pruneTail,
-  allocateRecipeSlot,
   dropSuggestedRecipes,
   noteShotUpdated,
   toRecentFavourite,

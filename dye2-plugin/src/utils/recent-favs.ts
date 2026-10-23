@@ -180,14 +180,13 @@ export function rankGroups(tail: TailEntry[], now: number): { key: string; score
 
 /**
  * The strip positions 1..5 are `recipes[].stripSlot`, not the row id (ids are opaque and stable).
- * Returns the lowest free stripSlot, or the requested one (which takes the slot over). No slot requested and none free: `{ taken }`, for the caller's 409.
+ * A recipe is NEVER placed automatically: only an explicit request names a slot. Returns that slot
+ * (1..5, a numeric string is accepted), or null for anything missing/invalid = save to the library.
  */
-export function allocateRecipeSlot(recipes: AnyRecord[], requested?: unknown): { slot: number } | { taken: number[] } {
-  const taken = [1, 2, 3, 4, 5].filter((n) => (recipes || []).some((r) => r && r.stripSlot === n ));
+export function explicitRecipeSlot(requested?: unknown): number | null {
+  if (requested == null || requested === "") return null;
   const want = Number(requested);
-  if (requested != null && [1, 2, 3, 4, 5].includes(want)) return { slot: want };
-  const free = [1, 2, 3, 4, 5].find((n) => !taken.includes(n));
-  return free ? { slot: free } : { taken };
+  return [1, 2, 3, 4, 5].includes(want) ? want : null;
 }
 
 /**

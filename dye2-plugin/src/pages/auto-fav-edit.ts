@@ -208,10 +208,10 @@ function buildContent(): string {
       </div>
 
       <div>
-        <div class="afe-label">Assign Fav number</div>
+        <div class="afe-label">Recipe slot (optional)</div>
         <div class="flex gap-[18px] mt-[4px]">
           ${[1, 2, 3, 4, 5]
-            .map(n => `<button class="afe-fav-num${n === 1 ? ' active' : ''}" data-num="${n}">${n}</button>`)
+            .map(n => `<button class="afe-fav-num" data-num="${n}">${n}</button>`)
             .join('')}
         </div>
       </div>
@@ -637,13 +637,16 @@ function setupControls() {
   }
 
   document.querySelectorAll('.afe-fav-num').forEach(btn => btn.addEventListener('click', () => {
+    // No slot is selected by default; tapping the selected one again unselects it.
+    const was = btn.classList.contains('active');
     document.querySelectorAll('.afe-fav-num').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    if (!was) btn.classList.add('active');
   }));
 
   el('afe-cancel-btn')?.addEventListener('click', () => window.history.back());
 
-  // SAVE TO RECIPE: adds a new row to recipes[] holding strip slot n (stripSlot), not autoFavourites.
+  // SAVE TO RECIPE: adds a new row to recipes[]; stripSlot is the picked slot, or null (library only).
+  // Nothing picks a recipe slot automatically.
   // A slot that already holds a real recipe needs a second tap on the relabelled button; that
   // recipe stays in the library and just loses the slot (updateRecipe frees it).
   let overwriteArmed = null;
@@ -653,10 +656,10 @@ function setupControls() {
   }));
   el('afe-save-btn')?.addEventListener('click', async () => {
     const data = collectFavData();
-    const slot = getAssignedSlot() || 1;
+    const slot = getAssignedSlot();   // null: saved to the library only, never an automatic slot
     const s = data.snapshot;
     try {
-      const existing = (await getRecipes()).find(r => r && r.stripSlot === slot);
+      const existing = slot == null ? null : (await getRecipes()).find(r => r && r.stripSlot === slot);
       const overwrite = !!existing;
       if (overwrite && overwriteArmed !== slot) {
         overwriteArmed = slot;
@@ -665,7 +668,7 @@ function setupControls() {
       }
       await updateRecipe(newId('recipe'), {
         stripSlot: slot,
-        name: data.title || s.coffeeName || ('Recipe ' + slot), beverage: data.beverage || '',
+        name: data.title || s.coffeeName || (slot ? 'Recipe ' + slot : 'Recipe'), beverage: data.beverage || '',
         beanName: s.coffeeName, beanRoaster: s.coffeeRoaster, beanBatchId: s.beanBatchId,
         profileId: s.profileId, profileTitle: s.profileTitle, profileSnapshot: s.profileSnapshot,
         barista: s.barista, drinker: s.drinker,
@@ -679,13 +682,6 @@ function setupControls() {
       window.history.back();
     } catch (e) { console.error('Failed to save recipe:', e); }
   });
-
-  // Default the picker to the lowest free recipe slot (all taken: it stays on 1 and asks to replace).
-  getRecipes().then(rs => {
-    const taken = new Set(rs.filter(r => r).map(r => r.stripSlot));
-    const free = [1, 2, 3, 4, 5].find(n => !taken.has(n)) || 1;
-    document.querySelectorAll('.afe-fav-num').forEach(b => b.classList.toggle('active', parseInt(b.dataset.num) === free));
-  }).catch(() => {});
 }
 
 function snapshotFromWorkflow(wf) {

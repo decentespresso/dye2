@@ -17,7 +17,7 @@ import { renderAutoFavEditPage } from "./pages/auto-fav-edit";
 import { renderRecipeEditPage } from "./pages/recipe-edit";
 import { renderSelectRecipePage } from "./pages/select-recipe";
 import { renderBcImportPage } from "./pages/bc-import";
-import { refreshRecentFavourites, shotPatchAffectsRecents, noteShotUpdated, allocateRecipeSlot, migrateRecipeSlots, dropSuggestedRecipes, dedupeRecipeSlots } from "./utils/recent-favs";
+import { refreshRecentFavourites, shotPatchAffectsRecents, noteShotUpdated, explicitRecipeSlot, migrateRecipeSlots, dropSuggestedRecipes, dedupeRecipeSlots } from "./utils/recent-favs";
 import {
   deriveSelection,
   recipeIdOf,
@@ -252,9 +252,8 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       const name =
         (body && typeof body.name === "string" && body.name.trim()) ||
         proposeRecipeName(wf, recipes.map((r) => r && (r.name || r.title)));
-      const alloc = allocateRecipeSlot(recipes, body && body.slot);
-      if ("taken" in alloc) return json(request, 409, { error: "all five recipe slots are taken", taken: alloc.taken });
-      const stripSlot = alloc.slot;
+      // No automatic placement: without an explicit valid `slot` the recipe is saved to the library.
+      const stripSlot = explicitRecipeSlot(body && body.slot);
       const id = `recipe-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
       wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
       // The plugin-side markDye: this blob is what a later apply PUTs, and Streamline's post-shot
@@ -288,9 +287,9 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       const res = await fetch(`${API}/store/${NS}/recipes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // The slot's previous holder keeps its row and loses the slot.
+        // An explicit slot's previous holder keeps its row and loses the slot; no slot leaves every row alone.
         body: JSON.stringify(recipes
-          .map((r) => (r && r.stripSlot === stripSlot ? { ...r, stripSlot: null } : r)).concat(row)),
+          .map((r) => (stripSlot != null && r && r.stripSlot === stripSlot ? { ...r, stripSlot: null } : r)).concat(row)),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status} writing recipes`);
       await putWorkflow({ context: { extras: { dye: { v: 1, recipeId: id } } } });

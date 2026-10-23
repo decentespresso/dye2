@@ -98,7 +98,7 @@ POST /api/v1/plugins/dye2.reaplugin/selection {kind, id}  -> compat shim, stores
                                                    recipeId, anything else nulls it; returns the derived selection.
                                                    Going away with streamline-js#159.
 POST /api/v1/plugins/dye2.reaplugin/record       -> { saved, kind, id } writes the dial-in onto the selected recipe
-POST /api/v1/plugins/dye2.reaplugin/save-recipe {name?} -> { id, name } new recipe from the live workflow, selected at once
+POST /api/v1/plugins/dye2.reaplugin/save-recipe {name?, slot?} -> { id, name } new recipe from the live workflow, selected at once
 ```
 
 The derived answer is mirrored to plugin storage, so `GET /api/v1/store/dye2.reaplugin/selection`
@@ -118,7 +118,7 @@ workflow whose steam is off (`targetTemperature` below 135).
 
 **`save-recipe`** builds the row from the live workflow (`dashboardVariables` from
 `recipeFields`, bean/grinder/profile from `context`/`profile`, `workflow` the live one trimmed,
-`extras.dye` rebuilt as `markDye` flags for the fields the row carries, without `recipeId`/`selection`), stores it as a new row with an opaque id and `stripSlot` the lowest free `1..5` (or the body's `slot`, whose previous holder stays in the library and loses the slot; all five taken and no `slot` answers 409 with the occupied slots) and PUTs its id as `recipeId`. The name is the
+`extras.dye` rebuilt as `markDye` flags for the fields the row carries, without `recipeId`/`selection`), stores it as a new row with an opaque id and `stripSlot` the body's `slot` (1..5; its previous holder stays in the library and loses the slot) or `null` when none is given (library only; a recipe is never placed automatically, so there is no 409) and PUTs its id as `recipeId`. The name is the
 body's `name`, else `<first word of profile title> <drink>`: a generic title word (Default,
 Advanced, Custom, Profile, New, Untitled) is dropped; drink is, in order, steam on and set
 (duration <=20 s Flat White, <=35 s Cappuccino, otherwise or unknown Latte), hot water set
@@ -356,8 +356,12 @@ plugins should not read it.
                                 // It is NOT the strip position. Legacy rows keep their id '1'..'5'.
   stripSlot,                   // 1..5 | null — the position on the Streamline R strip; null = saved in the
                                 // library only. One recipe per slot: assigning n clears it on whoever held n,
-                                // in the same write. `save-recipe` takes the lowest free slot, or the body's
-                                // `slot`; all five taken and no `slot` -> 409 { error, taken } (numbers).
+                                // in the same write. NOTHING assigns a recipe slot automatically:
+                                // `save-recipe` without a (valid 1..5) `slot` saves to the library with
+                                // stripSlot null; with one it takes that slot and the previous holder stays in
+                                // the library. There is no 409. This is deliberately unlike `favSlot`, where
+                                // recents are auto-placed. A slot is only ever set by the barista (recipe-edit
+                                // tabs, the auto-fav-edit slot picker, an explicit `slot`).
                                 // Assigned in recipe-edit by its five header tabs (one per slot, named for the
                                 // holder); SAVE writes the targeted slot through updateRecipe.
                                 // Migration (plugin load, idempotent): a row whose id is '1'..'5' and that has

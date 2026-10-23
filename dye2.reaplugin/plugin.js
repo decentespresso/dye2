@@ -9506,7 +9506,7 @@ function initEquipmentField(field) {
       </div>
 
       <div>
-        <div class="afe-label">Assign Fav number</div>
+        <div class="afe-label">Recipe slot (optional)</div>
         <div class="flex gap-[18px] mt-[4px]">
           ${[
 			1,
@@ -9514,7 +9514,7 @@ function initEquipmentField(field) {
 			3,
 			4,
 			5
-		].map((n) => `<button class="afe-fav-num${n === 1 ? " active" : ""}" data-num="${n}">${n}</button>`).join("")}
+		].map((n) => `<button class="afe-fav-num" data-num="${n}">${n}</button>`).join("")}
         </div>
       </div>
     </div>
@@ -9938,13 +9938,16 @@ function setupControls() {
   }
 
   document.querySelectorAll('.afe-fav-num').forEach(btn => btn.addEventListener('click', () => {
+    // No slot is selected by default; tapping the selected one again unselects it.
+    const was = btn.classList.contains('active');
     document.querySelectorAll('.afe-fav-num').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    if (!was) btn.classList.add('active');
   }));
 
   el('afe-cancel-btn')?.addEventListener('click', () => window.history.back());
 
-  // SAVE TO RECIPE: adds a new row to recipes[] holding strip slot n (stripSlot), not autoFavourites.
+  // SAVE TO RECIPE: adds a new row to recipes[]; stripSlot is the picked slot, or null (library only).
+  // Nothing picks a recipe slot automatically.
   // A slot that already holds a real recipe needs a second tap on the relabelled button; that
   // recipe stays in the library and just loses the slot (updateRecipe frees it).
   let overwriteArmed = null;
@@ -9954,10 +9957,10 @@ function setupControls() {
   }));
   el('afe-save-btn')?.addEventListener('click', async () => {
     const data = collectFavData();
-    const slot = getAssignedSlot() || 1;
+    const slot = getAssignedSlot();   // null: saved to the library only, never an automatic slot
     const s = data.snapshot;
     try {
-      const existing = (await getRecipes()).find(r => r && r.stripSlot === slot);
+      const existing = slot == null ? null : (await getRecipes()).find(r => r && r.stripSlot === slot);
       const overwrite = !!existing;
       if (overwrite && overwriteArmed !== slot) {
         overwriteArmed = slot;
@@ -9966,7 +9969,7 @@ function setupControls() {
       }
       await updateRecipe(newId('recipe'), {
         stripSlot: slot,
-        name: data.title || s.coffeeName || ('Recipe ' + slot), beverage: data.beverage || '',
+        name: data.title || s.coffeeName || (slot ? 'Recipe ' + slot : 'Recipe'), beverage: data.beverage || '',
         beanName: s.coffeeName, beanRoaster: s.coffeeRoaster, beanBatchId: s.beanBatchId,
         profileId: s.profileId, profileTitle: s.profileTitle, profileSnapshot: s.profileSnapshot,
         barista: s.barista, drinker: s.drinker,
@@ -9980,13 +9983,6 @@ function setupControls() {
       window.history.back();
     } catch (e) { console.error('Failed to save recipe:', e); }
   });
-
-  // Default the picker to the lowest free recipe slot (all taken: it stays on 1 and asks to replace).
-  getRecipes().then(rs => {
-    const taken = new Set(rs.filter(r => r).map(r => r.stripSlot));
-    const free = [1, 2, 3, 4, 5].find(n => !taken.has(n)) || 1;
-    document.querySelectorAll('.afe-fav-num').forEach(b => b.classList.toggle('active', parseInt(b.dataset.num) === free));
-  }).catch(() => {});
 }
 
 function snapshotFromWorkflow(wf) {
@@ -12334,32 +12330,19 @@ bcInit();
 	}
 	/**
 	* The strip positions 1..5 are `recipes[].stripSlot`, not the row id (ids are opaque and stable).
-	* Returns the lowest free stripSlot, or the requested one (which takes the slot over). No slot requested and none free: `{ taken }`, for the caller's 409.
+	* A recipe is NEVER placed automatically: only an explicit request names a slot. Returns that slot
+	* (1..5, a numeric string is accepted), or null for anything missing/invalid = save to the library.
 	*/
-	function allocateRecipeSlot(recipes, requested) {
-		const taken = [
-			1,
-			2,
-			3,
-			4,
-			5
-		].filter((n) => (recipes || []).some((r) => r && r.stripSlot === n));
+	function explicitRecipeSlot(requested) {
+		if (requested == null || requested === "") return null;
 		const want = Number(requested);
-		if (requested != null && [
+		return [
 			1,
 			2,
 			3,
 			4,
 			5
-		].includes(want)) return { slot: want };
-		const free = [
-			1,
-			2,
-			3,
-			4,
-			5
-		].find((n) => !taken.includes(n));
-		return free ? { slot: free } : { taken };
+		].includes(want) ? want : null;
 	}
 	/**
 	* One-shot, idempotent: a legacy row whose id is '1'..'5' and that has no `stripSlot` gets
@@ -13278,12 +13261,7 @@ bcInit();
 				const body = parseBody(request);
 				const ctx = wf.context || {};
 				const name = body && typeof body.name === "string" && body.name.trim() || proposeRecipeName(wf, recipes.map((r) => r && (r.name || r.title)));
-				const alloc = allocateRecipeSlot(recipes, body && body.slot);
-				if ("taken" in alloc) return json(request, 409, {
-					error: "all five recipe slots are taken",
-					taken: alloc.taken
-				});
-				const stripSlot = alloc.slot;
+				const stripSlot = explicitRecipeSlot(body && body.slot);
 				const id = `recipe-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 				wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
 				const { dye, ...extras } = ctx.extras || {};
@@ -13343,7 +13321,7 @@ bcInit();
 				const res = await fetch(`${API}/store/${NS}/recipes`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(recipes.map((r) => r && r.stripSlot === stripSlot ? {
+					body: JSON.stringify(recipes.map((r) => stripSlot != null && r && r.stripSlot === stripSlot ? {
 						...r,
 						stripSlot: null
 					} : r).concat(row))

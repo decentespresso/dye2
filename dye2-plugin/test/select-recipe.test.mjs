@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { allocateRecipeSlot, migrateRecipeSlots } from '../src/utils/recent-favs.ts';
+import { explicitRecipeSlot, migrateRecipeSlots } from '../src/utils/recent-favs.ts';
 const { devApiScript } = await import('../src/utils/dev-api.ts');
 
 // Fake bridge KV; reads and the one POST updateRecipe makes (a single write per call).
@@ -56,19 +56,18 @@ console.log('ok   recipe stripSlot: exclusive, single write, clear keeps the rec
 }
 console.log('ok   migrateRecipeSlots: maps once, idempotent, ids untouched');
 
-// allocateRecipeSlot works on stripSlot, not id.
+// explicitRecipeSlot: only a named, valid slot is a slot; nothing is ever picked for the caller.
 {
-  const row = (id, stripSlot, extra) => ({ id, stripSlot, ...extra });
-  assert.deepEqual(allocateRecipeSlot([]), { slot: 1 });
-  assert.deepEqual(allocateRecipeSlot([row('x', 1), row('y', 3)]), { slot: 2 }, 'lowest free stripSlot');
-  assert.deepEqual(allocateRecipeSlot([row('1', null)]), { slot: 1 }, 'an id of "1" does not occupy slot 1');
-  assert.deepEqual(allocateRecipeSlot([row('s', 1)]), { slot: 2 }, 'any row holding a stripSlot occupies it');
-  const full = [1, 2, 3, 4, 5].map((n) => row('r' + n, n));
-  assert.deepEqual(allocateRecipeSlot(full), { taken: [1, 2, 3, 4, 5] }, 'full -> caller 409s');
-  assert.deepEqual(allocateRecipeSlot(full, '4'), { slot: 4 }, 'explicit slot honoured');
-  assert.deepEqual(allocateRecipeSlot(full, 9), { taken: [1, 2, 3, 4, 5] }, 'out-of-range ignored');
+  assert.equal(explicitRecipeSlot(), null, 'no slot -> library');
+  assert.equal(explicitRecipeSlot(null), null);
+  assert.equal(explicitRecipeSlot(''), null);
+  assert.equal(explicitRecipeSlot(3), 3);
+  assert.equal(explicitRecipeSlot('4'), 4, 'numeric string honoured');
+  assert.equal(explicitRecipeSlot(9), null, 'out-of-range -> library, not a free slot');
+  assert.equal(explicitRecipeSlot(0), null);
+  assert.equal(explicitRecipeSlot('x'), null);
 }
-console.log('ok   allocateRecipeSlot: lowest free stripSlot, 409 when full');
+console.log('ok   explicitRecipeSlot: explicit 1..5 or null, never auto-placed');
 
 // The page reuses decideCardTap rather than carrying its own copy.
 {
