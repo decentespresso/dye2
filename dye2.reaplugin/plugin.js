@@ -55,6 +55,43 @@ function resolveTheme(o) {
 })();
 `;
 	//#endregion
+	//#region src/utils/kb-plan.ts
+	/**
+	* Keyboard-avoidance decision, as a browser-side script string (no local imports, so
+	* test/kb-plan.test.mjs can eval it directly). The shell's kbAdjust measures the DOM and
+	* hands the numbers here; this only decides which mechanism to use and by how much.
+	*
+	* Inputs are on-screen px except scrollerRoom, which is design px (scrollHeight -
+	* clientHeight - scrollTop) or null when the field has no scrollable ancestor.
+	* Every returned amount is in design px (on-screen overlap / scale), because the things it
+	* moves live inside the scaled <body>.
+	*
+	*   none   - field clears the keyboard
+	*   modal  - translate the position:fixed ancestor up by amount
+	*   scroll - scrollTop += amount (the scroller has the room)
+	*   pad    - the scroller cannot go far enough: scroll by amount and first add `pad`
+	*            (the shortfall) of bottom padding so it can
+	*   shift  - last resort: translate the page root up by amount (capped so the field stays
+	*            on screen when fieldTop is given)
+	*/
+	var kbPlanScript = `
+function kbPlan(o) {
+  var margin = o.margin == null ? 24 : o.margin;
+  var scale = o.scale > 0 ? o.scale : 1;
+  var overlap = o.fieldBottom + margin - (o.vvTop + o.vvHeight);
+  if (!(overlap > 0)) return { mode: 'none', amount: 0 };
+  var need = overlap / scale;
+  if (o.hasModal) return { mode: 'modal', amount: need };
+  if (o.scrollerRoom == null) {
+    if (o.fieldTop != null) need = Math.min(need, Math.max(0, (o.fieldTop - 8) / scale));
+    return need > 0 ? { mode: 'shift', amount: need } : { mode: 'none', amount: 0 };
+  }
+  var room = Math.max(0, o.scrollerRoom);
+  if (room >= need) return { mode: 'scroll', amount: need };
+  return { mode: 'pad', amount: need, pad: need - room };
+}
+`;
+	//#endregion
 	//#region \0@oxc-project+runtime@0.124.0/helpers/taggedTemplateLiteral.js
 	function _taggedTemplateLiteral(e, t) {
 		return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, { raw: { value: Object.freeze(t) } }));
@@ -114,11 +151,20 @@ function resolveTheme(o) {
   // wrapper worth translating -- instead scroll its nearest scrollable ancestor so the
   // field clears the keyboard, same goal via the mechanism that already fits inline content.
   var kbTarget = null;
-  var kbScroller = null, kbScrollerPrevTop = 0;
+  var kbScroller = null, kbScrollerPrevTop = 0, kbScrollerPrevPad = '';
+  var kbRoot = null, kbRootPrev = '';
+  var kbTimers = [];
+  // Idempotent: undoes whatever kbAdjust applied (modal/root transform, scrollTop, padding).
   function kbReset() {
     if (kbTarget) { kbTarget.style.transform = kbTarget.__kbPrev || ''; kbTarget = null; }
-    if (kbScroller) { kbScroller.scrollTop = kbScrollerPrevTop; kbScroller = null; }
+    if (kbScroller) {
+      kbScroller.style.paddingBottom = kbScrollerPrevPad;
+      kbScroller.scrollTop = kbScrollerPrevTop;
+      kbScroller = null;
+    }
+    if (kbRoot) { kbRoot.style.transform = kbRootPrev; kbRoot = null; }
   }
+  function kbCancel() { while (kbTimers.length) clearTimeout(kbTimers.pop()); }
   function fixedAncestor(node) {
     while (node && node !== document.body) {
       if (getComputedStyle(node).position === 'fixed') return node;
@@ -134,6 +180,16 @@ function resolveTheme(o) {
     }
     return null;
   }
+${kbPlanScript}
+  // Last resort: translate the page root (a direct child of the scaled <body>, so the
+  // scaling transform on body is untouched) up by amount design px.
+  function kbShiftRoot(amount) {
+    var root = document.body.firstElementChild;
+    if (!root || !(amount > 0)) return;
+    kbRoot = root;
+    kbRootPrev = root.style.transform;
+    root.style.transform = (kbRootPrev ? kbRootPrev + ' ' : '') + 'translateY(' + (-amount) + 'px)';
+  }
   function kbAdjust() {
     var vv = window.visualViewport;
     kbReset();
@@ -144,27 +200,51 @@ function resolveTheme(o) {
     // and only the visual viewport shrinks; without it innerHeight shrinks too and this
     // difference is 0 -- either way what is hidden is what sits past the visual viewport.
     var box = el.getBoundingClientRect();
-    var overlap = box.bottom + 24 - (vv.offsetTop + vv.height);
-    if (overlap <= 0) return;
     var modal = fixedAncestor(el.parentElement);
-    if (modal) {
+    var scroller = modal ? null : scrollableAncestor(el.parentElement);
+    var plan = kbPlan({
+      fieldBottom: box.bottom, fieldTop: box.top, vvTop: vv.offsetTop, vvHeight: vv.height,
+      scale: lastSy, hasModal: !!modal,
+      scrollerRoom: scroller ? scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop : null
+    });
+    if (plan.mode === 'none') return;
+    if (plan.mode === 'modal') {
       kbTarget = modal;
       modal.__kbPrev = modal.style.transform;
       modal.style.transform = (modal.__kbPrev ? modal.__kbPrev + ' ' : '') +
-        'translateY(' + (-overlap / lastSy) + 'px)';
+        'translateY(' + (-plan.amount) + 'px)';
       return;
     }
-    var scroller = scrollableAncestor(el.parentElement);
-    if (!scroller) return;
+    if (plan.mode === 'shift') { kbShiftRoot(plan.amount); return; }
     kbScroller = scroller;
     kbScrollerPrevTop = scroller.scrollTop;
-    scroller.scrollTop += overlap / lastSy;
+    kbScrollerPrevPad = scroller.style.paddingBottom;
+    if (plan.mode === 'pad') {
+      scroller.style.paddingBottom =
+        ((parseFloat(getComputedStyle(scroller).paddingBottom) || 0) + plan.pad) + 'px';
+    }
+    scroller.scrollTop += plan.amount;
+    // Still covered (e.g. padding did not extend the scroll range)? Shift the root by the rest.
+    box = el.getBoundingClientRect();
+    var rest = kbPlan({
+      fieldBottom: box.bottom, fieldTop: box.top, vvTop: vv.offsetTop, vvHeight: vv.height,
+      scale: lastSy, hasModal: false, scrollerRoom: null
+    });
+    if (rest.mode === 'shift') kbShiftRoot(rest.amount);
   }
   // The WebView fires the viewport resize while the keyboard animates in, often before
-  // focus has landed -- so re-check on focus changes too, one frame late so the field is
-  // laid out (and, on blur, so the next focus is already set).
-  function kbSoon() { setTimeout(kbAdjust, 50); }
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', kbSoon);
+  // focus has landed and before the viewport has finished shrinking -- so re-check at a few
+  // increasing delays (bounded; no polling), cancelling any still pending from earlier.
+  // Also covers focus changes, one frame late so the field is laid out (and, on blur, so
+  // the next focus is already set).
+  function kbSoon() {
+    kbCancel();
+    [50, 150, 350, 600].forEach(function (ms) { kbTimers.push(setTimeout(kbAdjust, ms)); });
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', kbSoon);
+    window.visualViewport.addEventListener('scroll', kbSoon);
+  }
   document.addEventListener('focusin', kbSoon);
   document.addEventListener('focusout', kbSoon);
 })();

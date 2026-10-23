@@ -132,8 +132,15 @@ handles the two cases differently:
 - field with no fixed ancestor (inline in the page) → scroll its nearest scrollable
   ancestor instead.
 
-Both paths re-check on `focusin`/`focusout` one frame late. Preserve the geometry-only
-guard and the scale division; a naive `scrollIntoView` regresses both cases.
+- no fixed and no scrollable ancestor, or a scroller that is still short after scrolling and
+  padding → translate the page root (`body.firstElementChild`, not `body`, which carries the
+  scale) up by the remaining overlap / scale.
+
+The decision is the pure `kbPlan()` in `src/utils/kb-plan.ts` (tested by `test/kb-plan.test.mjs`);
+`kbAdjust()` only measures and applies. Checks run at 50/150/350/600 ms after `focusin`/
+`focusout` and on `visualViewport` `resize`/`scroll`, cancelled by the next event; `kbReset()`
+is idempotent and undoes transform, scrollTop and padding. Preserve the geometry-only guard
+and the scale division; a naive `scrollIntoView` regresses both cases.
 
 ## Dev Server
 
