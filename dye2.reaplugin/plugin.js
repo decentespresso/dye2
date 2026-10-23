@@ -4195,6 +4195,7 @@ async function deleteBeanWithBatches(beanId, api) {
 		minus: "<path d=\"M5 12h14\"/>",
 		x: "<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>",
 		check: "<path d=\"M20 6 9 17l-5-5\"/>",
+		list: "<path d=\"M8 6h13\"/><path d=\"M8 12h13\"/><path d=\"M8 18h13\"/><path d=\"M3 6h.01\"/><path d=\"M3 12h.01\"/><path d=\"M3 18h.01\"/>",
 		trash: "<path d=\"M3 6h18\"/><path d=\"M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6\"/><path d=\"M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2\"/>",
 		"arrow-up": "<path d=\"m5 12 7-7 7 7\"/><path d=\"M12 19V5\"/>"
 	};
@@ -5875,7 +5876,7 @@ function shotWeights(shot) {
           <button id="dye-recipe-next" class="flex items-center justify-center shrink-0 cursor-pointer text-[var(--mimoja-blue)]">
             <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
-          <button id="dye-recipes-btn" class="flex items-center justify-center shrink-0 cursor-pointer" title="All recipes" aria-label="All recipes">${lucideIcon("pencil", 42, "var(--mimoja-blue)", 2.5)}</button>
+          <button id="dye-recipes-btn" class="flex items-center justify-center shrink-0 cursor-pointer" title="All recipes" aria-label="All recipes">${lucideIcon("list", 42, "var(--mimoja-blue)", 2.5)}</button>
         </div>
 
         <div class="h-[2px] bg-[var(--profile-button-outline-color)] shrink-0"></div>

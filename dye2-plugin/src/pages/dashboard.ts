@@ -323,7 +323,7 @@ function buildContent(): string { return `
           <button id="dye-recipe-next" class="flex items-center justify-center shrink-0 cursor-pointer text-[var(--mimoja-blue)]">
             <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
-          <button id="dye-recipes-btn" class="flex items-center justify-center shrink-0 cursor-pointer" title="All recipes" aria-label="All recipes">${lucideIcon('pencil', 42, 'var(--mimoja-blue)', 2.5)}</button>
+          <button id="dye-recipes-btn" class="flex items-center justify-center shrink-0 cursor-pointer" title="All recipes" aria-label="All recipes">${lucideIcon('list', 42, 'var(--mimoja-blue)', 2.5)}</button>
         </div>
 
         <div class="h-[2px] bg-[var(--profile-button-outline-color)] shrink-0"></div>
