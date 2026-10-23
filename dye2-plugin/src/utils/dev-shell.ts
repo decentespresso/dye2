@@ -355,7 +355,7 @@ export function devPageShell(
   ${/* Last in body so the 1 MB parse does not block the first data request; a page script that touches Plotly at top level would now fail. Served by our own "plotly" route, never a CDN — the tablet is offline. Deliberately
         page-relative so it resolves under both runtimes: /api/v1/plugins/dye2.reaplugin/
         dashboard -> .../plotly on the tablet, and /dashboard -> /plotly on the dev server. */
-    opts.plotly ? '<script src="plotly" charset="utf-8"></script>' : ""}
+    opts.plotly ? '<script src="plotly" charset="utf-8" onload="window.dispatchEvent(new Event(\'dye2-plotly-ready\'))"></script>' : ""}
 </body>
 </html>`;
 }

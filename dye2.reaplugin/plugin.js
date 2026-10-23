@@ -419,7 +419,7 @@ ${kbPlanScript}
 			"<\/script>\n  ",
 			"\n  ",
 			"\n</body>\n</html>"
-		])), title, themeBootstrap, tailwind_generated_default, cssVarFallbacks(), styles, content, fitScript, scripts.map((s) => `<script>${s}<\/script>`).join("\n"), opts.plotly ? "<script src=\"plotly\" charset=\"utf-8\"><\/script>" : "");
+		])), title, themeBootstrap, tailwind_generated_default, cssVarFallbacks(), styles, content, fitScript, scripts.map((s) => `<script>${s}<\/script>`).join("\n"), opts.plotly ? "<script src=\"plotly\" charset=\"utf-8\" onload=\"window.dispatchEvent(new Event('dye2-plotly-ready'))\"><\/script>" : "");
 	}
 	//#endregion
 	//#region src/utils/dev-api.ts
@@ -5409,9 +5409,34 @@ function chartClearPlaceholder(el) {
   if (ph) ph.remove();
 }
 
+// Plotly is the last script in the body, so a shot fetch that resolves first would reach
+// Plotly.react before the 1MB parse finishes — a ReferenceError swallowed by the caller's
+// .catch, leaving a blank chart that nothing redraws. Hold the draw and replay it on the
+// script's load event instead.
+var chartPendingPlot = null;
+window.addEventListener('dye2-plotly-ready', function () {
+  var p = chartPendingPlot;
+  chartPendingPlot = null;
+  if (!p) return;
+  // The held draw wrote its placeholder with no Plotly to purge with, so the node can still
+  // carry Plotly state under that markup — react() into it redraws nothing (see
+  // chartShowPlaceholder). Reset it before replaying.
+  var el = document.getElementById('plotly-chart');
+  if (el) {
+    if (el._fullLayout) Plotly.purge(el);
+    el.innerHTML = '';
+  }
+  plotHistoricalShot(p[0], p[1]);
+});
+
 function plotHistoricalShot(measurements, workflow) {
   var el = document.getElementById('plotly-chart');
   if (!el) return;
+  if (!window.Plotly) {
+    chartPendingPlot = [measurements, workflow];
+    chartShowPlaceholder(el, 'Loading...');
+    return;
+  }
 
   if (!measurements || measurements.length === 0) {
     el.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--low-contrast-white);font-size:18px;">No shot data</div>';
