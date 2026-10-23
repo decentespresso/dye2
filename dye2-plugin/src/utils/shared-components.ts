@@ -456,3 +456,153 @@ function syncPresetActive(idPrefix, currentVal) {
   });
 }
 `;
+
+// ── Bean-picker family (Figma "DYE_Select Coffee Beans", 2345:2457 / 2345:2577) ─────────────
+// bean-picker.ts is the reference translation; select-recipe.ts reuses it. One copy of the CSS,
+// header and rail here so the two pages cannot drift.
+
+export const dyePickerCss = `
+  .dye-sort-btn {
+    width: 100%;
+    padding: 12px 0;
+    border: 2px solid var(--mimoja-blue);
+    border-radius: 9999px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 19px;
+    text-align: center;
+    color: var(--mimoja-blue);
+    background: transparent;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .dye-sort-btn.dye-sort-active {
+    background: var(--mimoja-blue);
+    color: #fff;
+    border-color: var(--mimoja-blue);
+  }
+
+  .dye-card {
+    width: 100%;
+    min-height: 80px;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 14px 18px;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    background: var(--box-color);
+    border: 1px solid var(--profile-button-outline-color);
+    color: var(--text-primary);
+    transition: background 0.15s, color 0.15s;
+    user-select: none;
+    gap: 8px;
+    position: relative;
+  }
+
+  .dye-card-edit-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: transparent;
+    cursor: pointer;
+  }
+  .dye-card-edit-btn:hover { background: rgba(0,0,0,0.08); }
+  .dye-card.dye-card-selected .dye-card-edit-btn:hover { background: rgba(255,255,255,0.2); }
+  .dye-card-edit-btn svg { stroke: var(--text-primary-disabled); }
+  .dye-card.dye-card-selected .dye-card-edit-btn svg { stroke: #fff; }
+  .dye-card:hover { opacity: 0.85; }
+  .dye-card.dye-card-selected {
+    background: var(--mimoja-blue);
+    border-color: var(--mimoja-blue);
+    color: #fff;
+  }
+  .dye-card-add {
+    border: 2px solid var(--mimoja-blue);
+    color: var(--mimoja-blue);
+    font-size: 22px;
+    font-weight: 700;
+    gap: 8px;
+    background: var(--box-color);
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+  }
+  .dye-card-add svg { stroke: var(--mimoja-blue); }
+
+  /* Keep the centred name clear of the absolutely-positioned pencil (34px wide, 8px in):
+     the card's own 18px padding leaves 24px to make up, applied both sides so the text
+     stays centred. Long names now wrap instead of running under the icon. */
+  .dye-card-name  { font-size: 22px; font-weight: 600; line-height: 1.3; padding: 0 24px; }
+  .dye-card-sub   { font-size: 20px; font-weight: 400; opacity: 0.7; }
+  .dye-card-date  { font-size: 19px; font-weight: 400; opacity: 0.6; margin-top: 4px; }
+  .dye-card.dye-card-selected .dye-card-sub,
+  .dye-card.dye-card-selected .dye-card-date { opacity: 0.85; }
+
+  .dye-confirm-disabled {
+    background: var(--fav-button-wait, #e0e0e0);
+    color: var(--text-primary-disabled, #aaa);
+    cursor: not-allowed;
+  }
+  .dye-confirm-enabled {
+    background: var(--mimoja-blue);
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .dye-search-wrap { position: relative; width: 100%; margin-bottom: 10px; }
+  .dye-search-input {
+    width: 100%; height: 54px; border-radius: 12px; border: none;
+    background: var(--field-bg); padding: 0 46px 0 16px;
+    font-family: 'Inter', sans-serif; font-size: 19px;
+    color: var(--text-primary); outline: none;
+  }
+  .dye-search-input::placeholder { color: var(--text-primary-disabled); }
+  .dye-search-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+
+  #dye-cards-container::-webkit-scrollbar { width: 36px; }
+  #dye-cards-container::-webkit-scrollbar-track { background: transparent; }
+  #dye-cards-container::-webkit-scrollbar-thumb {
+    background: var(--profile-button-outline-color);
+    border-radius: 9999px;
+    border: 12px solid transparent;
+    background-clip: padding-box;
+  }
+`;
+
+export const dyePickerSearchHtml = `<div class="dye-search-wrap">
+        <input id="dye-search-input" class="dye-search-input" type="text" placeholder="Search" />
+        <svg class="dye-search-icon" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary-disabled)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </div>`;
+
+// confirmInnerHtml is the button's content (a label span, optionally with a chevron).
+export function dyePickerHeaderHtml(title: string, confirmInnerHtml: string): string {
+  return `<div class="flex justify-between items-center px-[38px] border-b border-[var(--profile-button-outline-color)] bg-[var(--box-color)] h-[134px] shrink-0">
+    <h1 class="text-[36px] font-bold text-[var(--text-primary)]">${title}</h1>
+    <div class="flex items-center gap-[14px]">
+      <button id="dye-cancel-btn" class="flex items-center justify-center h-[60px] px-[30px] rounded-[9999px] font-bold text-[24px] text-[var(--text-primary)] cursor-pointer">
+        CANCEL
+      </button>
+      <button id="dye-confirm-btn" class="flex items-center gap-[10px] justify-center h-[60px] px-[30px] rounded-[9999px] font-bold text-[24px] dye-confirm-disabled" disabled>
+        ${confirmInnerHtml}
+      </button>
+    </div>
+  </div>`;
+}
+
+export function dyePickerRailHtml(sorts: [string, string][]): string {
+  return `<div id="dye-sort-sidebar" class="flex flex-col gap-[18px] items-stretch pt-[28px] px-[20px] shrink-0 w-[180px]">
+      ${dyePickerSearchHtml}
+      ${sorts.map(([k, l], i) => `<button class="dye-sort-btn${i === 0 ? ' dye-sort-active' : ''}" data-sort="${k}">${l}</button>`).join('\n      ')}
+    </div>`;
+}

@@ -1,21 +1,25 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
 import { favCardTapScript } from "../utils/fav-card-tap";
-import { sortSidebarHtml, sortSidebarScript, pickerHeaderHtml } from "../utils/shared-components";
-import { gridStyles } from "./auto-favs";
+import { sortSidebarScript, dyePickerCss, dyePickerHeaderHtml, dyePickerRailHtml } from "../utils/shared-components";
 
-// The recipe library. Same page structure and card grid as auto-favs (its styles are imported,
-// not copied); the slot assignment lives in recipe-edit, not here.
+// The recipe library, in the bean picker's translation of Figma "DYE_Select Coffee Beans"
+// (2345:2457 / 2345:2577): same CSS, header, rail and grid as bean-picker.ts, all from
+// shared-components. The slot assignment lives in recipe-edit, not here. No chevron on
+// CONFIRM and no "used" sorts: there is no second step and recipes carry no use count.
 const content = `
-<div class="afav overflow-hidden flex-grow flex flex-col">
-  <div class="afav-header">${pickerHeaderHtml('Select Recipe', 'CONFIRM')}</div>
+<div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
+
+  ${dyePickerHeaderHtml('Select Recipe', '<span>CONFIRM</span>')}
+
   <div class="flex flex-1 overflow-hidden">
-    ${sortSidebarHtml()}
-    <div class="flex flex-col flex-1 overflow-hidden px-[20px]">
-      <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[20px] pr-[20px]">
-        <div id="dye-cards-grid" class="grid grid-cols-3 gap-[30px]"></div>
-      </div>
+
+    ${dyePickerRailHtml([['recent', 'Recent'], ['oldest', 'Oldest'], ['az', 'A-Z'], ['za', 'Z-A']])}
+
+    <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[28px] px-[38px] pb-[28px]">
+      <div id="dye-cards-grid" class="grid grid-cols-3 gap-[20px]"></div>
     </div>
+
   </div>
 </div>
 `;
@@ -29,9 +33,13 @@ let recipesCache = [];
 // in, and a card's edit sets it so coming back from recipe-edit lands on the same card.
 let selectedRecipeId = sessionStorage.getItem('dye_editRecipeId');
 let currentSort = 'recent';
+let searchQuery = '';
 
-// Recipes carry no use count, so the two "used" sorts the shared rail offers do nothing here.
-document.querySelectorAll('#dye-sort-sidebar [data-sort$="used"]').forEach(b => b.remove());
+function matchesSearch(r) {
+  if (!searchQuery) return true;
+  const hay = [r.name, r.title, r.beanName, r.profileTitle].filter(Boolean).join(' ');
+  return hay.toLowerCase().includes(searchQuery);
+}
 
 function sortRecipes(list, sortKey) {
   const s = [...list];
@@ -51,7 +59,12 @@ function esc(s) {
 }
 
 function syncConfirmButton() {
-  document.getElementById('dye-confirm-btn')?.classList.toggle('opacity-50', !selectedRecipeId);
+  const btn = document.getElementById('dye-confirm-btn');
+  if (!btn) return;
+  const enabled = !!selectedRecipeId;
+  btn.disabled = !enabled;
+  btn.classList.toggle('dye-confirm-disabled', !enabled);
+  btn.classList.toggle('dye-confirm-enabled', enabled);
 }
 
 function selectCard(card, recipe) {
@@ -74,16 +87,21 @@ function renderCards() {
   grid.innerHTML = '';
   if (selectedRecipeId && !recipesCache.some(r => r.id === selectedRecipeId)) selectedRecipeId = null;
 
-  sortRecipes(recipesCache, currentSort).forEach(recipe => {
+  sortRecipes(recipesCache.filter(matchesSearch), currentSort).forEach(recipe => {
     const card = document.createElement('div');
     card.className = 'dye-card' + (recipe.id === selectedRecipeId ? ' dye-card-selected' : '');
     const title = recipe.name || recipe.title || 'Untitled recipe';
     const sub = [recipe.beanName, recipe.profileTitle].filter(Boolean).join(' · ') || recipe.subtitle || '';
     const foot = [recipe.stripSlot ? 'Recipe ' + recipe.stripSlot : '', recipe.suggested ? 'Suggested' : ''].filter(Boolean).join(' · ');
     card.innerHTML =
-      '<div class="fav-card-head"><div class="fav-card-title">' + esc(title) + '</div>' +
-      (sub ? '<div class="fav-card-sub">' + esc(sub) + '</div>' : '') + '</div>' +
-      (foot ? '<hr class="dye-card-divider"><div class="fav-card-date">' + esc(foot) + '</div>' : '');
+      '<div class="dye-card-edit-btn" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></div>' +
+      '<div class="dye-card-name">' + esc(title) + '</div>' +
+      (sub ? '<div class="dye-card-sub">' + esc(sub) + '</div>' : '') +
+      (foot ? '<div class="dye-card-date">' + esc(foot) + '</div>' : '');
+    const editBtn = card.querySelector('.dye-card-edit-btn');
+    // The pencil is another way into the same editor the second tap and long-press open.
+    editBtn.addEventListener('click', (e) => { e.stopPropagation(); openEditPage(recipe.id); });
+    editBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
     // Same press handling as auto-favs: first tap selects, a second tap on the selected card or a
     // 500ms long-press opens the editor, and the click that ends a long-press is swallowed.
     card.addEventListener('click', () => {
@@ -104,10 +122,10 @@ function renderCards() {
     grid.appendChild(card);
   });
 
-  // An empty library is just this card, as on auto-favs.
+  // An empty library is just this card.
   const addCard = document.createElement('div');
   addCard.className = 'dye-card dye-card-add';
-  addCard.innerHTML = '<span>ADD NEW RECIPE</span><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
+  addCard.innerHTML = '<span>ADD NEW RECIPE</span><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
   addCard.addEventListener('click', () => openEditPage(null));
   grid.appendChild(addCard);
   syncConfirmButton();
@@ -115,6 +133,10 @@ function renderCards() {
 
 async function initSelectRecipe() {
   setupSortButtons(sort => { currentSort = sort; renderCards(); });
+  const searchInput = document.getElementById('dye-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => { searchQuery = searchInput.value.trim().toLowerCase(); renderCards(); });
+  }
   // Route out, not history.back(): coming back from recipe-edit puts that page behind us.
   document.getElementById('dye-cancel-btn')?.addEventListener('click', () => { window.location.href = 'dashboard'; });
   document.getElementById('dye-confirm-btn')?.addEventListener('click', () => {
@@ -140,6 +162,6 @@ export function renderSelectRecipePage(request: HttpRequest): HttpResponse {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Select Recipe", content, gridStyles, [devApiScript, pageScript]),
+    body: devPageShell("Select Recipe", content, dyePickerCss, [devApiScript, pageScript]),
   };
 }

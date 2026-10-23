@@ -971,7 +971,7 @@ function buildGrinderBody(fields, isEdit) {
 `;
 	//#endregion
 	//#region src/pages/grinders.ts
-	var styles$14 = `
+	var styles$13 = `
   .dye-sort-btn {
     width: 100%;
     padding: 12px 0;
@@ -1382,7 +1382,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Grinders", content$11, styles$14, [
+			body: devPageShell("Grinders", content$11, styles$13, [
 				devApiScript,
 				buildGrinderBodyScript,
 				pageScript$15
@@ -1391,7 +1391,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
 	}
 	//#endregion
 	//#region src/pages/baskets.ts
-	var styles$13 = `
+	var styles$12 = `
   .dye-sort-btn {
     width: 100%;
     padding: 12px 0;
@@ -1724,12 +1724,12 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Filter Baskets", content$10, styles$13, [devApiScript, pageScript$14])
+			body: devPageShell("Filter Baskets", content$10, styles$12, [devApiScript, pageScript$14])
 		};
 	}
 	//#endregion
 	//#region src/pages/equipment.ts
-	var styles$12 = `
+	var styles$11 = `
   .dye-sort-btn {
     width: 100%;
     padding: 12px 0;
@@ -2101,12 +2101,333 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Equipment", content$9, styles$12, [devApiScript, pageScript$13])
+			body: devPageShell("Equipment", content$9, styles$11, [devApiScript, pageScript$13])
 		};
 	}
 	//#endregion
-	//#region src/pages/bean-picker.ts
-	var styles$11 = `
+	//#region src/utils/lucide.ts
+	/** Inline Lucide SVG icons — only icons used in DYE2 redesign */
+	var PATHS = {
+		search: "<circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>",
+		"chevron-left": "<path d=\"m15 18-6-6 6-6\"/>",
+		"chevron-right": "<path d=\"m9 18 6-6-6-6\"/>",
+		"chevron-down": "<path d=\"m6 9 6 6 6-6\"/>",
+		"chevron-up": "<path d=\"m18 15-6-6-6 6\"/>",
+		history: "<path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"/><path d=\"M3 3v5h5\"/><path d=\"M12 7v5l4 2\"/>",
+		"clipboard-paste": "<path d=\"M15 2H9a1 1 0 0 0-1 1v2c0 .6.4 1 1 1h6c.6 0 1-.4 1-1V3c0-.6-.4-1-1-1Z\"/><path d=\"M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2\"/><path d=\"M16 12H8\"/><path d=\"M16 16H8\"/>",
+		star: "<polygon points=\"12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2\"/>",
+		"check-circle": "<path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"/><path d=\"m9 11 3 3L22 4\"/>",
+		pencil: "<path d=\"M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z\"/><path d=\"m15 5 4 4\"/>",
+		calendar: "<path d=\"M8 2v4\"/><path d=\"M16 2v4\"/><rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\"/><path d=\"M3 10h18\"/>",
+		"maximize-2": "<polyline points=\"15 3 21 3 21 9\"/><polyline points=\"9 21 3 21 3 15\"/><line x1=\"21\" y1=\"3\" x2=\"14\" y2=\"10\"/><line x1=\"3\" y1=\"21\" x2=\"10\" y2=\"14\"/>",
+		plus: "<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>",
+		minus: "<path d=\"M5 12h14\"/>",
+		x: "<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>",
+		check: "<path d=\"M20 6 9 17l-5-5\"/>",
+		list: "<path d=\"M8 6h13\"/><path d=\"M8 12h13\"/><path d=\"M8 18h13\"/><path d=\"M3 6h.01\"/><path d=\"M3 12h.01\"/><path d=\"M3 18h.01\"/>",
+		trash: "<path d=\"M3 6h18\"/><path d=\"M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6\"/><path d=\"M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2\"/>",
+		"arrow-up": "<path d=\"m5 12 7-7 7 7\"/><path d=\"M12 19V5\"/>"
+	};
+	function lucideIcon(name, size = 36, color = "currentColor", strokeWidth = 2, fill = "none") {
+		return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill}" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${PATHS[name] ?? "<circle cx=\"12\" cy=\"12\" r=\"10\"/>"}</svg>`;
+	}
+	//#endregion
+	//#region src/utils/shared-components.ts
+	/** Shared CSS + HTML factories for DYE2 redesign pages (1920×1200 layout) */
+	function sortSidebarCss() {
+		return `
+  .dye-sort-btn {
+    width: 135px; padding: 14px 0;
+    border: 2px solid var(--mimoja-blue); border-radius: 23px;
+    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 21px;
+    text-align: center; color: var(--mimoja-blue); background: transparent;
+    cursor: pointer; white-space: nowrap;
+  }
+  .dye-sort-btn.dye-sort-active { background: var(--mimoja-blue); color: #fff; }
+  `;
+	}
+	function sortSidebarHtml() {
+		return `<div id="dye-sort-sidebar" class="flex flex-col gap-[30px] items-start pt-[30px] pl-[37px] pr-[30px] shrink-0">
+    ${[
+			["recent", "Recent"],
+			["oldest", "Oldest"],
+			["az", "A-Z"],
+			["za", "Z-A"],
+			["most-used", "Most Used"],
+			["least-used", "Least Used"]
+		].map(([key, label], i) => `<button class="dye-sort-btn${i === 0 ? " dye-sort-active" : ""}" data-sort="${key}">${label}</button>`).join("\n    ")}
+  </div>`;
+	}
+	function pickerCardCss() {
+		return `
+  .dye-card {
+    border-radius: 15px; display: flex; flex-direction: column;
+    align-items: flex-start; justify-content: center; padding: 16px 20px;
+    font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 400;
+    cursor: pointer; background: var(--box-color);
+    border: 1px solid var(--profile-button-outline-color);
+    color: var(--text-primary); transition: background 0.15s, color 0.15s;
+    user-select: none; min-height: 90px;
+  }
+  .dye-card:hover { opacity: 0.85; }
+  .dye-card.dye-card-selected { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  .dye-card-add {
+    border-color: var(--mimoja-blue); color: var(--mimoja-blue);
+    font-weight: 700; flex-direction: row; align-items: center;
+    justify-content: center; gap: 8px; background: var(--box-color);
+  }
+  .dye-card-add svg { stroke: var(--mimoja-blue); }
+  .dye-card-name { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .dye-card-sub  { font-size: 20px; font-weight: 400; opacity: 0.7; margin-top: 2px; }
+  .dye-card-divider { border: none; border-top: 1px solid var(--profile-button-outline-color); width: 100%; margin: 8px 0; }
+  .dye-card-date { font-size: 18px; font-weight: 400; opacity: 0.6; }
+  .dye-card.dye-card-selected .dye-card-divider { border-color: rgba(255,255,255,0.3); }
+  #dye-cards-container::-webkit-scrollbar { width: 45px; }
+  #dye-cards-container::-webkit-scrollbar-track { background: transparent; }
+  #dye-cards-container::-webkit-scrollbar-thumb {
+    background: var(--profile-button-outline-color);
+    border-radius: 53px; border: 14px solid transparent;
+    background-clip: padding-box;
+  }
+  `;
+	}
+	function pickerHeaderHtml(title, primaryLabel, primaryDisabled = true) {
+		return `<div class="flex justify-between items-center px-[37px] border-b border-[var(--profile-button-outline-color)] bg-[var(--box-color)] h-[165px] shrink-0">
+    <h1 class="text-[38px] font-bold text-[var(--text-primary)] no-select">${title}</h1>
+    <div class="flex items-center gap-[16px]">
+      <button id="dye-cancel-btn" class="flex justify-center items-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)]">CANCEL</button>
+      <button id="dye-confirm-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px]${primaryDisabled ? " opacity-50" : ""}">${primaryLabel}</button>
+    </div>
+  </div>`;
+	}
+	function favNumCss() {
+		return `
+  .afe-fav-num {
+    width: 60px; height: 60px; border-radius: 9999px;
+    border: 2px solid var(--profile-button-outline-color);
+    font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 600;
+    color: var(--text-primary); background: transparent; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .afe-fav-num.active {
+    background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff;
+  }
+  `;
+	}
+	function stepperCss() {
+		return `
+  .dye-stepper-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 72px; height: 72px; background: var(--button-grey);
+    border-radius: 15px; cursor: pointer; flex-shrink: 0;
+  }
+  .dye-stepper-val {
+    font-weight: 700; font-size: 26px; color: var(--text-primary);
+    text-align: center; min-width: 72px;
+  }
+  .dye-stepper-sub {
+    font-size: 18px; font-weight: 600; color: var(--text-primary); text-align: center;
+  }
+  .dye-stepper-label { font-weight: 700; font-size: 24px; color: var(--mimoja-blue); }
+  `;
+	}
+	function stepperHtml(idPrefix, label, labelWidth = "75px", showSub = false, subHtml = "") {
+		const minusSvg = lucideIcon("minus", 28, "var(--text-primary)", 2.5);
+		const plusSvg = lucideIcon("plus", 28, "var(--text-primary)", 2.5);
+		return `<div class="flex items-center gap-[18px]">
+    ${subHtml ? `<div class="flex flex-col" style="width:${labelWidth};flex-shrink:0">
+         <span class="dye-stepper-label">${label}</span>
+         ${subHtml}
+       </div>` : `<span class="dye-stepper-label" style="width:${labelWidth};flex-shrink:0">${label}</span>`}
+    <div class="flex items-center gap-[15px]">
+      <button id="${idPrefix}-minus" class="dye-stepper-btn">${minusSvg}</button>
+      <div class="flex flex-col items-center" style="min-width:72px">
+        <span id="${idPrefix}-value" class="dye-stepper-val">—</span>
+        ${showSub ? `<span id="${idPrefix}-sub" class="dye-stepper-sub"></span>` : ""}
+      </div>
+      <button id="${idPrefix}-plus" class="dye-stepper-btn">${plusSvg}</button>
+    </div>
+  </div>`;
+	}
+	function presetStripCss() {
+		return `
+  .dye-preset {
+    font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 400;
+    color: var(--text-primary-disabled); background: none; border: none;
+    cursor: pointer; padding: 0; white-space: nowrap;
+  }
+  .dye-preset.dye-preset-active { color: var(--mimoja-blue); font-weight: 700; }
+  `;
+	}
+	function presetStripHtml(idPrefix, presets, opts = {}) {
+		const attrs = (opts.kind ? ` data-kind="${opts.kind}"` : "") + (opts.basis ? ` data-basis="${opts.basis}"` : "");
+		return `<div id="${idPrefix}-presets" class="flex items-center gap-[30px] mt-[6px]">${presets.map((p) => `<button class="dye-preset" data-preset="${p}" data-for="${idPrefix}"${attrs}>${p}</button>`).join("")}</div>`;
+	}
+	function toggleCss() {
+		return `
+  .dye-toggle-track {
+    position: relative; width: 64px; height: 36px; border-radius: 9999px;
+    background: var(--toggle-off); transition: background 0.2s; cursor: pointer;
+    flex-shrink: 0; display: flex; align-items: center; padding: 4px;
+  }
+  .dye-toggle-track.on { background: var(--mimoja-blue); justify-content: flex-end; }
+  .dye-toggle-thumb {
+    width: 28px; height: 28px; border-radius: 9999px; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .dye-toggle-icon-on  { display: none; }
+  .dye-toggle-icon-off { display: flex; }
+  .dye-toggle-track.on .dye-toggle-icon-on  { display: flex; }
+  .dye-toggle-track.on .dye-toggle-icon-off { display: none; }
+  .dye-toggle-row {
+    display: flex; align-items: center; gap: 20px;
+    padding: 20px 0; border-bottom: 1px solid var(--profile-button-outline-color);
+  }
+  .dye-toggle-row:last-child { border-bottom: none; }
+  .dye-toggle-label { font-size: 24px; font-weight: 400; color: var(--text-primary); width: 160px; flex-shrink: 0; }
+  .dye-toggle-value { font-size: 24px; font-weight: 700; color: var(--text-primary); flex: 1; }
+  .dye-toggle-value.off { color: var(--text-primary-disabled); font-weight: 400; }
+  .dye-toggle-edit { cursor: pointer; flex-shrink: 0; opacity: 0.55; }
+  .dye-toggle-edit:hover { opacity: 1; }
+  `;
+	}
+	function segmentControlHtml(id, options, initialIdx = 0) {
+		return `<div id="${id}" class="flex rounded-[15px] overflow-hidden border-2 border-[var(--mimoja-blue)]" style="height:72px">${options.map((opt, i) => `<button class="dye-seg-btn${i === initialIdx ? " active" : ""}" data-idx="${i}" data-for="${id}" style="flex:1;font-family:'Inter',sans-serif;font-size:24px;font-weight:600;cursor:pointer;${i === initialIdx ? "background:var(--mimoja-blue);color:#fff;" : "background:transparent;color:var(--text-primary);"}">${opt}</button>`).join("")}</div>`;
+	}
+	function starRatingHtml(id, count = 5, size = 36) {
+		return `<div id="${id}" class="flex items-center gap-[8px]">${Array.from({ length: count }, (_, i) => `<svg class="dye-star" data-index="${i + 1}" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="var(--profile-button-outline-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`).join("")}</div>`;
+	}
+	function expandFieldHtml(id, label, placeholder = "—") {
+		return `<div class="flex items-center gap-[18px]">
+    <span class="dye-stepper-label" style="width:120px;flex-shrink:0">${label}</span>
+    <div class="flex items-center flex-1 border border-[var(--profile-button-outline-color)] rounded-[12px] px-[20px] h-[72px] bg-[var(--box-color)] gap-[12px]">
+      <span id="${id}-text" class="flex-1 text-[24px] font-normal text-[var(--text-primary)]">${placeholder}</span>
+      <button id="${id}-expand" class="flex-shrink-0">${lucideIcon("maximize-2", 26, "var(--mimoja-blue)", 2)}</button>
+    </div>
+  </div>`;
+	}
+	var sortSidebarScript = `
+function setupSortButtons(onSort) {
+  const sidebar = document.getElementById('dye-sort-sidebar');
+  if (!sidebar) return;
+  sidebar.querySelectorAll('.dye-sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sidebar.querySelectorAll('.dye-sort-btn').forEach(b => b.classList.remove('dye-sort-active'));
+      btn.classList.add('dye-sort-active');
+      onSort(btn.dataset.sort);
+    });
+  });
+}
+`;
+	var toggleRowScript = `
+function setupToggleRows(onChange) {
+  document.querySelectorAll('.dye-toggle-track').forEach(track => {
+    track.addEventListener('click', () => {
+      const id = track.dataset.toggle;
+      const isOn = track.classList.toggle('on');
+      const valEl = document.getElementById(id + '-value');
+      if (valEl) valEl.classList.toggle('off', !isOn);
+      if (onChange) onChange(id, isOn);
+    });
+  });
+}
+function isToggleOn(id) {
+  const t = document.getElementById(id + '-track');
+  return t ? t.classList.contains('on') : false;
+}
+`;
+	var enjoymentScaleScript = `
+function enjoymentToStars(enjoyment) {
+  if (enjoyment == null || enjoyment === '') return 0;
+  const n = parseFloat(enjoyment);
+  if (isNaN(n)) return 0;
+  const canonical = Math.min(Math.max(n, 0), 10);
+  return Math.round(canonical / 2);
+}
+function starsToEnjoyment(stars) {
+  const n = Number(stars);
+  if (!Number.isFinite(n)) return 0;
+  const clampedStars = Math.min(Math.max(Math.round(n), 0), 5);
+  return clampedStars * 2;
+}
+`;
+	var segmentControlScript = `
+function setupSegmentControls() {
+  document.querySelectorAll('.dye-seg-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const parentId = btn.dataset.for;
+      const parent = document.getElementById(parentId);
+      if (!parent) return;
+      parent.querySelectorAll('.dye-seg-btn').forEach((b, i) => {
+        const active = i === parseInt(btn.dataset.idx);
+        b.classList.toggle('active', active);
+        b.style.background = active ? 'var(--mimoja-blue)' : 'transparent';
+        b.style.color = active ? '#fff' : 'var(--text-primary)';
+      });
+    });
+  });
+}
+`;
+	var presetStripScript = `
+// Apply a preset chip to its stepper value. Ratio chips ("1:R") compute grams from the basis dose.
+function applyPreset(btn) {
+  const idPrefix = btn.dataset.for;
+  const valueEl = document.getElementById(idPrefix + '-value');
+  if (btn.dataset.kind === 'ratio') {
+    const m = /^1:([0-9.]+)$/.exec(btn.dataset.preset || '');
+    const r = m ? parseFloat(m[1]) : NaN;
+    const basisEl = document.getElementById((btn.dataset.basis || '') + '-value');
+    const dose = basisEl ? parseFloat(basisEl.textContent) : NaN;
+    if (valueEl && !isNaN(r) && !isNaN(dose)) {
+      valueEl.textContent = (Math.round(dose * r * 10) / 10) + 'g';
+      valueEl.dataset.ratio = String(r);
+      const sub = document.getElementById(idPrefix + '-sub');
+      if (sub) sub.textContent = '(1:' + r + ')';
+    }
+  } else if (valueEl) {
+    valueEl.textContent = btn.dataset.preset;
+  }
+  const container = document.getElementById(idPrefix + '-presets');
+  if (container) container.querySelectorAll('.dye-preset').forEach(b => b.classList.toggle('dye-preset-active', b === btn));
+}
+// Long-press a preset to COPY the current stepper value into that preset chip.
+function attachPresetLongPress(btn) {
+  if (btn.dataset.kind === 'ratio') return;   // ratio chips represent a ratio, not a grams value
+  let longFired = false, timer = null;
+  const clear = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  btn.addEventListener('pointerdown', () => {
+    longFired = false; clear();
+    timer = setTimeout(() => {
+      timer = null;
+      const valueEl = document.getElementById(btn.dataset.for + '-value');
+      const v = valueEl ? valueEl.textContent : '';
+      if (!v || v === '—') return;
+      longFired = true;
+      btn.dataset.preset = v;
+      btn.textContent = v;
+      const container = document.getElementById(btn.dataset.for + '-presets');
+      if (container) container.querySelectorAll('.dye-preset').forEach(b => b.classList.toggle('dye-preset-active', b === btn));
+    }, 500);
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev => btn.addEventListener(ev, clear));
+  // Swallow the click that follows a long-press so it doesn't also write the preset back onto the value.
+  btn.addEventListener('click', (e) => { if (longFired) { e.stopImmediatePropagation(); e.preventDefault(); longFired = false; } }, true);
+}
+function setupPresetStrips() {
+  document.querySelectorAll('.dye-preset').forEach(btn => {
+    btn.addEventListener('click', () => applyPreset(btn));
+    attachPresetLongPress(btn);
+  });
+}
+function syncPresetActive(idPrefix, currentVal) {
+  const container = document.getElementById(idPrefix + '-presets');
+  if (!container) return;
+  container.querySelectorAll('.dye-preset').forEach(b => {
+    b.classList.toggle('dye-preset-active', b.dataset.preset === String(currentVal));
+  });
+}
+`;
+	var dyePickerCss = `
   .dye-sort-btn {
     width: 100%;
     padding: 12px 0;
@@ -2224,39 +2545,48 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
     background-clip: padding-box;
   }
 `;
-	var content$8 = `
-<div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
-
-  <!-- Top bar -->
-  <div class="flex justify-between items-center px-[38px] border-b border-[var(--profile-button-outline-color)] bg-[var(--box-color)] h-[134px] shrink-0">
-    <h1 class="text-[36px] font-bold text-[var(--text-primary)]">Select Beans</h1>
+	var dyePickerSearchHtml = `<div class="dye-search-wrap">
+        <input id="dye-search-input" class="dye-search-input" type="text" placeholder="Search" />
+        <svg class="dye-search-icon" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary-disabled)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </div>`;
+	function dyePickerHeaderHtml(title, confirmInnerHtml) {
+		return `<div class="flex justify-between items-center px-[38px] border-b border-[var(--profile-button-outline-color)] bg-[var(--box-color)] h-[134px] shrink-0">
+    <h1 class="text-[36px] font-bold text-[var(--text-primary)]">${title}</h1>
     <div class="flex items-center gap-[14px]">
       <button id="dye-cancel-btn" class="flex items-center justify-center h-[60px] px-[30px] rounded-[9999px] font-bold text-[24px] text-[var(--text-primary)] cursor-pointer">
         CANCEL
       </button>
       <button id="dye-confirm-btn" class="flex items-center gap-[10px] justify-center h-[60px] px-[30px] rounded-[9999px] font-bold text-[24px] dye-confirm-disabled" disabled>
-        <span>SELECT ROASTER</span>
-        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        ${confirmInnerHtml}
       </button>
     </div>
-  </div>
+  </div>`;
+	}
+	function dyePickerRailHtml(sorts) {
+		return `<div id="dye-sort-sidebar" class="flex flex-col gap-[18px] items-stretch pt-[28px] px-[20px] shrink-0 w-[180px]">
+      ${dyePickerSearchHtml}
+      ${sorts.map(([k, l], i) => `<button class="dye-sort-btn${i === 0 ? " dye-sort-active" : ""}" data-sort="${k}">${l}</button>`).join("\n      ")}
+    </div>`;
+	}
+	//#endregion
+	//#region src/pages/bean-picker.ts
+	var content$8 = `
+<div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
+
+  ${dyePickerHeaderHtml("Select Beans", `<span>SELECT ROASTER</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`)}
 
   <!-- Body: sort rail + grid -->
   <div class="flex flex-1 overflow-hidden">
 
-    <!-- Sort rail -->
-    <div id="dye-sort-sidebar" class="flex flex-col gap-[18px] items-stretch pt-[28px] px-[20px] shrink-0 w-[180px]">
-      <div class="dye-search-wrap">
-        <input id="dye-search-input" class="dye-search-input" type="text" placeholder="Search" />
-        <svg class="dye-search-icon" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary-disabled)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-      </div>
-      <button class="dye-sort-btn dye-sort-active" data-sort="recent">Recent</button>
-      <button class="dye-sort-btn" data-sort="oldest">Oldest</button>
-      <button class="dye-sort-btn" data-sort="az">A-Z</button>
-      <button class="dye-sort-btn" data-sort="za">Z-A</button>
-      <button class="dye-sort-btn" data-sort="most-used">Most Used</button>
-      <button class="dye-sort-btn" data-sort="least-used">Least Used</button>
-    </div>
+    ${dyePickerRailHtml([
+		["recent", "Recent"],
+		["oldest", "Oldest"],
+		["az", "A-Z"],
+		["za", "Z-A"],
+		["most-used", "Most Used"],
+		["least-used", "Least Used"]
+	])}
 
     <!-- Card grid -->
     <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[28px] px-[38px] pb-[28px]">
@@ -2515,7 +2845,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Select Beans", content$8, styles$11, [devApiScript, pageScript$12])
+			body: devPageShell("Select Beans", content$8, dyePickerCss, [devApiScript, pageScript$12])
 		};
 	}
 	//#endregion
@@ -4178,329 +4508,6 @@ async function deleteBeanWithBatches(beanId, api) {
 })();
 `;
 	}
-	//#endregion
-	//#region src/utils/lucide.ts
-	/** Inline Lucide SVG icons — only icons used in DYE2 redesign */
-	var PATHS = {
-		search: "<circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>",
-		"chevron-left": "<path d=\"m15 18-6-6 6-6\"/>",
-		"chevron-right": "<path d=\"m9 18 6-6-6-6\"/>",
-		"chevron-down": "<path d=\"m6 9 6 6 6-6\"/>",
-		"chevron-up": "<path d=\"m18 15-6-6-6 6\"/>",
-		history: "<path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"/><path d=\"M3 3v5h5\"/><path d=\"M12 7v5l4 2\"/>",
-		"clipboard-paste": "<path d=\"M15 2H9a1 1 0 0 0-1 1v2c0 .6.4 1 1 1h6c.6 0 1-.4 1-1V3c0-.6-.4-1-1-1Z\"/><path d=\"M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2\"/><path d=\"M16 12H8\"/><path d=\"M16 16H8\"/>",
-		star: "<polygon points=\"12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2\"/>",
-		"check-circle": "<path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"/><path d=\"m9 11 3 3L22 4\"/>",
-		pencil: "<path d=\"M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z\"/><path d=\"m15 5 4 4\"/>",
-		calendar: "<path d=\"M8 2v4\"/><path d=\"M16 2v4\"/><rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\"/><path d=\"M3 10h18\"/>",
-		"maximize-2": "<polyline points=\"15 3 21 3 21 9\"/><polyline points=\"9 21 3 21 3 15\"/><line x1=\"21\" y1=\"3\" x2=\"14\" y2=\"10\"/><line x1=\"3\" y1=\"21\" x2=\"10\" y2=\"14\"/>",
-		plus: "<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>",
-		minus: "<path d=\"M5 12h14\"/>",
-		x: "<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>",
-		check: "<path d=\"M20 6 9 17l-5-5\"/>",
-		list: "<path d=\"M8 6h13\"/><path d=\"M8 12h13\"/><path d=\"M8 18h13\"/><path d=\"M3 6h.01\"/><path d=\"M3 12h.01\"/><path d=\"M3 18h.01\"/>",
-		trash: "<path d=\"M3 6h18\"/><path d=\"M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6\"/><path d=\"M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2\"/>",
-		"arrow-up": "<path d=\"m5 12 7-7 7 7\"/><path d=\"M12 19V5\"/>"
-	};
-	function lucideIcon(name, size = 36, color = "currentColor", strokeWidth = 2, fill = "none") {
-		return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill}" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${PATHS[name] ?? "<circle cx=\"12\" cy=\"12\" r=\"10\"/>"}</svg>`;
-	}
-	//#endregion
-	//#region src/utils/shared-components.ts
-	/** Shared CSS + HTML factories for DYE2 redesign pages (1920×1200 layout) */
-	function sortSidebarCss() {
-		return `
-  .dye-sort-btn {
-    width: 135px; padding: 14px 0;
-    border: 2px solid var(--mimoja-blue); border-radius: 23px;
-    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 21px;
-    text-align: center; color: var(--mimoja-blue); background: transparent;
-    cursor: pointer; white-space: nowrap;
-  }
-  .dye-sort-btn.dye-sort-active { background: var(--mimoja-blue); color: #fff; }
-  `;
-	}
-	function sortSidebarHtml() {
-		return `<div id="dye-sort-sidebar" class="flex flex-col gap-[30px] items-start pt-[30px] pl-[37px] pr-[30px] shrink-0">
-    ${[
-			["recent", "Recent"],
-			["oldest", "Oldest"],
-			["az", "A-Z"],
-			["za", "Z-A"],
-			["most-used", "Most Used"],
-			["least-used", "Least Used"]
-		].map(([key, label], i) => `<button class="dye-sort-btn${i === 0 ? " dye-sort-active" : ""}" data-sort="${key}">${label}</button>`).join("\n    ")}
-  </div>`;
-	}
-	function pickerCardCss() {
-		return `
-  .dye-card {
-    border-radius: 15px; display: flex; flex-direction: column;
-    align-items: flex-start; justify-content: center; padding: 16px 20px;
-    font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 400;
-    cursor: pointer; background: var(--box-color);
-    border: 1px solid var(--profile-button-outline-color);
-    color: var(--text-primary); transition: background 0.15s, color 0.15s;
-    user-select: none; min-height: 90px;
-  }
-  .dye-card:hover { opacity: 0.85; }
-  .dye-card.dye-card-selected { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
-  .dye-card-add {
-    border-color: var(--mimoja-blue); color: var(--mimoja-blue);
-    font-weight: 700; flex-direction: row; align-items: center;
-    justify-content: center; gap: 8px; background: var(--box-color);
-  }
-  .dye-card-add svg { stroke: var(--mimoja-blue); }
-  .dye-card-name { font-size: 24px; font-weight: 600; line-height: 1.3; }
-  .dye-card-sub  { font-size: 20px; font-weight: 400; opacity: 0.7; margin-top: 2px; }
-  .dye-card-divider { border: none; border-top: 1px solid var(--profile-button-outline-color); width: 100%; margin: 8px 0; }
-  .dye-card-date { font-size: 18px; font-weight: 400; opacity: 0.6; }
-  .dye-card.dye-card-selected .dye-card-divider { border-color: rgba(255,255,255,0.3); }
-  #dye-cards-container::-webkit-scrollbar { width: 45px; }
-  #dye-cards-container::-webkit-scrollbar-track { background: transparent; }
-  #dye-cards-container::-webkit-scrollbar-thumb {
-    background: var(--profile-button-outline-color);
-    border-radius: 53px; border: 14px solid transparent;
-    background-clip: padding-box;
-  }
-  `;
-	}
-	function pickerHeaderHtml(title, primaryLabel, primaryDisabled = true) {
-		return `<div class="flex justify-between items-center px-[37px] border-b border-[var(--profile-button-outline-color)] bg-[var(--box-color)] h-[165px] shrink-0">
-    <h1 class="text-[38px] font-bold text-[var(--text-primary)] no-select">${title}</h1>
-    <div class="flex items-center gap-[16px]">
-      <button id="dye-cancel-btn" class="flex justify-center items-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)]">CANCEL</button>
-      <button id="dye-confirm-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px]${primaryDisabled ? " opacity-50" : ""}">${primaryLabel}</button>
-    </div>
-  </div>`;
-	}
-	function favNumCss() {
-		return `
-  .afe-fav-num {
-    width: 60px; height: 60px; border-radius: 9999px;
-    border: 2px solid var(--profile-button-outline-color);
-    font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 600;
-    color: var(--text-primary); background: transparent; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .afe-fav-num.active {
-    background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff;
-  }
-  `;
-	}
-	function stepperCss() {
-		return `
-  .dye-stepper-btn {
-    display: flex; align-items: center; justify-content: center;
-    width: 72px; height: 72px; background: var(--button-grey);
-    border-radius: 15px; cursor: pointer; flex-shrink: 0;
-  }
-  .dye-stepper-val {
-    font-weight: 700; font-size: 26px; color: var(--text-primary);
-    text-align: center; min-width: 72px;
-  }
-  .dye-stepper-sub {
-    font-size: 18px; font-weight: 600; color: var(--text-primary); text-align: center;
-  }
-  .dye-stepper-label { font-weight: 700; font-size: 24px; color: var(--mimoja-blue); }
-  `;
-	}
-	function stepperHtml(idPrefix, label, labelWidth = "75px", showSub = false, subHtml = "") {
-		const minusSvg = lucideIcon("minus", 28, "var(--text-primary)", 2.5);
-		const plusSvg = lucideIcon("plus", 28, "var(--text-primary)", 2.5);
-		return `<div class="flex items-center gap-[18px]">
-    ${subHtml ? `<div class="flex flex-col" style="width:${labelWidth};flex-shrink:0">
-         <span class="dye-stepper-label">${label}</span>
-         ${subHtml}
-       </div>` : `<span class="dye-stepper-label" style="width:${labelWidth};flex-shrink:0">${label}</span>`}
-    <div class="flex items-center gap-[15px]">
-      <button id="${idPrefix}-minus" class="dye-stepper-btn">${minusSvg}</button>
-      <div class="flex flex-col items-center" style="min-width:72px">
-        <span id="${idPrefix}-value" class="dye-stepper-val">—</span>
-        ${showSub ? `<span id="${idPrefix}-sub" class="dye-stepper-sub"></span>` : ""}
-      </div>
-      <button id="${idPrefix}-plus" class="dye-stepper-btn">${plusSvg}</button>
-    </div>
-  </div>`;
-	}
-	function presetStripCss() {
-		return `
-  .dye-preset {
-    font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 400;
-    color: var(--text-primary-disabled); background: none; border: none;
-    cursor: pointer; padding: 0; white-space: nowrap;
-  }
-  .dye-preset.dye-preset-active { color: var(--mimoja-blue); font-weight: 700; }
-  `;
-	}
-	function presetStripHtml(idPrefix, presets, opts = {}) {
-		const attrs = (opts.kind ? ` data-kind="${opts.kind}"` : "") + (opts.basis ? ` data-basis="${opts.basis}"` : "");
-		return `<div id="${idPrefix}-presets" class="flex items-center gap-[30px] mt-[6px]">${presets.map((p) => `<button class="dye-preset" data-preset="${p}" data-for="${idPrefix}"${attrs}>${p}</button>`).join("")}</div>`;
-	}
-	function toggleCss() {
-		return `
-  .dye-toggle-track {
-    position: relative; width: 64px; height: 36px; border-radius: 9999px;
-    background: var(--toggle-off); transition: background 0.2s; cursor: pointer;
-    flex-shrink: 0; display: flex; align-items: center; padding: 4px;
-  }
-  .dye-toggle-track.on { background: var(--mimoja-blue); justify-content: flex-end; }
-  .dye-toggle-thumb {
-    width: 28px; height: 28px; border-radius: 9999px; background: #fff;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .dye-toggle-icon-on  { display: none; }
-  .dye-toggle-icon-off { display: flex; }
-  .dye-toggle-track.on .dye-toggle-icon-on  { display: flex; }
-  .dye-toggle-track.on .dye-toggle-icon-off { display: none; }
-  .dye-toggle-row {
-    display: flex; align-items: center; gap: 20px;
-    padding: 20px 0; border-bottom: 1px solid var(--profile-button-outline-color);
-  }
-  .dye-toggle-row:last-child { border-bottom: none; }
-  .dye-toggle-label { font-size: 24px; font-weight: 400; color: var(--text-primary); width: 160px; flex-shrink: 0; }
-  .dye-toggle-value { font-size: 24px; font-weight: 700; color: var(--text-primary); flex: 1; }
-  .dye-toggle-value.off { color: var(--text-primary-disabled); font-weight: 400; }
-  .dye-toggle-edit { cursor: pointer; flex-shrink: 0; opacity: 0.55; }
-  .dye-toggle-edit:hover { opacity: 1; }
-  `;
-	}
-	function segmentControlHtml(id, options, initialIdx = 0) {
-		return `<div id="${id}" class="flex rounded-[15px] overflow-hidden border-2 border-[var(--mimoja-blue)]" style="height:72px">${options.map((opt, i) => `<button class="dye-seg-btn${i === initialIdx ? " active" : ""}" data-idx="${i}" data-for="${id}" style="flex:1;font-family:'Inter',sans-serif;font-size:24px;font-weight:600;cursor:pointer;${i === initialIdx ? "background:var(--mimoja-blue);color:#fff;" : "background:transparent;color:var(--text-primary);"}">${opt}</button>`).join("")}</div>`;
-	}
-	function starRatingHtml(id, count = 5, size = 36) {
-		return `<div id="${id}" class="flex items-center gap-[8px]">${Array.from({ length: count }, (_, i) => `<svg class="dye-star" data-index="${i + 1}" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="var(--profile-button-outline-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`).join("")}</div>`;
-	}
-	function expandFieldHtml(id, label, placeholder = "—") {
-		return `<div class="flex items-center gap-[18px]">
-    <span class="dye-stepper-label" style="width:120px;flex-shrink:0">${label}</span>
-    <div class="flex items-center flex-1 border border-[var(--profile-button-outline-color)] rounded-[12px] px-[20px] h-[72px] bg-[var(--box-color)] gap-[12px]">
-      <span id="${id}-text" class="flex-1 text-[24px] font-normal text-[var(--text-primary)]">${placeholder}</span>
-      <button id="${id}-expand" class="flex-shrink-0">${lucideIcon("maximize-2", 26, "var(--mimoja-blue)", 2)}</button>
-    </div>
-  </div>`;
-	}
-	var sortSidebarScript = `
-function setupSortButtons(onSort) {
-  const sidebar = document.getElementById('dye-sort-sidebar');
-  if (!sidebar) return;
-  sidebar.querySelectorAll('.dye-sort-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      sidebar.querySelectorAll('.dye-sort-btn').forEach(b => b.classList.remove('dye-sort-active'));
-      btn.classList.add('dye-sort-active');
-      onSort(btn.dataset.sort);
-    });
-  });
-}
-`;
-	var toggleRowScript = `
-function setupToggleRows(onChange) {
-  document.querySelectorAll('.dye-toggle-track').forEach(track => {
-    track.addEventListener('click', () => {
-      const id = track.dataset.toggle;
-      const isOn = track.classList.toggle('on');
-      const valEl = document.getElementById(id + '-value');
-      if (valEl) valEl.classList.toggle('off', !isOn);
-      if (onChange) onChange(id, isOn);
-    });
-  });
-}
-function isToggleOn(id) {
-  const t = document.getElementById(id + '-track');
-  return t ? t.classList.contains('on') : false;
-}
-`;
-	var enjoymentScaleScript = `
-function enjoymentToStars(enjoyment) {
-  if (enjoyment == null || enjoyment === '') return 0;
-  const n = parseFloat(enjoyment);
-  if (isNaN(n)) return 0;
-  const canonical = Math.min(Math.max(n, 0), 10);
-  return Math.round(canonical / 2);
-}
-function starsToEnjoyment(stars) {
-  const n = Number(stars);
-  if (!Number.isFinite(n)) return 0;
-  const clampedStars = Math.min(Math.max(Math.round(n), 0), 5);
-  return clampedStars * 2;
-}
-`;
-	var segmentControlScript = `
-function setupSegmentControls() {
-  document.querySelectorAll('.dye-seg-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const parentId = btn.dataset.for;
-      const parent = document.getElementById(parentId);
-      if (!parent) return;
-      parent.querySelectorAll('.dye-seg-btn').forEach((b, i) => {
-        const active = i === parseInt(btn.dataset.idx);
-        b.classList.toggle('active', active);
-        b.style.background = active ? 'var(--mimoja-blue)' : 'transparent';
-        b.style.color = active ? '#fff' : 'var(--text-primary)';
-      });
-    });
-  });
-}
-`;
-	var presetStripScript = `
-// Apply a preset chip to its stepper value. Ratio chips ("1:R") compute grams from the basis dose.
-function applyPreset(btn) {
-  const idPrefix = btn.dataset.for;
-  const valueEl = document.getElementById(idPrefix + '-value');
-  if (btn.dataset.kind === 'ratio') {
-    const m = /^1:([0-9.]+)$/.exec(btn.dataset.preset || '');
-    const r = m ? parseFloat(m[1]) : NaN;
-    const basisEl = document.getElementById((btn.dataset.basis || '') + '-value');
-    const dose = basisEl ? parseFloat(basisEl.textContent) : NaN;
-    if (valueEl && !isNaN(r) && !isNaN(dose)) {
-      valueEl.textContent = (Math.round(dose * r * 10) / 10) + 'g';
-      valueEl.dataset.ratio = String(r);
-      const sub = document.getElementById(idPrefix + '-sub');
-      if (sub) sub.textContent = '(1:' + r + ')';
-    }
-  } else if (valueEl) {
-    valueEl.textContent = btn.dataset.preset;
-  }
-  const container = document.getElementById(idPrefix + '-presets');
-  if (container) container.querySelectorAll('.dye-preset').forEach(b => b.classList.toggle('dye-preset-active', b === btn));
-}
-// Long-press a preset to COPY the current stepper value into that preset chip.
-function attachPresetLongPress(btn) {
-  if (btn.dataset.kind === 'ratio') return;   // ratio chips represent a ratio, not a grams value
-  let longFired = false, timer = null;
-  const clear = () => { if (timer) { clearTimeout(timer); timer = null; } };
-  btn.addEventListener('pointerdown', () => {
-    longFired = false; clear();
-    timer = setTimeout(() => {
-      timer = null;
-      const valueEl = document.getElementById(btn.dataset.for + '-value');
-      const v = valueEl ? valueEl.textContent : '';
-      if (!v || v === '—') return;
-      longFired = true;
-      btn.dataset.preset = v;
-      btn.textContent = v;
-      const container = document.getElementById(btn.dataset.for + '-presets');
-      if (container) container.querySelectorAll('.dye-preset').forEach(b => b.classList.toggle('dye-preset-active', b === btn));
-    }, 500);
-  });
-  ['pointerup','pointerleave','pointercancel'].forEach(ev => btn.addEventListener(ev, clear));
-  // Swallow the click that follows a long-press so it doesn't also write the preset back onto the value.
-  btn.addEventListener('click', (e) => { if (longFired) { e.stopImmediatePropagation(); e.preventDefault(); longFired = false; } }, true);
-}
-function setupPresetStrips() {
-  document.querySelectorAll('.dye-preset').forEach(btn => {
-    btn.addEventListener('click', () => applyPreset(btn));
-    attachPresetLongPress(btn);
-  });
-}
-function syncPresetActive(idPrefix, currentVal) {
-  const container = document.getElementById(idPrefix + '-presets');
-  if (!container) return;
-  container.querySelectorAll('.dye-preset').forEach(b => {
-    b.classList.toggle('dye-preset-active', b.dataset.preset === String(currentVal));
-  });
-}
-`;
 	//#endregion
 	//#region src/pages/add-bean.ts
 	var CALENDAR_ICON = `<svg class="dye-form-icon" xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--profile-button-outline-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>`;
@@ -8688,7 +8695,7 @@ function decideCardTap(selectedId, favId) {
 		"Profile",
 		"Grinder"
 	];
-	var gridStyles = `
+	var styles$3 = `
   ${sortSidebarCss()}
   ${pickerCardCss()}
   /* Figma 2386:669 colours. Page-scoped values so the shared picker helpers and other pages
@@ -8739,8 +8746,7 @@ function decideCardTap(selectedId, favId) {
     font-family: 'Inter', sans-serif; font-weight: 700; font-size: 24px;
     color: var(--af-action); padding: 10px 2px 0;
   }
-`;
-	var styles$3 = gridStyles + `
+
   /* Figma 2386:669 (x0.75): "Group recent favourites by" label left, four 225x60 tabs right. */
   .dye-tab-strip {
     display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 0 0;
@@ -11391,15 +11397,23 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 	//#endregion
 	//#region src/pages/select-recipe.ts
 	var content$1 = `
-<div class="afav overflow-hidden flex-grow flex flex-col">
-  <div class="afav-header">${pickerHeaderHtml("Select Recipe", "CONFIRM")}</div>
+<div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
+
+  ${dyePickerHeaderHtml("Select Recipe", "<span>CONFIRM</span>")}
+
   <div class="flex flex-1 overflow-hidden">
-    ${sortSidebarHtml()}
-    <div class="flex flex-col flex-1 overflow-hidden px-[20px]">
-      <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[20px] pr-[20px]">
-        <div id="dye-cards-grid" class="grid grid-cols-3 gap-[30px]"></div>
-      </div>
+
+    ${dyePickerRailHtml([
+		["recent", "Recent"],
+		["oldest", "Oldest"],
+		["az", "A-Z"],
+		["za", "Z-A"]
+	])}
+
+    <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[28px] px-[38px] pb-[28px]">
+      <div id="dye-cards-grid" class="grid grid-cols-3 gap-[20px]"></div>
     </div>
+
   </div>
 </div>
 `;
@@ -11412,9 +11426,13 @@ let recipesCache = [];
 // in, and a card's edit sets it so coming back from recipe-edit lands on the same card.
 let selectedRecipeId = sessionStorage.getItem('dye_editRecipeId');
 let currentSort = 'recent';
+let searchQuery = '';
 
-// Recipes carry no use count, so the two "used" sorts the shared rail offers do nothing here.
-document.querySelectorAll('#dye-sort-sidebar [data-sort$="used"]').forEach(b => b.remove());
+function matchesSearch(r) {
+  if (!searchQuery) return true;
+  const hay = [r.name, r.title, r.beanName, r.profileTitle].filter(Boolean).join(' ');
+  return hay.toLowerCase().includes(searchQuery);
+}
 
 function sortRecipes(list, sortKey) {
   const s = [...list];
@@ -11434,7 +11452,12 @@ function esc(s) {
 }
 
 function syncConfirmButton() {
-  document.getElementById('dye-confirm-btn')?.classList.toggle('opacity-50', !selectedRecipeId);
+  const btn = document.getElementById('dye-confirm-btn');
+  if (!btn) return;
+  const enabled = !!selectedRecipeId;
+  btn.disabled = !enabled;
+  btn.classList.toggle('dye-confirm-disabled', !enabled);
+  btn.classList.toggle('dye-confirm-enabled', enabled);
 }
 
 function selectCard(card, recipe) {
@@ -11457,16 +11480,21 @@ function renderCards() {
   grid.innerHTML = '';
   if (selectedRecipeId && !recipesCache.some(r => r.id === selectedRecipeId)) selectedRecipeId = null;
 
-  sortRecipes(recipesCache, currentSort).forEach(recipe => {
+  sortRecipes(recipesCache.filter(matchesSearch), currentSort).forEach(recipe => {
     const card = document.createElement('div');
     card.className = 'dye-card' + (recipe.id === selectedRecipeId ? ' dye-card-selected' : '');
     const title = recipe.name || recipe.title || 'Untitled recipe';
     const sub = [recipe.beanName, recipe.profileTitle].filter(Boolean).join(' · ') || recipe.subtitle || '';
     const foot = [recipe.stripSlot ? 'Recipe ' + recipe.stripSlot : '', recipe.suggested ? 'Suggested' : ''].filter(Boolean).join(' · ');
     card.innerHTML =
-      '<div class="fav-card-head"><div class="fav-card-title">' + esc(title) + '</div>' +
-      (sub ? '<div class="fav-card-sub">' + esc(sub) + '</div>' : '') + '</div>' +
-      (foot ? '<hr class="dye-card-divider"><div class="fav-card-date">' + esc(foot) + '</div>' : '');
+      '<div class="dye-card-edit-btn" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></div>' +
+      '<div class="dye-card-name">' + esc(title) + '</div>' +
+      (sub ? '<div class="dye-card-sub">' + esc(sub) + '</div>' : '') +
+      (foot ? '<div class="dye-card-date">' + esc(foot) + '</div>' : '');
+    const editBtn = card.querySelector('.dye-card-edit-btn');
+    // The pencil is another way into the same editor the second tap and long-press open.
+    editBtn.addEventListener('click', (e) => { e.stopPropagation(); openEditPage(recipe.id); });
+    editBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
     // Same press handling as auto-favs: first tap selects, a second tap on the selected card or a
     // 500ms long-press opens the editor, and the click that ends a long-press is swallowed.
     card.addEventListener('click', () => {
@@ -11487,10 +11515,10 @@ function renderCards() {
     grid.appendChild(card);
   });
 
-  // An empty library is just this card, as on auto-favs.
+  // An empty library is just this card.
   const addCard = document.createElement('div');
   addCard.className = 'dye-card dye-card-add';
-  addCard.innerHTML = '<span>ADD NEW RECIPE</span><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
+  addCard.innerHTML = '<span>ADD NEW RECIPE</span><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
   addCard.addEventListener('click', () => openEditPage(null));
   grid.appendChild(addCard);
   syncConfirmButton();
@@ -11498,6 +11526,10 @@ function renderCards() {
 
 async function initSelectRecipe() {
   setupSortButtons(sort => { currentSort = sort; renderCards(); });
+  const searchInput = document.getElementById('dye-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => { searchQuery = searchInput.value.trim().toLowerCase(); renderCards(); });
+  }
   // Route out, not history.back(): coming back from recipe-edit puts that page behind us.
   document.getElementById('dye-cancel-btn')?.addEventListener('click', () => { window.location.href = 'dashboard'; });
   document.getElementById('dye-confirm-btn')?.addEventListener('click', () => {
@@ -11522,7 +11554,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Select Recipe", content$1, gridStyles, [devApiScript, pageScript$1])
+			body: devPageShell("Select Recipe", content$1, dyePickerCss, [devApiScript, pageScript$1])
 		};
 	}
 	//#endregion

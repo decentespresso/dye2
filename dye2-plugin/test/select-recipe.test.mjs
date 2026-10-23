@@ -112,3 +112,23 @@ console.log('ok   select-recipe reuses decideCardTap');
   assert.equal(stored[0].name, 'Ethiopia');
 }
 console.log('ok   recipe-edit tab strip: labels, confirm on a held slot, clear keeps the recipe');
+
+// bean-picker and select-recipe share one copy of the picker CSS/header/rail (Figma 2345:2457).
+{
+  // shared-components imports extensionless modules, so read it as text rather than importing it.
+  const sc = readFileSync(new URL('../src/utils/shared-components.ts', import.meta.url), 'utf8');
+  const src = (f) => readFileSync(new URL('../src/pages/' + f, import.meta.url), 'utf8');
+  for (const f of ['bean-picker.ts', 'select-recipe.ts']) {
+    const page = src(f);
+    assert.ok(page.includes('dyePickerCss'), f + ' uses the shared css');
+    assert.ok(page.includes('dyePickerHeaderHtml') && page.includes('dyePickerRailHtml'), f + ' uses the shared header and rail');
+    assert.ok(!/\.dye-card\s*\{/.test(page), f + ' does not carry its own card css');
+  }
+  assert.ok(!/from "\.\/auto-favs"/.test(src('select-recipe.ts')), 'select-recipe no longer imports auto-favs');
+  const css = sc.slice(sc.indexOf('export const dyePickerCss'), sc.indexOf('export const dyePickerSearchHtml'));
+  assert.ok(/\.dye-card\s*\{[^}]*min-height: 80px;[^}]*border-radius: 15px/s.test(css), 'card css');
+  assert.ok(css.includes('.dye-confirm-disabled') && css.includes('.dye-search-input'), 'confirm + search css');
+  assert.ok(sc.includes('w-[180px]') && sc.includes('pt-[28px] px-[20px]') && sc.includes('id="dye-search-input"'), 'rail');
+  assert.ok(sc.includes('dye-confirm-disabled" disabled'), 'confirm starts disabled');
+}
+console.log('ok   bean-picker and select-recipe share the picker css, header and rail');
