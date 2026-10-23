@@ -128,9 +128,13 @@ is auto-favs without the tab strip: the same `pickerHeaderHtml`, `sortSidebarHtm
 whose CSS is `gridStyles` exported from `auto-favs.ts` — do not copy it. Tap selects, a second
 tap or 500 ms long-press opens `recipe-edit` for that recipe (`decideCardTap`), CONFIRM hands the
 id to the dashboard (`dye_selectedRecipeId`) which applies it. Slot assignment is not on the list:
-`recipe-edit` has "Assign recipe number", the 1-5 `.afe-fav-num` circles (`favNumCss()` in
-`shared-components.ts`, shared with auto-fav-edit); tapping the active number clears it, and taking
-a held number asks with a second tap on SAVE. recipe-edit leaves via `dye_recipeEditBack`.
+`recipe-edit`'s header tab strip (`.re-tab`, helpers in `utils/recipe-strip.ts`) is the assignment
+control: five tabs, one per strip slot, each named for the recipe holding it ("(suggested)" when
+`suggested`) or "Empty n". Tapping a tab TARGETS that slot for the open recipe, it does not switch
+recipes; the targeted tab is active, none when the recipe has no slot. Tapping the active tab clears
+the target (saved, off the strip). Targeting a held slot relabels SAVE "REPLACE <name> ON <n>?" and
+needs a second tap; a free or suggested slot does not. The `.afe-fav-num` circles (`favNumCss()`)
+remain only on auto-fav-edit. recipe-edit leaves via `dye_recipeEditBack`.
 
 ## Touch And Selection
 

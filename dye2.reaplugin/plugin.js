@@ -9962,13 +9962,42 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 		};
 	}
 	//#endregion
+	//#region src/utils/recipe-strip.ts
+	var recipeStripScript = `
+// What the tab for strip slot n says: whoever holds it, else 'Empty n'.
+function stripTabLabel(recipes, n) {
+  const h = (recipes || []).find(r => r && r.stripSlot === n);
+  return h ? (h.name || 'Recipe') + (h.suggested ? ' (suggested)' : '') : 'Empty ' + n;
+}
+// The other recipe a SAVE onto slot n would replace. A suggested row counts as free.
+function stripSlotHolder(recipes, openId, n) {
+  if (n == null) return null;
+  return (recipes || []).find(r => r && r.id !== openId && r.stripSlot === n && !r.suggested) || null;
+}
+// The slot after tapping tab n: tapping the active tab clears the target.
+function stripNextTarget(current, n) { return current === n ? null : n; }
+// SAVE's label while a held slot is targeted and not yet confirmed.
+function stripReplaceLabel(holder, n) { return 'REPLACE ' + (holder.name || 'RECIPE') + ' ON ' + n + '?'; }
+`;
+	//#endregion
 	//#region src/pages/recipe-edit.ts
 	var subLabel = (text) => `<div class="re-sub-label">${text}</div>`;
 	var styles$1 = `
   ${stepperCss()}
   ${presetStripCss()}
   ${equipmentFieldCss}
-  ${favNumCss()}
+  /* Figma 2396:728: fixed 270x60 pills, stroke var(--chip-stroke), text var(--chip-text) */
+  .re-tab {
+    width: 270px; height: 60px; border-radius: 15px;
+    /* ponytail: block + line-height, not flex — text-overflow:ellipsis only works on a block box */
+    display: block; line-height: 56px; text-align: center;
+    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 21px;
+    border: 2px solid var(--chip-stroke);
+    background: var(--box-color); color: var(--chip-text);
+    cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex-shrink: 0; padding: 0 20px;
+  }
+  .re-tab.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
   .re-label { font-size: 24px; font-weight: 700; color: var(--mimoja-blue); margin-bottom: 8px; }
   /* Figma 2396:747: label sits inline beside the input, 164px wide */
   .re-field-label { font-size: 24px; font-weight: 700; color: var(--mimoja-blue); width: 164px; flex-shrink: 0; }
@@ -10109,9 +10138,18 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 		return `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex flex-col font-['Inter',sans-serif]">
 
-  <!-- Header: the recipe's name as the title (Figma 2386:1874 minus the five-slot tab strip) -->
+  <!-- Header: title + one tab per strip slot on the grey strip (Figma 2386:1874) -->
   <div class="flex items-center gap-[48px] px-[38px] h-[124px] shrink-0 bg-[var(--bgmain-color)] border-b border-[var(--profile-button-outline-color)]">
-    <span id="re-title" class="text-[30px] font-semibold text-[var(--text-primary)] truncate">Recipe</span>
+    <span class="text-[30px] font-semibold text-[var(--text-primary)] shrink-0">Edit Recipes</span>
+    <div id="re-tabs" class="flex gap-[15px] overflow-x-auto" style="scrollbar-width:none">
+      ${[
+			1,
+			2,
+			3,
+			4,
+			5
+		].map((n) => `<button class="re-tab" data-slot="${n}">Empty ${n}</button>`).join("")}
+    </div>
   </div>
 
   <!-- Two-column body, 50/50 like the Figma columns -->
@@ -10125,21 +10163,6 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
         <div class="re-input-row">
           <input id="re-name-input" class="re-input" type="text" placeholder="Recipe name…" />
           <button class="re-input-pencil" id="re-name-pencil">${pencilSvg}</button>
-        </div>
-      </div>
-
-      <div class="re-divider"></div>
-
-      <div>
-        <div class="re-label">Assign recipe number</div>
-        <div class="flex gap-[18px] mt-[4px]" id="re-slots">
-          ${[
-			1,
-			2,
-			3,
-			4,
-			5
-		].map((n) => `<button class="afe-fav-num" data-num="${n}">${n}</button>`).join("")}
         </div>
       </div>
 
@@ -10426,6 +10449,7 @@ ${presetStripScript}
 ${segmentControlScript}
 ${equipmentFieldScript}
 
+${recipeStripScript}
 const STREAMLINE_ON_SVG  = ${JSON.stringify(streamlineOnSvg)};
 const STREAMLINE_OFF_SVG = ${JSON.stringify(streamlineOffSvg)};
 
@@ -10437,7 +10461,7 @@ let recipe = {};
 // has no stored record ({}), so everything on it counts as changed.
 let recipeBaseline = {};
 let allRecipes = [];    // the library, to name whoever holds a slot
-let stripSlot = null;   // 1..5 | null, the strip position picked in "Assign recipe number"
+let stripSlot = null;   // 1..5 | null, the strip slot the tabs target for this recipe
 let slotArmed = null;   // slot whose current holder the next SAVE tap replaces
 let grinders = [];
 let baskets = [];
@@ -10917,16 +10941,20 @@ function machineValues(held) {
   return out;
 }
 
-// Highlights stripSlot on the circles; tapping the active one clears it (saved, not on the strip).
+// The five tabs are the slot control. Each is named for whoever holds its slot; the targeted one
+// (stripSlot) is active. Tapping a tab targets that slot for THIS recipe (it does not switch which
+// recipe is open); tapping the active one clears the target (saved, not on the strip).
 // Taking a slot another recipe holds is confirmed on SAVE (a second tap), as auto-fav-edit does.
 function renderSlots() {
-  document.querySelectorAll('#re-slots .afe-fav-num').forEach(b =>
-    b.classList.toggle('active', parseInt(b.dataset.num) === stripSlot));
+  document.querySelectorAll('#re-tabs .re-tab').forEach(b => {
+    const n = parseInt(b.dataset.slot);
+    b.textContent = stripTabLabel(allRecipes, n);
+    b.classList.toggle('active', n === stripSlot);
+  });
 }
 function setupSlots() {
-  document.querySelectorAll('#re-slots .afe-fav-num').forEach(btn => btn.addEventListener('click', () => {
-    const n = parseInt(btn.dataset.num);
-    stripSlot = stripSlot === n ? null : n;
+  document.querySelectorAll('#re-tabs .re-tab').forEach(btn => btn.addEventListener('click', () => {
+    stripSlot = stripNextTarget(stripSlot, parseInt(btn.dataset.slot));
     slotArmed = null;
     const save = document.getElementById('re-save-btn');
     if (save) save.textContent = 'SAVE RECIPE';
@@ -11218,10 +11246,10 @@ function setupFooter() {
     const data = getCurrentRecipeData();
     const saveBtn = document.getElementById('re-save-btn');
     try {
-      const holder = stripSlot != null && allRecipes.find(r => r && r.id !== recipe.id && r.stripSlot === stripSlot && !r.suggested);
+      const holder = stripSlotHolder(allRecipes, recipe.id, stripSlot);
       if (holder && slotArmed !== stripSlot) {
         slotArmed = stripSlot;
-        saveBtn.textContent = 'REPLACE ' + (holder.name || 'RECIPE') + ' ON ' + stripSlot + '?';
+        saveBtn.textContent = stripReplaceLabel(holder, stripSlot);
         return;
       }
       const saved = await updateRecipe(recipe.id, recipeChanges(recipeBaseline, data));
@@ -11339,8 +11367,6 @@ async function initRecipeEdit() {
       if (fav) applyToCurrentRecipe(favouriteToRecipePatch(fav));
     } catch (e) { console.warn('Could not load selected auto-favourite:', e); }
   }
-  const title = document.getElementById('re-title');
-  if (title) title.textContent = recipe.name || 'New recipe';
   renderSlots();
   renderRecipe(recipe);
   renderGrinderChips();

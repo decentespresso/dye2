@@ -78,3 +78,37 @@ console.log('ok   allocateRecipeSlot: lowest free stripSlot, 409 when full');
   assert.ok(!/function decideCardTap/.test(page), 'without redefining it');
 }
 console.log('ok   select-recipe reuses decideCardTap');
+
+// recipe-edit's five-tab strip: labels, confirm on a held slot, clearing keeps the recipe.
+{
+  const { recipeStripScript } = await import('../src/utils/recipe-strip.ts');
+  const t = new Function(recipeStripScript + '\nreturn { stripTabLabel, stripSlotHolder, stripNextTarget, stripReplaceLabel };')();
+  const lib = [
+    { id: 'a', name: 'Ethiopia', stripSlot: 1 },
+    { id: 'b', stripSlot: 2 },
+    { id: 'c', name: 'Guess', stripSlot: 3, suggested: true },
+    { id: 'd', name: 'Unassigned', stripSlot: null },
+  ];
+  assert.deepEqual([1, 2, 3, 4, 5].map((n) => t.stripTabLabel(lib, n)),
+    ['Ethiopia', 'Recipe', 'Guess (suggested)', 'Empty 4', 'Empty 5']);
+
+  // The open recipe 'd' has no slot: targeting a held slot names the holder and needs the confirm.
+  const holder = t.stripSlotHolder(lib, 'd', 1);
+  assert.equal(holder.id, 'a');
+  assert.equal(t.stripReplaceLabel(holder, 1), 'REPLACE Ethiopia ON 1?');
+  assert.equal(t.stripReplaceLabel(t.stripSlotHolder(lib, 'd', 2), 2), 'REPLACE RECIPE ON 2?');
+  assert.equal(t.stripSlotHolder(lib, 'd', 4), null, 'a free slot needs no confirm');
+  assert.equal(t.stripSlotHolder(lib, 'd', 3), null, 'a suggested holder counts as free');
+  assert.equal(t.stripSlotHolder(lib, 'a', 1), null, 'its own slot is not a replacement');
+  assert.equal(t.stripSlotHolder(lib, 'd', null), null);
+
+  // Tapping the active tab clears the target; SAVE of that keeps the recipe in the library.
+  assert.equal(t.stripNextTarget(null, 4), 4);
+  assert.equal(t.stripNextTarget(4, 4), null);
+  stored = [{ id: 'a', name: 'Ethiopia', stripSlot: 1 }];
+  await api.updateRecipe('a', { stripSlot: t.stripNextTarget(1, 1) });
+  assert.equal(stored.length, 1);
+  assert.equal(stored[0].stripSlot, null);
+  assert.equal(stored[0].name, 'Ethiopia');
+}
+console.log('ok   recipe-edit tab strip: labels, confirm on a held slot, clear keeps the recipe');

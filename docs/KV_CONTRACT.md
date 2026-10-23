@@ -347,6 +347,8 @@ plugins should not read it.
                                 // library only. One recipe per slot: assigning n clears it on whoever held n,
                                 // in the same write. `save-recipe` takes the lowest free slot, or the body's
                                 // `slot`; all five taken and no `slot` -> 409 { error, taken } (numbers).
+                                // Assigned in recipe-edit by its five header tabs (one per slot, named for the
+                                // holder); SAVE writes the targeted slot through updateRecipe.
                                 // Migration (plugin load, idempotent): a row whose id is '1'..'5' and that has
                                 // no `stripSlot` gets stripSlot = Number(id). Cleared (null) stays cleared.
                                 //
