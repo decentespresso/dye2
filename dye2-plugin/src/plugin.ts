@@ -137,6 +137,14 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         };
       }
     } else baseline = null;
+    await mirror(wf, recipes);
+  }
+
+  // Derive the selection and, when it differs from what was last mirrored, write the mirror
+  // (the KV key `selection`) and push. Also called after a record: that rewrites the recipe
+  // row but not the workflow, so no workflow event follows and the mirror would keep saying
+  // modified:true (a stale star on the skin's strip).
+  async function mirror(wf: any, recipes?: any[]): Promise<void> {
     const sel = await derive(wf, recipes);
     const key = sel ? `${sel.kind}:${sel.id}:${sel.modified}` : null;
     if (key === mirrored) return;
@@ -214,7 +222,14 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     try {
       const armed = baseline && baseline.id === sel.id ? baseline : null;
       const wrote = await recordWorkflow(wf, fetch, armed || { ...EMPTY_BASELINE, id: sel.id });
-      if (wrote) announce({ what: "workflow" });
+      if (wrote) {
+        announce({ what: "workflow" });
+        try {
+          await mirror(wf);
+        } catch (e) {
+          log(`mirror after record failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
       return json(request, 200, { saved: wrote, kind: sel.kind, id: sel.id });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

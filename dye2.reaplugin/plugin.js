@@ -13169,6 +13169,9 @@ bcInit();
 					};
 				}
 			} else baseline = null;
+			await mirror(wf, recipes);
+		}
+		async function mirror(wf, recipes) {
 			const sel = await derive(wf, recipes);
 			const key = sel ? `${sel.kind}:${sel.id}:${sel.modified}` : null;
 			if (key === mirrored) return;
@@ -13243,7 +13246,14 @@ bcInit();
 					...EMPTY_BASELINE,
 					id: sel.id
 				});
-				if (wrote) announce({ what: "workflow" });
+				if (wrote) {
+					announce({ what: "workflow" });
+					try {
+						await mirror(wf);
+					} catch (e) {
+						log(`mirror after record failed: ${e instanceof Error ? e.message : String(e)}`);
+					}
+				}
 				return json(request, 200, {
 					saved: wrote,
 					kind: sel.kind,
