@@ -427,8 +427,8 @@ ${recipeStripScript}
 const STREAMLINE_ON_SVG  = ${JSON.stringify(streamlineOnSvg)};
 const STREAMLINE_OFF_SVG = ${JSON.stringify(streamlineOffSvg)};
 
-// The one recipe this page edits, opened by id (sessionStorage dye_editRecipeId, set by
-// select-recipe). No id: a new recipe, written under a fresh opaque id on save.
+// The one recipe this page edits, opened by id (?id= from the skin, or sessionStorage dye_editRecipeId, set by
+// select-recipe; ?new=1 starts blank). No id: a new recipe, written under a fresh opaque id on save.
 let recipe = {};
 // The recipe as read from the store at open, never edited: save writes only what differs from
 // it, so a dial-in recorded while the page is open is not reverted (dye2#28). A new recipe
@@ -1292,6 +1292,18 @@ async function initRecipeEdit() {
     console.warn('Could not load recipes from KV store:', e);
   }
   allRecipes = loadedRecipes;
+  // Which recipe: the URL wins (the skin is on another origin, so it cannot set our
+  // sessionStorage), then the stored id from DYE2's own pages. ?new=1 forces a blank form.
+  // Both are consumed once and dropped from the address bar, so a picker round trip or a
+  // reload falls back to the stored id and a ?new=1 never mints a second new id.
+  const qs = new URLSearchParams(location.search);
+  if (qs.get('new')) sessionStorage.removeItem('dye_editRecipeId');
+  else if (qs.get('id')) sessionStorage.setItem('dye_editRecipeId', qs.get('id'));
+  if (qs.has('new') || qs.has('id')) {
+    qs.delete('new'); qs.delete('id');
+    const rest = qs.toString();
+    try { history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash); } catch (e) { /* not fatal */ }
+  }
   const editId = sessionStorage.getItem('dye_editRecipeId');
   const stored = editId ? loadedRecipes.find(r => r && r.id === editId) : null;
   recipeBaseline = JSON.parse(JSON.stringify(stored || {}));

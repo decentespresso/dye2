@@ -69,6 +69,20 @@ of this note compares them.
 The version users and the dashboard see comes from the manifest and `package.json` — see
 `AI_BUILD_NOTES.md`. Do not "fix" it during a release.
 
+### Page query params
+
+Pages are opened by the skin (Streamline) too, and the skin lives on another origin than the
+bridge, so **sessionStorage cannot cross that boundary**: anything the skin needs to hand a
+page travels in the URL. Current params:
+
+- `?return=<url>` — where Back/Done goes (any page).
+- `?id=<recipeId>` — `recipe-edit` only: edit that recipe. Wins over `sessionStorage.dye_editRecipeId`.
+- `?new=1` — `recipe-edit` only: start a blank recipe, ignoring any stored id.
+
+`recipe-edit` copies `id` into `dye_editRecipeId`, then drops `id`/`new` from the address bar
+(`history.replaceState`, `return` kept), so a picker round trip or reload keeps the same
+recipe and a `new` is never replayed. DYE2's own pages still use the sessionStorage key.
+
 ## Page Assembly
 
 Every live page uses one shell:
