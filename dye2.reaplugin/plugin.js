@@ -11383,6 +11383,21 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 		};
 	}
 	//#endregion
+	//#region src/utils/recipe-sort.ts
+	/**
+	* Select Recipe's use sorts, as a browser-side script string (no imports, so
+	* test/select-recipe.test.mjs can eval it). `uses` is shotIndex.uses: shots per recipe id in the
+	* last TAIL_DAYS. A recipe with no shots counts 0; ties go newest capturedAt first.
+	*/
+	var recipeUseSortScript = `
+function sortRecipesByUse(list, uses, dir) {
+  const u = uses || {};
+  const n = r => u[r.id] || 0;
+  const t = r => new Date(r.capturedAt || 0).getTime() || 0;
+  return [...list].sort((a, b) => (dir === 'asc' ? n(a) - n(b) : n(b) - n(a)) || t(b) - t(a));
+}
+`;
+	//#endregion
 	//#region src/pages/select-recipe.ts
 	var content$1 = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
@@ -11395,7 +11410,9 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 		["recent", "Recent"],
 		["oldest", "Oldest"],
 		["az", "A-Z"],
-		["za", "Z-A"]
+		["za", "Z-A"],
+		["most-used", "Most Used"],
+		["least-used", "Least Used"]
 	])}
 
     <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[28px] px-[38px] pb-[28px]">
@@ -11409,12 +11426,15 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 ${sortSidebarScript}
 ${favCardTapScript}
 ${cardLongPressScript}
+${recipeUseSortScript}
 
 let recipesCache = [];
 // dye_editRecipeId is the preselected card: the dashboard sets it to the recipe being dialled
 // in, and a card's edit sets it so coming back from recipe-edit lands on the same card.
 let selectedRecipeId = sessionStorage.getItem('dye_editRecipeId');
 let currentSort = 'recent';
+// shotIndex.uses: shots per recipe id in the last 120 days. Unreadable -> {} and the use sorts keep list order.
+let recipeUses = null;
 let searchQuery = '';
 
 function matchesSearch(r) {
@@ -11431,6 +11451,8 @@ function sortRecipes(list, sortKey) {
     case 'oldest': s.sort((a, b) => new Date(a.capturedAt || 0) - new Date(b.capturedAt || 0)); break;
     case 'az':     s.sort((a, b) => name(a).localeCompare(name(b))); break;
     case 'za':     s.sort((a, b) => name(b).localeCompare(name(a))); break;
+    case 'most-used':  return recipeUses ? sortRecipesByUse(s, recipeUses, 'desc') : s;
+    case 'least-used': return recipeUses ? sortRecipesByUse(s, recipeUses, 'asc') : s;
   }
   return s;
 }
@@ -11516,6 +11538,10 @@ async function initSelectRecipe() {
     const result = await getRecipes().catch(() => []);
     recipesCache = (Array.isArray(result) ? result : []).filter(r => r && r.id);
   } catch (e) { recipesCache = []; }
+  try {
+    const res = await fetch(API_BASE_URL + '/store/' + DYE_KV_NS + '/shotIndex');
+    if (res.ok) { const idx = await res.json(); if (idx && idx.uses && typeof idx.uses === 'object') recipeUses = idx.uses; }
+  } catch (e) { recipeUses = null; }
   renderCards();
 }
 
@@ -12032,7 +12058,7 @@ bcInit();
 	var SUGGEST_AFTER = RECENT_MAX;
 	var SUGGEST_MIN_SHOTS = 2;
 	var INDEX_KEY = "shotIndex";
-	var INDEX_VERSION = 1;
+	var INDEX_VERSION = 2;
 	function norm(v) {
 		return String(v == null ? "" : v).trim().toLowerCase();
 	}
@@ -12085,8 +12111,19 @@ bcInit();
 			id: shot.id,
 			ts,
 			key,
+			rid: shotRecipeId(shot),
 			rating: typeof e === "number" ? Math.min(10, Math.max(0, e)) / 10 : null
 		};
+	}
+	function shotRecipeId(shot) {
+		const id = shot && shot.workflow && shot.workflow.context && shot.workflow.context.extras && shot.workflow.context.extras.dye && shot.workflow.context.extras.dye.recipeId;
+		return id == null || id === "" ? null : String(id);
+	}
+	/** Shots per recipe id over the tail; rows without a recipe id (or an old v1 row) are ignored. */
+	function countUses(tail) {
+		const uses = {};
+		for (const t of tail) if (t.rid) uses[t.rid] = (uses[t.rid] || 0) + 1;
+		return uses;
 	}
 	/** Folds one full shot into the index (insert, or replace the same id). Pure apart from `idx`/`known`. */
 	function foldShot(idx, shot, known) {
@@ -12397,7 +12434,8 @@ bcInit();
 			total: 0,
 			etag: null,
 			reps: {},
-			tail: []
+			tail: [],
+			uses: {}
 		} : stored;
 		const before = JSON.stringify(idx);
 		const known = /* @__PURE__ */ new Map();
@@ -12435,6 +12473,7 @@ bcInit();
 		for (const shot of pendingUpdates.splice(0)) foldShot(idx, shot, known);
 		pruneTail(idx, now);
 		const newest = /* @__PURE__ */ new Map();
+		idx.uses = countUses(idx.tail);
 		idx.tail.forEach((t) => {
 			const n = newest.get(t.key);
 			if (!n || t.ts > n.ts || t.ts === n.ts && t.id < n.id) newest.set(t.key, t);

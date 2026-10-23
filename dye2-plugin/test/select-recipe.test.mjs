@@ -145,3 +145,31 @@ console.log('ok   bean-picker and select-recipe share the picker css, header and
   assert.ok(!shared.includes('dye-card-edit-btn'), 'pencil CSS is gone');
 }
 console.log('ok   no pencil button, long-press helper shared');
+
+// Use counts: shotIndex.uses counts tail rows per recipe id; Most/Least Used sort by it.
+{
+  const { countUses, foldShot } = await import('../src/utils/recent-favs.ts');
+  const { recipeUseSortScript } = await import('../src/utils/recipe-sort.ts');
+  const { sortRecipesByUse } = new Function(recipeUseSortScript + '\nreturn { sortRecipesByUse };')();
+  const idx = { tail: [] };
+  const shot = (id, rid) => ({
+    id, timestamp: new Date().toISOString(),
+    workflow: { name: 'w', profile: { title: 'P' }, context: { coffeeName: 'C', extras: rid ? { dye: { recipeId: rid } } : {} } },
+  });
+  foldShot(idx, shot('s1', 'a')); foldShot(idx, shot('s2', 'a')); foldShot(idx, shot('s3', 'b')); foldShot(idx, shot('s4', null));
+  const uses = countUses(idx.tail);
+  assert.deepEqual(uses, { a: 2, b: 1 }, 'counts per recipe id, ignores shots with no recipeId');
+  assert.equal(idx.tail.find((t) => t.id === 's4').rid, null);
+
+  const recipes = [
+    { id: 'z', capturedAt: '2026-01-01' }, { id: 'b', capturedAt: '2026-02-01' },
+    { id: 'a', capturedAt: '2026-03-01' }, { id: 'y', capturedAt: '2026-04-01' },
+  ];
+  const ids = (l) => l.map((r) => r.id).join('');
+  assert.equal(ids(sortRecipesByUse(recipes, uses, 'desc')), 'abyz', 'most used first; zero-use last, ties newest first');
+  assert.equal(ids(sortRecipesByUse(recipes, uses, 'asc')), 'yzba', 'least used first; zero-use first, ties newest first');
+  assert.equal(ids(sortRecipesByUse(recipes, {}, 'desc')), 'yabz', 'no counts: newest first');
+  const src = readFileSync(new URL('../src/pages/select-recipe.ts', import.meta.url), 'utf8');
+  assert.ok(src.includes("['most-used', 'Most Used'], ['least-used', 'Least Used']"), 'rail has the use sorts');
+}
+console.log('ok   recipe use counts and Most/Least Used sorting');

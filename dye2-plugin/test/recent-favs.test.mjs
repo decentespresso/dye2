@@ -380,7 +380,7 @@ const scans = (calls) => calls.filter((c) => c.indexOf('/shots?limit=100') >= 0)
   assert.equal(byId['stray-uuid'].name, 'stray');
   assert.equal(byId['2'], undefined, 'old suggestion dropped; only 2 groups, both on the F strip, so none suggested');
   assert.equal(byId['3'], undefined);
-  assert.equal(kv.shotIndex.v, 1);
+  assert.equal(kv.shotIndex.v, 2);
   assert.equal(kv.shotIndex.total, 3);
 }
 

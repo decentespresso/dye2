@@ -325,14 +325,20 @@ group whose newest shot is older is dropped from the strip) and `UNRATED_SCORES_
 ### `shotIndex` (object, not an array; written only by the plugin runtime)
 
 ```
-{ v: 1, builtAt, newestShotId, newestTs, total, etag,
+{ v: 2, builtAt, newestShotId, newestTs, total, etag,
   reps: { <groupKey>: { id, timestamp, workflow, annotations?: { extras: { rpm } } } },  // newest shot per group
-  tail: [ { id, ts, rating /* 0..1 | null */, key } ]                                   // last TAIL_DAYS, bounded
+  tail: [ { id, ts, rating /* 0..1 | null */, key, rid /* recipeId | null */ } ],         // last TAIL_DAYS, bounded
+  uses: { <recipeId>: n }       // shots per recipe id in the tail
 }
 ```
 
 `suggested` recipe rows come from groups ranked after the five on the F strip, and only groups with at
 least `SUGGEST_MIN_SHOTS = 2` shots in the tail and `quality >= prior`; fewer qualify, fewer rows.
+
+`uses` counts tail rows whose workflow carries `context.extras.dye.recipeId` (rows without one are
+not counted). "Used" therefore means used in the last `TAIL_DAYS` (120 days), the same window as
+the score; aborted shots and shots with no group never reach the tail, so they are not counted.
+Select Recipe's Most/Least Used sorts read it.
 
 A cache, safe to delete (it is rebuilt from the last `TAIL_DAYS` of history). Skins and other
 plugins should not read it.

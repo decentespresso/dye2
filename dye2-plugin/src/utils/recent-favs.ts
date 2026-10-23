@@ -43,7 +43,7 @@ const STALE_DAYS = 60;
 const SUGGEST_AFTER = RECENT_MAX;
 const SUGGEST_MIN_SHOTS = 2;
 const INDEX_KEY = "shotIndex";
-const INDEX_VERSION = 1;
+const INDEX_VERSION = 2;   // 2: tail rows carry `rid`, index carries `uses`
 
 function norm(v: unknown): string {
   return String(v == null ? "" : v).trim().toLowerCase();
@@ -110,12 +110,13 @@ export function shotPatchAffectsRecents(patch: unknown): boolean {
 
 // --- Shot index + ranking ------------------------------------------------------------------
 
-interface TailEntry { id: string; ts: number; rating: number | null; key: string }
+interface TailEntry { id: string; ts: number; rating: number | null; key: string; rid: string | null }
 interface ShotIndex {
   v: number; builtAt: number; newestShotId: string | null; newestTs: number | null; total: number;
   etag: string | null;
   reps: Record<string, AnyRecord>;   // group key -> slim newest shot (toRecentFavourite input)
   tail: TailEntry[];                 // shots in the last TAIL_DAYS; everything is scored from these
+  uses?: Record<string, number>;     // recipeId -> shots in the tail (same TAIL_DAYS window as the score)
 }
 
 /** The index row for a shot, or null if it never counts (no group, aborted, no usable time). */
@@ -124,7 +125,21 @@ function tailEntry(shot: AnyRecord): TailEntry | null {
   const ts = Date.parse(shot && shot.timestamp);
   if (!key || isNaN(ts) || ABORTED_STOP_REASONS.has(norm(shot.stopReason))) return null;
   const e = shot.annotations && shot.annotations.enjoyment;   // 0..10, often null
-  return { id: shot.id, ts, key, rating: typeof e === "number" ? Math.min(10, Math.max(0, e)) / 10 : null };
+  return { id: shot.id, ts, key, rid: shotRecipeId(shot), rating: typeof e === "number" ? Math.min(10, Math.max(0, e)) / 10 : null };
+}
+
+// Mirrors workflow-record.ts recipeIdOf (this file imports nothing so node tests can load it).
+function shotRecipeId(shot: AnyRecord): string | null {
+  const id = shot && shot.workflow && shot.workflow.context && shot.workflow.context.extras
+    && shot.workflow.context.extras.dye && shot.workflow.context.extras.dye.recipeId;
+  return id == null || id === "" ? null : String(id);
+}
+
+/** Shots per recipe id over the tail; rows without a recipe id (or an old v1 row) are ignored. */
+export function countUses(tail: TailEntry[]): Record<string, number> {
+  const uses: Record<string, number> = {};
+  for (const t of tail) if (t.rid) uses[t.rid] = (uses[t.rid] || 0) + 1;
+  return uses;
 }
 
 /** Folds one full shot into the index (insert, or replace the same id). Pure apart from `idx`/`known`. */
@@ -364,7 +379,7 @@ async function runRefresh(fetchFn: FetchLike, base: string): Promise<AnyRecord[]
   const stored = await kvRead(INDEX_KEY);
   const fresh = !stored || stored.v !== INDEX_VERSION || !Array.isArray(stored.tail);
   const idx: ShotIndex = fresh
-    ? { v: INDEX_VERSION, builtAt: now, newestShotId: null, newestTs: null, total: 0, etag: null, reps: {}, tail: [] }
+    ? { v: INDEX_VERSION, builtAt: now, newestShotId: null, newestTs: null, total: 0, etag: null, reps: {}, tail: [], uses: {} }
     : stored;
   const before = JSON.stringify(idx);
   const known = new Map<string, AnyRecord>();
@@ -409,6 +424,7 @@ async function runRefresh(fetchFn: FetchLike, base: string): Promise<AnyRecord[]
 
   // Keep one representative (newest) shot per group; refetch it only when it changed or was removed.
   const newest = new Map<string, TailEntry>();
+  idx.uses = countUses(idx.tail);
   idx.tail.forEach((t) => {
     const n = newest.get(t.key);
     if (!n || t.ts > n.ts || (t.ts === n.ts && t.id < n.id)) newest.set(t.key, t);

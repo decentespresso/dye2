@@ -215,7 +215,9 @@ total that does not add up reconciles against `GET /shots/ids` (a delete). `shot
 the edited shot (`noteShotUpdated`) and the next run replaces its tail row, so a rating edit
 re-ranks without a rescan. A missing index or a different `v` is a full build of the last
 `TAIL_DAYS` only. Scoring uses the tail alone, so a shot older than that cannot change a rank and
-editing one needs no work. Pages read the resulting `autoFavourites` / `recipes`, never the index.
+editing one needs no work. Pages read the resulting `autoFavourites` / `recipes`; the one exception is Select Recipe, which reads
+`shotIndex.uses` (shots per `recipeId`) for its Most/Least Used sorts. Like the score, `uses` only
+covers `TAIL_DAYS` (120 days): a recipe last used earlier counts 0.
 The same top groups also fill empty recipe strip slots (`stripSlot`) with `suggested: true` rows (opaque `sug-…` ids); real recipes are
 never overwritten. Writers of `recipes` that act on a row (`record`, an apply, `updateRecipe`)
 drop the flag first.

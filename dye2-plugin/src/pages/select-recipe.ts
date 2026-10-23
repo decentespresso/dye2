@@ -1,12 +1,13 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
+import { recipeUseSortScript } from "../utils/recipe-sort";
 import { favCardTapScript, cardLongPressScript } from "../utils/fav-card-tap";
 import { sortSidebarScript, dyePickerCss, dyePickerHeaderHtml, dyePickerRailHtml } from "../utils/shared-components";
 
 // The recipe library, in the bean picker's translation of Figma "DYE_Select Coffee Beans"
 // (2345:2457 / 2345:2577): same CSS, header, rail and grid as bean-picker.ts, all from
 // shared-components. The slot assignment lives in recipe-edit, not here. No chevron on
-// CONFIRM and no "used" sorts: there is no second step and recipes carry no use count.
+// CONFIRM and no second step. Most/Least Used count shots per recipeId from shotIndex.uses (recipe-sort.ts).
 const content = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
 
@@ -14,7 +15,7 @@ const content = `
 
   <div class="flex flex-1 overflow-hidden">
 
-    ${dyePickerRailHtml([['recent', 'Recent'], ['oldest', 'Oldest'], ['az', 'A-Z'], ['za', 'Z-A']])}
+    ${dyePickerRailHtml([['recent', 'Recent'], ['oldest', 'Oldest'], ['az', 'A-Z'], ['za', 'Z-A'], ['most-used', 'Most Used'], ['least-used', 'Least Used']])}
 
     <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[28px] px-[38px] pb-[28px]">
       <div id="dye-cards-grid" class="grid grid-cols-3 gap-[20px]"></div>
@@ -28,12 +29,15 @@ const pageScript = `
 ${sortSidebarScript}
 ${favCardTapScript}
 ${cardLongPressScript}
+${recipeUseSortScript}
 
 let recipesCache = [];
 // dye_editRecipeId is the preselected card: the dashboard sets it to the recipe being dialled
 // in, and a card's edit sets it so coming back from recipe-edit lands on the same card.
 let selectedRecipeId = sessionStorage.getItem('dye_editRecipeId');
 let currentSort = 'recent';
+// shotIndex.uses: shots per recipe id in the last 120 days. Unreadable -> {} and the use sorts keep list order.
+let recipeUses = null;
 let searchQuery = '';
 
 function matchesSearch(r) {
@@ -50,6 +54,8 @@ function sortRecipes(list, sortKey) {
     case 'oldest': s.sort((a, b) => new Date(a.capturedAt || 0) - new Date(b.capturedAt || 0)); break;
     case 'az':     s.sort((a, b) => name(a).localeCompare(name(b))); break;
     case 'za':     s.sort((a, b) => name(b).localeCompare(name(a))); break;
+    case 'most-used':  return recipeUses ? sortRecipesByUse(s, recipeUses, 'desc') : s;
+    case 'least-used': return recipeUses ? sortRecipesByUse(s, recipeUses, 'asc') : s;
   }
   return s;
 }
@@ -135,6 +141,10 @@ async function initSelectRecipe() {
     const result = await getRecipes().catch(() => []);
     recipesCache = (Array.isArray(result) ? result : []).filter(r => r && r.id);
   } catch (e) { recipesCache = []; }
+  try {
+    const res = await fetch(API_BASE_URL + '/store/' + DYE_KV_NS + '/shotIndex');
+    if (res.ok) { const idx = await res.json(); if (idx && idx.uses && typeof idx.uses === 'object') recipeUses = idx.uses; }
+  } catch (e) { recipeUses = null; }
   renderCards();
 }
 
