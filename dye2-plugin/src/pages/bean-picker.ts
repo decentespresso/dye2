@@ -1,5 +1,6 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
+import { cardLongPressScript } from "../utils/fav-card-tap";
 import { dyePickerCss, dyePickerHeaderHtml, dyePickerRailHtml } from "../utils/shared-components";
 
 const content = `
@@ -23,6 +24,8 @@ const content = `
 `;
 
 const pageScript = `
+${cardLongPressScript}
+
 let beansCache = [];
 let batchMap = {};
 let searchQuery = '';
@@ -120,18 +123,13 @@ function renderBeanCards(grid, beans, confirmBtn) {
     card.className = 'dye-card';
     const batch = batchMap[bean.id];
     const line3 = beanLine3(batch);
+    card.title = 'Long-press to edit';
     card.innerHTML =
-      '<div class="dye-card-edit-btn" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></div>' +
       '<div class="dye-card-name">' + esc(beanLine1(bean, batch) || 'Unnamed') + '</div>' +
       (bean.roaster ? '<div class="dye-card-sub">' + esc(bean.roaster) + '</div>' : '') +
       (line3 ? '<div class="dye-card-date">' + esc(line3) + '</div>' : '');
-    const editBtn = card.querySelector('.dye-card-edit-btn');
-    if (editBtn) {
-      editBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        window.location.href = 'add-bean?id=' + encodeURIComponent(bean.id);
-      });
-    }
+    // Long-press opens the editor (the plain tap stays select-only, no second-tap-to-edit).
+    attachCardLongPress(card, () => { window.location.href = 'add-bean?id=' + encodeURIComponent(bean.id); });
     if (bean.id === selectedBeanId) card.classList.add('dye-card-selected');
     card.addEventListener('click', () => {
       grid.querySelectorAll('.dye-card').forEach(c => c.classList.remove('dye-card-selected'));

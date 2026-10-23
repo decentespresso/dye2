@@ -132,3 +132,16 @@ console.log('ok   recipe-edit tab strip: labels, confirm on a held slot, clear k
   assert.ok(sc.includes('dye-confirm-disabled" disabled'), 'confirm starts disabled');
 }
 console.log('ok   bean-picker and select-recipe share the picker css, header and rail');
+
+// Cards open the editor by long-press only: no pencil button, both pages use the shared helper.
+{
+  for (const f of ['bean-picker', 'select-recipe']) {
+    const src = readFileSync(new URL(`../src/pages/${f}.ts`, import.meta.url), 'utf8');
+    assert.ok(!src.includes('dye-card-edit-btn'), `${f} has no pencil button`);
+    assert.ok(src.includes('attachCardLongPress(card'), `${f} uses the long-press helper`);
+    assert.ok(src.includes('cardLongPressScript'), `${f} inlines the helper`);
+  }
+  const shared = readFileSync(new URL('../src/utils/shared-components.ts', import.meta.url), 'utf8');
+  assert.ok(!shared.includes('dye-card-edit-btn'), 'pencil CSS is gone');
+}
+console.log('ok   no pencil button, long-press helper shared');

@@ -2105,6 +2105,40 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
 		};
 	}
 	//#endregion
+	//#region src/utils/fav-card-tap.ts
+	/**
+	* What a tap on a favourite card does, as a browser-side script string (no local imports,
+	* so test/fav-card-tap.test.mjs can eval it directly): the first tap selects, tapping the
+	* card that is already selected opens its edit page.
+	*/
+	var favCardTapScript = `
+function decideCardTap(selectedId, favId) {
+  return selectedId && favId && selectedId === favId ? 'edit' : 'select';
+}
+`;
+	/**
+	* The 500 ms card long-press, shared by auto-favs, select-recipe and bean-picker: calls
+	* onLong() after a held press, and swallows the click that ends it so the card's ordinary
+	* tap does not also fire. (shared-components' attachPresetLongPress is a different shape:
+	* it can decline to fire, so it keeps its own copy.)
+	*/
+	var cardLongPressScript = `
+function attachCardLongPress(card, onLong) {
+  let timer = null, longFired = false;
+  const clear = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  card.addEventListener('pointerdown', () => {
+    longFired = false;
+    clear();
+    timer = setTimeout(() => { timer = null; longFired = true; onLong(); }, 500);
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev => card.addEventListener(ev, clear));
+  // Capture phase: stop the trailing click from also firing the card's tap.
+  card.addEventListener('click', (e) => {
+    if (longFired) { e.stopImmediatePropagation(); e.preventDefault(); longFired = false; }
+  }, true);
+}
+`;
+	//#endregion
 	//#region src/utils/lucide.ts
 	/** Inline Lucide SVG icons — only icons used in DYE2 redesign */
 	var PATHS = {
@@ -2469,23 +2503,6 @@ function syncPresetActive(idPrefix, currentVal) {
     position: relative;
   }
 
-  .dye-card-edit-btn {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 34px;
-    height: 34px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9999px;
-    background: transparent;
-    cursor: pointer;
-  }
-  .dye-card-edit-btn:hover { background: rgba(0,0,0,0.08); }
-  .dye-card.dye-card-selected .dye-card-edit-btn:hover { background: rgba(255,255,255,0.2); }
-  .dye-card-edit-btn svg { stroke: var(--text-primary-disabled); }
-  .dye-card.dye-card-selected .dye-card-edit-btn svg { stroke: #fff; }
   .dye-card:hover { opacity: 0.85; }
   .dye-card.dye-card-selected {
     background: var(--mimoja-blue);
@@ -2597,6 +2614,8 @@ function syncPresetActive(idPrefix, currentVal) {
 </div>
 `;
 	var pageScript$12 = `
+${cardLongPressScript}
+
 let beansCache = [];
 let batchMap = {};
 let searchQuery = '';
@@ -2694,18 +2713,13 @@ function renderBeanCards(grid, beans, confirmBtn) {
     card.className = 'dye-card';
     const batch = batchMap[bean.id];
     const line3 = beanLine3(batch);
+    card.title = 'Long-press to edit';
     card.innerHTML =
-      '<div class="dye-card-edit-btn" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></div>' +
       '<div class="dye-card-name">' + esc(beanLine1(bean, batch) || 'Unnamed') + '</div>' +
       (bean.roaster ? '<div class="dye-card-sub">' + esc(bean.roaster) + '</div>' : '') +
       (line3 ? '<div class="dye-card-date">' + esc(line3) + '</div>' : '');
-    const editBtn = card.querySelector('.dye-card-edit-btn');
-    if (editBtn) {
-      editBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        window.location.href = 'add-bean?id=' + encodeURIComponent(bean.id);
-      });
-    }
+    // Long-press opens the editor (the plain tap stays select-only, no second-tap-to-edit).
+    attachCardLongPress(card, () => { window.location.href = 'add-bean?id=' + encodeURIComponent(bean.id); });
     if (bean.id === selectedBeanId) card.classList.add('dye-card-selected');
     card.addEventListener('click', () => {
       grid.querySelectorAll('.dye-card').forEach(c => c.classList.remove('dye-card-selected'));
@@ -8670,18 +8684,6 @@ function resolveRoastDate(id, batches) {
 }
 `;
 	//#endregion
-	//#region src/utils/fav-card-tap.ts
-	/**
-	* What a tap on a favourite card does, as a browser-side script string (no local imports,
-	* so test/fav-card-tap.test.mjs can eval it directly): the first tap selects, tapping the
-	* card that is already selected opens its edit page.
-	*/
-	var favCardTapScript = `
-function decideCardTap(selectedId, favId) {
-  return selectedId && favId && selectedId === favId ? 'edit' : 'select';
-}
-`;
-	//#endregion
 	//#region src/pages/auto-favs.ts
 	var TAB_KEYS = [
 		"beans",
@@ -8790,6 +8792,7 @@ function decideCardTap(selectedId, favId) {
 ${sortSidebarScript}
 ${favDateScript}
 ${favCardTapScript}
+${cardLongPressScript}
 
 let favsCache = [];    // saved favourites
 let recentsCache = []; // auto: true entries computed from shot history; shown in the same grid
@@ -8878,27 +8881,12 @@ function renderCards(favs) {
         (dateStr ? '<hr class="dye-card-divider"><div class="fav-card-date">' + esc(dateStr) + '</div>' : '');
       // First tap selects; tapping the selected card again, or a 500ms long-press, opens
       // auto-fav-edit. For a recent (auto) that page opens pre-filled and SAVE creates a
-      // new saved favourite. Same press and click-swallowing as attachPresetLongPress.
+      // new saved favourite. Press handling is attachCardLongPress.
       card.addEventListener('click', () => {
         if (decideCardTap(selectedFavId, fav.id) === 'edit') openEditPage(fav.id);
         else selectCard(card, fav);
       });
-      let editTimer = null, longFired = false;
-      const clearEdit = () => { if (editTimer) { clearTimeout(editTimer); editTimer = null; } };
-      card.addEventListener('pointerdown', () => {
-        longFired = false;
-        clearEdit();
-        editTimer = setTimeout(() => {
-          editTimer = null;
-          longFired = true;
-          openEditPage(fav.id);
-        }, 500);
-      });
-      ['pointerup','pointerleave','pointercancel'].forEach(ev => card.addEventListener(ev, clearEdit));
-      // Capture phase: stop the trailing click from also re-selecting the card.
-      card.addEventListener('click', (e) => {
-        if (longFired) { e.stopImmediatePropagation(); e.preventDefault(); longFired = false; }
-      }, true);
+      attachCardLongPress(card, () => openEditPage(fav.id));
       grid.appendChild(card);
     });
   });
@@ -11420,6 +11408,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 	var pageScript$1 = `
 ${sortSidebarScript}
 ${favCardTapScript}
+${cardLongPressScript}
 
 let recipesCache = [];
 // dye_editRecipeId is the preselected card: the dashboard sets it to the recipe being dialled
@@ -11486,32 +11475,18 @@ function renderCards() {
     const title = recipe.name || recipe.title || 'Untitled recipe';
     const sub = [recipe.beanName, recipe.profileTitle].filter(Boolean).join(' · ') || recipe.subtitle || '';
     const foot = [recipe.stripSlot ? 'Recipe ' + recipe.stripSlot : '', recipe.suggested ? 'Suggested' : ''].filter(Boolean).join(' · ');
+    card.title = 'Long-press to edit';
     card.innerHTML =
-      '<div class="dye-card-edit-btn" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></div>' +
       '<div class="dye-card-name">' + esc(title) + '</div>' +
       (sub ? '<div class="dye-card-sub">' + esc(sub) + '</div>' : '') +
       (foot ? '<div class="dye-card-date">' + esc(foot) + '</div>' : '');
-    const editBtn = card.querySelector('.dye-card-edit-btn');
-    // The pencil is another way into the same editor the second tap and long-press open.
-    editBtn.addEventListener('click', (e) => { e.stopPropagation(); openEditPage(recipe.id); });
-    editBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
-    // Same press handling as auto-favs: first tap selects, a second tap on the selected card or a
-    // 500ms long-press opens the editor, and the click that ends a long-press is swallowed.
+    // First tap selects, a second tap on the selected card or a
+    // 500ms long-press opens the editor, and attachCardLongPress swallows the click that ends it.
     card.addEventListener('click', () => {
       if (decideCardTap(selectedRecipeId, recipe.id) === 'edit') openEditPage(recipe.id);
       else selectCard(card, recipe);
     });
-    let editTimer = null, longFired = false;
-    const clearEdit = () => { if (editTimer) { clearTimeout(editTimer); editTimer = null; } };
-    card.addEventListener('pointerdown', () => {
-      longFired = false;
-      clearEdit();
-      editTimer = setTimeout(() => { editTimer = null; longFired = true; openEditPage(recipe.id); }, 500);
-    });
-    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => card.addEventListener(ev, clearEdit));
-    card.addEventListener('click', (e) => {
-      if (longFired) { e.stopImmediatePropagation(); e.preventDefault(); longFired = false; }
-    }, true);
+    attachCardLongPress(card, () => openEditPage(recipe.id));
     grid.appendChild(card);
   });
 

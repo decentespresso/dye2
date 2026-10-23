@@ -1,6 +1,6 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
-import { favCardTapScript } from "../utils/fav-card-tap";
+import { favCardTapScript, cardLongPressScript } from "../utils/fav-card-tap";
 import { sortSidebarScript, dyePickerCss, dyePickerHeaderHtml, dyePickerRailHtml } from "../utils/shared-components";
 
 // The recipe library, in the bean picker's translation of Figma "DYE_Select Coffee Beans"
@@ -27,6 +27,7 @@ const content = `
 const pageScript = `
 ${sortSidebarScript}
 ${favCardTapScript}
+${cardLongPressScript}
 
 let recipesCache = [];
 // dye_editRecipeId is the preselected card: the dashboard sets it to the recipe being dialled
@@ -93,32 +94,18 @@ function renderCards() {
     const title = recipe.name || recipe.title || 'Untitled recipe';
     const sub = [recipe.beanName, recipe.profileTitle].filter(Boolean).join(' · ') || recipe.subtitle || '';
     const foot = [recipe.stripSlot ? 'Recipe ' + recipe.stripSlot : '', recipe.suggested ? 'Suggested' : ''].filter(Boolean).join(' · ');
+    card.title = 'Long-press to edit';
     card.innerHTML =
-      '<div class="dye-card-edit-btn" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></div>' +
       '<div class="dye-card-name">' + esc(title) + '</div>' +
       (sub ? '<div class="dye-card-sub">' + esc(sub) + '</div>' : '') +
       (foot ? '<div class="dye-card-date">' + esc(foot) + '</div>' : '');
-    const editBtn = card.querySelector('.dye-card-edit-btn');
-    // The pencil is another way into the same editor the second tap and long-press open.
-    editBtn.addEventListener('click', (e) => { e.stopPropagation(); openEditPage(recipe.id); });
-    editBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
-    // Same press handling as auto-favs: first tap selects, a second tap on the selected card or a
-    // 500ms long-press opens the editor, and the click that ends a long-press is swallowed.
+    // First tap selects, a second tap on the selected card or a
+    // 500ms long-press opens the editor, and attachCardLongPress swallows the click that ends it.
     card.addEventListener('click', () => {
       if (decideCardTap(selectedRecipeId, recipe.id) === 'edit') openEditPage(recipe.id);
       else selectCard(card, recipe);
     });
-    let editTimer = null, longFired = false;
-    const clearEdit = () => { if (editTimer) { clearTimeout(editTimer); editTimer = null; } };
-    card.addEventListener('pointerdown', () => {
-      longFired = false;
-      clearEdit();
-      editTimer = setTimeout(() => { editTimer = null; longFired = true; openEditPage(recipe.id); }, 500);
-    });
-    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => card.addEventListener(ev, clearEdit));
-    card.addEventListener('click', (e) => {
-      if (longFired) { e.stopImmediatePropagation(); e.preventDefault(); longFired = false; }
-    }, true);
+    attachCardLongPress(card, () => openEditPage(recipe.id));
     grid.appendChild(card);
   });
 

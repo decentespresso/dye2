@@ -1,7 +1,7 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
 import { favDateScript } from "../utils/fav-date";
-import { favCardTapScript } from "../utils/fav-card-tap";
+import { favCardTapScript, cardLongPressScript } from "../utils/fav-card-tap";
 import {
   sortSidebarCss, sortSidebarHtml, sortSidebarScript,
   pickerCardCss, pickerHeaderHtml,
@@ -110,6 +110,7 @@ const pageScript = `
 ${sortSidebarScript}
 ${favDateScript}
 ${favCardTapScript}
+${cardLongPressScript}
 
 let favsCache = [];    // saved favourites
 let recentsCache = []; // auto: true entries computed from shot history; shown in the same grid
@@ -198,27 +199,12 @@ function renderCards(favs) {
         (dateStr ? '<hr class="dye-card-divider"><div class="fav-card-date">' + esc(dateStr) + '</div>' : '');
       // First tap selects; tapping the selected card again, or a 500ms long-press, opens
       // auto-fav-edit. For a recent (auto) that page opens pre-filled and SAVE creates a
-      // new saved favourite. Same press and click-swallowing as attachPresetLongPress.
+      // new saved favourite. Press handling is attachCardLongPress.
       card.addEventListener('click', () => {
         if (decideCardTap(selectedFavId, fav.id) === 'edit') openEditPage(fav.id);
         else selectCard(card, fav);
       });
-      let editTimer = null, longFired = false;
-      const clearEdit = () => { if (editTimer) { clearTimeout(editTimer); editTimer = null; } };
-      card.addEventListener('pointerdown', () => {
-        longFired = false;
-        clearEdit();
-        editTimer = setTimeout(() => {
-          editTimer = null;
-          longFired = true;
-          openEditPage(fav.id);
-        }, 500);
-      });
-      ['pointerup','pointerleave','pointercancel'].forEach(ev => card.addEventListener(ev, clearEdit));
-      // Capture phase: stop the trailing click from also re-selecting the card.
-      card.addEventListener('click', (e) => {
-        if (longFired) { e.stopImmediatePropagation(); e.preventDefault(); longFired = false; }
-      }, true);
+      attachCardLongPress(card, () => openEditPage(fav.id));
       grid.appendChild(card);
     });
   });

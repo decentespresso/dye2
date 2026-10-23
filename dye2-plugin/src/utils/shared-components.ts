@@ -503,23 +503,6 @@ export const dyePickerCss = `
     position: relative;
   }
 
-  .dye-card-edit-btn {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 34px;
-    height: 34px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9999px;
-    background: transparent;
-    cursor: pointer;
-  }
-  .dye-card-edit-btn:hover { background: rgba(0,0,0,0.08); }
-  .dye-card.dye-card-selected .dye-card-edit-btn:hover { background: rgba(255,255,255,0.2); }
-  .dye-card-edit-btn svg { stroke: var(--text-primary-disabled); }
-  .dye-card.dye-card-selected .dye-card-edit-btn svg { stroke: #fff; }
   .dye-card:hover { opacity: 0.85; }
   .dye-card.dye-card-selected {
     background: var(--mimoja-blue);
