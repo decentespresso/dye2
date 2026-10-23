@@ -715,6 +715,14 @@ async function deleteEquipment(id) {
    the id can't be resolved -- an ad-hoc/deleted profile with no library record
    has nothing else to load; callers fall back to the thin { id, title } stub
    and a warning is logged. */
+/* Is a stored profileSnapshot worth applying? Only with steps in it. Rows written by an older
+   DYE2 carry { id, title, steps: [] }, and an Array.isArray test alone lets that win over
+   resolving profileId: PUT /workflow then deep-merges a profile with no steps, so the live curve
+   keeps running under the recipe's name and the recipe looks like it never loaded. */
+function usableProfileSnapshot(p) {
+  return !!(p && Array.isArray(p.steps) && p.steps.length);
+}
+
 async function resolveFullProfileById(id) {
   if (!id) return null;
   try {
@@ -790,7 +798,7 @@ async function buildFavouriteWorkflow(fav) {
   if (on('drinker')   && snp.drinker)   ctx.drinkerName = snp.drinker;
   if (on('note')      && snp.note)      ctx.extras = { ...(ctx.extras || {}), note: snp.note };
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
-    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps) && snp.profileSnapshot.steps.length) {
+    if (usableProfileSnapshot(snp.profileSnapshot)) {
       wf.profile = snp.profileSnapshot;
     } else {
       const full = snp.profileId ? await resolveFullProfileById(snp.profileId) : null;
@@ -850,7 +858,7 @@ async function buildRecipeWorkflow(recipe) {
   if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;
   if (recipe && (recipe.profileId || recipe.profileTitle)) {
-    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps) && recipe.profileSnapshot.steps.length) {
+    if (usableProfileSnapshot(recipe.profileSnapshot)) {
       wf.profile = recipe.profileSnapshot;
     } else {
       const full = recipe.profileId ? await resolveFullProfileById(recipe.profileId) : null;
@@ -7070,7 +7078,7 @@ async function applyRecipe(recipe) {
   setRecipeId(ctx, recipe.id);
   currentWorkflow.context = ctx;
   if (recipe.profileId || recipe.profileTitle) {
-    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps) && recipe.profileSnapshot.steps.length) {
+    if (usableProfileSnapshot(recipe.profileSnapshot)) {
       currentWorkflow.profile = recipe.profileSnapshot;
     } else {
       const full = recipe.profileId ? await resolveFullProfile(recipe.profileId) : null;
@@ -7151,7 +7159,7 @@ async function applyAutoFavourite(fav) {
   setRecipeId(ctx, null);
   currentWorkflow.context = ctx;
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
-    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps) && snp.profileSnapshot.steps.length) {
+    if (usableProfileSnapshot(snp.profileSnapshot)) {
       currentWorkflow.profile = snp.profileSnapshot;
     } else {
       const full = snp.profileId ? await resolveFullProfile(snp.profileId) : null;
@@ -10038,7 +10046,7 @@ function snapshotFromWorkflow(wf) {
   const extras = ctx.extras || {};
   return {
     profileId: profile.id || null, profileTitle: profile.title || null,
-    profileSnapshot: Array.isArray(profile.steps) && profile.steps.length ? profile : null,
+    profileSnapshot: usableProfileSnapshot(profile) ? profile : null,
     beanBatchId: ctx.beanBatchId || null, coffeeName: ctx.coffeeName || null, coffeeRoaster: ctx.coffeeRoaster || null,
     roastDate: ctx.roastDate || null, grinderId: ctx.grinderId || null, grinderModel: ctx.grinderModel || null,
     basketId: extras.basketId || null, basketName: extras.basketName || null,
@@ -10833,7 +10841,7 @@ async function readFromWorkflow() {
     // depend on the profile still being resolvable by id in the library.
     profileId:    (wf && wf.profile && wf.profile.id) || null,
     profileTitle: (wf && wf.profile && wf.profile.title) || null,
-    profileSnapshot: (wf && wf.profile && Array.isArray(wf.profile.steps) && wf.profile.steps.length) ? wf.profile : null,
+    profileSnapshot: usableProfileSnapshot(wf && wf.profile) ? wf.profile : null,
     dashboardVariables: {
       dose:  ctx.targetDoseWeight,
       drink: ctx.targetYield,
@@ -10863,7 +10871,7 @@ function favouriteToRecipePatch(fav) {
   const wfProfile = fav.workflow && fav.workflow.profile;
   // Only treat wfProfile as a real captured profile (not a thin {id,title} stub the same
   // field can otherwise hold) when it actually carries brew steps.
-  const profileSnapshot = (wfProfile && Array.isArray(wfProfile.steps) && wfProfile.steps.length) ? wfProfile : null;
+  const profileSnapshot = usableProfileSnapshot(wfProfile) ? wfProfile : null;
   return {
     beverage:     fav.beverage || '',
     barista:      s.barista || '',
@@ -11523,8 +11531,13 @@ async function initRecipeEdit() {
   const qs = new URLSearchParams(location.search);
   if (qs.get('new')) sessionStorage.removeItem('dye_editRecipeId');
   else if (qs.get('id')) sessionStorage.setItem('dye_editRecipeId', qs.get('id'));
-  if (qs.has('new') || qs.has('id')) {
-    qs.delete('new'); qs.delete('id');
+  // A blank cell on Streamline's R strip hands over the slot it was tapped on, so SAVE lands the
+  // new recipe on that cell instead of in the library (the tabs are otherwise the only way to
+  // target a slot, and the skin cannot reach them). Parked on the recipe too, so a picker round
+  // trip keeps the target.
+  const askedSlot = parseInt(qs.get('slot'), 10);
+  if (qs.has('new') || qs.has('id') || qs.has('slot')) {
+    qs.delete('new'); qs.delete('id'); qs.delete('slot');
     const rest = qs.toString();
     try { history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash); } catch (e) { /* not fatal */ }
   }
@@ -11534,6 +11547,10 @@ async function initRecipeEdit() {
   recipe = stored ? { ...stored } : { id: editId || newId('recipe') };
   if (!editId) sessionStorage.setItem('dye_editRecipeId', recipe.id);   // so a picker round trip keeps the same new id
   stripSlot = recipe.stripSlot == null ? null : recipe.stripSlot;
+  if (Number.isInteger(askedSlot) && askedSlot >= 1 && askedSlot <= 5) {
+    stripSlot = askedSlot;
+    recipe.stripSlot = askedSlot;
+  }
 
   try {
     const gs = await getGrinders().catch(() => []);

@@ -1379,7 +1379,7 @@ async function applyRecipe(recipe) {
   setRecipeId(ctx, recipe.id);
   currentWorkflow.context = ctx;
   if (recipe.profileId || recipe.profileTitle) {
-    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps) && recipe.profileSnapshot.steps.length) {
+    if (usableProfileSnapshot(recipe.profileSnapshot)) {
       currentWorkflow.profile = recipe.profileSnapshot;
     } else {
       const full = recipe.profileId ? await resolveFullProfile(recipe.profileId) : null;
@@ -1460,7 +1460,7 @@ async function applyAutoFavourite(fav) {
   setRecipeId(ctx, null);
   currentWorkflow.context = ctx;
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
-    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps) && snp.profileSnapshot.steps.length) {
+    if (usableProfileSnapshot(snp.profileSnapshot)) {
       currentWorkflow.profile = snp.profileSnapshot;
     } else {
       const full = snp.profileId ? await resolveFullProfile(snp.profileId) : null;

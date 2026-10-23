@@ -690,7 +690,7 @@ function snapshotFromWorkflow(wf) {
   const extras = ctx.extras || {};
   return {
     profileId: profile.id || null, profileTitle: profile.title || null,
-    profileSnapshot: Array.isArray(profile.steps) && profile.steps.length ? profile : null,
+    profileSnapshot: usableProfileSnapshot(profile) ? profile : null,
     beanBatchId: ctx.beanBatchId || null, coffeeName: ctx.coffeeName || null, coffeeRoaster: ctx.coffeeRoaster || null,
     roastDate: ctx.roastDate || null, grinderId: ctx.grinderId || null, grinderModel: ctx.grinderModel || null,
     basketId: extras.basketId || null, basketName: extras.basketName || null,

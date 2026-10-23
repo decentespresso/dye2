@@ -290,6 +290,14 @@ async function deleteEquipment(id) {
    the id can't be resolved -- an ad-hoc/deleted profile with no library record
    has nothing else to load; callers fall back to the thin { id, title } stub
    and a warning is logged. */
+/* Is a stored profileSnapshot worth applying? Only with steps in it. Rows written by an older
+   DYE2 carry { id, title, steps: [] }, and an Array.isArray test alone lets that win over
+   resolving profileId: PUT /workflow then deep-merges a profile with no steps, so the live curve
+   keeps running under the recipe's name and the recipe looks like it never loaded. */
+function usableProfileSnapshot(p) {
+  return !!(p && Array.isArray(p.steps) && p.steps.length);
+}
+
 async function resolveFullProfileById(id) {
   if (!id) return null;
   try {
@@ -365,7 +373,7 @@ async function buildFavouriteWorkflow(fav) {
   if (on('drinker')   && snp.drinker)   ctx.drinkerName = snp.drinker;
   if (on('note')      && snp.note)      ctx.extras = { ...(ctx.extras || {}), note: snp.note };
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
-    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps) && snp.profileSnapshot.steps.length) {
+    if (usableProfileSnapshot(snp.profileSnapshot)) {
       wf.profile = snp.profileSnapshot;
     } else {
       const full = snp.profileId ? await resolveFullProfileById(snp.profileId) : null;
@@ -425,7 +433,7 @@ async function buildRecipeWorkflow(recipe) {
   if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;
   if (recipe && (recipe.profileId || recipe.profileTitle)) {
-    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps) && recipe.profileSnapshot.steps.length) {
+    if (usableProfileSnapshot(recipe.profileSnapshot)) {
       wf.profile = recipe.profileSnapshot;
     } else {
       const full = recipe.profileId ? await resolveFullProfileById(recipe.profileId) : null;

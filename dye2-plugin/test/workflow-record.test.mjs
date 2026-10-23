@@ -501,10 +501,15 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   const src = readFileSync(new URL('../src/utils/dev-api.ts', import.meta.url), 'utf8');
   const start = src.indexOf('async function buildRecipeWorkflow(');
   const body = src.slice(start, src.indexOf('\n}\n', start) + 2);
+  // The real snapshot test, not a stand-in: test/recipe-profile-fill.test.mjs owns its cases.
+  const snapStart = src.indexOf('function usableProfileSnapshot(p)');
+  const usableProfileSnapshot = new Function(
+    src.slice(snapStart, src.indexOf('\n}\n', snapStart) + 2) + '; return usableProfileSnapshot;')();
   const build = (resolved) => new Function(
-    'resolveFullProfileById', 'profileAtBrewTemp', 'recipeMachineSettings', 'markDye', 'recipe',
+    'resolveFullProfileById', 'profileAtBrewTemp', 'recipeMachineSettings', 'markDye',
+    'usableProfileSnapshot', 'recipe',
     body + '; return buildRecipeWorkflow(recipe);',
-  )(async () => resolved, (p) => p, () => ({}), () => {}, {
+  )(async () => resolved, (p) => p, () => ({}), () => {}, usableProfileSnapshot, {
     id: 'r1', profileId: 'p1', profileTitle: 'Adaptive v3', dashboardVariables: { dose: 18 },
   });
 

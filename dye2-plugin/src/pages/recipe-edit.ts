@@ -647,7 +647,7 @@ async function readFromWorkflow() {
     // depend on the profile still being resolvable by id in the library.
     profileId:    (wf && wf.profile && wf.profile.id) || null,
     profileTitle: (wf && wf.profile && wf.profile.title) || null,
-    profileSnapshot: (wf && wf.profile && Array.isArray(wf.profile.steps) && wf.profile.steps.length) ? wf.profile : null,
+    profileSnapshot: usableProfileSnapshot(wf && wf.profile) ? wf.profile : null,
     dashboardVariables: {
       dose:  ctx.targetDoseWeight,
       drink: ctx.targetYield,
@@ -677,7 +677,7 @@ function favouriteToRecipePatch(fav) {
   const wfProfile = fav.workflow && fav.workflow.profile;
   // Only treat wfProfile as a real captured profile (not a thin {id,title} stub the same
   // field can otherwise hold) when it actually carries brew steps.
-  const profileSnapshot = (wfProfile && Array.isArray(wfProfile.steps) && wfProfile.steps.length) ? wfProfile : null;
+  const profileSnapshot = usableProfileSnapshot(wfProfile) ? wfProfile : null;
   return {
     beverage:     fav.beverage || '',
     barista:      s.barista || '',
@@ -1337,8 +1337,13 @@ async function initRecipeEdit() {
   const qs = new URLSearchParams(location.search);
   if (qs.get('new')) sessionStorage.removeItem('dye_editRecipeId');
   else if (qs.get('id')) sessionStorage.setItem('dye_editRecipeId', qs.get('id'));
-  if (qs.has('new') || qs.has('id')) {
-    qs.delete('new'); qs.delete('id');
+  // A blank cell on Streamline's R strip hands over the slot it was tapped on, so SAVE lands the
+  // new recipe on that cell instead of in the library (the tabs are otherwise the only way to
+  // target a slot, and the skin cannot reach them). Parked on the recipe too, so a picker round
+  // trip keeps the target.
+  const askedSlot = parseInt(qs.get('slot'), 10);
+  if (qs.has('new') || qs.has('id') || qs.has('slot')) {
+    qs.delete('new'); qs.delete('id'); qs.delete('slot');
     const rest = qs.toString();
     try { history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash); } catch (e) { /* not fatal */ }
   }
@@ -1348,6 +1353,10 @@ async function initRecipeEdit() {
   recipe = stored ? { ...stored } : { id: editId || newId('recipe') };
   if (!editId) sessionStorage.setItem('dye_editRecipeId', recipe.id);   // so a picker round trip keeps the same new id
   stripSlot = recipe.stripSlot == null ? null : recipe.stripSlot;
+  if (Number.isInteger(askedSlot) && askedSlot >= 1 && askedSlot <= 5) {
+    stripSlot = askedSlot;
+    recipe.stripSlot = askedSlot;
+  }
 
   try {
     const gs = await getGrinders().catch(() => []);
