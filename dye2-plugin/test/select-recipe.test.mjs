@@ -173,3 +173,14 @@ console.log('ok   no pencil button, long-press helper shared');
   assert.ok(src.includes("['most-used', 'Most Used'], ['least-used', 'Least Used']"), 'rail has the use sorts');
 }
 console.log('ok   recipe use counts and Most/Least Used sorting');
+
+// Select Roaster uses the shared picker css/header/rail, keeping only a page-scoped single-line card.
+{
+  const page = readFileSync(new URL('../src/pages/roasters.ts', import.meta.url), 'utf8');
+  assert.ok(page.includes('dyePickerCss') && page.includes('dyePickerHeaderHtml') && page.includes('dyePickerRailHtml'), 'roasters uses the shared exports');
+  assert.ok(!page.includes('.dye-sort-btn {'), 'roasters carries no own .dye-sort-btn');
+  assert.ok(!page.includes('.dye-confirm-disabled {'), 'roasters carries no own .dye-confirm-disabled');
+  assert.ok(!/(^|\n)\s*\.dye-card\s*\{/.test(page), 'roasters card override is id-scoped');
+  assert.ok(page.includes("searchInput.addEventListener('input'"), 'roasters wires the search');
+}
+console.log('ok   roasters uses the shared picker css, header and rail');
