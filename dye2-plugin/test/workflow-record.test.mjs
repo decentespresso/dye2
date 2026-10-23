@@ -306,6 +306,14 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
     "shut: every machine setting held, plus the half of each pair the mode hides");
   assert.equal(count.textContent, '2 held', 'the count is the machine settings, not the pair halves');
 
+  // The active half of each pair is on the Dashboard Variables steppers, so the shut summary never repeats it.
+  render({ steamFlowMls: 1.5, steamTimeS: 30, hotWaterMl: 120, hotWaterTempC: 85 });
+  assert.deepEqual(text(), ['Hot water temp 85°c', 'Steam time 30s'], 'flow + vol: steamFlowMls and hotWaterMl are not listed');
+  steam = 'time'; hw = 'temp';
+  render({ steamFlowMls: 1.5, steamTimeS: 30, hotWaterMl: 120, hotWaterTempC: 85 });
+  assert.deepEqual(text(), ['Hot water vol 120ml', 'Steam flow 1.5ml/s'], 'time + temp: the hidden halves flip');
+  steam = 'flow'; hw = 'vol';
+
   render({ steamTempC: 150, flushFlowMls: 4, steamTimeS: 30, hotWaterTempC: 85 }, true);
   assert.deepEqual(text(), ['Hot water temp 85°c', 'Steam time 30s'],
     'open: the steppers show the machine settings, so only the pair halves are summarised');

@@ -10440,6 +10440,33 @@ function stripReplaceLabel(holder, n) { return 'REPLACE ' + (holder.name || 'REC
 
       <div class="re-divider"></div>
 
+      <!-- Grinder names as plain text tabs (Figma 2396:991 — no label above) -->
+      <div class="re-grinder-chips" id="re-grinder-chips">
+        <!-- populated by JS -->
+      </div>
+
+      <!-- Grind + RPM (no preset strips in Figma) -->
+      <div class="flex items-center gap-[90px]">
+        <div class="re-var-block">
+          ${stepperHtml("re-grind", "Grind", "75px")}
+        </div>
+        <div class="re-var-block">
+          ${stepperHtml("re-rpm", "RPM", "75px")}
+        </div>
+      </div>
+
+      <!-- Basket names — same plain-text-tab style as Grinder above, no label -->
+      <div class="re-grinder-chips" id="re-basket-chips">
+        <!-- populated by JS -->
+      </div>
+
+      <div class="re-divider"></div>
+
+      <!-- Equipment: multi-select, same dropdown as edit-shot's Equipment field -->
+      ${expandFieldHtml("re-equipment", "Equipment")}
+
+      <div class="re-divider"></div>
+
       <!-- The rest of the machine settings a recipe can hold (dye2#23). Collapsed by default:
            they are set once per machine rather than per dial-in, and this pane is already the
            longest page in DYE2. The summary line under the header shows what is held while the
@@ -10522,31 +10549,6 @@ function stripReplaceLabel(holder, n) { return 'REPLACE ' + (holder.name || 'REC
           <div class="text-[16px] opacity-60">Also set on Streamline's settings page: a change there lands on this recipe while it is selected.</div>
         </div>
       </div>
-
-      <!-- Grinder names as plain text tabs (Figma 2396:991 — no label above) -->
-      <div class="re-grinder-chips" id="re-grinder-chips">
-        <!-- populated by JS -->
-      </div>
-
-      <!-- Grind + RPM (no preset strips in Figma) -->
-      <div class="flex items-center gap-[90px]">
-        <div class="re-var-block">
-          ${stepperHtml("re-grind", "Grind", "75px")}
-        </div>
-        <div class="re-var-block">
-          ${stepperHtml("re-rpm", "RPM", "75px")}
-        </div>
-      </div>
-
-      <!-- Basket names — same plain-text-tab style as Grinder above, no label -->
-      <div class="re-grinder-chips" id="re-basket-chips">
-        <!-- populated by JS -->
-      </div>
-
-      <div class="re-divider"></div>
-
-      <!-- Equipment: multi-select, same dropdown as edit-shot's Equipment field -->
-      ${expandFieldHtml("re-equipment", "Equipment")}
     </div>
   </div>
 
