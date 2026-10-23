@@ -174,7 +174,7 @@ function buildContent(): string {
   const pencilSvg = lucideIcon('pencil',     26, 'var(--text-primary-disabled)', 2);
 
   const tabs = [1, 2, 3, 4, 5].map(n =>
-    `<button class="re-tab" data-slot="${n}">Empty ${n}</button>`
+    `<button class="re-tab" data-slot="${n}"></button>`
   ).join('');
 
   return `

@@ -10080,10 +10080,11 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 	//#endregion
 	//#region src/utils/recipe-strip.ts
 	var recipeStripScript = `
-// What the tab for strip slot n says: whoever holds it, else 'Empty n'.
+// What the tab for strip slot n says: whoever holds it, else blank (an unassigned slot
+// reads as an empty tab, not 'Empty n' — the user asked for no filler text).
 function stripTabLabel(recipes, n) {
   const h = (recipes || []).find(r => r && r.stripSlot === n);
-  return h ? (h.name || 'Recipe') : 'Empty ' + n;
+  return h ? (h.name || 'Recipe') : '';
 }
 // The other recipe a SAVE onto slot n would replace.
 function stripSlotHolder(recipes, openId, n) {
@@ -10264,7 +10265,7 @@ function stripReplaceLabel(holder, n) { return 'REPLACE ' + (holder.name || 'REC
 			3,
 			4,
 			5
-		].map((n) => `<button class="re-tab" data-slot="${n}">Empty ${n}</button>`).join("")}
+		].map((n) => `<button class="re-tab" data-slot="${n}"></button>`).join("")}
     </div>
   </div>
 

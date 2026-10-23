@@ -90,7 +90,7 @@ console.log('ok   select-recipe reuses decideCardTap');
     { id: 'd', name: 'Unassigned', stripSlot: null },
   ];
   assert.deepEqual([1, 2, 3, 4, 5].map((n) => t.stripTabLabel(lib, n)),
-    ['Ethiopia', 'Recipe', 'Guess', 'Empty 4', 'Empty 5']);
+    ['Ethiopia', 'Recipe', 'Guess', '', '']);
 
   // The open recipe 'd' has no slot: targeting a held slot names the holder and needs the confirm.
   const holder = t.stripSlotHolder(lib, 'd', 1);
