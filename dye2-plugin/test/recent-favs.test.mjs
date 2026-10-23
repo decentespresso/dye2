@@ -221,8 +221,8 @@ console.log('ok   applyTitleDisambiguation: profile title then grinder model, on
     { id: 'saved-off', favSlot: 2, alwaysOnDashboard: false },   // opted out — claims nothing
   ];
   const placed = assignSlots(recents, saved);
-  assert.deepEqual(placed.map((r) => r.favSlot), [2, 4, 5, null, null], 'recents fill the free slots in rank order, then run out');
-  assert.deepEqual(placed.map((r) => r.alwaysOnDashboard), [true, true, true, false, false]);
+  assert.deepEqual(placed.map((r) => r.favSlot), [2, 4, null, null, null], 'recents fill the free slots in rank order, then run out at slot 4 (the strip shows four)');
+  assert.deepEqual(placed.map((r) => r.alwaysOnDashboard), [true, true, false, false, false]);
 }
 
 console.log('ok   assignSlots: saved claims win, alwaysOnDashboard:false claims nothing, overflow gets no slot');

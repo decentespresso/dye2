@@ -499,10 +499,24 @@ async function updateRecipe(id, patch) {
   item.subtitle = recipeSubtitle(item);
   item.workflow = await buildRecipeWorkflow(item);
   kvUpsert(arr, item);
-  // One slot, one recipe: taking a stripSlot frees it on whoever held it, in this same write.
-  if (item.stripSlot != null) arr.forEach(x => { if (x && x.id !== id && x.stripSlot === item.stripSlot) x.stripSlot = null; });
+  takeSlot(arr, 'stripSlot', item);   // one slot, one recipe
   await kvSetArray('recipes', arr);
   return item;
+}
+
+// One slot, one holder: taking a slot frees it on whoever else held it, in the same array the
+// caller is about to write. The single rule behind stripSlot (recipes) and favSlot (favourites).
+function takeSlot(arr, field, item) {
+  if (item[field] == null) return;
+  arr.forEach(x => { if (x && x.id !== item.id && x[field] === item[field]) x[field] = null; });
+}
+
+// The F strip shows 4 favourites (its 5th cell is VIEW ALL AUTO FAV), so favSlot is 1..4 or null.
+// Keep in step with FAV_SLOT_MAX in recent-favs.ts.
+const FAV_SLOT_MAX = 4;
+function cleanFavSlot(item) {
+  const n = Number(item.favSlot);
+  item.favSlot = item.favSlot != null && Number.isInteger(n) && n >= 1 && n <= FAV_SLOT_MAX ? n : null;
 }
 
 // Auto-favourites (F mode). Rows with auto: true ("recent" entries, see recent-favs.ts)
@@ -518,9 +532,11 @@ async function getAutoFavourite(id) {
 async function createAutoFavourite(data) {
   const arr = await kvGetArray('autoFavourites');
   const fav = { ...data, id: newId('af'), capturedAt: new Date().toISOString() };
+  cleanFavSlot(fav);
   fav.subtitle = favSubtitle(fav);
   fav.workflow = await buildFavouriteWorkflow(fav);
   arr.push(fav);
+  takeSlot(arr, 'favSlot', fav);
   await kvSetArray('autoFavourites', arr);
   return fav;
 }
@@ -529,9 +545,11 @@ async function updateAutoFavourite(id, data) {
   const arr = await kvGetArray('autoFavourites');
   const existing = arr.find(x => x && x.id === id);
   const item = { ...data, id, capturedAt: data.capturedAt ?? (existing && existing.capturedAt) ?? new Date().toISOString() };
+  cleanFavSlot(item);
   item.subtitle = favSubtitle(item);
   item.workflow = await buildFavouriteWorkflow(item);
   kvUpsert(arr, item);
+  takeSlot(arr, 'favSlot', item);
   await kvSetArray('autoFavourites', arr);
   return item;
 }

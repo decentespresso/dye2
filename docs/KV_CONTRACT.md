@@ -55,6 +55,18 @@ on an explicit user action, `save-recipe`. It must not rewrite `recipes` on ever
 store is last-write-wins over the whole array, and an overlapping page save and plugin write lose
 one side (this once left two rows both holding slot 1).
 
+**`autoFavourites` slot rule.** One saved favourite per `favSlot`, the same as one recipe per
+`stripSlot`: `createAutoFavourite`/`updateAutoFavourite` (dev-api `takeSlot`) clear `favSlot` on
+whatever else held it in the SAME array write. The usable range is **1..4 or null**: the F strip
+shows four favourites (its fifth cell is VIEW ALL AUTO FAV), so a writer stores any other value as
+`null` and `assignSlots` never hands out or honours slot 5. A one-time pass gated by the
+`favSlotsMigrated` plugin-storage flag runs `dedupeFavSlots` over the SAVED rows (re-reading the key
+before the write): of rows sharing a `favSlot`, a shown row (`alwaysOnDashboard !== false`) beats a
+hidden one, then the newest `capturedAt`, then the larger id; losers become `favSlot: null` and keep
+every other field. `auto: true` recents are not de-duplicated: `assignSlots` re-places them on every
+refresh (which also applies `dedupeFavSlots` to the saved rows it rewrites, so it cannot undo the
+migration). An existing saved row still holding slot 5 is left as stored; it just never appears.
+
 This includes "dialling in" from the Streamline dashboard. DYE2's plugin runtime
 writes edits from the live workflow onto the selected recipe itself, when asked
 (below); a skin must not read-modify-write the arrays to do the same. (Older skin builds that
@@ -279,7 +291,7 @@ CONFIRM handler in `basket-picker.ts`), not a full context replacement.
 ```
 {
   id, title, beverage,
-  alwaysOnDashboard, favSlot,
+  alwaysOnDashboard, favSlot,   // favSlot: 1..4 | null, one saved favourite per slot (see autoFavourites slot rule)
   copyMask: { profile, beans, roastDate, grinder, basket, equipment, grindSetting,
               dose, drink, barista, drinker, note },   // booleans; absent ⇒ on
   snapshot: {
@@ -305,7 +317,7 @@ CONFIRM handler in `basket-picker.ts`), not a full context replacement.
 **Auto (recent) entries.** Entries with `auto: true` are computed by DYE2 from shot
 history (up to 5 bean-batch + profile + grinder groups, best first by `recentRank`) and are
 rewritten wholesale by DYE2's plugin runtime after every stored or edited shot and on DYE2 page
-loads. They fill the dashboard slots (1–5) that saved favourites don't claim; entries that don't
+loads. They fill the dashboard slots (1–4) that saved favourites don't claim; entries that don't
 fit have `alwaysOnDashboard: false`. Their `workflow.profile` is the full recorded profile of
 the source shot, and `workflow.context` carries explicit `null` for bean/grinder
 fields the source shot lacked. Consumers read them like any favourite; never edit or

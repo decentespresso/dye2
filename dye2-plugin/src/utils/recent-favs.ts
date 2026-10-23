@@ -222,6 +222,32 @@ export function dedupeRecipeSlots(recipes: AnyRecord[]): AnyRecord[] {
 }
 
 /**
+ * Self-heal for favourites: two SAVED rows must never share a `favSlot` (the pages clear the
+ * previous holder on write, this repairs data written before that). Of rows sharing a slot, one
+ * that is shown (`alwaysOnDashboard !== false`) beats a hidden one, then the newest `capturedAt`,
+ * then the larger id by string compare; losers become `favSlot: null` and keep every other field.
+ * `auto: true` recents are ignored (assignSlots re-places them on every refresh). Idempotent;
+ * returns the same array when no slot is shared.
+ */
+export function dedupeFavSlots(favs: AnyRecord[]): AnyRecord[] {
+  if (!Array.isArray(favs)) return favs;
+  const ts = (r: AnyRecord) => { const t = Date.parse(String(r.capturedAt)); return Number.isFinite(t) ? t : -Infinity; };
+  const shown = (r: AnyRecord) => r.alwaysOnDashboard !== false;
+  const beats = (a: AnyRecord, b: AnyRecord) =>
+    shown(a) !== shown(b) ? shown(a) : ts(a) !== ts(b) ? ts(a) > ts(b) : String(a.id) > String(b.id);
+  const saved = (r: AnyRecord) => r && !r.auto && r.favSlot != null;
+  const winner = new Map<unknown, AnyRecord>();
+  for (const r of favs) {
+    if (!saved(r)) continue;
+    const w = winner.get(r.favSlot);
+    if (!w || beats(r, w)) winner.set(r.favSlot, r);
+  }
+  const loses = (r: AnyRecord) => saved(r) && winner.get(r.favSlot) !== r;
+  if (!favs.some(loses)) return favs;
+  return favs.map((r) => (loses(r) ? { ...r, favSlot: null } : r));
+}
+
+/**
  * One-off cleanup: an earlier release wrote `suggested: true` rows into `recipes`. Drops them and
  * leaves every other row untouched. Returns the same array when there is nothing to drop.
  */
@@ -322,8 +348,12 @@ export function applyTitleDisambiguation(recents: AnyRecord[]): AnyRecord[] {
   return recents;
 }
 
+/** The F strip shows 4 favourites; its 5th cell is VIEW ALL AUTO FAV, so a favSlot of 5 can never
+ *  appear. Keep in step with FAV_SLOT_MAX in dev-api.ts. */
+export const FAV_SLOT_MAX = 4;
+
 /**
- * A saved favourite claims a dashboard slot 1..5 when it opts in (alwaysOnDashboard
+ * A saved favourite claims a dashboard slot 1..FAV_SLOT_MAX when it opts in (alwaysOnDashboard
  * !== false) and has a favSlot in range. Recents fill whatever slots are left, in
  * recentRank order; any that don't fit get favSlot: null, alwaysOnDashboard: false —
  * still readable from the KV array, just not shown on the Streamline dashboard strip.
@@ -331,15 +361,15 @@ export function applyTitleDisambiguation(recents: AnyRecord[]): AnyRecord[] {
 export function assignSlots(recents: AnyRecord[], saved: AnyRecord[]): AnyRecord[] {
   const claimed = new Set<number>();
   (saved || []).forEach((f) => {
-    if (f && f.alwaysOnDashboard !== false && f.favSlot >= 1 && f.favSlot <= 5) {
+    if (f && f.alwaysOnDashboard !== false && f.favSlot >= 1 && f.favSlot <= FAV_SLOT_MAX) {
       claimed.add(f.favSlot);
     }
   });
 
   let slot = 1;
   return recents.map((r) => {
-    while (slot <= 5 && claimed.has(slot)) slot++;
-    if (slot > 5) return { ...r, favSlot: null, alwaysOnDashboard: false };
+    while (slot <= FAV_SLOT_MAX && claimed.has(slot)) slot++;
+    if (slot > FAV_SLOT_MAX) return { ...r, favSlot: null, alwaysOnDashboard: false };
     const placed = { ...r, favSlot: slot, alwaysOnDashboard: true };
     claimed.add(slot);
     slot++;
@@ -462,7 +492,9 @@ async function runRefresh(fetchFn: FetchLike, base: string): Promise<AnyRecord[]
   const recents = applyTitleDisambiguation(all.slice(0, RECENT_MAX).map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
 
   const storeVal = await kvRead("autoFavourites");
-  const saved = (Array.isArray(storeVal) ? storeVal : []).filter((x: AnyRecord) => x && !x.auto);
+  // dedupeFavSlots here as well: this write rewrites the saved rows from a read of its own, so
+  // without it a refresh in flight could write back a shared slot the one-time migration just fixed.
+  const saved = dedupeFavSlots((Array.isArray(storeVal) ? storeVal : []).filter((x: AnyRecord) => x && !x.auto));
   const placedRecents = assignSlots(recents, saved);
   await kvWrite("autoFavourites", [...placedRecents, ...saved]);
 

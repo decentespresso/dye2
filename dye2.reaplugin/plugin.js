@@ -922,10 +922,24 @@ async function updateRecipe(id, patch) {
   item.subtitle = recipeSubtitle(item);
   item.workflow = await buildRecipeWorkflow(item);
   kvUpsert(arr, item);
-  // One slot, one recipe: taking a stripSlot frees it on whoever held it, in this same write.
-  if (item.stripSlot != null) arr.forEach(x => { if (x && x.id !== id && x.stripSlot === item.stripSlot) x.stripSlot = null; });
+  takeSlot(arr, 'stripSlot', item);   // one slot, one recipe
   await kvSetArray('recipes', arr);
   return item;
+}
+
+// One slot, one holder: taking a slot frees it on whoever else held it, in the same array the
+// caller is about to write. The single rule behind stripSlot (recipes) and favSlot (favourites).
+function takeSlot(arr, field, item) {
+  if (item[field] == null) return;
+  arr.forEach(x => { if (x && x.id !== item.id && x[field] === item[field]) x[field] = null; });
+}
+
+// The F strip shows 4 favourites (its 5th cell is VIEW ALL AUTO FAV), so favSlot is 1..4 or null.
+// Keep in step with FAV_SLOT_MAX in recent-favs.ts.
+const FAV_SLOT_MAX = 4;
+function cleanFavSlot(item) {
+  const n = Number(item.favSlot);
+  item.favSlot = item.favSlot != null && Number.isInteger(n) && n >= 1 && n <= FAV_SLOT_MAX ? n : null;
 }
 
 // Auto-favourites (F mode). Rows with auto: true ("recent" entries, see recent-favs.ts)
@@ -941,9 +955,11 @@ async function getAutoFavourite(id) {
 async function createAutoFavourite(data) {
   const arr = await kvGetArray('autoFavourites');
   const fav = { ...data, id: newId('af'), capturedAt: new Date().toISOString() };
+  cleanFavSlot(fav);
   fav.subtitle = favSubtitle(fav);
   fav.workflow = await buildFavouriteWorkflow(fav);
   arr.push(fav);
+  takeSlot(arr, 'favSlot', fav);
   await kvSetArray('autoFavourites', arr);
   return fav;
 }
@@ -952,9 +968,11 @@ async function updateAutoFavourite(id, data) {
   const arr = await kvGetArray('autoFavourites');
   const existing = arr.find(x => x && x.id === id);
   const item = { ...data, id, capturedAt: data.capturedAt ?? (existing && existing.capturedAt) ?? new Date().toISOString() };
+  cleanFavSlot(item);
   item.subtitle = favSubtitle(item);
   item.workflow = await buildFavouriteWorkflow(item);
   kvUpsert(arr, item);
+  takeSlot(arr, 'favSlot', item);
   await kvSetArray('autoFavourites', arr);
   return item;
 }
@@ -12384,6 +12402,36 @@ bcInit();
 		} : r);
 	}
 	/**
+	* Self-heal for favourites: two SAVED rows must never share a `favSlot` (the pages clear the
+	* previous holder on write, this repairs data written before that). Of rows sharing a slot, one
+	* that is shown (`alwaysOnDashboard !== false`) beats a hidden one, then the newest `capturedAt`,
+	* then the larger id by string compare; losers become `favSlot: null` and keep every other field.
+	* `auto: true` recents are ignored (assignSlots re-places them on every refresh). Idempotent;
+	* returns the same array when no slot is shared.
+	*/
+	function dedupeFavSlots(favs) {
+		if (!Array.isArray(favs)) return favs;
+		const ts = (r) => {
+			const t = Date.parse(String(r.capturedAt));
+			return Number.isFinite(t) ? t : -Infinity;
+		};
+		const shown = (r) => r.alwaysOnDashboard !== false;
+		const beats = (a, b) => shown(a) !== shown(b) ? shown(a) : ts(a) !== ts(b) ? ts(a) > ts(b) : String(a.id) > String(b.id);
+		const saved = (r) => r && !r.auto && r.favSlot != null;
+		const winner = /* @__PURE__ */ new Map();
+		for (const r of favs) {
+			if (!saved(r)) continue;
+			const w = winner.get(r.favSlot);
+			if (!w || beats(r, w)) winner.set(r.favSlot, r);
+		}
+		const loses = (r) => saved(r) && winner.get(r.favSlot) !== r;
+		if (!favs.some(loses)) return favs;
+		return favs.map((r) => loses(r) ? {
+			...r,
+			favSlot: null
+		} : r);
+	}
+	/**
 	* One-off cleanup: an earlier release wrote `suggested: true` rows into `recipes`. Drops them and
 	* leaves every other row untouched. Returns the same array when there is nothing to drop.
 	*/
@@ -12490,7 +12538,7 @@ bcInit();
 		return recents;
 	}
 	/**
-	* A saved favourite claims a dashboard slot 1..5 when it opts in (alwaysOnDashboard
+	* A saved favourite claims a dashboard slot 1..FAV_SLOT_MAX when it opts in (alwaysOnDashboard
 	* !== false) and has a favSlot in range. Recents fill whatever slots are left, in
 	* recentRank order; any that don't fit get favSlot: null, alwaysOnDashboard: false —
 	* still readable from the KV array, just not shown on the Streamline dashboard strip.
@@ -12498,12 +12546,12 @@ bcInit();
 	function assignSlots(recents, saved) {
 		const claimed = /* @__PURE__ */ new Set();
 		(saved || []).forEach((f) => {
-			if (f && f.alwaysOnDashboard !== false && f.favSlot >= 1 && f.favSlot <= 5) claimed.add(f.favSlot);
+			if (f && f.alwaysOnDashboard !== false && f.favSlot >= 1 && f.favSlot <= 4) claimed.add(f.favSlot);
 		});
 		let slot = 1;
 		return recents.map((r) => {
-			while (slot <= 5 && claimed.has(slot)) slot++;
-			if (slot > 5) return {
+			while (slot <= 4 && claimed.has(slot)) slot++;
+			if (slot > 4) return {
 				...r,
 				favSlot: null,
 				alwaysOnDashboard: false
@@ -12641,7 +12689,7 @@ bcInit();
 		}
 		const recents = applyTitleDisambiguation(rankGroups(idx.tail, now).slice(0, RECENT_MAX).map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
 		const storeVal = await kvRead("autoFavourites");
-		const saved = (Array.isArray(storeVal) ? storeVal : []).filter((x) => x && !x.auto);
+		const saved = dedupeFavSlots((Array.isArray(storeVal) ? storeVal : []).filter((x) => x && !x.auto));
 		const placedRecents = assignSlots(recents, saved);
 		await kvWrite("autoFavourites", [...placedRecents, ...saved]);
 		return placedRecents;
@@ -13357,6 +13405,31 @@ bcInit();
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status} migrating recipes`);
 		}
+		async function migrateFavSlots() {
+			if (typeof fetch !== "function") return;
+			const rows = await kv("autoFavourites");
+			if (dedupeFavSlots(rows) === rows) return;
+			const fresh = await kv("autoFavourites");
+			const next = dedupeFavSlots(fresh);
+			if (next === fresh) return;
+			const res = await fetch(`${API}/store/${NS}/autoFavourites`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(next)
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status} migrating favourite slots`);
+		}
+		function runFavSlotMigration() {
+			migrateFavSlots().catch((e) => log(`favourite slot migration failed: ${e instanceof Error ? e.message : String(e)}`)).then(() => {
+				host.storage({
+					type: "write",
+					key: "favSlotsMigrated",
+					namespace: NS,
+					data: true
+				});
+				refreshRecents();
+			});
+		}
 		function runRecipeMigration() {
 			migrateRecipes().catch((e) => log(`recipe slot migration failed: ${e instanceof Error ? e.message : String(e)}`)).then(() => {
 				host.storage({
@@ -13399,9 +13472,16 @@ bcInit();
 						key: "recipesMigrated",
 						namespace: NS
 					});
+					host.storage({
+						type: "read",
+						key: "favSlotsMigrated",
+						namespace: NS
+					});
 				}
-				if (typeof host.storage !== "function") runRecipeMigration();
-				else refreshRecents();
+				if (typeof host.storage !== "function") {
+					runRecipeMigration();
+					runFavSlotMigration();
+				} else refreshRecents();
 				if (typeof fetch === "function") liveWorkflow().then((wf) => trackWorkflow(wf, true));
 			},
 			onUnload() {
@@ -13417,6 +13497,7 @@ bcInit();
 				} else if (event.name === "storageRead") {
 					if (event.payload && event.payload.key === "selectionMigrated" && !event.payload.value) migrate();
 					if (event.payload && event.payload.key === "recipesMigrated" && !event.payload.value) runRecipeMigration();
+					if (event.payload && event.payload.key === "favSlotsMigrated" && !event.payload.value) runFavSlotMigration();
 				} else if (event.name === "workflowUpdated") trackWorkflow(event.payload);
 			},
 			__httpRequestHandler(request) {
