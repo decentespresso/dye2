@@ -2,6 +2,7 @@ import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
 import { shotPagingScript } from "../utils/shot-paging";
 import { chartScript } from "../utils/chart";
+import { lucideIcon } from "../utils/lucide";
 import { iconHistory, iconClipboard } from "../utils/icons";
 import { enjoymentScaleScript } from "../utils/shared-components";
 import { recordedShotScript } from "../utils/recorded-shot";
@@ -306,7 +307,6 @@ function buildContent(): string { return `
             <button id="dye-history-btn" class="cursor-pointer" title="Undo — reverts your last change here; tap again to redo it" aria-label="Undo last change">
               <img src="${iconHistory}" width="42" height="42" alt="History" />
             </button>
-            <button id="dye-save-recipe-btn" class="border-2 border-[var(--mimoja-blue)] text-[var(--mimoja-blue)] font-semibold text-[20px] rounded-[23px] h-[42px] px-[20px] cursor-pointer">Save to recipes</button>
             <button id="dye-clipboard-btn" class="cursor-pointer">
               <img src="${iconClipboard}" width="42" height="42" alt="Clipboard" />
             </button>
@@ -323,6 +323,7 @@ function buildContent(): string { return `
           <button id="dye-recipe-next" class="flex items-center justify-center shrink-0 cursor-pointer text-[var(--mimoja-blue)]">
             <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
+          <button id="dye-recipes-btn" class="flex items-center justify-center shrink-0 cursor-pointer" title="All recipes" aria-label="All recipes">${lucideIcon('pencil', 42, 'var(--mimoja-blue)', 2.5)}</button>
         </div>
 
         <div class="h-[2px] bg-[var(--profile-button-outline-color)] shrink-0"></div>
@@ -595,20 +596,12 @@ function snapshotWorkflow() {
   if (btn) btn.style.opacity = '';
 }
 
-// Save the live workflow as a new recipe, which the plugin runtime also selects (dye2#36).
-function setupSaveRecipe() {
-  const btn = document.getElementById('dye-save-recipe-btn');
-  if (!btn) return;
-  btn.addEventListener('click', async () => {
-    try {
-      const res = await fetch('/api/v1/plugins/dye2.reaplugin/save-recipe', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
-      });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const saved = await res.json();
-      showTransientMessage('Saved as ' + saved.name);
-    } catch (e) { console.warn('save-recipe failed', e); showTransientMessage('Could not save the recipe'); }
-  });
+// Open recipe-edit on the recipe being dialled in (extras.dye.recipeId "1".."5"), else slot 1.
+async function openRecipes() {
+  const live = await getWorkflow().catch(() => null);
+  const n = Number((((live || {}).context || {}).extras || {}).dye?.recipeId);
+  sessionStorage.setItem('dye_editRecipeIdx', String(n >= 1 && n <= 5 ? n - 1 : 0));
+  window.location.href = '/api/v1/plugins/dye2.reaplugin/recipe-edit';
 }
 
 function setupHistoryRevert() {
@@ -1837,7 +1830,7 @@ function wireDashboardControls() {
   });
   setupDropdownToggle('dye-settings-btn', 'dye-settings-dropdown');
   document.getElementById('dye-settings-favourites')?.addEventListener('click', () => { window.location.href = '/api/v1/plugins/dye2.reaplugin/auto-favs'; });
-  document.getElementById('dye-settings-recipes')?.addEventListener('click', () => { sessionStorage.setItem('dye_editRecipeIdx', '0'); window.location.href = '/api/v1/plugins/dye2.reaplugin/recipe-edit'; });
+  document.getElementById('dye-settings-recipes')?.addEventListener('click', openRecipes);
   document.getElementById('dye-settings-equipment')?.addEventListener('click', () => { window.location.href = '/api/v1/plugins/dye2.reaplugin/equipment'; });
   setupVisualizerDropdown();
   setupVisualizerModal();
@@ -1855,7 +1848,7 @@ function wireDashboardControls() {
   setupReadNote();
   setupAddNote();
   setupHistoryRevert();
-  setupSaveRecipe();
+  document.getElementById('dye-recipes-btn')?.addEventListener('click', openRecipes);
   const pills = document.getElementById('dye-recipe-pills');
   document.getElementById('dye-recipe-prev')?.addEventListener('click', () => pills?.scrollBy({ left: -pills.clientWidth, behavior: 'smooth' }));
   document.getElementById('dye-recipe-next')?.addEventListener('click', () => pills?.scrollBy({ left: pills.clientWidth, behavior: 'smooth' }));

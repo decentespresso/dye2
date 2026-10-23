@@ -1261,7 +1261,8 @@ async function initRecipeEdit() {
   });
   recipeBaselines = recipes.map((_, i) => JSON.parse(JSON.stringify(loadedRecipes.find(r => r && r.id === String(i + 1)) || {})));
   document.querySelectorAll('.re-tab').forEach((btn, i) => {
-    if (recipes[i] && recipes[i].name) btn.textContent = recipes[i].name;
+    const stored = loadedRecipes.find(r => r && r.id === String(i + 1));
+    btn.textContent = !stored ? 'Empty ' + (i + 1) : (stored.name || 'Recipe ' + (i + 1)) + (stored.suggested ? ' (suggested)' : '');
   });
 
   try {
