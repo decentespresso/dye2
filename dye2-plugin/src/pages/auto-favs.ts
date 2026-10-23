@@ -10,7 +10,8 @@ import {
 const TAB_KEYS = ['beans', 'recipe', 'profile', 'grinder'];
 const TAB_LABELS = ['Beans', 'Recipe', 'Profile', 'Grinder'];
 
-const styles = `
+// Shared with select-recipe.ts: the sort rail, header and card grid. Only the tab strip is this page's.
+export const gridStyles = `
   ${sortSidebarCss()}
   ${pickerCardCss()}
   /* Figma 2386:669 colours. Page-scoped values so the shared picker helpers and other pages
@@ -37,25 +38,6 @@ const styles = `
     content: 'Sort by'; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 24px;
     color: var(--af-action); text-align: center; padding-bottom: 10px;
   }
-  /* Figma 2386:669 (x0.75): "Group recent favourites by" label left, four 225x60 tabs right. */
-  .dye-tab-strip {
-    display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 0 0;
-  }
-  .dye-tab-label {
-    font-family: 'Inter', sans-serif; font-weight: 700; font-size: 24px;
-    color: var(--af-action); white-space: nowrap;
-  }
-  .dye-tab-group { display: flex; gap: 15px; }
-  .dye-tab-btn {
-    width: 225px; height: 60px; border-radius: 15px;
-    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 21px;
-    border: 2px solid var(--af-tab-stroke);
-    background: var(--af-page); color: var(--af-tab-text);
-    cursor: pointer; white-space: nowrap;
-  }
-  .dye-tab-btn.active {
-    background: var(--af-action); border-color: var(--af-action); color: #fff;
-  }
   /* Figma cards: surface fill, 1px border, centred title / sub / divider / date, no side padding
      so the divider runs edge to edge. */
   #dye-cards-grid .dye-card {
@@ -79,6 +61,28 @@ const styles = `
     grid-column: 1 / -1;
     font-family: 'Inter', sans-serif; font-weight: 700; font-size: 24px;
     color: var(--af-action); padding: 10px 2px 0;
+  }
+`;
+
+const styles = gridStyles + `
+  /* Figma 2386:669 (x0.75): "Group recent favourites by" label left, four 225x60 tabs right. */
+  .dye-tab-strip {
+    display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 0 0;
+  }
+  .dye-tab-label {
+    font-family: 'Inter', sans-serif; font-weight: 700; font-size: 24px;
+    color: var(--af-action); white-space: nowrap;
+  }
+  .dye-tab-group { display: flex; gap: 15px; }
+  .dye-tab-btn {
+    width: 225px; height: 60px; border-radius: 15px;
+    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 21px;
+    border: 2px solid var(--af-tab-stroke);
+    background: var(--af-page); color: var(--af-tab-text);
+    cursor: pointer; white-space: nowrap;
+  }
+  .dye-tab-btn.active {
+    background: var(--af-action); border-color: var(--af-action); color: #fff;
   }
 `;
 

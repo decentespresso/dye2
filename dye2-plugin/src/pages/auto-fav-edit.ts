@@ -4,7 +4,7 @@ import { lucideIcon } from "../utils/lucide";
 import {
   toggleCss, toggleRowScript,
   segmentControlHtml, segmentControlScript,
-  stepperCss,
+  stepperCss, favNumCss,
 } from "../utils/shared-components";
 import { datePickerCss, datePickerScript } from "../utils/date-picker";
 import { equipmentFieldCss, equipmentValuesModalHtml, equipmentFieldScript } from "../utils/equipment-field";
@@ -25,16 +25,7 @@ const styles = `
     outline: none;
   }
   .afe-input:focus { border-color: var(--mimoja-blue); }
-  .afe-fav-num {
-    width: 60px; height: 60px; border-radius: 9999px;
-    border: 2px solid var(--profile-button-outline-color);
-    font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 600;
-    color: var(--text-primary); background: transparent; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .afe-fav-num.active {
-    background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff;
-  }
+  ${favNumCss()}
   .afe-divider { height: 2px; background: var(--profile-button-outline-color); margin: 8px 0; }
 
   /* Every row shows a read-only value; the pencil reveals its editor. */
@@ -652,8 +643,9 @@ function setupControls() {
 
   el('afe-cancel-btn')?.addEventListener('click', () => window.history.back());
 
-  // SAVE TO RECIPE: writes recipes[] (id = the slot picked above), not autoFavourites. A slot that
-  // already holds a real recipe needs a second tap on the relabelled button.
+  // SAVE TO RECIPE: adds a new row to recipes[] holding strip slot n (stripSlot), not autoFavourites.
+  // A slot that already holds a real recipe needs a second tap on the relabelled button; that
+  // recipe stays in the library and just loses the slot (updateRecipe frees it).
   let overwriteArmed = null;
   document.querySelectorAll('.afe-fav-num').forEach(btn => btn.addEventListener('click', () => {
     overwriteArmed = null;
@@ -661,19 +653,18 @@ function setupControls() {
   }));
   el('afe-save-btn')?.addEventListener('click', async () => {
     const data = collectFavData();
-    const slot = String(getAssignedSlot() || 1);
+    const slot = getAssignedSlot() || 1;
     const s = data.snapshot;
     try {
-      const existing = (await getRecipes()).find(r => r && String(r.id) === slot);
+      const existing = (await getRecipes()).find(r => r && r.stripSlot === slot);
       const overwrite = !!existing && !existing.suggested;
       if (overwrite && overwriteArmed !== slot) {
         overwriteArmed = slot;
-        el('afe-save-btn').textContent = 'OVERWRITE RECIPE ' + slot + '?';
+        el('afe-save-btn').textContent = 'REPLACE RECIPE ' + slot + '?';
         return;
       }
-      // updateRecipe merges onto the stored row, so overwriting starts from an empty one.
-      if (existing) await kvSetArray('recipes', (await getRecipes()).filter(r => !(r && String(r.id) === slot)));
-      await updateRecipe(slot, {
+      await updateRecipe(newId('recipe'), {
+        stripSlot: slot,
         name: data.title || s.coffeeName || ('Recipe ' + slot), beverage: data.beverage || '',
         beanName: s.coffeeName, beanRoaster: s.coffeeRoaster, beanBatchId: s.beanBatchId,
         profileId: s.profileId, profileTitle: s.profileTitle, profileSnapshot: s.profileSnapshot,
@@ -689,10 +680,10 @@ function setupControls() {
     } catch (e) { console.error('Failed to save recipe:', e); }
   });
 
-  // Default the picker to the lowest free recipe slot (all taken: it stays on 1 and asks to overwrite).
+  // Default the picker to the lowest free recipe slot (all taken: it stays on 1 and asks to replace).
   getRecipes().then(rs => {
-    const taken = new Set(rs.filter(r => r && !r.suggested).map(r => String(r.id)));
-    const free = [1, 2, 3, 4, 5].find(n => !taken.has(String(n))) || 1;
+    const taken = new Set(rs.filter(r => r && !r.suggested).map(r => r.stripSlot));
+    const free = [1, 2, 3, 4, 5].find(n => !taken.has(n)) || 1;
     document.querySelectorAll('.afe-fav-num').forEach(b => b.classList.toggle('active', parseInt(b.dataset.num) === free));
   }).catch(() => {});
 }

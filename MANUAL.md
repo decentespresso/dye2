@@ -234,8 +234,11 @@ See "Visualizer" below.
 
 ## Recipes
 
-`DYE Settings → Recipes` opens **Edit Recipes**. There are five recipe slots — one per tab
-across the top (`Recipe 1` … `Recipe 5`).
+`DYE Settings → Recipes` (or the list button on the dashboard) opens **Select Recipe**: every
+recipe you have saved, as cards. Tap one to select it and **CONFIRM** to apply it; tap it again
+(or press and hold) to edit it. In the editor, **Assign recipe number** puts it on one of the five
+Streamline strip buttons (tap the lit number again to take it off the strip; the recipe stays in
+the library).
 
 **Loading a recipe does not tie your next changes to it.** Tap a recipe and it fills in the
 dose, grind and the rest; nudge any of them afterwards and the recipe itself is left alone, so

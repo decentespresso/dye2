@@ -109,7 +109,7 @@ workflow whose steam is off (`targetTemperature` below 135).
 
 **`save-recipe`** builds the row from the live workflow (`dashboardVariables` from
 `recipeFields`, bean/grinder/profile from `context`/`profile`, `workflow` the live one trimmed,
-`extras.dye` rebuilt as `markDye` flags for the fields the row carries, without `recipeId`/`selection`), stores it in the lowest free slot `'1'..'5'` (or the body's `slot`, replacing that row; a `suggested` row counts as free; all five taken and no `slot` answers 409 with the occupied slots) and PUTs its id as `recipeId`. The name is the
+`extras.dye` rebuilt as `markDye` flags for the fields the row carries, without `recipeId`/`selection`), stores it as a new row with an opaque id and `stripSlot` the lowest free `1..5` (or the body's `slot`, whose previous holder stays in the library and loses the slot; a `suggested` row counts as free; all five taken and no `slot` answers 409 with the occupied slots) and PUTs its id as `recipeId`. The name is the
 body's `name`, else `<first word of profile title> <drink>`: a generic title word (Default,
 Advanced, Custom, Profile, New, Untitled) is dropped; drink is, in order, steam on and set
 (duration <=20 s Flat White, <=35 s Cappuccino, otherwise or unknown Latte), hot water set
@@ -341,9 +341,19 @@ plugins should not read it.
 
 ```
 {
-  id,                          // '1'..'5' — the strip slot. `save-recipe` takes the lowest free slot, or
-                                // the body's `slot` (overwriting); all five taken and no `slot` -> 409
-                                // { error, taken }. A row with a non-1..5 id is a stray.
+  id,                          // opaque and stable (shot history and extras.dye.recipeId point at it, dye2#36).
+                                // It is NOT the strip position. Legacy rows keep their id '1'..'5'.
+  stripSlot,                   // 1..5 | null — the position on the Streamline R strip; null = saved in the
+                                // library only. One recipe per slot: assigning n clears it on whoever held n,
+                                // in the same write. `save-recipe` takes the lowest free slot, or the body's
+                                // `slot`; all five taken and no `slot` -> 409 { error, taken } (numbers).
+                                // Migration (plugin load, idempotent): a row whose id is '1'..'5' and that has
+                                // no `stripSlot` gets stripSlot = Number(id). Cleared (null) stays cleared.
+                                //
+                                // SKIN DEPENDENCY: streamline_project `recipeStripCells`
+                                // (src/modules/dye-selection.js) still reads the position off `recipe.id`. Until
+                                // it reads `stripSlot` (and ignores rows where it is null) the R strip is wrong:
+                                // new recipes have no slot-shaped id. Same bucket as streamline-js#159.
   suggested,                   // optional true: DYE2 filled this empty slot from the best-ranked recent
                                 // groups; not a barista's recipe. Re-ranking replaces it; applying it,
                                 // editing it or recording onto it drops the flag. Never set on a row
@@ -372,7 +382,7 @@ plugins should not read it.
   // null field but treat 0 as a real value.
 
   // added by this version (optional for consumers):
-  title,                       // name || 'Recipe <id>'
+  title,                       // name || 'Recipe'
   subtitle,                    // beanName || beverage || ''
   capturedAt,                  // ISO 8601 (recipes had no timestamp before)
   workflow: { context, profile?, steamSettings?, hotWaterData?, rinseData? }   // ready-to-PUT WorkflowRequest — does NOT carry equipment, see note below

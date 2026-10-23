@@ -216,7 +216,7 @@ the edited shot (`noteShotUpdated`) and the next run replaces its tail row, so a
 re-ranks without a rescan. A missing index or a different `v` is a full build of the last
 `TAIL_DAYS` only. Scoring uses the tail alone, so a shot older than that cannot change a rank and
 editing one needs no work. Pages read the resulting `autoFavourites` / `recipes`, never the index.
-The same top groups also fill empty recipe slots with `suggested: true` rows; real recipes are
+The same top groups also fill empty recipe strip slots (`stripSlot`) with `suggested: true` rows (opaque `sug-…` ids); real recipes are
 never overwritten. Writers of `recipes` that act on a row (`record`, an apply, `updateRecipe`)
 drop the flag first.
 

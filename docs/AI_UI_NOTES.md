@@ -121,6 +121,17 @@ Colour that stays literal is semantic on purpose: white text on `--mimoja-blue`,
 `--dye-chart-*` set. Browser code that cannot use CSS variables (Plotly in `chart.ts`) reads
 `document.documentElement.getAttribute('data-theme')` at render time instead.
 
+## Select Recipe And The Slot Control
+
+`pages/select-recipe.ts` is the recipe library (dashboard list icon and Settings ▸ Recipes). It
+is auto-favs without the tab strip: the same `pickerHeaderHtml`, `sortSidebarHtml` and card grid,
+whose CSS is `gridStyles` exported from `auto-favs.ts` — do not copy it. Tap selects, a second
+tap or 500 ms long-press opens `recipe-edit` for that recipe (`decideCardTap`), CONFIRM hands the
+id to the dashboard (`dye_selectedRecipeId`) which applies it. Slot assignment is not on the list:
+`recipe-edit` has "Assign recipe number", the 1-5 `.afe-fav-num` circles (`favNumCss()` in
+`shared-components.ts`, shared with auto-fav-edit); tapping the active number clears it, and taking
+a held number asks with a second tap on SAVE. recipe-edit leaves via `dye_recipeEditBack`.
+
 ## Touch And Selection
 
 `body` sets `user-select: none` and kills the long-press callout, because this is a tablet

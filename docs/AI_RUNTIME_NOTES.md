@@ -51,7 +51,7 @@ template-literal string, no browser runtime involved.
 
 ## Routing
 
-`dye2-plugin/src/plugin.ts:44` is a flat `switch` on `request.endpoint` — 15 page routes
+`dye2-plugin/src/plugin.ts:44` is a flat `switch` on `request.endpoint` — 16 page routes
 plus a `plotly` asset route. Nothing is auto-discovered.
 
 **Adding a page means editing three hand-maintained lists that nothing keeps in sync:**
@@ -62,7 +62,7 @@ plus a `plotly` asset route. Nothing is auto-discovered.
 
 Miss #2 and the page 404s in dev but works on the tablet. Miss #3 and it works in dev but
 the host never exposes the route in production — the inverse failure, and the slower one to
-notice. No test covers either. All three currently hold 16 entries; the check at the bottom
+notice. No test covers either. All three currently hold 17 entries; the check at the bottom
 of this note compares them.
 
 `plugin.ts:27` carries a hardcoded `version: "0.1.0"` that nobody syncs to the release tag.

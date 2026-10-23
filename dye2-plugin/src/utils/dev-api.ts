@@ -494,11 +494,14 @@ async function updateRecipe(id, patch) {
   const { dashboardVariables, ...rest } = patch || {};
   const item = { ...fresh, ...rest, id, capturedAt: new Date().toISOString() };
   delete item.suggested;   // an edit accepts a plugin-suggested row (recent-favs.ts)
+  if (!fresh.id && item.stripSlot === undefined) item.stripSlot = null;   // a new row: saved, not on the strip
   if (dashboardVariables) item.dashboardVariables = { ...(fresh.dashboardVariables || {}), ...dashboardVariables };
-  item.title = item.name || ('Recipe ' + id);
+  item.title = item.name || 'Recipe';
   item.subtitle = recipeSubtitle(item);
   item.workflow = await buildRecipeWorkflow(item);
   kvUpsert(arr, item);
+  // One slot, one recipe: taking a stripSlot frees it on whoever held it, in this same write.
+  if (item.stripSlot != null) arr.forEach(x => { if (x && x.id !== id && x.stripSlot === item.stripSlot) x.stripSlot = null; });
   await kvSetArray('recipes', arr);
   return item;
 }

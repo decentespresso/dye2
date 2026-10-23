@@ -596,12 +596,13 @@ function snapshotWorkflow() {
   if (btn) btn.style.opacity = '';
 }
 
-// Open recipe-edit on the recipe being dialled in (extras.dye.recipeId "1".."5"), else slot 1.
+// Open Select Recipe with the recipe being dialled in (extras.dye.recipeId) preselected; the
+// page ignores an id that names no row.
 async function openRecipes() {
   const live = await getWorkflow().catch(() => null);
-  const n = Number((((live || {}).context || {}).extras || {}).dye?.recipeId);
-  sessionStorage.setItem('dye_editRecipeIdx', String(n >= 1 && n <= 5 ? n - 1 : 0));
-  window.location.href = '/api/v1/plugins/dye2.reaplugin/recipe-edit';
+  const rid = (((live || {}).context || {}).extras || {}).dye?.recipeId;
+  if (rid) sessionStorage.setItem('dye_editRecipeId', String(rid)); else sessionStorage.removeItem('dye_editRecipeId');
+  window.location.href = '/api/v1/plugins/dye2.reaplugin/select-recipe';
 }
 
 function setupHistoryRevert() {
@@ -1221,7 +1222,7 @@ function renderRecipePills(workflow) {
   // flag, so it is never filtered.
   const recentItems = autoFavs.slice().sort((a, b) => (a.recentRank || 0) - (b.recentRank || 0));
   const recipeItems = recipes.length
-    ? recipes.filter(r => r && r.showOnStreamlineDashboard !== false)
+    ? recipes.filter(r => r && r.stripSlot != null && r.showOnStreamlineDashboard !== false).sort((a, b) => a.stripSlot - b.stripSlot)   // the strip holds the slotted ones; the rest live in Select Recipe
     : (workflow.favorites || workflow.recipes || []);
   const items = [...recentItems, ...recipeItems];
   container.innerHTML = '';
@@ -1919,6 +1920,20 @@ async function initializeDyeDashboard() {
         showTransientMessage('Favourite no longer available');
       }
     } catch (e) { console.warn('Could not apply selected auto-favourite:', e); }
+  }
+
+  // Returning from Select Recipe: apply the chosen recipe the way a pill tap does.
+  const selRecipeId = sessionStorage.getItem('dye_selectedRecipeId');
+  if (selRecipeId) {
+    sessionStorage.removeItem('dye_selectedRecipeId');
+    try {
+      const picked = recipes.find(r => r && r.id === selRecipeId) || null;
+      if (picked) {
+        await applyRecipe(picked);
+        noteApplied('recipe', picked);
+        await pushWorkflow().catch(e => console.warn(e));
+      }
+    } catch (e) { console.warn('Could not apply selected recipe:', e); }
   }
 
   autoFavs = allFavs.filter(f => f && f.auto);

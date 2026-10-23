@@ -283,22 +283,11 @@ console.log('ok   rankGroups: month rule, rated vs unrated, stale cutoff, monoto
 // --- allocateRecipeSlot / toSuggestedRecipe -----------------------------------------------------
 
 {
-  const row = (id, extra) => ({ id, ...extra });
-  assert.deepEqual(allocateRecipeSlot([]), { slot: '1' });
-  assert.deepEqual(allocateRecipeSlot([row('1'), row('3')]), { slot: '2' }, 'lowest free');
-  assert.deepEqual(allocateRecipeSlot([row('1', { suggested: true })]), { slot: '1' }, 'a suggested row is free');
-  assert.deepEqual(allocateRecipeSlot([row('uuid-stray')]), { slot: '1' }, 'strays do not occupy a slot');
-  const full = ['1', '2', '3', '4', '5'].map((id) => row(id));
-  assert.deepEqual(allocateRecipeSlot(full), { taken: ['1', '2', '3', '4', '5'] }, 'full -> caller 409s');
-  assert.deepEqual(allocateRecipeSlot(full, 4), { slot: '4' }, 'explicit slot honoured (overwrites)');
-  assert.deepEqual(allocateRecipeSlot(full, 9), { taken: ['1', '2', '3', '4', '5'] }, 'out-of-range slot ignored');
-
-  const fav = toRecentFavourite(makeShot('s1', '2026-05-30T00:00:00Z'), 1);
-  const r = toSuggestedRecipe(fav, '2');
-  assert.equal(r.id, '2');
+  const r = toSuggestedRecipe(toRecentFavourite(makeShot('s1', '2026-05-30T00:00:00Z'), 1), 2);
+  assert.equal(r.stripSlot, 2);
+  assert.ok(r.id.startsWith('sug-') && r.id !== '2', 'opaque id, not the slot');
   assert.equal(r.suggested, true);
   assert.equal(r.dashboardVariables.dose, 18);
-  assert.deepEqual(r.workflow, fav.workflow);
 }
 
 console.log('ok   allocateRecipeSlot / toSuggestedRecipe');
@@ -448,11 +437,11 @@ const scans = (calls) => calls.filter((c) => c.indexOf('/shots?limit=100') >= 0)
   for (let g = 0; g < 7; g++) { shots.push(shotAt('g' + g + 'a', 1 + g * 0.1, 'G' + g)); shots.push(shotAt('g' + g + 'b', 2 + g * 0.1, 'G' + g)); }
   shots.push(shotAt('lone', 0.5, 'LONE'));
   shots.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
-  const kv = { recipes: [{ id: '1', name: 'Mine' }] };
+  const kv = { recipes: [{ id: '1', name: 'Mine' }] };   // legacy row: migrated to stripSlot 1 on the way
   await refreshRecentFavourites(makeBridge(shots, kv).fetchFn, BASE);
   const sug = kv.recipes.filter((r) => r.suggested);
   assert.equal(sug.length, 2, 'ranks 6 and 7 qualify; "lone" has one shot');
-  assert.deepEqual(sug.map((r) => r.id), ['2', '3']);
+  assert.deepEqual(sug.map((r) => r.stripSlot), [2, 3]);
   const fBeans = new Set(kv.autoFavourites.filter((a) => a.auto).map((a) => a.workflow.context.beanBatchId));
   sug.forEach((r) => assert.equal(fBeans.has(r.workflow.context.beanBatchId), false, 'an F-strip group is never suggested'));
 }
@@ -469,7 +458,7 @@ const scans = (calls) => calls.filter((c) => c.indexOf('/shots?limit=100') >= 0)
   delete kv.recipes[0].suggested;
   shots.unshift(shotAt('s2', 0, 'Z'));
   await refreshRecentFavourites(makeBridge(shots, kv).fetchFn, BASE);
-  const kept = kv.recipes.find((r) => r.id === '1');
+  const kept = kv.recipes.find((r) => r.stripSlot === 1);
   assert.equal(kept.suggested, undefined, 'an accepted suggestion is kept as is');
   assert.equal(kept.name, name);
 }

@@ -89,6 +89,22 @@ export function pickerHeaderHtml(
   </div>`;
 }
 
+// The 1-5 slot circles (auto-fav-edit's "Assign Fav number", recipe-edit's "Assign recipe number").
+export function favNumCss(): string {
+  return `
+  .afe-fav-num {
+    width: 60px; height: 60px; border-radius: 9999px;
+    border: 2px solid var(--profile-button-outline-color);
+    font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 600;
+    color: var(--text-primary); background: transparent; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .afe-fav-num.active {
+    background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff;
+  }
+  `;
+}
+
 // ── Stepper ──────────────────────────────────────────────────────────────────
 
 export function stepperCss(): string {

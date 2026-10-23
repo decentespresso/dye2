@@ -836,11 +836,14 @@ async function updateRecipe(id, patch) {
   const { dashboardVariables, ...rest } = patch || {};
   const item = { ...fresh, ...rest, id, capturedAt: new Date().toISOString() };
   delete item.suggested;   // an edit accepts a plugin-suggested row (recent-favs.ts)
+  if (!fresh.id && item.stripSlot === undefined) item.stripSlot = null;   // a new row: saved, not on the strip
   if (dashboardVariables) item.dashboardVariables = { ...(fresh.dashboardVariables || {}), ...dashboardVariables };
-  item.title = item.name || ('Recipe ' + id);
+  item.title = item.name || 'Recipe';
   item.subtitle = recipeSubtitle(item);
   item.workflow = await buildRecipeWorkflow(item);
   kvUpsert(arr, item);
+  // One slot, one recipe: taking a stripSlot frees it on whoever held it, in this same write.
+  if (item.stripSlot != null) arr.forEach(x => { if (x && x.id !== id && x.stripSlot === item.stripSlot) x.stripSlot = null; });
   await kvSetArray('recipes', arr);
   return item;
 }
@@ -1080,7 +1083,7 @@ function buildGrinderBody(fields, isEdit) {
   .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
-	var content$10 = `
+	var content$11 = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
 
   <!-- Top bar -->
@@ -1190,7 +1193,7 @@ function buildGrinderBody(fields, isEdit) {
   </div>
 </div>
 `;
-	var pageScript$14 = `
+	var pageScript$15 = `
 let grindersCache = [];
 let searchQuery = '';
 let editingId = null;
@@ -1379,10 +1382,10 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Grinders", content$10, styles$14, [
+			body: devPageShell("Grinders", content$11, styles$14, [
 				devApiScript,
 				buildGrinderBodyScript,
-				pageScript$14
+				pageScript$15
 			])
 		};
 	}
@@ -1499,7 +1502,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
-	var content$9 = `
+	var content$10 = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
 
   <!-- Top bar -->
@@ -1572,7 +1575,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   </div>
 </div>
 `;
-	var pageScript$13 = `
+	var pageScript$14 = `
 let basketsCache = [];
 let searchQuery = '';
 let editingId = null;
@@ -1721,7 +1724,7 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Filter Baskets", content$9, styles$13, [devApiScript, pageScript$13])
+			body: devPageShell("Filter Baskets", content$10, styles$13, [devApiScript, pageScript$14])
 		};
 	}
 	//#endregion
@@ -1847,7 +1850,7 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
   .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
-	var content$8 = `
+	var content$9 = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
 
   <!-- Top bar -->
@@ -1905,7 +1908,7 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
   </div>
 </div>
 `;
-	var pageScript$12 = `
+	var pageScript$13 = `
 let equipmentCache = [];
 let searchQuery = '';
 let editingId = null;
@@ -2098,7 +2101,7 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Equipment", content$8, styles$12, [devApiScript, pageScript$12])
+			body: devPageShell("Equipment", content$9, styles$12, [devApiScript, pageScript$13])
 		};
 	}
 	//#endregion
@@ -2221,7 +2224,7 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
     background-clip: padding-box;
   }
 `;
-	var content$7 = `
+	var content$8 = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
 
   <!-- Top bar -->
@@ -2263,7 +2266,7 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
   </div>
 </div>
 `;
-	var pageScript$11 = `
+	var pageScript$12 = `
 let beansCache = [];
 let batchMap = {};
 let searchQuery = '';
@@ -2512,7 +2515,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Select Beans", content$7, styles$11, [devApiScript, pageScript$11])
+			body: devPageShell("Select Beans", content$8, styles$11, [devApiScript, pageScript$12])
 		};
 	}
 	//#endregion
@@ -2647,7 +2650,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
-	var content$6 = `
+	var content$7 = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
 
   <!-- Top bar -->
@@ -2762,7 +2765,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   </div>
 </div>
 `;
-	var pageScript$10 = `
+	var pageScript$11 = `
 let grindersCache = [];
 let searchQuery = '';
 let selectedGrinderId = null;
@@ -2998,7 +3001,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Select Grinder", content$6, styles$10, [devApiScript, pageScript$10])
+			body: devPageShell("Select Grinder", content$7, styles$10, [devApiScript, pageScript$11])
 		};
 	}
 	//#endregion
@@ -3133,7 +3136,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
-	var content$5 = `
+	var content$6 = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
 
   <!-- Top bar -->
@@ -3212,7 +3215,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   </div>
 </div>
 `;
-	var pageScript$9 = `
+	var pageScript$10 = `
 let basketsCache = [];
 let searchQuery = '';
 let selectedBasketId = null;
@@ -3419,7 +3422,7 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Select Filter Basket", content$5, styles$9, [devApiScript, pageScript$9])
+			body: devPageShell("Select Filter Basket", content$6, styles$9, [devApiScript, pageScript$10])
 		};
 	}
 	//#endregion
@@ -3487,7 +3490,7 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
     border: 12px solid transparent; background-clip: padding-box;
   }
 `;
-	var content$4 = `
+	var content$5 = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
 
   <div class="flex justify-between items-center px-[38px] border-b border-[var(--profile-button-outline-color)] bg-[var(--box-color)] h-[134px] shrink-0">
@@ -3527,7 +3530,7 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
   </div>
 </div>
 `;
-	var pageScript$8 = `
+	var pageScript$9 = `
 let profilesCache = [];
 let searchQuery = '';
 let selectedProfileId = null;
@@ -3712,7 +3715,7 @@ initializeDyeProfiles().catch(e => console.error('initializeDyeProfiles failed:'
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Select Profile", content$4, styles$8, [devApiScript, pageScript$8])
+			body: devPageShell("Select Profile", content$5, styles$8, [devApiScript, pageScript$9])
 		};
 	}
 	//#endregion
@@ -3795,7 +3798,7 @@ initializeDyeProfiles().catch(e => console.error('initializeDyeProfiles failed:'
     background-clip: padding-box;
   }
 `;
-	var content$3 = `
+	var content$4 = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
 
   <!-- Top bar -->
@@ -3833,7 +3836,7 @@ initializeDyeProfiles().catch(e => console.error('initializeDyeProfiles failed:'
   </div>
 </div>
 `;
-	var pageScript$7 = `
+	var pageScript$8 = `
 let beansCache = null;
 let selectedRoaster = null;
 
@@ -3998,7 +4001,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Select Roaster", content$3, styles$7, [devApiScript, pageScript$7])
+			body: devPageShell("Select Roaster", content$4, styles$7, [devApiScript, pageScript$8])
 		};
 	}
 	//#endregion
@@ -4270,6 +4273,20 @@ async function deleteBeanWithBatches(beanId, api) {
       <button id="dye-confirm-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px]${primaryDisabled ? " opacity-50" : ""}">${primaryLabel}</button>
     </div>
   </div>`;
+	}
+	function favNumCss() {
+		return `
+  .afe-fav-num {
+    width: 60px; height: 60px; border-radius: 9999px;
+    border: 2px solid var(--profile-button-outline-color);
+    font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 600;
+    color: var(--text-primary); background: transparent; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .afe-fav-num.active {
+    background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff;
+  }
+  `;
 	}
 	function stepperCss() {
 		return `
@@ -4652,7 +4669,7 @@ function syncPresetActive(idPrefix, currentVal) {
   .dye-form-textarea.dye-form-textarea-sm { height: 160px; min-height: 100px; }
   .dye-form-textarea::placeholder { color: var(--low-contrast-white); }
 `;
-	var content$2 = `
+	var content$3 = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
   <div class="flex justify-between items-center px-[37px] border-b border-[var(--profile-button-outline-color)] bg-[var(--box-color)] h-[165px]">
     <h1 id="dye-add-bean-title" class="text-[38px] font-bold text-[var(--text-primary)] no-select">Add New Beans</h1>
@@ -4750,7 +4767,7 @@ function syncPresetActive(idPrefix, currentVal) {
   </div>
 </div>
 `;
-	var pageScript$6 = `
+	var pageScript$7 = `
 ${beanDeleteScript}
 let beansCache = null;
 
@@ -5024,11 +5041,11 @@ initializeDyeAddBean().catch(e => console.error('initializeDyeAddBean failed:', 
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Add New Beans", content$2, styles$6, [
+			body: devPageShell("Add New Beans", content$3, styles$6, [
 				devApiScript,
 				datePickerScript(),
 				toggleRowScript,
-				pageScript$6
+				pageScript$7
 			])
 		};
 	}
@@ -6065,7 +6082,7 @@ function shotWeights(shot) {
 </div>
 `;
 	}
-	var pageScript$5 = `
+	var pageScript$6 = `
 ${enjoymentScaleScript}
 ${recordedShotScript}
 ${shotWeightsScript}
@@ -6149,12 +6166,13 @@ function snapshotWorkflow() {
   if (btn) btn.style.opacity = '';
 }
 
-// Open recipe-edit on the recipe being dialled in (extras.dye.recipeId "1".."5"), else slot 1.
+// Open Select Recipe with the recipe being dialled in (extras.dye.recipeId) preselected; the
+// page ignores an id that names no row.
 async function openRecipes() {
   const live = await getWorkflow().catch(() => null);
-  const n = Number((((live || {}).context || {}).extras || {}).dye?.recipeId);
-  sessionStorage.setItem('dye_editRecipeIdx', String(n >= 1 && n <= 5 ? n - 1 : 0));
-  window.location.href = '/api/v1/plugins/dye2.reaplugin/recipe-edit';
+  const rid = (((live || {}).context || {}).extras || {}).dye?.recipeId;
+  if (rid) sessionStorage.setItem('dye_editRecipeId', String(rid)); else sessionStorage.removeItem('dye_editRecipeId');
+  window.location.href = '/api/v1/plugins/dye2.reaplugin/select-recipe';
 }
 
 function setupHistoryRevert() {
@@ -6774,7 +6792,7 @@ function renderRecipePills(workflow) {
   // flag, so it is never filtered.
   const recentItems = autoFavs.slice().sort((a, b) => (a.recentRank || 0) - (b.recentRank || 0));
   const recipeItems = recipes.length
-    ? recipes.filter(r => r && r.showOnStreamlineDashboard !== false)
+    ? recipes.filter(r => r && r.stripSlot != null && r.showOnStreamlineDashboard !== false).sort((a, b) => a.stripSlot - b.stripSlot)   // the strip holds the slotted ones; the rest live in Select Recipe
     : (workflow.favorites || workflow.recipes || []);
   const items = [...recentItems, ...recipeItems];
   container.innerHTML = '';
@@ -7474,6 +7492,20 @@ async function initializeDyeDashboard() {
     } catch (e) { console.warn('Could not apply selected auto-favourite:', e); }
   }
 
+  // Returning from Select Recipe: apply the chosen recipe the way a pill tap does.
+  const selRecipeId = sessionStorage.getItem('dye_selectedRecipeId');
+  if (selRecipeId) {
+    sessionStorage.removeItem('dye_selectedRecipeId');
+    try {
+      const picked = recipes.find(r => r && r.id === selRecipeId) || null;
+      if (picked) {
+        await applyRecipe(picked);
+        noteApplied('recipe', picked);
+        await pushWorkflow().catch(e => console.warn(e));
+      }
+    } catch (e) { console.warn('Could not apply selected recipe:', e); }
+  }
+
   autoFavs = allFavs.filter(f => f && f.auto);
 
   initChart();
@@ -7533,7 +7565,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 				devApiScript,
 				shotPagingScript,
 				chartScript,
-				pageScript$5
+				pageScript$6
 			], { plotly: true })
 		};
 	}
@@ -7804,7 +7836,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 </div>
 `;
 	}
-	var pageScript$4 = `
+	var pageScript$5 = `
 ${enjoymentScaleScript}
 ${recordedShotScript}
 const PENCIL_SVG = ${JSON.stringify(lucideIcon("pencil", 20, "currentColor", 2))};
@@ -8567,7 +8599,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Edit Shot", buildContent$2(), styles$4, [devApiScript, pageScript$4])
+			body: devPageShell("Edit Shot", buildContent$2(), styles$4, [devApiScript, pageScript$5])
 		};
 	}
 	//#endregion
@@ -8656,7 +8688,7 @@ function decideCardTap(selectedId, favId) {
 		"Profile",
 		"Grinder"
 	];
-	var styles$3 = `
+	var gridStyles = `
   ${sortSidebarCss()}
   ${pickerCardCss()}
   /* Figma 2386:669 colours. Page-scoped values so the shared picker helpers and other pages
@@ -8683,25 +8715,6 @@ function decideCardTap(selectedId, favId) {
     content: 'Sort by'; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 24px;
     color: var(--af-action); text-align: center; padding-bottom: 10px;
   }
-  /* Figma 2386:669 (x0.75): "Group recent favourites by" label left, four 225x60 tabs right. */
-  .dye-tab-strip {
-    display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 0 0;
-  }
-  .dye-tab-label {
-    font-family: 'Inter', sans-serif; font-weight: 700; font-size: 24px;
-    color: var(--af-action); white-space: nowrap;
-  }
-  .dye-tab-group { display: flex; gap: 15px; }
-  .dye-tab-btn {
-    width: 225px; height: 60px; border-radius: 15px;
-    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 21px;
-    border: 2px solid var(--af-tab-stroke);
-    background: var(--af-page); color: var(--af-tab-text);
-    cursor: pointer; white-space: nowrap;
-  }
-  .dye-tab-btn.active {
-    background: var(--af-action); border-color: var(--af-action); color: #fff;
-  }
   /* Figma cards: surface fill, 1px border, centred title / sub / divider / date, no side padding
      so the divider runs edge to edge. */
   #dye-cards-grid .dye-card {
@@ -8727,7 +8740,28 @@ function decideCardTap(selectedId, favId) {
     color: var(--af-action); padding: 10px 2px 0;
   }
 `;
-	var content$1 = `
+	var styles$3 = gridStyles + `
+  /* Figma 2386:669 (x0.75): "Group recent favourites by" label left, four 225x60 tabs right. */
+  .dye-tab-strip {
+    display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 0 0;
+  }
+  .dye-tab-label {
+    font-family: 'Inter', sans-serif; font-weight: 700; font-size: 24px;
+    color: var(--af-action); white-space: nowrap;
+  }
+  .dye-tab-group { display: flex; gap: 15px; }
+  .dye-tab-btn {
+    width: 225px; height: 60px; border-radius: 15px;
+    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 21px;
+    border: 2px solid var(--af-tab-stroke);
+    background: var(--af-page); color: var(--af-tab-text);
+    cursor: pointer; white-space: nowrap;
+  }
+  .dye-tab-btn.active {
+    background: var(--af-action); border-color: var(--af-action); color: #fff;
+  }
+`;
+	var content$2 = `
 <div class="afav overflow-hidden flex-grow flex flex-col">
   <div class="afav-header">${pickerHeaderHtml("DYE Auto Favourites", "CONFIRM")}</div>
   <div class="flex flex-1 overflow-hidden">
@@ -8746,7 +8780,7 @@ function decideCardTap(selectedId, favId) {
   </div>
 </div>
 `;
-	var pageScript$3 = `
+	var pageScript$4 = `
 ${sortSidebarScript}
 ${favDateScript}
 ${favCardTapScript}
@@ -8959,7 +8993,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Auto Favourites", content$1, styles$3, [devApiScript, pageScript$3])
+			body: devPageShell("Auto Favourites", content$2, styles$3, [devApiScript, pageScript$4])
 		};
 	}
 	//#endregion
@@ -9170,16 +9204,7 @@ function initEquipmentField(field) {
     outline: none;
   }
   .afe-input:focus { border-color: var(--mimoja-blue); }
-  .afe-fav-num {
-    width: 60px; height: 60px; border-radius: 9999px;
-    border: 2px solid var(--profile-button-outline-color);
-    font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 600;
-    color: var(--text-primary); background: transparent; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .afe-fav-num.active {
-    background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff;
-  }
+  ${favNumCss()}
   .afe-divider { height: 2px; background: var(--profile-button-outline-color); margin: 8px 0; }
 
   /* Every row shows a read-only value; the pencil reveals its editor. */
@@ -9391,7 +9416,7 @@ function initEquipmentField(field) {
 ${equipmentValuesModalHtml()}
 `;
 	}
-	var pageScript$2 = `
+	var pageScript$3 = `
 ${toggleRowScript}
 ${segmentControlScript}
 ${equipmentFieldScript}
@@ -9803,8 +9828,9 @@ function setupControls() {
 
   el('afe-cancel-btn')?.addEventListener('click', () => window.history.back());
 
-  // SAVE TO RECIPE: writes recipes[] (id = the slot picked above), not autoFavourites. A slot that
-  // already holds a real recipe needs a second tap on the relabelled button.
+  // SAVE TO RECIPE: adds a new row to recipes[] holding strip slot n (stripSlot), not autoFavourites.
+  // A slot that already holds a real recipe needs a second tap on the relabelled button; that
+  // recipe stays in the library and just loses the slot (updateRecipe frees it).
   let overwriteArmed = null;
   document.querySelectorAll('.afe-fav-num').forEach(btn => btn.addEventListener('click', () => {
     overwriteArmed = null;
@@ -9812,19 +9838,18 @@ function setupControls() {
   }));
   el('afe-save-btn')?.addEventListener('click', async () => {
     const data = collectFavData();
-    const slot = String(getAssignedSlot() || 1);
+    const slot = getAssignedSlot() || 1;
     const s = data.snapshot;
     try {
-      const existing = (await getRecipes()).find(r => r && String(r.id) === slot);
+      const existing = (await getRecipes()).find(r => r && r.stripSlot === slot);
       const overwrite = !!existing && !existing.suggested;
       if (overwrite && overwriteArmed !== slot) {
         overwriteArmed = slot;
-        el('afe-save-btn').textContent = 'OVERWRITE RECIPE ' + slot + '?';
+        el('afe-save-btn').textContent = 'REPLACE RECIPE ' + slot + '?';
         return;
       }
-      // updateRecipe merges onto the stored row, so overwriting starts from an empty one.
-      if (existing) await kvSetArray('recipes', (await getRecipes()).filter(r => !(r && String(r.id) === slot)));
-      await updateRecipe(slot, {
+      await updateRecipe(newId('recipe'), {
+        stripSlot: slot,
         name: data.title || s.coffeeName || ('Recipe ' + slot), beverage: data.beverage || '',
         beanName: s.coffeeName, beanRoaster: s.coffeeRoaster, beanBatchId: s.beanBatchId,
         profileId: s.profileId, profileTitle: s.profileTitle, profileSnapshot: s.profileSnapshot,
@@ -9840,10 +9865,10 @@ function setupControls() {
     } catch (e) { console.error('Failed to save recipe:', e); }
   });
 
-  // Default the picker to the lowest free recipe slot (all taken: it stays on 1 and asks to overwrite).
+  // Default the picker to the lowest free recipe slot (all taken: it stays on 1 and asks to replace).
   getRecipes().then(rs => {
-    const taken = new Set(rs.filter(r => r && !r.suggested).map(r => String(r.id)));
-    const free = [1, 2, 3, 4, 5].find(n => !taken.has(String(n))) || 1;
+    const taken = new Set(rs.filter(r => r && !r.suggested).map(r => r.stripSlot));
+    const free = [1, 2, 3, 4, 5].find(n => !taken.has(n)) || 1;
     document.querySelectorAll('.afe-fav-num').forEach(b => b.classList.toggle('active', parseInt(b.dataset.num) === free));
   }).catch(() => {});
 }
@@ -9932,30 +9957,18 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 			body: devPageShell("Edit Auto Favourite", buildContent$1(), styles$2, [
 				devApiScript,
 				datePickerScript(),
-				pageScript$2
+				pageScript$3
 			])
 		};
 	}
 	//#endregion
 	//#region src/pages/recipe-edit.ts
-	var NUM_RECIPES = 5;
 	var subLabel = (text) => `<div class="re-sub-label">${text}</div>`;
 	var styles$1 = `
   ${stepperCss()}
   ${presetStripCss()}
   ${equipmentFieldCss}
-  /* Figma 2396:728: fixed 270x60 pills, stroke var(--chip-stroke), text var(--chip-text) */
-  .re-tab {
-    width: 270px; height: 60px; border-radius: 15px;
-    /* ponytail: block + line-height, not flex — text-overflow:ellipsis only works on a block box */
-    display: block; line-height: 56px; text-align: center;
-    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 21px;
-    border: 2px solid var(--chip-stroke);
-    background: var(--box-color); color: var(--chip-text);
-    cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    flex-shrink: 0; padding: 0 20px;
-  }
-  .re-tab.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  ${favNumCss()}
   .re-label { font-size: 24px; font-weight: 700; color: var(--mimoja-blue); margin-bottom: 8px; }
   /* Figma 2396:747: label sits inline beside the input, 164px wide */
   .re-field-label { font-size: 24px; font-weight: 700; color: var(--mimoja-blue); width: 164px; flex-shrink: 0; }
@@ -10096,12 +10109,9 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 		return `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex flex-col font-['Inter',sans-serif]">
 
-  <!-- Header: title + recipe tabs on the grey strip (Figma 2386:1874) -->
+  <!-- Header: the recipe's name as the title (Figma 2386:1874 minus the five-slot tab strip) -->
   <div class="flex items-center gap-[48px] px-[38px] h-[124px] shrink-0 bg-[var(--bgmain-color)] border-b border-[var(--profile-button-outline-color)]">
-    <span class="text-[30px] font-semibold text-[var(--text-primary)] shrink-0">Edit Recipes</span>
-    <div id="re-tabs" class="flex gap-[15px] overflow-x-auto" style="scrollbar-width:none">
-      ${Array.from({ length: NUM_RECIPES }, (_, i) => `<button class="re-tab${i === 0 ? " active" : ""}" data-recipe="${i}">Recipe ${i + 1}</button>`).join("")}
-    </div>
+    <span id="re-title" class="text-[30px] font-semibold text-[var(--text-primary)] truncate">Recipe</span>
   </div>
 
   <!-- Two-column body, 50/50 like the Figma columns -->
@@ -10115,6 +10125,21 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
         <div class="re-input-row">
           <input id="re-name-input" class="re-input" type="text" placeholder="Recipe name…" />
           <button class="re-input-pencil" id="re-name-pencil">${pencilSvg}</button>
+        </div>
+      </div>
+
+      <div class="re-divider"></div>
+
+      <div>
+        <div class="re-label">Assign recipe number</div>
+        <div class="flex gap-[18px] mt-[4px]" id="re-slots">
+          ${[
+			1,
+			2,
+			3,
+			4,
+			5
+		].map((n) => `<button class="afe-fav-num" data-num="${n}">${n}</button>`).join("")}
         </div>
       </div>
 
@@ -10396,7 +10421,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 </div>
 `;
 	}
-	var pageScript$1 = `
+	var pageScript$2 = `
 ${presetStripScript}
 ${segmentControlScript}
 ${equipmentFieldScript}
@@ -10404,13 +10429,16 @@ ${equipmentFieldScript}
 const STREAMLINE_ON_SVG  = ${JSON.stringify(streamlineOnSvg)};
 const STREAMLINE_OFF_SVG = ${JSON.stringify(streamlineOffSvg)};
 
-const NUM_RECIPES = ${NUM_RECIPES};
-let recipes = [];
-// Each slot as read from the store at open, never edited: save writes only what differs from
-// it, so a dial-in recorded while the page is open is not reverted (dye2#28). A slot with no
-// stored record is {}, so everything on it counts as changed.
-let recipeBaselines = [];
-let currentRecipeIdx = 0;
+// The one recipe this page edits, opened by id (sessionStorage dye_editRecipeId, set by
+// select-recipe). No id: a new recipe, written under a fresh opaque id on save.
+let recipe = {};
+// The recipe as read from the store at open, never edited: save writes only what differs from
+// it, so a dial-in recorded while the page is open is not reverted (dye2#28). A new recipe
+// has no stored record ({}), so everything on it counts as changed.
+let recipeBaseline = {};
+let allRecipes = [];    // the library, to name whoever holds a slot
+let stripSlot = null;   // 1..5 | null, the strip position picked in "Assign recipe number"
+let slotArmed = null;   // slot whose current holder the next SAVE tap replaces
 let grinders = [];
 let baskets = [];
 let showOnStreamline = true;
@@ -10683,12 +10711,12 @@ function favouriteToRecipePatch(fav) {
 // Merge a patch into the current recipe (keep id/name), then re-render.
 function applyToCurrentRecipe(src) {
   if (!src) return;
-  const cur = recipes[currentRecipeIdx] || {};
+  const cur = recipe;
   const merged = {
     ...cur, ...src, id: cur.id, name: cur.name,
     dashboardVariables: { ...(cur.dashboardVariables || {}), ...(src.dashboardVariables || {}) },
   };
-  recipes[currentRecipeIdx] = merged;
+  recipe = merged;
   if (merged.dashboardVariables.grinderId) selectedGrinderId = merged.dashboardVariables.grinderId;
   if (merged.dashboardVariables.basketId) selectedBasketId = merged.dashboardVariables.basketId;
   renderRecipe(merged);
@@ -10825,7 +10853,7 @@ function getCurrentRecipeData() {
   const hwVal     = num('re-hotwater-value');
   // The mode only picks which value this editor shows. The other one is not on screen, so keep
   // what the recipe holds rather than saving it as blank (which recipeChanges writes as null).
-  const held = (recipes[currentRecipeIdx] && recipes[currentRecipeIdx].dashboardVariables) || {};
+  const held = recipe.dashboardVariables || {};
   // Persist the drink ratio only while the yield still equals dose × ratio (i.e. not manually overridden).
   const doseVal = num('re-dose-value'), drinkVal = num('re-drink-value');
   const ratioAttr = document.getElementById('re-drink-value')?.dataset.ratio;
@@ -10845,6 +10873,7 @@ function getCurrentRecipeData() {
     profileTitle: selectedProfileTitle,
     profileSnapshot: selectedProfileSnapshot,
     showOnStreamlineDashboard: showOnStreamline,
+    stripSlot,
     dashboardVariables: {
       dose:    num('re-dose-value'),
       drink:   num('re-drink-value'),
@@ -10888,33 +10917,37 @@ function machineValues(held) {
   return out;
 }
 
-function setupTabs() {
-  document.getElementById('re-tabs')?.querySelectorAll('.re-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.re-tab').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentRecipeIdx = parseInt(btn.dataset.recipe);
-      const recipe = recipes[currentRecipeIdx];
-      if (recipe) renderRecipe(recipe);
-    });
-  });
+// Highlights stripSlot on the circles; tapping the active one clears it (saved, not on the strip).
+// Taking a slot another recipe holds is confirmed on SAVE (a second tap), as auto-fav-edit does.
+function renderSlots() {
+  document.querySelectorAll('#re-slots .afe-fav-num').forEach(b =>
+    b.classList.toggle('active', parseInt(b.dataset.num) === stripSlot));
+}
+function setupSlots() {
+  document.querySelectorAll('#re-slots .afe-fav-num').forEach(btn => btn.addEventListener('click', () => {
+    const n = parseInt(btn.dataset.num);
+    stripSlot = stripSlot === n ? null : n;
+    slotArmed = null;
+    const save = document.getElementById('re-save-btn');
+    if (save) save.textContent = 'SAVE RECIPE';
+    renderSlots();
+  }));
 }
 
 // Opening a See-All picker mid-edit pushes entries onto the history stack (picker, then
 // this page again on confirm), so history.back() lands on the picker the user just left
-// rather than the dashboard that opened this page. Leave by route instead.
-const DASHBOARD_ROUTE = 'dashboard';
+// rather than the page that opened this page. Leave by route instead: select-recipe leaves
+// its route in dye_recipeEditBack (the ?return= is lost across a picker round trip).
 function leaveRecipeEdit() {
-  const ret = new URLSearchParams(location.search).get('return');
-  window.location.href = ret || DASHBOARD_ROUTE;
+  const ret = new URLSearchParams(location.search).get('return') || sessionStorage.getItem('dye_recipeEditBack');
+  window.location.href = ret || 'dashboard';
 }
 
 // Persist the in-progress form (full-page nav to the picker would otherwise lose it),
 // then open the picker. initRecipeEdit restores the draft and folds in the pick on return.
 function goToPicker(route) {
-  const cur = recipes[currentRecipeIdx] || {};
-  recipes[currentRecipeIdx] = { ...cur, ...getCurrentRecipeData(), id: cur.id };
-  sessionStorage.setItem('dye_recipeDraft', JSON.stringify({ idx: currentRecipeIdx, recipes }));
+  recipe = { ...recipe, ...getCurrentRecipeData(), id: recipe.id };
+  sessionStorage.setItem('dye_recipeDraft', JSON.stringify({ recipe }));
   window.location.href = route;
 }
 
@@ -10972,7 +11005,7 @@ function setupMachineSection() {
 function renderHeld() {
   const list = document.getElementById('re-held-list');
   if (!list) return;
-  const dv = (recipes[currentRecipeIdx] && recipes[currentRecipeIdx].dashboardVariables) || {};
+  const dv = recipe.dashboardVariables || {};
   const pairs = [
     activeMode('re-steam-mode') === 'time' ? ['steamFlowMls', 'Steam flow', 'ml/s'] : ['steamTimeS', 'Steam time', 's'],
     activeMode('re-hotwater-mode') === 'vol' ? ['hotWaterTempC', 'Hot water temp', '°c'] : ['hotWaterMl', 'Hot water vol', 'ml'],
@@ -11016,7 +11049,7 @@ function applyMode(cls) {
   if (valEl) {
     // A recipe holds both values of a pair (dye2#23), so each mode shows ITS field, blank when
     // it has none. Relabelling the other mode's number would save 30s as 30 ml/s.
-    const held = (recipes[currentRecipeIdx] && recipes[currentRecipeIdx].dashboardVariables) || {};
+    const held = recipe.dashboardVariables || {};
     const v = cfg.field ? held[cfg.field[mode]] : parseFloat(valEl.textContent);
     const n = v == null ? NaN : parseFloat(v);
     valEl.textContent = isNaN(n) ? '—' : n + (cfg.unit[mode] || '');
@@ -11034,7 +11067,7 @@ function setMode(cls, mode) {
 // up (its 'held' fallback) for the mode that is no longer shown.
 function stashModeValue(cls) {
   const cfg = MODE_CFG[cls];
-  const slot = recipes[currentRecipeIdx];
+  const slot = recipe;
   const valEl = cfg && document.getElementById(cfg.valueId);
   const key = cfg && cfg.field && cfg.field[activeMode(cls)];
   if (!key || !slot || !valEl) return;
@@ -11175,27 +11208,31 @@ function setupFooter() {
   });
 
   document.getElementById('re-clear-btn')?.addEventListener('click', () => {
-    recipes[currentRecipeIdx] = {};
-    renderRecipe({});
+    recipe = { id: recipe.id };
+    renderRecipe(recipe);
   });
 
   document.getElementById('re-cancel-btn')?.addEventListener('click', () => leaveRecipeEdit());
 
   document.getElementById('re-save-btn')?.addEventListener('click', async () => {
     const data = getCurrentRecipeData();
-    const recipe = recipes[currentRecipeIdx];
+    const saveBtn = document.getElementById('re-save-btn');
     try {
-      if (recipe && recipe.id) {
-        const saved = await updateRecipe(recipe.id, recipeChanges(recipeBaselines[currentRecipeIdx] || {}, data));
-        await reapplyIfSelected(saved);
+      const holder = stripSlot != null && allRecipes.find(r => r && r.id !== recipe.id && r.stripSlot === stripSlot && !r.suggested);
+      if (holder && slotArmed !== stripSlot) {
+        slotArmed = stripSlot;
+        saveBtn.textContent = 'REPLACE ' + (holder.name || 'RECIPE') + ' ON ' + stripSlot + '?';
+        return;
       }
+      const saved = await updateRecipe(recipe.id, recipeChanges(recipeBaseline, data));
+      await reapplyIfSelected(saved);
       leaveRecipeEdit();
     } catch (e) { console.error('Failed to save recipe:', e); }
   });
 }
 
 async function initRecipeEdit() {
-  setupTabs();
+  setupSlots();
   setupStreamlineToggle();
   setupPresetStrips();
   // After setupPresetStrips so the mode toggle owns/rewires the strips it rebuilds.
@@ -11230,17 +11267,13 @@ async function initRecipeEdit() {
   } catch (e) {
     console.warn('Could not load recipes from KV store:', e);
   }
-  // Normalize to NUM_RECIPES fixed slots with stable ids ("1".."5") so save() always upserts.
-  recipes = Array.from({ length: NUM_RECIPES }, (_, i) => {
-    const id = String(i + 1);
-    const existing = loadedRecipes.find(r => r && r.id === id);
-    return existing ? { ...existing, id } : { id, name: 'Recipe ' + (i + 1) };
-  });
-  recipeBaselines = recipes.map((_, i) => JSON.parse(JSON.stringify(loadedRecipes.find(r => r && r.id === String(i + 1)) || {})));
-  document.querySelectorAll('.re-tab').forEach((btn, i) => {
-    const stored = loadedRecipes.find(r => r && r.id === String(i + 1));
-    btn.textContent = !stored ? 'Empty ' + (i + 1) : (stored.name || 'Recipe ' + (i + 1)) + (stored.suggested ? ' (suggested)' : '');
-  });
+  allRecipes = loadedRecipes;
+  const editId = sessionStorage.getItem('dye_editRecipeId');
+  const stored = editId ? loadedRecipes.find(r => r && r.id === editId) : null;
+  recipeBaseline = JSON.parse(JSON.stringify(stored || {}));
+  recipe = stored ? { ...stored } : { id: editId || newId('recipe') };
+  if (!editId) sessionStorage.setItem('dye_editRecipeId', recipe.id);   // so a picker round trip keeps the same new id
+  stripSlot = recipe.stripSlot == null ? null : recipe.stripSlot;
 
   try {
     const gs = await getGrinders().catch(() => []);
@@ -11256,9 +11289,6 @@ async function initRecipeEdit() {
   const ps = await getProfiles().catch(() => []);
   profiles = Array.isArray(ps) ? ps : (ps && ps.items ? ps.items : []);
 
-  const storedIdx = parseInt(sessionStorage.getItem('dye_editRecipeIdx') || '0');
-  currentRecipeIdx = isNaN(storedIdx) ? 0 : Math.min(storedIdx, NUM_RECIPES - 1);
-
   // Returning from a See-All picker: restore the draft we stashed, then fold in the pick.
   // Gated on the draft so stray picker keys from other flows are never adopted here.
   const draftRaw = sessionStorage.getItem('dye_recipeDraft');
@@ -11266,9 +11296,8 @@ async function initRecipeEdit() {
   if (draftRaw) {
     try {
       const draft = JSON.parse(draftRaw);
-      if (Array.isArray(draft.recipes) && draft.recipes.length === NUM_RECIPES) recipes = draft.recipes;
-      if (draft.idx != null) currentRecipeIdx = Math.min(draft.idx, NUM_RECIPES - 1);
-      const cur = recipes[currentRecipeIdx] || (recipes[currentRecipeIdx] = { id: String(currentRecipeIdx + 1) });
+      if (draft.recipe && draft.recipe.id === recipe.id) { recipe = draft.recipe; stripSlot = recipe.stripSlot == null ? null : recipe.stripSlot; }
+      const cur = recipe;
       const beanId = sessionStorage.getItem('dye_selectedBeanId');
       if (beanId) {
         cur.beanId = beanId;
@@ -11310,12 +11339,10 @@ async function initRecipeEdit() {
       if (fav) applyToCurrentRecipe(favouriteToRecipePatch(fav));
     } catch (e) { console.warn('Could not load selected auto-favourite:', e); }
   }
-  const activeTab = document.querySelectorAll('.re-tab')[currentRecipeIdx];
-  if (activeTab) {
-    document.querySelectorAll('.re-tab').forEach(b => b.classList.remove('active'));
-    activeTab.classList.add('active');
-  }
-  renderRecipe(recipes[currentRecipeIdx] || {});
+  const title = document.getElementById('re-title');
+  if (title) title.textContent = recipe.name || 'New recipe';
+  renderSlots();
+  renderRecipe(recipe);
   renderGrinderChips();
   renderBasketChips();
 }
@@ -11332,7 +11359,144 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Edit Recipes", buildContent(), styles$1, [devApiScript, pageScript$1])
+			body: devPageShell("Edit Recipes", buildContent(), styles$1, [devApiScript, pageScript$2])
+		};
+	}
+	//#endregion
+	//#region src/pages/select-recipe.ts
+	var content$1 = `
+<div class="afav overflow-hidden flex-grow flex flex-col">
+  <div class="afav-header">${pickerHeaderHtml("Select Recipe", "CONFIRM")}</div>
+  <div class="flex flex-1 overflow-hidden">
+    ${sortSidebarHtml()}
+    <div class="flex flex-col flex-1 overflow-hidden px-[20px]">
+      <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[20px] pr-[20px]">
+        <div id="dye-cards-grid" class="grid grid-cols-3 gap-[30px]"></div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+	var pageScript$1 = `
+${sortSidebarScript}
+${favCardTapScript}
+
+let recipesCache = [];
+// dye_editRecipeId is the preselected card: the dashboard sets it to the recipe being dialled
+// in, and a card's edit sets it so coming back from recipe-edit lands on the same card.
+let selectedRecipeId = sessionStorage.getItem('dye_editRecipeId');
+let currentSort = 'recent';
+
+// Recipes carry no use count, so the two "used" sorts the shared rail offers do nothing here.
+document.querySelectorAll('#dye-sort-sidebar [data-sort$="used"]').forEach(b => b.remove());
+
+function sortRecipes(list, sortKey) {
+  const s = [...list];
+  const name = r => r.name || r.title || '';
+  switch (sortKey) {
+    case 'recent': s.sort((a, b) => new Date(b.capturedAt || 0) - new Date(a.capturedAt || 0)); break;
+    case 'oldest': s.sort((a, b) => new Date(a.capturedAt || 0) - new Date(b.capturedAt || 0)); break;
+    case 'az':     s.sort((a, b) => name(a).localeCompare(name(b))); break;
+    case 'za':     s.sort((a, b) => name(b).localeCompare(name(a))); break;
+  }
+  return s;
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function syncConfirmButton() {
+  document.getElementById('dye-confirm-btn')?.classList.toggle('opacity-50', !selectedRecipeId);
+}
+
+function selectCard(card, recipe) {
+  document.querySelectorAll('.dye-card').forEach(c => c.classList.remove('dye-card-selected'));
+  card.classList.add('dye-card-selected');
+  selectedRecipeId = recipe.id;
+  syncConfirmButton();
+}
+
+// recipe-edit leaves by route, not history.back(): a picker round trip there pushes entries.
+function openEditPage(recipeId) {
+  if (recipeId) sessionStorage.setItem('dye_editRecipeId', recipeId); else sessionStorage.removeItem('dye_editRecipeId');
+  sessionStorage.setItem('dye_recipeEditBack', 'select-recipe');
+  window.location.href = 'recipe-edit';
+}
+
+function renderCards() {
+  const grid = document.getElementById('dye-cards-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  if (selectedRecipeId && !recipesCache.some(r => r.id === selectedRecipeId)) selectedRecipeId = null;
+
+  sortRecipes(recipesCache, currentSort).forEach(recipe => {
+    const card = document.createElement('div');
+    card.className = 'dye-card' + (recipe.id === selectedRecipeId ? ' dye-card-selected' : '');
+    const title = recipe.name || recipe.title || 'Untitled recipe';
+    const sub = [recipe.beanName, recipe.profileTitle].filter(Boolean).join(' · ') || recipe.subtitle || '';
+    const foot = [recipe.stripSlot ? 'Recipe ' + recipe.stripSlot : '', recipe.suggested ? 'Suggested' : ''].filter(Boolean).join(' · ');
+    card.innerHTML =
+      '<div class="fav-card-head"><div class="fav-card-title">' + esc(title) + '</div>' +
+      (sub ? '<div class="fav-card-sub">' + esc(sub) + '</div>' : '') + '</div>' +
+      (foot ? '<hr class="dye-card-divider"><div class="fav-card-date">' + esc(foot) + '</div>' : '');
+    // Same press handling as auto-favs: first tap selects, a second tap on the selected card or a
+    // 500ms long-press opens the editor, and the click that ends a long-press is swallowed.
+    card.addEventListener('click', () => {
+      if (decideCardTap(selectedRecipeId, recipe.id) === 'edit') openEditPage(recipe.id);
+      else selectCard(card, recipe);
+    });
+    let editTimer = null, longFired = false;
+    const clearEdit = () => { if (editTimer) { clearTimeout(editTimer); editTimer = null; } };
+    card.addEventListener('pointerdown', () => {
+      longFired = false;
+      clearEdit();
+      editTimer = setTimeout(() => { editTimer = null; longFired = true; openEditPage(recipe.id); }, 500);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => card.addEventListener(ev, clearEdit));
+    card.addEventListener('click', (e) => {
+      if (longFired) { e.stopImmediatePropagation(); e.preventDefault(); longFired = false; }
+    }, true);
+    grid.appendChild(card);
+  });
+
+  // An empty library is just this card, as on auto-favs.
+  const addCard = document.createElement('div');
+  addCard.className = 'dye-card dye-card-add';
+  addCard.innerHTML = '<span>ADD NEW RECIPE</span><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
+  addCard.addEventListener('click', () => openEditPage(null));
+  grid.appendChild(addCard);
+  syncConfirmButton();
+}
+
+async function initSelectRecipe() {
+  setupSortButtons(sort => { currentSort = sort; renderCards(); });
+  // Route out, not history.back(): coming back from recipe-edit puts that page behind us.
+  document.getElementById('dye-cancel-btn')?.addEventListener('click', () => { window.location.href = 'dashboard'; });
+  document.getElementById('dye-confirm-btn')?.addEventListener('click', () => {
+    if (!selectedRecipeId) return;
+    sessionStorage.setItem('dye_selectedRecipeId', selectedRecipeId);   // the dashboard applies it on load
+    window.location.href = 'dashboard';
+  });
+  try {
+    const result = await getRecipes().catch(() => []);
+    recipesCache = (Array.isArray(result) ? result : []).filter(r => r && r.id);
+  } catch (e) { recipesCache = []; }
+  renderCards();
+}
+
+initSelectRecipe().catch(e => console.error('initSelectRecipe failed:', e));
+
+// A page restored from bfcache never re-runs init, so a recipe saved in recipe-edit would be missing.
+window.addEventListener('pageshow', function(e) { if (e.persisted) window.location.reload(); });
+`;
+	function renderSelectRecipePage(request) {
+		return {
+			requestId: request.requestId,
+			status: 200,
+			headers: { "Content-Type": "text/html; charset=utf-8" },
+			body: devPageShell("Select Recipe", content$1, gridStyles, [devApiScript, pageScript$1])
 		};
 	}
 	//#endregion
@@ -11944,38 +12108,53 @@ bcInit();
 		return ranked.sort((a, b) => b.score - a.score || b.newestTs - a.newestTs || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
 	}
 	/**
-	* The lowest free recipe slot '1'..'5', or the requested one (which overwrites). A `suggested`
+	* The strip positions 1..5 are `recipes[].stripSlot`, not the row id (ids are opaque and stable).
+	* Returns the lowest free stripSlot, or the requested one (which takes the slot over). A `suggested`
 	* row counts as free. No slot requested and none free: `{ taken }`, for the caller's 409.
 	*/
 	function allocateRecipeSlot(recipes, requested) {
 		const taken = [
-			"1",
-			"2",
-			"3",
-			"4",
-			"5"
-		].filter((n) => (recipes || []).some((r) => r && String(r.id) === n && !r.suggested));
+			1,
+			2,
+			3,
+			4,
+			5
+		].filter((n) => (recipes || []).some((r) => r && r.stripSlot === n && !r.suggested));
+		const want = Number(requested);
 		if (requested != null && [
-			"1",
-			"2",
-			"3",
-			"4",
-			"5"
-		].includes(String(requested))) return { slot: String(requested) };
+			1,
+			2,
+			3,
+			4,
+			5
+		].includes(want)) return { slot: want };
 		const free = [
-			"1",
-			"2",
-			"3",
-			"4",
-			"5"
+			1,
+			2,
+			3,
+			4,
+			5
 		].find((n) => !taken.includes(n));
 		return free ? { slot: free } : { taken };
+	}
+	/**
+	* One-shot, idempotent: a legacy row whose id is '1'..'5' and that has no `stripSlot` gets
+	* `stripSlot = Number(id)`. The id stays put: extras.dye.recipeId in the live workflow and in shot
+	* history points at it (dye2#36). Returns the same array when nothing needed migrating.
+	*/
+	function migrateRecipeSlots(recipes) {
+		if (!(recipes || []).some((r) => r && r.stripSlot === void 0 && /^[1-5]$/.test(String(r.id)))) return recipes;
+		return recipes.map((r) => r && r.stripSlot === void 0 && /^[1-5]$/.test(String(r.id)) ? {
+			...r,
+			stripSlot: Number(r.id)
+		} : r);
 	}
 	/** A recipe row (R strip) built from a recent favourite. `suggested` until the barista uses it. */
 	function toSuggestedRecipe(fav, slot) {
 		const s = fav.snapshot;
 		return {
-			id: slot,
+			id: "sug-" + fav.id,
+			stripSlot: slot,
 			name: fav.title,
 			title: fav.title,
 			subtitle: s.coffeeName || "",
@@ -12251,14 +12430,14 @@ bcInit();
 		await kvWrite("autoFavourites", [...placedRecents, ...saved]);
 		const worthy = applyTitleDisambiguation(all.slice(SUGGEST_AFTER).filter((r) => r.shots >= SUGGEST_MIN_SHOTS && r.quality >= PRIOR).map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
 		const recipes = await kvRead("recipes").then((v) => Array.isArray(v) ? v : []);
-		const kept = recipes.filter((r) => r && !r.suggested);
-		const occupied = new Set(kept.map((r) => String(r.id)));
+		const kept = migrateRecipeSlots(recipes).filter((r) => r && !r.suggested);
+		const occupied = new Set(kept.map((r) => r.stripSlot));
 		const suggested = [
-			"1",
-			"2",
-			"3",
-			"4",
-			"5"
+			1,
+			2,
+			3,
+			4,
+			5
 		].filter((n) => !occupied.has(n)).map((slot, i) => worthy[i] ? toSuggestedRecipe(worthy[i], slot) : null).filter(Boolean);
 		const next = [...kept, ...suggested];
 		if (JSON.stringify(next) !== JSON.stringify(recipes)) await kvWrite("recipes", next);
@@ -12887,7 +13066,8 @@ bcInit();
 					error: "all five recipe slots are taken",
 					taken: alloc.taken
 				});
-				const id = alloc.slot;
+				const stripSlot = alloc.slot;
+				const id = `recipe-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 				wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
 				const { dye, ...extras } = ctx.extras || {};
 				const flags = {};
@@ -12920,6 +13100,7 @@ bcInit();
 				}
 				const row = {
 					id,
+					stripSlot,
 					name,
 					title: name,
 					barista: ctx.baristaName,
@@ -12945,7 +13126,10 @@ bcInit();
 				const res = await fetch(`${API}/store/${NS}/recipes`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(recipes.filter((r) => !(r && String(r.id) === id)).concat(row))
+					body: JSON.stringify(recipes.filter((r) => !(r && r.suggested && r.stripSlot === stripSlot)).map((r) => r && r.stripSlot === stripSlot ? {
+						...r,
+						stripSlot: null
+					} : r).concat(row))
 				});
 				if (!res.ok) throw new Error(`HTTP ${res.status} writing recipes`);
 				await putWorkflow({ context: { extras: { dye: {
@@ -12962,6 +13146,18 @@ bcInit();
 				log(`save-recipe failed: ${msg}`);
 				return json(request, 502, { error: msg });
 			}
+		}
+		async function migrateRecipes() {
+			if (typeof fetch !== "function") return;
+			const rows = await kv("recipes");
+			const next = migrateRecipeSlots(rows);
+			if (next === rows) return;
+			const res = await fetch(`${API}/store/${NS}/recipes`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(next)
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status} migrating recipes`);
 		}
 		function migrate() {
 			host.storage({
@@ -12988,7 +13184,7 @@ bcInit();
 					key: "selectionMigrated",
 					namespace: NS
 				});
-				refreshRecents();
+				migrateRecipes().catch((e) => log(`recipe slot migration failed: ${e instanceof Error ? e.message : String(e)}`)).then(refreshRecents);
 				if (typeof fetch === "function") liveWorkflow().then((wf) => trackWorkflow(wf, true));
 			},
 			onUnload() {
@@ -13022,6 +13218,7 @@ bcInit();
 					case "auto-favs": return renderAutoFavsPage(request);
 					case "auto-fav-edit": return renderAutoFavEditPage(request);
 					case "recipe-edit": return renderRecipeEditPage(request);
+					case "select-recipe": return renderSelectRecipePage(request);
 					case "bc-import": return renderBcImportPage(request);
 					case "recent-favs":
 						if (typeof fetch !== "function") return {

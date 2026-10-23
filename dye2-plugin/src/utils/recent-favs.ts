@@ -168,21 +168,33 @@ export function rankGroups(tail: TailEntry[], now: number): { key: string; score
 }
 
 /**
- * The lowest free recipe slot '1'..'5', or the requested one (which overwrites). A `suggested`
+ * The strip positions 1..5 are `recipes[].stripSlot`, not the row id (ids are opaque and stable).
+ * Returns the lowest free stripSlot, or the requested one (which takes the slot over). A `suggested`
  * row counts as free. No slot requested and none free: `{ taken }`, for the caller's 409.
  */
-export function allocateRecipeSlot(recipes: AnyRecord[], requested?: unknown): { slot: string } | { taken: string[] } {
-  const taken = ["1", "2", "3", "4", "5"].filter((n) => (recipes || []).some((r) => r && String(r.id) === n && !r.suggested));
-  if (requested != null && ["1", "2", "3", "4", "5"].includes(String(requested))) return { slot: String(requested) };
-  const free = ["1", "2", "3", "4", "5"].find((n) => !taken.includes(n));
+export function allocateRecipeSlot(recipes: AnyRecord[], requested?: unknown): { slot: number } | { taken: number[] } {
+  const taken = [1, 2, 3, 4, 5].filter((n) => (recipes || []).some((r) => r && r.stripSlot === n && !r.suggested));
+  const want = Number(requested);
+  if (requested != null && [1, 2, 3, 4, 5].includes(want)) return { slot: want };
+  const free = [1, 2, 3, 4, 5].find((n) => !taken.includes(n));
   return free ? { slot: free } : { taken };
 }
 
+/**
+ * One-shot, idempotent: a legacy row whose id is '1'..'5' and that has no `stripSlot` gets
+ * `stripSlot = Number(id)`. The id stays put: extras.dye.recipeId in the live workflow and in shot
+ * history points at it (dye2#36). Returns the same array when nothing needed migrating.
+ */
+export function migrateRecipeSlots(recipes: AnyRecord[]): AnyRecord[] {
+  if (!(recipes || []).some((r) => r && r.stripSlot === undefined && /^[1-5]$/.test(String(r.id)))) return recipes;
+  return recipes.map((r) => (r && r.stripSlot === undefined && /^[1-5]$/.test(String(r.id)) ? { ...r, stripSlot: Number(r.id) } : r));
+}
+
 /** A recipe row (R strip) built from a recent favourite. `suggested` until the barista uses it. */
-export function toSuggestedRecipe(fav: AnyRecord, slot: string): AnyRecord {
+export function toSuggestedRecipe(fav: AnyRecord, slot: number): AnyRecord {
   const s = fav.snapshot;
   return {
-    id: slot, name: fav.title, title: fav.title, subtitle: s.coffeeName || "", suggested: true,
+    id: "sug-" + fav.id, stripSlot: slot, name: fav.title, title: fav.title, subtitle: s.coffeeName || "", suggested: true,
     beanName: s.coffeeName, beanRoaster: s.coffeeRoaster, beanBatchId: s.beanBatchId,
     profileTitle: s.profileTitle, profileSnapshot: fav.workflow.profile,
     dashboardVariables: {
@@ -435,9 +447,9 @@ async function runRefresh(fetchFn: FetchLike, base: string): Promise<AnyRecord[]
     .filter((r) => r.shots >= SUGGEST_MIN_SHOTS && r.quality >= PRIOR)
     .map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
   const recipes: AnyRecord[] = await kvRead("recipes").then((v) => (Array.isArray(v) ? v : []));
-  const kept = recipes.filter((r) => r && !r.suggested);
-  const occupied = new Set(kept.map((r) => String(r.id)));
-  const suggested = ["1", "2", "3", "4", "5"].filter((n) => !occupied.has(n))
+  const kept = migrateRecipeSlots(recipes).filter((r) => r && !r.suggested);
+  const occupied = new Set(kept.map((r) => r.stripSlot));
+  const suggested = [1, 2, 3, 4, 5].filter((n) => !occupied.has(n))
     .map((slot, i) => (worthy[i] ? toSuggestedRecipe(worthy[i], slot) : null)).filter(Boolean);
   const next = [...kept, ...suggested];
   if (JSON.stringify(next) !== JSON.stringify(recipes)) await kvWrite("recipes", next);

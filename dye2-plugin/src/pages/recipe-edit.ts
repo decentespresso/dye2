@@ -2,14 +2,12 @@ import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
 import { lucideIcon } from "../utils/lucide";
 import {
-  stepperCss, stepperHtml,
+  stepperCss, stepperHtml, favNumCss,
   presetStripCss, presetStripHtml, presetStripScript,
   segmentControlScript,
   expandFieldHtml,
 } from "../utils/shared-components";
 import { equipmentFieldCss, equipmentValuesModalHtml, equipmentFieldScript } from "../utils/equipment-field";
-
-const NUM_RECIPES = 5;
 
 /* The second line of a Machine Settings label ('Hot Water' / 'Time'), styled like the settled
    side of a mode toggle. Keeps these labels inside the same 120px column as every other
@@ -20,18 +18,7 @@ const styles = `
   ${stepperCss()}
   ${presetStripCss()}
   ${equipmentFieldCss}
-  /* Figma 2396:728: fixed 270x60 pills, stroke var(--chip-stroke), text var(--chip-text) */
-  .re-tab {
-    width: 270px; height: 60px; border-radius: 15px;
-    /* ponytail: block + line-height, not flex — text-overflow:ellipsis only works on a block box */
-    display: block; line-height: 56px; text-align: center;
-    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 21px;
-    border: 2px solid var(--chip-stroke);
-    background: var(--box-color); color: var(--chip-text);
-    cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    flex-shrink: 0; padding: 0 20px;
-  }
-  .re-tab.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  ${favNumCss()}
   .re-label { font-size: 24px; font-weight: 700; color: var(--mimoja-blue); margin-bottom: 8px; }
   /* Figma 2396:747: label sits inline beside the input, 164px wide */
   .re-field-label { font-size: 24px; font-weight: 700; color: var(--mimoja-blue); width: 164px; flex-shrink: 0; }
@@ -174,19 +161,12 @@ function buildContent(): string {
   const chevUpSvg = lucideIcon('chevron-up', 24, 'var(--mimoja-blue)', 2.5);
   const pencilSvg = lucideIcon('pencil',     26, 'var(--text-primary-disabled)', 2);
 
-  const tabs = Array.from({ length: NUM_RECIPES }, (_, i) =>
-    `<button class="re-tab${i === 0 ? ' active' : ''}" data-recipe="${i}">Recipe ${i + 1}</button>`
-  ).join('');
-
   return `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex flex-col font-['Inter',sans-serif]">
 
-  <!-- Header: title + recipe tabs on the grey strip (Figma 2386:1874) -->
+  <!-- Header: the recipe's name as the title (Figma 2386:1874 minus the five-slot tab strip) -->
   <div class="flex items-center gap-[48px] px-[38px] h-[124px] shrink-0 bg-[var(--bgmain-color)] border-b border-[var(--profile-button-outline-color)]">
-    <span class="text-[30px] font-semibold text-[var(--text-primary)] shrink-0">Edit Recipes</span>
-    <div id="re-tabs" class="flex gap-[15px] overflow-x-auto" style="scrollbar-width:none">
-      ${tabs}
-    </div>
+    <span id="re-title" class="text-[30px] font-semibold text-[var(--text-primary)] truncate">Recipe</span>
   </div>
 
   <!-- Two-column body, 50/50 like the Figma columns -->
@@ -200,6 +180,15 @@ function buildContent(): string {
         <div class="re-input-row">
           <input id="re-name-input" class="re-input" type="text" placeholder="Recipe name…" />
           <button class="re-input-pencil" id="re-name-pencil">${pencilSvg}</button>
+        </div>
+      </div>
+
+      <div class="re-divider"></div>
+
+      <div>
+        <div class="re-label">Assign recipe number</div>
+        <div class="flex gap-[18px] mt-[4px]" id="re-slots">
+          ${[1, 2, 3, 4, 5].map(n => `<button class="afe-fav-num" data-num="${n}">${n}</button>`).join('')}
         </div>
       </div>
 
@@ -427,13 +416,16 @@ ${equipmentFieldScript}
 const STREAMLINE_ON_SVG  = ${JSON.stringify(streamlineOnSvg)};
 const STREAMLINE_OFF_SVG = ${JSON.stringify(streamlineOffSvg)};
 
-const NUM_RECIPES = ${NUM_RECIPES};
-let recipes = [];
-// Each slot as read from the store at open, never edited: save writes only what differs from
-// it, so a dial-in recorded while the page is open is not reverted (dye2#28). A slot with no
-// stored record is {}, so everything on it counts as changed.
-let recipeBaselines = [];
-let currentRecipeIdx = 0;
+// The one recipe this page edits, opened by id (sessionStorage dye_editRecipeId, set by
+// select-recipe). No id: a new recipe, written under a fresh opaque id on save.
+let recipe = {};
+// The recipe as read from the store at open, never edited: save writes only what differs from
+// it, so a dial-in recorded while the page is open is not reverted (dye2#28). A new recipe
+// has no stored record ({}), so everything on it counts as changed.
+let recipeBaseline = {};
+let allRecipes = [];    // the library, to name whoever holds a slot
+let stripSlot = null;   // 1..5 | null, the strip position picked in "Assign recipe number"
+let slotArmed = null;   // slot whose current holder the next SAVE tap replaces
 let grinders = [];
 let baskets = [];
 let showOnStreamline = true;
@@ -706,12 +698,12 @@ function favouriteToRecipePatch(fav) {
 // Merge a patch into the current recipe (keep id/name), then re-render.
 function applyToCurrentRecipe(src) {
   if (!src) return;
-  const cur = recipes[currentRecipeIdx] || {};
+  const cur = recipe;
   const merged = {
     ...cur, ...src, id: cur.id, name: cur.name,
     dashboardVariables: { ...(cur.dashboardVariables || {}), ...(src.dashboardVariables || {}) },
   };
-  recipes[currentRecipeIdx] = merged;
+  recipe = merged;
   if (merged.dashboardVariables.grinderId) selectedGrinderId = merged.dashboardVariables.grinderId;
   if (merged.dashboardVariables.basketId) selectedBasketId = merged.dashboardVariables.basketId;
   renderRecipe(merged);
@@ -848,7 +840,7 @@ function getCurrentRecipeData() {
   const hwVal     = num('re-hotwater-value');
   // The mode only picks which value this editor shows. The other one is not on screen, so keep
   // what the recipe holds rather than saving it as blank (which recipeChanges writes as null).
-  const held = (recipes[currentRecipeIdx] && recipes[currentRecipeIdx].dashboardVariables) || {};
+  const held = recipe.dashboardVariables || {};
   // Persist the drink ratio only while the yield still equals dose × ratio (i.e. not manually overridden).
   const doseVal = num('re-dose-value'), drinkVal = num('re-drink-value');
   const ratioAttr = document.getElementById('re-drink-value')?.dataset.ratio;
@@ -868,6 +860,7 @@ function getCurrentRecipeData() {
     profileTitle: selectedProfileTitle,
     profileSnapshot: selectedProfileSnapshot,
     showOnStreamlineDashboard: showOnStreamline,
+    stripSlot,
     dashboardVariables: {
       dose:    num('re-dose-value'),
       drink:   num('re-drink-value'),
@@ -911,33 +904,37 @@ function machineValues(held) {
   return out;
 }
 
-function setupTabs() {
-  document.getElementById('re-tabs')?.querySelectorAll('.re-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.re-tab').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentRecipeIdx = parseInt(btn.dataset.recipe);
-      const recipe = recipes[currentRecipeIdx];
-      if (recipe) renderRecipe(recipe);
-    });
-  });
+// Highlights stripSlot on the circles; tapping the active one clears it (saved, not on the strip).
+// Taking a slot another recipe holds is confirmed on SAVE (a second tap), as auto-fav-edit does.
+function renderSlots() {
+  document.querySelectorAll('#re-slots .afe-fav-num').forEach(b =>
+    b.classList.toggle('active', parseInt(b.dataset.num) === stripSlot));
+}
+function setupSlots() {
+  document.querySelectorAll('#re-slots .afe-fav-num').forEach(btn => btn.addEventListener('click', () => {
+    const n = parseInt(btn.dataset.num);
+    stripSlot = stripSlot === n ? null : n;
+    slotArmed = null;
+    const save = document.getElementById('re-save-btn');
+    if (save) save.textContent = 'SAVE RECIPE';
+    renderSlots();
+  }));
 }
 
 // Opening a See-All picker mid-edit pushes entries onto the history stack (picker, then
 // this page again on confirm), so history.back() lands on the picker the user just left
-// rather than the dashboard that opened this page. Leave by route instead.
-const DASHBOARD_ROUTE = 'dashboard';
+// rather than the page that opened this page. Leave by route instead: select-recipe leaves
+// its route in dye_recipeEditBack (the ?return= is lost across a picker round trip).
 function leaveRecipeEdit() {
-  const ret = new URLSearchParams(location.search).get('return');
-  window.location.href = ret || DASHBOARD_ROUTE;
+  const ret = new URLSearchParams(location.search).get('return') || sessionStorage.getItem('dye_recipeEditBack');
+  window.location.href = ret || 'dashboard';
 }
 
 // Persist the in-progress form (full-page nav to the picker would otherwise lose it),
 // then open the picker. initRecipeEdit restores the draft and folds in the pick on return.
 function goToPicker(route) {
-  const cur = recipes[currentRecipeIdx] || {};
-  recipes[currentRecipeIdx] = { ...cur, ...getCurrentRecipeData(), id: cur.id };
-  sessionStorage.setItem('dye_recipeDraft', JSON.stringify({ idx: currentRecipeIdx, recipes }));
+  recipe = { ...recipe, ...getCurrentRecipeData(), id: recipe.id };
+  sessionStorage.setItem('dye_recipeDraft', JSON.stringify({ recipe }));
   window.location.href = route;
 }
 
@@ -995,7 +992,7 @@ function setupMachineSection() {
 function renderHeld() {
   const list = document.getElementById('re-held-list');
   if (!list) return;
-  const dv = (recipes[currentRecipeIdx] && recipes[currentRecipeIdx].dashboardVariables) || {};
+  const dv = recipe.dashboardVariables || {};
   const pairs = [
     activeMode('re-steam-mode') === 'time' ? ['steamFlowMls', 'Steam flow', 'ml/s'] : ['steamTimeS', 'Steam time', 's'],
     activeMode('re-hotwater-mode') === 'vol' ? ['hotWaterTempC', 'Hot water temp', '°c'] : ['hotWaterMl', 'Hot water vol', 'ml'],
@@ -1039,7 +1036,7 @@ function applyMode(cls) {
   if (valEl) {
     // A recipe holds both values of a pair (dye2#23), so each mode shows ITS field, blank when
     // it has none. Relabelling the other mode's number would save 30s as 30 ml/s.
-    const held = (recipes[currentRecipeIdx] && recipes[currentRecipeIdx].dashboardVariables) || {};
+    const held = recipe.dashboardVariables || {};
     const v = cfg.field ? held[cfg.field[mode]] : parseFloat(valEl.textContent);
     const n = v == null ? NaN : parseFloat(v);
     valEl.textContent = isNaN(n) ? '—' : n + (cfg.unit[mode] || '');
@@ -1057,7 +1054,7 @@ function setMode(cls, mode) {
 // up (its 'held' fallback) for the mode that is no longer shown.
 function stashModeValue(cls) {
   const cfg = MODE_CFG[cls];
-  const slot = recipes[currentRecipeIdx];
+  const slot = recipe;
   const valEl = cfg && document.getElementById(cfg.valueId);
   const key = cfg && cfg.field && cfg.field[activeMode(cls)];
   if (!key || !slot || !valEl) return;
@@ -1198,27 +1195,31 @@ function setupFooter() {
   });
 
   document.getElementById('re-clear-btn')?.addEventListener('click', () => {
-    recipes[currentRecipeIdx] = {};
-    renderRecipe({});
+    recipe = { id: recipe.id };
+    renderRecipe(recipe);
   });
 
   document.getElementById('re-cancel-btn')?.addEventListener('click', () => leaveRecipeEdit());
 
   document.getElementById('re-save-btn')?.addEventListener('click', async () => {
     const data = getCurrentRecipeData();
-    const recipe = recipes[currentRecipeIdx];
+    const saveBtn = document.getElementById('re-save-btn');
     try {
-      if (recipe && recipe.id) {
-        const saved = await updateRecipe(recipe.id, recipeChanges(recipeBaselines[currentRecipeIdx] || {}, data));
-        await reapplyIfSelected(saved);
+      const holder = stripSlot != null && allRecipes.find(r => r && r.id !== recipe.id && r.stripSlot === stripSlot && !r.suggested);
+      if (holder && slotArmed !== stripSlot) {
+        slotArmed = stripSlot;
+        saveBtn.textContent = 'REPLACE ' + (holder.name || 'RECIPE') + ' ON ' + stripSlot + '?';
+        return;
       }
+      const saved = await updateRecipe(recipe.id, recipeChanges(recipeBaseline, data));
+      await reapplyIfSelected(saved);
       leaveRecipeEdit();
     } catch (e) { console.error('Failed to save recipe:', e); }
   });
 }
 
 async function initRecipeEdit() {
-  setupTabs();
+  setupSlots();
   setupStreamlineToggle();
   setupPresetStrips();
   // After setupPresetStrips so the mode toggle owns/rewires the strips it rebuilds.
@@ -1253,17 +1254,13 @@ async function initRecipeEdit() {
   } catch (e) {
     console.warn('Could not load recipes from KV store:', e);
   }
-  // Normalize to NUM_RECIPES fixed slots with stable ids ("1".."5") so save() always upserts.
-  recipes = Array.from({ length: NUM_RECIPES }, (_, i) => {
-    const id = String(i + 1);
-    const existing = loadedRecipes.find(r => r && r.id === id);
-    return existing ? { ...existing, id } : { id, name: 'Recipe ' + (i + 1) };
-  });
-  recipeBaselines = recipes.map((_, i) => JSON.parse(JSON.stringify(loadedRecipes.find(r => r && r.id === String(i + 1)) || {})));
-  document.querySelectorAll('.re-tab').forEach((btn, i) => {
-    const stored = loadedRecipes.find(r => r && r.id === String(i + 1));
-    btn.textContent = !stored ? 'Empty ' + (i + 1) : (stored.name || 'Recipe ' + (i + 1)) + (stored.suggested ? ' (suggested)' : '');
-  });
+  allRecipes = loadedRecipes;
+  const editId = sessionStorage.getItem('dye_editRecipeId');
+  const stored = editId ? loadedRecipes.find(r => r && r.id === editId) : null;
+  recipeBaseline = JSON.parse(JSON.stringify(stored || {}));
+  recipe = stored ? { ...stored } : { id: editId || newId('recipe') };
+  if (!editId) sessionStorage.setItem('dye_editRecipeId', recipe.id);   // so a picker round trip keeps the same new id
+  stripSlot = recipe.stripSlot == null ? null : recipe.stripSlot;
 
   try {
     const gs = await getGrinders().catch(() => []);
@@ -1279,9 +1276,6 @@ async function initRecipeEdit() {
   const ps = await getProfiles().catch(() => []);
   profiles = Array.isArray(ps) ? ps : (ps && ps.items ? ps.items : []);
 
-  const storedIdx = parseInt(sessionStorage.getItem('dye_editRecipeIdx') || '0');
-  currentRecipeIdx = isNaN(storedIdx) ? 0 : Math.min(storedIdx, NUM_RECIPES - 1);
-
   // Returning from a See-All picker: restore the draft we stashed, then fold in the pick.
   // Gated on the draft so stray picker keys from other flows are never adopted here.
   const draftRaw = sessionStorage.getItem('dye_recipeDraft');
@@ -1289,9 +1283,8 @@ async function initRecipeEdit() {
   if (draftRaw) {
     try {
       const draft = JSON.parse(draftRaw);
-      if (Array.isArray(draft.recipes) && draft.recipes.length === NUM_RECIPES) recipes = draft.recipes;
-      if (draft.idx != null) currentRecipeIdx = Math.min(draft.idx, NUM_RECIPES - 1);
-      const cur = recipes[currentRecipeIdx] || (recipes[currentRecipeIdx] = { id: String(currentRecipeIdx + 1) });
+      if (draft.recipe && draft.recipe.id === recipe.id) { recipe = draft.recipe; stripSlot = recipe.stripSlot == null ? null : recipe.stripSlot; }
+      const cur = recipe;
       const beanId = sessionStorage.getItem('dye_selectedBeanId');
       if (beanId) {
         cur.beanId = beanId;
@@ -1333,12 +1326,10 @@ async function initRecipeEdit() {
       if (fav) applyToCurrentRecipe(favouriteToRecipePatch(fav));
     } catch (e) { console.warn('Could not load selected auto-favourite:', e); }
   }
-  const activeTab = document.querySelectorAll('.re-tab')[currentRecipeIdx];
-  if (activeTab) {
-    document.querySelectorAll('.re-tab').forEach(b => b.classList.remove('active'));
-    activeTab.classList.add('active');
-  }
-  renderRecipe(recipes[currentRecipeIdx] || {});
+  const title = document.getElementById('re-title');
+  if (title) title.textContent = recipe.name || 'New recipe';
+  renderSlots();
+  renderRecipe(recipe);
   renderGrinderChips();
   renderBasketChips();
 }

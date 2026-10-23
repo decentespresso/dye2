@@ -117,12 +117,12 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   const body = src.slice(start, src.indexOf('\n}\n', start) + 2);
   // machineValues (the Machine Settings steppers) is stubbed to what the recipe holds; the real
   // one is run against its own stub DOM further down.
-  const run = (texts, batch = null, roaster = null, held = null, modes = {}) => new Function('document', 'recipes', 'currentRecipeIdx', 'selectedBeanId', 'selectedBeanName', 'selectedBeanBatchId', 'selectedBeanRoaster', 'selectedProfileId', 'selectedProfileTitle',
+  const run = (texts, batch = null, roaster = null, held = null, modes = {}) => new Function('document', 'recipe', 'stripSlot', 'selectedBeanId', 'selectedBeanName', 'selectedBeanBatchId', 'selectedBeanRoaster', 'selectedProfileId', 'selectedProfileTitle',
     'selectedProfileSnapshot', 'showOnStreamline', 'grinders', 'selectedGrinderId', 'baskets', 'selectedBasketId',
     'equipmentSelIds', 'equipmentSelNames', 'equipmentCustomOverrides', 'machineValues', body + '; return getCurrentRecipeData();')(
     { getElementById: (id) => ({ textContent: texts[id], dataset: id === 're-drink-value' ? { ratio: '2' } : {}, value: '' }),
       querySelector: (sel) => { const m = Object.keys(modes).find((c) => sel.startsWith('.' + c)); return m ? { dataset: { mode: modes[m] } } : null; } },
-    held ? [{ dashboardVariables: held }] : [], 0,
+    held ? { dashboardVariables: held } : {}, 3,
     null, null, batch, roaster, null, null, null, false, [], null, [], null, [], [], {},
     (h) => ({ steamTempC: h.steamTempC ?? null }));
   const blank = run({ 're-dose-value': '—', 're-drink-value': '—', 're-brew-c-value': '—', 're-steam-value': '—',
@@ -148,6 +148,7 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(picked.beanBatchId, 'b-9');
   assert.equal(picked.beanRoaster, 'Onyx');
   assert.equal(run({}).beanBatchId, null, 'no batch picked saves null');
+  assert.equal(run({}).stripSlot, 3, 'the picked strip slot rides along for recipeChanges to diff');
   // a null field is skipped by record, as a missing one is
   const r = recipe();
   r.dashboardVariables.rpm = null;
@@ -249,8 +250,8 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   const slot = { dashboardVariables: { steamTimeS: 30, steamFlowMls: 1.2 } };
   // renderHeld (the read-only 'Also held' list) is a no-op here: a stub in case the slices above
   // stop carrying its declaration, and the real one finds no #re-held in this stub document.
-  const api = new Function('document', 'recipes', 'currentRecipeIdx', 'syncPresetActive', 'wirePresetButtons', 'renderHeld',
-    code + '; return { stashModeValue, applyMode };')(doc, [slot], 0, () => {}, () => {}, () => {});
+  const api = new Function('document', 'recipe', 'syncPresetActive', 'wirePresetButtons', 'renderHeld',
+    code + '; return { stashModeValue, applyMode };')(doc, slot, () => {}, () => {}, () => {});
 
   api.stashModeValue('re-steam-mode');          // what is on screen belongs to `time`
   active = 'flow';
@@ -291,9 +292,9 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   const text = () => list.kids.map((r) => r.kids.map((k) => k.textContent ?? k.text).join('')).sort();
   const render = (dv, open = false) => {
     list.kids = [];
-    new Function('document', 'recipes', 'currentRecipeIdx', 'activeMode', 'machineOpen',
+    new Function('document', 'recipe', 'activeMode', 'machineOpen',
       table + fn('function renderHeld()') + '; renderHeld();')(
-      doc, [{ dashboardVariables: dv }], 0, (cls) => (cls === 're-steam-mode' ? steam : hw), open);
+      doc, { dashboardVariables: dv }, (cls) => (cls === 're-steam-mode' ? steam : hw), open);
   };
 
   render({ dose: 18, steamFlowMls: 1.5, hotWaterMl: 120 });

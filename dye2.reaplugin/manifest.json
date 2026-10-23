@@ -86,6 +86,11 @@
       "data": {}
     },
     {
+      "id": "select-recipe",
+      "type": "http",
+      "data": {}
+    },
+    {
       "id": "bc-import",
       "type": "http",
       "data": {}

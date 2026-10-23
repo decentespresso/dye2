@@ -15,8 +15,9 @@ import { renderEditShotPage } from "./pages/edit-shot";
 import { renderAutoFavsPage } from "./pages/auto-favs";
 import { renderAutoFavEditPage } from "./pages/auto-fav-edit";
 import { renderRecipeEditPage } from "./pages/recipe-edit";
+import { renderSelectRecipePage } from "./pages/select-recipe";
 import { renderBcImportPage } from "./pages/bc-import";
-import { refreshRecentFavourites, shotPatchAffectsRecents, noteShotUpdated, allocateRecipeSlot } from "./utils/recent-favs";
+import { refreshRecentFavourites, shotPatchAffectsRecents, noteShotUpdated, allocateRecipeSlot, migrateRecipeSlots } from "./utils/recent-favs";
 import {
   deriveSelection,
   recipeIdOf,
@@ -253,7 +254,8 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         proposeRecipeName(wf, recipes.map((r) => r && (r.name || r.title)));
       const alloc = allocateRecipeSlot(recipes, body && body.slot);
       if ("taken" in alloc) return json(request, 409, { error: "all five recipe slots are taken", taken: alloc.taken });
-      const id = alloc.slot;
+      const stripSlot = alloc.slot;
+      const id = `recipe-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
       wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
       // The plugin-side markDye: this blob is what a later apply PUTs, and Streamline's post-shot
       // clear acts on these flags. recipeId and selection stay out.
@@ -271,7 +273,7 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         dashboardVariables.grinderModel = ctx.grinderModel;
       }
       const row: any = {
-        id, name, title: name,
+        id, stripSlot, name, title: name,
         barista: ctx.baristaName, drinker: ctx.drinkerName,
         beanName: ctx.coffeeName, beanRoaster: ctx.coffeeRoaster, beanBatchId: ctx.beanBatchId,
         profileTitle: wf.profile && wf.profile.title, profileSnapshot: wf.profile,
@@ -286,7 +288,9 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       const res = await fetch(`${API}/store/${NS}/recipes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(recipes.filter((r) => !(r && String(r.id) === id)).concat(row)),
+        // The slot's previous holder keeps its row and loses the slot; a suggested one is dropped.
+        body: JSON.stringify(recipes.filter((r) => !(r && r.suggested && r.stripSlot === stripSlot))
+          .map((r) => (r && r.stripSlot === stripSlot ? { ...r, stripSlot: null } : r)).concat(row)),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status} writing recipes`);
       await putWorkflow({ context: { extras: { dye: { v: 1, recipeId: id } } } });
@@ -297,6 +301,19 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       log(`save-recipe failed: ${msg}`);
       return json(request, 502, { error: msg });
     }
+  }
+
+  // Idempotent (docs/KV_CONTRACT.md recipes[]): a legacy row id '1'..'5' gains stripSlot. Run before
+  // the first refresh so the suggester sees the slots as taken.
+  async function migrateRecipes(): Promise<void> {
+    if (typeof fetch !== "function") return;
+    const rows = await kv("recipes");
+    const next = migrateRecipeSlots(rows);
+    if (next === rows) return;
+    const res = await fetch(`${API}/store/${NS}/recipes`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} migrating recipes`);
   }
 
   // One-time cleanup (dye2#36): the stored armed selection and its workflow mirror no longer
@@ -320,7 +337,9 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       if (typeof host.storage === "function") {
         host.storage({ type: "read", key: "selectionMigrated", namespace: NS });
       }
-      refreshRecents();
+      migrateRecipes()
+        .catch((e: unknown) => log(`recipe slot migration failed: ${e instanceof Error ? e.message : String(e)}`))
+        .then(refreshRecents);
       // A restart loses the baseline: look at the workflow once, comparing the stored profile.
       if (typeof fetch === "function") liveWorkflow().then((wf) => trackWorkflow(wf, true));
     },
@@ -393,6 +412,9 @@ export default function createPlugin(host: PluginHost): PluginInstance {
 
         case "recipe-edit":
           return renderRecipeEditPage(request);
+
+        case "select-recipe":
+          return renderSelectRecipePage(request);
 
         case "bc-import":
           return renderBcImportPage(request);
