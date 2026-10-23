@@ -790,7 +790,7 @@ async function buildFavouriteWorkflow(fav) {
   if (on('drinker')   && snp.drinker)   ctx.drinkerName = snp.drinker;
   if (on('note')      && snp.note)      ctx.extras = { ...(ctx.extras || {}), note: snp.note };
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
-    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps)) {
+    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps) && snp.profileSnapshot.steps.length) {
       wf.profile = snp.profileSnapshot;
     } else {
       const full = snp.profileId ? await resolveFullProfileById(snp.profileId) : null;
@@ -850,7 +850,7 @@ async function buildRecipeWorkflow(recipe) {
   if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;
   if (recipe && (recipe.profileId || recipe.profileTitle)) {
-    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps)) {
+    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps) && recipe.profileSnapshot.steps.length) {
       wf.profile = recipe.profileSnapshot;
     } else {
       const full = recipe.profileId ? await resolveFullProfileById(recipe.profileId) : null;
@@ -7070,7 +7070,7 @@ async function applyRecipe(recipe) {
   setRecipeId(ctx, recipe.id);
   currentWorkflow.context = ctx;
   if (recipe.profileId || recipe.profileTitle) {
-    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps)) {
+    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps) && recipe.profileSnapshot.steps.length) {
       currentWorkflow.profile = recipe.profileSnapshot;
     } else {
       const full = recipe.profileId ? await resolveFullProfile(recipe.profileId) : null;
@@ -7151,7 +7151,7 @@ async function applyAutoFavourite(fav) {
   setRecipeId(ctx, null);
   currentWorkflow.context = ctx;
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
-    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps)) {
+    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps) && snp.profileSnapshot.steps.length) {
       currentWorkflow.profile = snp.profileSnapshot;
     } else {
       const full = snp.profileId ? await resolveFullProfile(snp.profileId) : null;
@@ -10038,7 +10038,7 @@ function snapshotFromWorkflow(wf) {
   const extras = ctx.extras || {};
   return {
     profileId: profile.id || null, profileTitle: profile.title || null,
-    profileSnapshot: Array.isArray(profile.steps) ? profile : null,
+    profileSnapshot: Array.isArray(profile.steps) && profile.steps.length ? profile : null,
     beanBatchId: ctx.beanBatchId || null, coffeeName: ctx.coffeeName || null, coffeeRoaster: ctx.coffeeRoaster || null,
     roastDate: ctx.roastDate || null, grinderId: ctx.grinderId || null, grinderModel: ctx.grinderModel || null,
     basketId: extras.basketId || null, basketName: extras.basketName || null,
@@ -10833,7 +10833,7 @@ async function readFromWorkflow() {
     // depend on the profile still being resolvable by id in the library.
     profileId:    (wf && wf.profile && wf.profile.id) || null,
     profileTitle: (wf && wf.profile && wf.profile.title) || null,
-    profileSnapshot: (wf && wf.profile && Array.isArray(wf.profile.steps)) ? wf.profile : null,
+    profileSnapshot: (wf && wf.profile && Array.isArray(wf.profile.steps) && wf.profile.steps.length) ? wf.profile : null,
     dashboardVariables: {
       dose:  ctx.targetDoseWeight,
       drink: ctx.targetYield,
@@ -10863,7 +10863,7 @@ function favouriteToRecipePatch(fav) {
   const wfProfile = fav.workflow && fav.workflow.profile;
   // Only treat wfProfile as a real captured profile (not a thin {id,title} stub the same
   // field can otherwise hold) when it actually carries brew steps.
-  const profileSnapshot = (wfProfile && Array.isArray(wfProfile.steps)) ? wfProfile : null;
+  const profileSnapshot = (wfProfile && Array.isArray(wfProfile.steps) && wfProfile.steps.length) ? wfProfile : null;
   return {
     beverage:     fav.beverage || '',
     barista:      s.barista || '',

@@ -647,7 +647,7 @@ async function readFromWorkflow() {
     // depend on the profile still being resolvable by id in the library.
     profileId:    (wf && wf.profile && wf.profile.id) || null,
     profileTitle: (wf && wf.profile && wf.profile.title) || null,
-    profileSnapshot: (wf && wf.profile && Array.isArray(wf.profile.steps)) ? wf.profile : null,
+    profileSnapshot: (wf && wf.profile && Array.isArray(wf.profile.steps) && wf.profile.steps.length) ? wf.profile : null,
     dashboardVariables: {
       dose:  ctx.targetDoseWeight,
       drink: ctx.targetYield,
@@ -677,7 +677,7 @@ function favouriteToRecipePatch(fav) {
   const wfProfile = fav.workflow && fav.workflow.profile;
   // Only treat wfProfile as a real captured profile (not a thin {id,title} stub the same
   // field can otherwise hold) when it actually carries brew steps.
-  const profileSnapshot = (wfProfile && Array.isArray(wfProfile.steps)) ? wfProfile : null;
+  const profileSnapshot = (wfProfile && Array.isArray(wfProfile.steps) && wfProfile.steps.length) ? wfProfile : null;
   return {
     beverage:     fav.beverage || '',
     barista:      s.barista || '',

@@ -365,7 +365,7 @@ async function buildFavouriteWorkflow(fav) {
   if (on('drinker')   && snp.drinker)   ctx.drinkerName = snp.drinker;
   if (on('note')      && snp.note)      ctx.extras = { ...(ctx.extras || {}), note: snp.note };
   if (on('profile') && (snp.profileId || snp.profileTitle)) {
-    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps)) {
+    if (snp.profileSnapshot && Array.isArray(snp.profileSnapshot.steps) && snp.profileSnapshot.steps.length) {
       wf.profile = snp.profileSnapshot;
     } else {
       const full = snp.profileId ? await resolveFullProfileById(snp.profileId) : null;
@@ -425,7 +425,7 @@ async function buildRecipeWorkflow(recipe) {
   if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;
   if (recipe && (recipe.profileId || recipe.profileTitle)) {
-    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps)) {
+    if (recipe.profileSnapshot && Array.isArray(recipe.profileSnapshot.steps) && recipe.profileSnapshot.steps.length) {
       wf.profile = recipe.profileSnapshot;
     } else {
       const full = recipe.profileId ? await resolveFullProfileById(recipe.profileId) : null;
