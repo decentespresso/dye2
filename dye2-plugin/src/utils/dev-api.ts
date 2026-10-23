@@ -537,11 +537,42 @@ async function getAutoFavourite(id) {
   return arr.find(x => x && x.id === id) || null;
 }
 
+// A favourite must carry the WHOLE profile, never a thin { id, title }. Two ways it ends up thin:
+// Decaid drops profile.id, so a snapshot taken from the live workflow has no id to resolve later,
+// and a live profile without steps leaves profileSnapshot null — which is how a favourite ends up
+// naming 'Adaptive v2' with nothing behind it. KV rows also outlive the library (a profile can be
+// edited, hidden or deleted), and a stub deep-merges into whatever profile is loaded instead of
+// replacing it. So resolve the real record here, by id and then by title, and keep it on the
+// snapshot. Mutates the snapshot in place; the single writer calls it before every write.
+async function fattenFavouriteProfile(fav) {
+  const snp = fav && fav.snapshot;
+  if (!snp || usableProfileSnapshot(snp.profileSnapshot)) return;
+  let full = snp.profileId ? await resolveFullProfileById(snp.profileId) : null;
+  if (!usableProfileSnapshot(full) && snp.profileTitle) {
+    try {
+      const records = await getProfiles({ includeHidden: true });
+      const list = Array.isArray(records) ? records : (records && records.items) || [];
+      // Best effort: several library rows can share a title, so this never overrides an id the
+      // caller gave — it only fills one in when there was none.
+      const hit = list.find(r => r && r.profile && r.profile.title === snp.profileTitle
+        && usableProfileSnapshot(r.profile));
+      if (hit) { full = hit.profile; if (!snp.profileId) snp.profileId = hit.id; }
+    } catch (e) {
+      console.warn('fattenFavouriteProfile: could not fetch profiles to resolve ' + snp.profileTitle, e);
+    }
+  }
+  if (usableProfileSnapshot(full)) {
+    snp.profileSnapshot = full;
+    if (!snp.profileTitle && full.title) snp.profileTitle = full.title;
+  }
+}
+
 async function createAutoFavourite(data) {
   const arr = await kvGetArray('autoFavourites');
   const fav = { ...data, id: newId('af'), capturedAt: new Date().toISOString() };
   cleanFavSlot(fav);
   fav.subtitle = favSubtitle(fav);
+  await fattenFavouriteProfile(fav);          // the whole profile, never a thin { id, title }
   fav.workflow = await buildFavouriteWorkflow(fav);
   arr.push(fav);
   takeSlot(arr, 'favSlot', fav);
@@ -555,6 +586,7 @@ async function updateAutoFavourite(id, data) {
   const item = { ...data, id, capturedAt: data.capturedAt ?? (existing && existing.capturedAt) ?? new Date().toISOString() };
   cleanFavSlot(item);
   item.subtitle = favSubtitle(item);
+  await fattenFavouriteProfile(item);         // the whole profile, never a thin { id, title }
   item.workflow = await buildFavouriteWorkflow(item);
   kvUpsert(arr, item);
   takeSlot(arr, 'favSlot', item);

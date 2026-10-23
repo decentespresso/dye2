@@ -692,11 +692,16 @@ function favouriteToRecipePatch(fav) {
   // The brew temperature is where the captured profile's first step sits — the same anchor
   // fillFromProfile and profileAtBrewC use. A favourite carries no steam / flush / hot-water
   // settings at all (its workflow is { context, profile? }, KV_CONTRACT), so those stay put.
-  const step0 = profileSnapshot && profileSnapshot.steps[0];
-  const brewC = step0 && typeof step0.temperature === 'number' && Number.isFinite(step0.temperature)
-    ? Math.round(step0.temperature * 10) / 10 : undefined;
+  // A saved favourite carries neither a recorded profile nor, often, an id: its workflow.profile
+  // is a thin {id,title} stub or absent and the snapshot holds only a title. So resolve the whole
+  // profile the favourite names — by id, else by title — and read it like a profile tap does. It
+  // is the profile a later apply resolves and runs anyway. Only when no profile can be found at
+  // all does a field fall through to withDefaultVariables.
+  const profileId = s.profileId || (wfProfile && wfProfile.id) || profileIdByTitle(profileTitleOf(s, wfProfile));
+  const named = profileSnapshot || libraryProfileById(profileId);
   const dose  = pick(s.dose,  wfCtx.targetDoseWeight);
-  const drink = pick(s.drink, wfCtx.targetYield);
+  const drink = pick(s.drink, pick(wfCtx.targetYield, profileYieldOf(named)));
+  const brewC = pick(undefined, profileBrewCOf(named));
   const grind = pick(s.grindSetting, wfCtx.grinderSetting);
   return {
     beverage:     fav.beverage || '',
@@ -710,9 +715,10 @@ function favouriteToRecipePatch(fav) {
     beanRoaster:  s.coffeeRoaster || wfCtx.coffeeRoaster || null,
     // An auto favourite's recorded profile has a title and steps but no id (Decaid drops
     // profile.id on a PUT, so a shot's profile comes back without one), which left the strip
-    // with nothing to highlight. Match the title against the library to recover the id; the
-    // snapshot above stays the authority for what apply actually sends.
-    profileId:    s.profileId || (wfProfile && wfProfile.id) || profileIdByTitle(profileTitleOf(s, wfProfile)),
+    // with nothing to highlight. The id recovered from the title above fixes that; the snapshot
+    // stays the authority for what apply actually sends. A title match is best effort — several
+    // library profiles can share one — so it never overrides an id the record gave.
+    profileId,
     profileTitle: profileTitleOf(s, wfProfile),
     profileSnapshot,
     dashboardVariables: {
@@ -748,9 +754,15 @@ function withDefaultVariables(dv) {
   const firstNum = (prefix) => { const n = parseFloat(firstChip(prefix)); return Number.isFinite(n) ? n : null; };
   const fill = (key, value) => { if (out[key] == null && value != null) out[key] = value; };
 
-  fill('dose', firstNum('re-dose'));
-  // The drink strip holds ratios, not grams, so its default is a ratio against the dose.
+  // The drink strip holds ratios, not grams, so the pair is defaulted through the ratio: a drink
+  // that came from the record or its profile sets the dose, and only a recipe with neither falls
+  // back to the dose chip.
   const ratio = parseFloat(firstChip('re-drink').replace('1:', ''));
+  if (out.dose == null && out.drink > 0 && Number.isFinite(ratio)) {
+    out.dose = Math.round((out.drink / ratio) * 2) / 2;   // the dose stepper steps by 0.5
+    out.ratio = ratio;
+  }
+  fill('dose', firstNum('re-dose'));
   if (out.drink == null && out.dose > 0 && Number.isFinite(ratio)) {
     out.drink = Math.round(out.dose * ratio * 10) / 10;
     out.ratio = ratio;
@@ -842,6 +854,19 @@ function profileLabel(p) {
   return (p.profile && p.profile.title) || p.title || p.name || 'Untitled';
 }
 
+// What a profile record itself can say about a recipe. A yield of 0 means 'not set', not 'zero
+// grams' — plenty of profiles keep theirs in target_volume and leave target_weight at 0 — and the
+// brew temperature is where the first step sits, the anchor profileAtBrewC shifts the curve from.
+function profileYieldOf(prof) {
+  const pos = (v) => { const n = parseFloat(v); return Number.isFinite(n) && n > 0 ? n : null; };
+  return prof ? (pos(prof.target_weight) ?? pos(prof.target_volume)) : null;
+}
+function profileBrewCOf(prof) {
+  const step0 = prof && Array.isArray(prof.steps) && prof.steps.length ? prof.steps[0] : null;
+  const n = step0 ? parseFloat(step0.temperature) : NaN;
+  return Number.isFinite(n) ? Math.round(n * 10) / 10 : null;
+}
+
 function profileTitleOf(snapshot, wfProfile) {
   return (snapshot && snapshot.profileTitle) || (wfProfile && wfProfile.title) || null;
 }
@@ -849,6 +874,13 @@ function profileIdByTitle(title) {
   if (!title) return null;
   const hit = profiles.find(p => profileLabel(p) === title);
   return hit ? hit.id : null;
+}
+// The library record behind an id, for reading what the profile itself says (its steps are not
+// in a favourite's thin snapshot). Bridge profiles nest the real thing under .profile.
+function libraryProfileById(id) {
+  if (id == null) return null;
+  const hit = profiles.find(p => String(p.id) === String(id));
+  return (hit && hit.profile) || null;
 }
 
 function renderProfileChips() {
@@ -887,13 +919,8 @@ function renderProfileChips() {
 function fillFromProfile(record) {
   const prof = (record && record.profile) || record || {};
   const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
-  // A yield of 0 means 'not set', not 'zero grams': plenty of profiles keep theirs in
-  // target_volume and leave target_weight at 0, and ?? only falls through on null.
-  // profileManager.js guards the same case with targetYield > 0.
-  const pos = (v) => { const n = num(v); return n != null && n > 0 ? n : null; };
-  const yieldG = pos(prof.target_weight) ?? pos(prof.target_volume);
-  const step0 = Array.isArray(prof.steps) && prof.steps.length ? prof.steps[0] : null;
-  const brewC = step0 ? num(step0.temperature) : null;
+  const yieldG = profileYieldOf(prof);
+  const brewC = profileBrewCOf(prof);
   // A chip standing in for a profile the library does not hold carries nothing to read, and must
   // not reset the strips to their first presets either.
   if (yieldG == null && brewC == null) return;

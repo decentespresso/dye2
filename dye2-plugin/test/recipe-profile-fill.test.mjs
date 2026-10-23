@@ -41,7 +41,9 @@ const fn = (src, sig) => { const i = src.indexOf(sig); return src.slice(i, src.i
 // ── fillFromProfile (recipe-edit.ts) ────────────────────────────────────────
 {
   const page = read('../src/pages/recipe-edit.ts');
-  const src = fn(page, 'function fillFromProfile(record)');
+  const src = fn(page, 'function profileYieldOf(prof)')
+    + fn(page, 'function profileBrewCOf(prof)')
+    + fn(page, 'function fillFromProfile(record)');
 
   const makeDom = (seed) => {
     const els = {};
@@ -150,12 +152,18 @@ const fn = (src, sig) => { const i = src.indexOf(sig); return src.slice(i, src.i
 {
   const page = read('../src/pages/recipe-edit.ts');
   const api = read('../src/utils/dev-api.ts');
-  const src = fn(page, 'function profileTitleOf(snapshot, wfProfile)')
+  const src = fn(page, 'function profileYieldOf(prof)')
+    + fn(page, 'function profileBrewCOf(prof)')
+    + fn(page, 'function profileTitleOf(snapshot, wfProfile)')
     + fn(page, 'function profileIdByTitle(title)')
+    + fn(page, 'function libraryProfileById(id)')
     + fn(page, 'function favouriteToRecipePatch(fav)');
   const usable = fn(api, 'function usableProfileSnapshot(p)');
 
-  const profiles = [{ id: 'profile:lib', profile: { title: 'Blooming Allongé' } }];
+  const profiles = [
+    { id: 'profile:lib', profile: { title: 'Blooming Allongé', target_weight: 36, steps: [{ temperature: 94 }] } },
+    { id: 'profile:named', profile: { title: 'Adaptive v2', target_weight: 0, target_volume: 44, steps: [{ temperature: 93 }, { temperature: 91 }] } },
+  ];
   const beans = [{ id: 'bean:red', name: 'Red Brick' }];
   const build = (fav, recipeName = '') => new Function(
     'beans', 'profiles', 'recipe', 'profileLabel', 'fav',
