@@ -6232,6 +6232,36 @@ function refreshDerivedSelection() {
   }).catch(() => {});
 }
 
+// A "Save changes" on the Streamline strip patches the recipe through the plugin's \`record\`
+// route, which writes KV and never the workflow — so nothing on this page would notice, and the
+// pill's \` *\` would stay on a recipe that now matches. The plugin emits {what:'workflow'} on its
+// own \`changed\` socket after that write (docs/KV_CONTRACT.md, "Freshness"), so listen for it.
+// Visibility/focus are belt-and-braces: the skin can host this page in an iframe that never
+// loses visibility, so the socket is the signal that actually fires there.
+function subscribeChanged() {
+  let sock = null, retry = null;
+  const open = () => {
+    if (sock || document.hidden) return;
+    try {
+      sock = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host +
+        '/api/v1/plugins/dye2.reaplugin/changed');
+    } catch (e) { return; }
+    sock.addEventListener('message', () => refreshDerivedSelection());
+    const dead = () => {
+      sock = null;
+      // Reconnect once a minute at most: the refreshes below cover a dropped socket.
+      if (!retry) retry = setTimeout(() => { retry = null; open(); }, 60000);
+    };
+    sock.addEventListener('close', dead);
+    sock.addEventListener('error', dead);
+  };
+  open();
+  const wake = () => { if (!document.hidden) { open(); refreshDerivedSelection(); } };
+  document.addEventListener('visibilitychange', wake);
+  window.addEventListener('focus', wake);
+  window.addEventListener('pageshow', wake);
+}
+
 // Re-read before applying an item, so the apply lands on what the machine holds now rather
 // than on what this page read when it opened — otherwise a recipe whose values match the
 // page-open copy diffs to nothing and is never actually applied. Skipped while this page has
@@ -7531,6 +7561,7 @@ function wireDashboardControls() {
   setupReadNote();
   setupAddNote();
   setupHistoryRevert();
+  subscribeChanged();   // a strip "Save changes" clears the pill's star without a reload
   document.getElementById('dye-recipes-btn')?.addEventListener('click', openRecipes);
   const pills = document.getElementById('dye-recipe-pills');
   document.getElementById('dye-recipe-prev')?.addEventListener('click', () => pills?.scrollBy({ left: -pills.clientWidth, behavior: 'smooth' }));
