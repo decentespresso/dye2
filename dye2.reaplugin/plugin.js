@@ -12656,6 +12656,60 @@ bcInit();
 	* `auto: true` recents are ignored (assignSlots re-places them on every refresh). Idempotent;
 	* returns the same array when no slot is shared.
 	*/
+	var wholeProfile = (p) => !!(p && Array.isArray(p.steps) && p.steps.length);
+	function favouriteProfileIsThin(fav) {
+		const snp = fav && fav.snapshot;
+		if (!snp) return false;
+		const wf = fav.workflow || {};
+		if (wholeProfile(snp.profileSnapshot) && wholeProfile(wf.profile)) return false;
+		return !!(snp.profileId || snp.profileTitle || wf.profile && (wf.profile.id || wf.profile.title));
+	}
+	/** Is the library worth fetching? True when any row names a profile it does not hold. */
+	function favouritesNeedProfileRepair(favs) {
+		return Array.isArray(favs) && favs.some(favouriteProfileIsThin);
+	}
+	function fattenFavouriteProfiles(favs, profileRecords) {
+		if (!Array.isArray(favs)) return favs;
+		const whole = wholeProfile;
+		const byId = /* @__PURE__ */ new Map();
+		const byTitle = /* @__PURE__ */ new Map();
+		for (const rec of Array.isArray(profileRecords) ? profileRecords : []) {
+			const prof = rec && rec.profile;
+			if (!whole(prof)) continue;
+			byId.set(String(rec.id), prof);
+			if (prof.title && !byTitle.has(String(prof.title))) byTitle.set(String(prof.title), {
+				id: rec.id,
+				profile: prof
+			});
+		}
+		let changed = false;
+		const out = favs.map((fav) => {
+			if (!favouriteProfileIsThin(fav)) return fav;
+			const snp = fav.snapshot;
+			const wf = fav.workflow || {};
+			const title = snp.profileTitle || wf.profile && wf.profile.title || null;
+			const id = snp.profileId || wf.profile && wf.profile.id || null;
+			const hit = (id != null ? byId.get(String(id)) : null) || null;
+			const byName = !hit && title ? byTitle.get(String(title)) : null;
+			const full = hit || (byName ? byName.profile : null);
+			if (!whole(full)) return fav;
+			changed = true;
+			return {
+				...fav,
+				snapshot: {
+					...snp,
+					profileId: id != null ? id : byName ? byName.id : null,
+					profileTitle: title || full.title || null,
+					profileSnapshot: full
+				},
+				workflow: {
+					...wf,
+					profile: full
+				}
+			};
+		});
+		return changed ? out : favs;
+	}
 	function dedupeFavSlots(favs) {
 		if (!Array.isArray(favs)) return favs;
 		const ts = (r) => {
@@ -12750,6 +12804,7 @@ bcInit();
 			},
 			snapshot: {
 				profileTitle: profile.title || null,
+				profileSnapshot: isExecutableRecordedProfile(profile) ? profile : null,
 				beanBatchId: ctx.beanBatchId || null,
 				coffeeName: ctx.coffeeName || null,
 				coffeeRoaster: ctx.coffeeRoaster || null,
@@ -13666,6 +13721,32 @@ bcInit();
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status} migrating favourite slots`);
 		}
+		async function migrateFavProfiles() {
+			if (typeof fetch !== "function") return;
+			if (!favouritesNeedProfileRepair(await kv("autoFavourites"))) return;
+			const res = await fetch(`${API}/profiles?includeHidden=true`);
+			if (!res.ok) throw new Error(`HTTP ${res.status} reading profiles`);
+			const body = await res.json();
+			const library = Array.isArray(body) ? body : body && body.items || [];
+			const fresh = await kv("autoFavourites");
+			const next = fattenFavouriteProfiles(fresh, library);
+			if (next === fresh) return;
+			const write = await fetch(`${API}/store/${NS}/autoFavourites`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(next)
+			});
+			if (!write.ok) throw new Error(`HTTP ${write.status} repairing favourite profiles`);
+			log(`repaired the stored profile on ${next.filter((r, i) => r !== fresh[i]).length} favourite(s)`);
+		}
+		function runFavProfileMigration() {
+			migrateFavProfiles().catch((e) => log(`favourite profile repair failed: ${e instanceof Error ? e.message : String(e)}`)).then(() => host.storage({
+				type: "write",
+				key: "favProfilesMigrated",
+				namespace: NS,
+				data: true
+			}));
+		}
 		function runFavSlotMigration() {
 			migrateFavSlots().catch((e) => log(`favourite slot migration failed: ${e instanceof Error ? e.message : String(e)}`)).then(() => {
 				host.storage({
@@ -13724,10 +13805,16 @@ bcInit();
 						key: "favSlotsMigrated",
 						namespace: NS
 					});
+					host.storage({
+						type: "read",
+						key: "favProfilesMigrated",
+						namespace: NS
+					});
 				}
 				if (typeof host.storage !== "function") {
 					runRecipeMigration();
 					runFavSlotMigration();
+					runFavProfileMigration();
 				} else refreshRecents();
 				if (typeof fetch === "function") liveWorkflow().then((wf) => trackWorkflow(wf, true));
 			},
@@ -13745,6 +13832,7 @@ bcInit();
 					if (event.payload && event.payload.key === "selectionMigrated" && !event.payload.value) migrate();
 					if (event.payload && event.payload.key === "recipesMigrated" && !event.payload.value) runRecipeMigration();
 					if (event.payload && event.payload.key === "favSlotsMigrated" && !event.payload.value) runFavSlotMigration();
+					if (event.payload && event.payload.key === "favProfilesMigrated" && !event.payload.value) runFavProfileMigration();
 				} else if (event.name === "workflowUpdated") trackWorkflow(event.payload);
 			},
 			__httpRequestHandler(request) {

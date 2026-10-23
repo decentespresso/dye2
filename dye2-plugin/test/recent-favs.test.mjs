@@ -104,6 +104,8 @@ console.log('ok   recentGroupKey: trim/lowercase, id-vs-name splits, skip rules'
   assert.equal(fav.sourceShotId, 'rep');
   assert.equal(fav.capturedAt, 't9');
   assert.deepEqual(fav.workflow.profile, shot.workflow.profile, 'the full recorded profile, not a {id,title} reference');
+  // Both stores, because the skin applies workflow.profile and DYE2 applies the snapshot.
+  assert.deepEqual(fav.snapshot.profileSnapshot, shot.workflow.profile, 'and on the snapshot as well');
 
   assert.equal(fav.workflow.context.grinderId, null, 'missing grinderId is an explicit null, not omitted');
   assert.equal(fav.workflow.context.beanBatchId, null, 'missing beanBatchId is an explicit null, not omitted');

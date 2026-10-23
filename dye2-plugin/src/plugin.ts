@@ -17,7 +17,7 @@ import { renderAutoFavEditPage } from "./pages/auto-fav-edit";
 import { renderRecipeEditPage } from "./pages/recipe-edit";
 import { renderSelectRecipePage } from "./pages/select-recipe";
 import { renderBcImportPage } from "./pages/bc-import";
-import { refreshRecentFavourites, shotPatchAffectsRecents, noteShotUpdated, explicitRecipeSlot, migrateRecipeSlots, dropSuggestedRecipes, dedupeRecipeSlots, dedupeFavSlots } from "./utils/recent-favs";
+import { refreshRecentFavourites, shotPatchAffectsRecents, noteShotUpdated, explicitRecipeSlot, migrateRecipeSlots, dropSuggestedRecipes, dedupeRecipeSlots, dedupeFavSlots, fattenFavouriteProfiles, favouritesNeedProfileRepair } from "./utils/recent-favs";
 import {
   deriveSelection,
   recipeIdOf,
@@ -335,6 +335,36 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     if (!res.ok) throw new Error(`HTTP ${res.status} migrating favourite slots`);
   }
 
+  // One-time (the `favProfilesMigrated` flag): favourites stored with a profile in name only get
+  // the real record resolved onto their snapshot and their ready-to-PUT workflow, so applying one
+  // loads the profile it names instead of leaving the live one running. Same re-read-before-write
+  // dance as the recipe migration: the pages are the other writer of this key.
+  async function migrateFavProfiles(): Promise<void> {
+    if (typeof fetch !== "function") return;
+    const rows = await kv("autoFavourites");
+    if (!favouritesNeedProfileRepair(rows)) return;   // don't fetch the library for nothing
+    const res = await fetch(`${API}/profiles?includeHidden=true`);
+    if (!res.ok) throw new Error(`HTTP ${res.status} reading profiles`);
+    const body = await res.json();
+    const library = Array.isArray(body) ? body : (body && body.items) || [];
+    const fresh = await kv("autoFavourites");
+    const next = fattenFavouriteProfiles(fresh, library);
+    if (next === fresh) return;
+    const write = await fetch(`${API}/store/${NS}/autoFavourites`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next),
+    });
+    if (!write.ok) throw new Error(`HTTP ${write.status} repairing favourite profiles`);
+    log(`repaired the stored profile on ${next.filter((r: any, i: number) => r !== fresh[i]).length} favourite(s)`);
+  }
+
+  function runFavProfileMigration(): void {
+    migrateFavProfiles()
+      .catch((e: unknown) => log(`favourite profile repair failed: ${e instanceof Error ? e.message : String(e)}`))
+      // Set either way: the repair is idempotent and every write from here on carries the whole
+      // profile (dev-api fattenFavouriteProfile), so a failed run has nothing to retry for.
+      .then(() => host.storage({ type: "write", key: "favProfilesMigrated", namespace: NS, data: true }));
+  }
+
   function runFavSlotMigration(): void {
     migrateFavSlots()
       .catch((e: unknown) => log(`favourite slot migration failed: ${e instanceof Error ? e.message : String(e)}`))
@@ -377,8 +407,9 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         host.storage({ type: "read", key: "selectionMigrated", namespace: NS });
         host.storage({ type: "read", key: "recipesMigrated", namespace: NS });
         host.storage({ type: "read", key: "favSlotsMigrated", namespace: NS });
+        host.storage({ type: "read", key: "favProfilesMigrated", namespace: NS });
       }
-      if (typeof host.storage !== "function") { runRecipeMigration(); runFavSlotMigration(); }
+      if (typeof host.storage !== "function") { runRecipeMigration(); runFavSlotMigration(); runFavProfileMigration(); }
       else refreshRecents();
       // A restart loses the baseline: look at the workflow once, comparing the stored profile.
       if (typeof fetch === "function") liveWorkflow().then((wf) => trackWorkflow(wf, true));
@@ -402,6 +433,7 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         if (event.payload && event.payload.key === "selectionMigrated" && !event.payload.value) migrate();
         if (event.payload && event.payload.key === "recipesMigrated" && !event.payload.value) runRecipeMigration();
         if (event.payload && event.payload.key === "favSlotsMigrated" && !event.payload.value) runFavSlotMigration();
+        if (event.payload && event.payload.key === "favProfilesMigrated" && !event.payload.value) runFavProfileMigration();
       } else if (event.name === "workflowUpdated") {
         // Nothing is written onto a recipe unless the barista asks (`record` route); this
         // only keeps the recipeId honest and the derived selection mirrored.

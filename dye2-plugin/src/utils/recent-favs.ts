@@ -229,6 +229,71 @@ export function dedupeRecipeSlots(recipes: AnyRecord[]): AnyRecord[] {
  * `auto: true` recents are ignored (assignSlots re-places them on every refresh). Idempotent;
  * returns the same array when no slot is shared.
  */
+/* One-time repair (plugin load, idempotent): a favourite stored with a profile in name only.
+   Decaid drops profile.id, so a snapshot taken off the live workflow has no id to resolve later,
+   and a live profile without steps left profileSnapshot null — such a row names e.g. 'Adaptive v2'
+   with nothing behind it, and applying it (the skin reads workflow.profile straight off the row,
+   DYE2 reads the snapshot) silently leaves whatever profile is loaded running. Resolve the real
+   record from the library, by id and then by title, and write it onto BOTH the snapshot and the
+   row's ready-to-PUT workflow. Returns the same array when nothing needed it, so the caller can
+   skip the write. Rows that name no profile at all have nothing to resolve and are left alone;
+   auto (recent) rows already carry the recorded profile of their source shot. */
+const wholeProfile = (p: any) => !!(p && Array.isArray(p.steps) && p.steps.length);
+
+/* Does this row name a profile it does not actually hold? The names come from the snapshot or the
+   row's workflow; the profile has to be whole in BOTH places, since the skin applies
+   workflow.profile and DYE2 applies the snapshot. */
+function favouriteProfileIsThin(fav: AnyRecord): boolean {
+  const snp = fav && fav.snapshot;
+  if (!snp) return false;
+  const wf = fav.workflow || {};
+  if (wholeProfile(snp.profileSnapshot) && wholeProfile(wf.profile)) return false;
+  return !!(snp.profileId || snp.profileTitle || (wf.profile && (wf.profile.id || wf.profile.title)));
+}
+
+/** Is the library worth fetching? True when any row names a profile it does not hold. */
+export function favouritesNeedProfileRepair(favs: AnyRecord[]): boolean {
+  return Array.isArray(favs) && favs.some(favouriteProfileIsThin);
+}
+
+export function fattenFavouriteProfiles(favs: AnyRecord[], profileRecords: AnyRecord[]): AnyRecord[] {
+  if (!Array.isArray(favs)) return favs;
+  const whole = wholeProfile;
+  const byId = new Map<string, AnyRecord>();
+  const byTitle = new Map<string, AnyRecord>();
+  for (const rec of Array.isArray(profileRecords) ? profileRecords : []) {
+    const prof = rec && rec.profile;
+    if (!whole(prof)) continue;
+    byId.set(String(rec.id), prof);
+    // Titles are not unique; the first match wins, as everywhere else this falls back to a title.
+    if (prof.title && !byTitle.has(String(prof.title))) byTitle.set(String(prof.title), { id: rec.id, profile: prof });
+  }
+  let changed = false;
+  const out = favs.map((fav) => {
+    if (!favouriteProfileIsThin(fav)) return fav;
+    const snp = fav.snapshot;
+    const wf = fav.workflow || {};
+    const title = snp.profileTitle || (wf.profile && wf.profile.title) || null;
+    const id = snp.profileId || (wf.profile && wf.profile.id) || null;
+    const hit = (id != null ? byId.get(String(id)) : null) || null;
+    const byName = !hit && title ? byTitle.get(String(title)) : null;
+    const full = hit || (byName ? byName.profile : null);
+    if (!whole(full)) return fav;
+    changed = true;
+    return {
+      ...fav,
+      snapshot: {
+        ...snp,
+        profileId: id != null ? id : (byName ? byName.id : null),
+        profileTitle: title || full.title || null,
+        profileSnapshot: full,
+      },
+      workflow: { ...wf, profile: full },
+    };
+  });
+  return changed ? out : favs;
+}
+
 export function dedupeFavSlots(favs: AnyRecord[]): AnyRecord[] {
   if (!Array.isArray(favs)) return favs;
   const ts = (r: AnyRecord) => { const t = Date.parse(String(r.capturedAt)); return Number.isFinite(t) ? t : -Infinity; };
@@ -313,6 +378,10 @@ export function toRecentFavourite(shot: AnyRecord, rank: number): AnyRecord {
     },
     snapshot: {
       profileTitle: profile.title || null,
+      // The recorded profile goes on the snapshot too, not just the workflow: DYE2's own apply
+      // reads the snapshot (dashboard applyAutoFavourite) while the skin reads workflow.profile,
+      // and a row that carries it in only one place applies with no profile from the other.
+      profileSnapshot: isExecutableRecordedProfile(profile) ? profile : null,
       beanBatchId: ctx.beanBatchId || null,
       coffeeName: ctx.coffeeName || null,
       coffeeRoaster: ctx.coffeeRoaster || null,
