@@ -274,3 +274,73 @@ const fn = (src, sig) => { const i = src.indexOf(sig); return src.slice(i, src.i
 
   console.log('ok   withDefaultVariables: first preset per field, record values untouched');
 }
+
+// ── fattenFavouriteProfile (dev-api.ts) ─────────────────────────────────────
+// The writer side of the same rule: a favourite must never be stored with a profile in name
+// only. Decaid drops profile.id, so a snapshot taken off the live workflow has no id to resolve
+// later; a thin { id, title } would deep-merge into whatever profile is loaded on apply instead
+// of replacing it, and KV rows outlive the library anyway.
+{
+  const api = read('../src/utils/dev-api.ts');
+  const src = fn(api, 'function usableProfileSnapshot(p)')
+    + fn(api, 'async function fattenFavouriteProfile(fav)');
+
+  const full = (title, temp) => ({ title, target_weight: 36, steps: [{ name: 's', temperature: temp }] });
+  const library = [
+    { id: 'profile:a', profile: full('Adaptive v2', 93) },
+    { id: 'profile:dup', profile: full('Adaptive v2', 93) },      // titles are not unique
+    { id: 'profile:stub', profile: { title: 'Stubbed', steps: [] } },
+    { id: 'profile:other', profile: full('D-Flow / default', 88) },
+  ];
+  const fatten = async (fav, { resolvesById = null, profiles = library, throws = false } = {}) => {
+    const calls = { byId: [], listed: 0 };
+    const run = new Function('usableProfileSnapshot_unused', 'resolveFullProfileById', 'getProfiles', 'console', 'fav',
+      src + '; return fattenFavouriteProfile(fav);');
+    await run(null,
+      async (id) => { calls.byId.push(id); return resolvesById; },
+      async () => { calls.listed += 1; if (throws) throw new Error('offline'); return profiles; },
+      { warn: () => {} }, fav);
+    return { fav, calls };
+  };
+
+  // Already whole: nothing is resolved, nothing is touched.
+  let kept = { snapshot: { profileId: 'profile:a', profileTitle: 'Adaptive v2', profileSnapshot: full('Adaptive v2', 93) } };
+  let r = await fatten(kept);
+  assert.deepEqual([r.calls.byId.length, r.calls.listed], [0, 0], 'a whole snapshot resolves nothing');
+
+  // An id that resolves fills the snapshot from the library record.
+  r = await fatten({ snapshot: { profileId: 'profile:a', profileTitle: 'Adaptive v2', profileSnapshot: null } },
+                   { resolvesById: full('Adaptive v2', 93) });
+  assert.equal(r.fav.snapshot.profileSnapshot.steps.length, 1, 'the resolved record becomes the snapshot');
+  assert.deepEqual(r.calls.byId, ['profile:a'], 'resolved by id');
+  assert.equal(r.calls.listed, 0, 'and the title lookup is not needed');
+
+  // The real case on this tablet: a title and nothing else. The id is backfilled.
+  r = await fatten({ snapshot: { profileId: null, profileTitle: 'Adaptive v2', profileSnapshot: null } });
+  assert.equal(r.fav.snapshot.profileSnapshot.steps[0].temperature, 93, 'resolved by title');
+  assert.equal(r.fav.snapshot.profileId, 'profile:a', 'and the missing id is filled from the match');
+  assert.deepEqual(r.calls.byId, [], 'with no id there is nothing to resolve by id');
+
+  // An id that no longer resolves still falls through to the title.
+  r = await fatten({ snapshot: { profileId: 'profile:gone', profileTitle: 'D-Flow / default', profileSnapshot: null } },
+                   { resolvesById: null });
+  assert.equal(r.fav.snapshot.profileSnapshot.steps[0].temperature, 88, 'the title rescues a dead id');
+  assert.equal(r.fav.snapshot.profileId, 'profile:gone', 'but an id the caller gave is never overwritten');
+
+  // A library row with no steps is not a profile, so it is not stored.
+  r = await fatten({ snapshot: { profileId: null, profileTitle: 'Stubbed', profileSnapshot: null } });
+  assert.equal(r.fav.snapshot.profileSnapshot, null, 'an empty-steps library row is not used');
+  assert.equal(r.fav.snapshot.profileId, null, 'and no id is invented from it');
+
+  // Nothing matches, and a failed fetch: leave the row alone rather than throw mid-write.
+  r = await fatten({ snapshot: { profileId: null, profileTitle: 'Never Heard Of It', profileSnapshot: null } });
+  assert.equal(r.fav.snapshot.profileSnapshot, null, 'an unknown title leaves the snapshot null');
+  r = await fatten({ snapshot: { profileId: null, profileTitle: 'Adaptive v2', profileSnapshot: null } }, { throws: true });
+  assert.equal(r.fav.snapshot.profileSnapshot, null, 'a failed profile fetch does not break the write');
+
+  // A favourite with no snapshot at all is not a crash.
+  await fatten({});
+  await fatten({ snapshot: null });
+
+  console.log('ok   fattenFavouriteProfile: by id, by title, id backfill, stubs and failures');
+}
