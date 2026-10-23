@@ -228,26 +228,25 @@ function buildContent(): string {
         </div>
       </div>
 
-      <div class="flex gap-[68px]">
-        <div class="flex items-center gap-[30px] flex-1 min-w-0">
-          <span class="re-field-label" style="width:auto">Barista</span>
-          <div class="re-combo">
-            <div class="re-input-row">
-              <input id="re-barista-input" class="re-input" type="text" placeholder="Barista" readonly />
-              <button class="re-input-pencil" id="re-barista-pencil">${pencilSvg}</button>
-            </div>
-            <div id="re-barista-drop" class="re-combo-drop"></div>
+      <!-- Figma 2396:820, one flat row so Barista's input sits on the same 164px label grid as
+           Beverage above it: 164 label + 30 + 246 input + 68 + 87 label + 30 + 260 input = the
+           885px column. The two inputs grow 246:260 rather than splitting the row in half. -->
+      <div class="flex items-center gap-[30px]">
+        <span class="re-field-label">Barista</span>
+        <div class="re-combo" style="flex:246 1 0%">
+          <div class="re-input-row">
+            <input id="re-barista-input" class="re-input" type="text" placeholder="Barista" readonly />
+            <button class="re-input-pencil" id="re-barista-pencil">${pencilSvg}</button>
           </div>
+          <div id="re-barista-drop" class="re-combo-drop"></div>
         </div>
-        <div class="flex items-center gap-[30px] flex-1 min-w-0">
-          <span class="re-field-label" style="width:auto">Drinker</span>
-          <div class="re-combo">
-            <div class="re-input-row">
-              <input id="re-drinker-input" class="re-input" type="text" placeholder="Drinker" readonly />
-              <button class="re-input-pencil" id="re-drinker-pencil">${pencilSvg}</button>
-            </div>
-            <div id="re-drinker-drop" class="re-combo-drop"></div>
+        <span class="re-field-label" style="width:87px;margin-left:38px">Drinker</span>
+        <div class="re-combo" style="flex:260 1 0%">
+          <div class="re-input-row">
+            <input id="re-drinker-input" class="re-input" type="text" placeholder="Drinker" readonly />
+            <button class="re-input-pencil" id="re-drinker-pencil">${pencilSvg}</button>
           </div>
+          <div id="re-drinker-drop" class="re-combo-drop"></div>
         </div>
       </div>
     </div>
