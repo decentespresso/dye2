@@ -10642,6 +10642,9 @@ let selectedBeanName = null;
 let selectedBeanBatchId = null;
 let selectedBeanRoaster = null;
 let selectedProfileId = null;
+// Set by a Read From, cleared by a tap: the profile a read chose leads the strip, so the user can
+// see what was read without hunting for the highlight. Taps leave positions alone (orderedChips).
+let profileReadFirst = false;
 let selectedProfileTitle = null;
 let selectedProfileSnapshot = null;
 let beans = [];
@@ -10863,34 +10866,62 @@ async function readFromWorkflow() {
 function favouriteToRecipePatch(fav) {
   const s = fav.snapshot || {};
   const bean = s.coffeeName ? beans.find(b => b.name === s.coffeeName) : null;
+  // Everything the record holds, snapshot first and the ready-to-PUT workflow behind it: an auto
+  // (recent) favourite leaves snapshot fields out that its workflow.context still carries, e.g. a
+  // grind setting recorded on the shot but not summarised (KV_CONTRACT autoFavourites[]).
+  const wfCtx = (fav.workflow && fav.workflow.context) || {};
+  const wfExtras = wfCtx.extras || {};
+  const pick = (a, b) => (a != null ? a : (b != null ? b : undefined));
   // Auto/recent favourites (recent-favs.ts) never set snapshot.profileId -- only
   // snapshot.profileTitle. Their fav.workflow.profile carries the full recorded
   // profile from the source shot (when isExecutableRecordedProfile allowed it), so
   // fall back to its id/title rather than leaving profileId null and the profile
   // chip unable to show anything.
   const wfProfile = fav.workflow && fav.workflow.profile;
-  // Only treat wfProfile as a real captured profile (not a thin {id,title} stub the same
-  // field can otherwise hold) when it actually carries brew steps.
-  const profileSnapshot = usableProfileSnapshot(wfProfile) ? wfProfile : null;
+  // Only treat either as a real captured profile (not a thin {id,title} stub the same field can
+  // otherwise hold) when it actually carries brew steps. The snapshot's own profileSnapshot wins:
+  // it is the one the contract says to apply instead of resolving profileId.
+  const profileSnapshot = usableProfileSnapshot(s.profileSnapshot) ? s.profileSnapshot
+    : (usableProfileSnapshot(wfProfile) ? wfProfile : null);
+  // The brew temperature is where the captured profile's first step sits — the same anchor
+  // fillFromProfile and profileAtBrewC use. A favourite carries no steam / flush / hot-water
+  // settings at all (its workflow is { context, profile? }, KV_CONTRACT), so those stay put.
+  const step0 = profileSnapshot && profileSnapshot.steps[0];
+  const brewC = step0 && typeof step0.temperature === 'number' && Number.isFinite(step0.temperature)
+    ? Math.round(step0.temperature * 10) / 10 : undefined;
+  const dose  = pick(s.dose,  wfCtx.targetDoseWeight);
+  const drink = pick(s.drink, wfCtx.targetYield);
+  const grind = pick(s.grindSetting, wfCtx.grinderSetting);
   return {
     beverage:     fav.beverage || '',
-    barista:      s.barista || '',
-    drinker:      s.drinker || '',
+    // A recipe keeps its own name, but an unnamed one may as well start from the favourite's.
+    name:         (recipe.name && recipe.name.trim()) || fav.title || '',
+    barista:      s.barista || wfCtx.baristaName || '',
+    drinker:      s.drinker || wfCtx.drinkerName || '',
     beanId:       bean ? bean.id : null,
-    beanName:     s.coffeeName || null,
-    beanBatchId:  s.beanBatchId || null,
-    beanRoaster:  s.coffeeRoaster || null,
-    profileId:    s.profileId || (wfProfile && wfProfile.id) || null,
-    profileTitle: s.profileTitle || (wfProfile && wfProfile.title) || null,
+    beanName:     s.coffeeName || wfCtx.coffeeName || null,
+    beanBatchId:  s.beanBatchId || wfCtx.beanBatchId || null,
+    beanRoaster:  s.coffeeRoaster || wfCtx.coffeeRoaster || null,
+    // An auto favourite's recorded profile has a title and steps but no id (Decaid drops
+    // profile.id on a PUT, so a shot's profile comes back without one), which left the strip
+    // with nothing to highlight. Match the title against the library to recover the id; the
+    // snapshot above stays the authority for what apply actually sends.
+    profileId:    s.profileId || (wfProfile && wfProfile.id) || profileIdByTitle(profileTitleOf(s, wfProfile)),
+    profileTitle: profileTitleOf(s, wfProfile),
     profileSnapshot,
     dashboardVariables: {
-      dose:  s.dose,
-      drink: s.drink,
-      grind: s.grindSetting,
-      rpm:   s.rpm,
-      grinderId: s.grinderId,
-      basketId:   s.basketId,
-      basketName: s.basketName,
+      dose,
+      drink,
+      // Not stored on a favourite, but the pair implies it — without it the Drink stepper shows
+      // no (1:R) sub and its ratio presets have nothing to mark.
+      ratio: (dose > 0 && drink > 0) ? Math.round((drink / dose) * 10) / 10 : undefined,
+      brewC,
+      grind: grind != null ? parseFloat(grind) : undefined,
+      rpm:   pick(s.rpm, wfExtras.rpm),
+      grinderId:    pick(s.grinderId, wfCtx.grinderId),
+      grinderModel: pick(s.grinderModel, wfCtx.grinderModel),
+      basketId:   pick(s.basketId, wfExtras.basketId),
+      basketName: pick(s.basketName, wfExtras.basketName),
       equipmentIds:   s.equipmentIds,
       equipmentNames: s.equipmentNames,
       equipmentCustom: s.equipmentCustom,
@@ -10901,9 +10932,10 @@ function favouriteToRecipePatch(fav) {
 // Merge a patch into the current recipe (keep id/name), then re-render.
 function applyToCurrentRecipe(src) {
   if (!src) return;
+  profileReadFirst = true;   // a read chose this profile: show it as the first chip (renderProfileChips)
   const cur = recipe;
   const merged = {
-    ...cur, ...src, id: cur.id, name: cur.name,
+    ...cur, ...src, id: cur.id, name: src.name != null ? src.name : cur.name,
     dashboardVariables: { ...(cur.dashboardVariables || {}), ...(src.dashboardVariables || {}) },
   };
   recipe = merged;
@@ -10963,21 +10995,37 @@ function profileLabel(p) {
   return (p.profile && p.profile.title) || p.title || p.name || 'Untitled';
 }
 
+function profileTitleOf(snapshot, wfProfile) {
+  return (snapshot && snapshot.profileTitle) || (wfProfile && wfProfile.title) || null;
+}
+function profileIdByTitle(title) {
+  if (!title) return null;
+  const hit = profiles.find(p => profileLabel(p) === title);
+  return hit ? hit.id : null;
+}
+
 function renderProfileChips() {
   // selectedProfileId is frequently captured straight off a favourite's/recipe's snapshot
   // (an ad-hoc profile that was never saved into the library), so it may not appear in
   // the profiles array at all. When that happens, synthesize a virtual chip so it still
   // shows — profileLabel() already falls back to .title on a plain {id, title} object.
   let list = profiles;
-  if (selectedProfileId != null && !profiles.some(p => String(p.id) === String(selectedProfileId))) {
+  if (selectedProfileId == null && selectedProfileTitle) {
+    // Named but not identified (a recorded profile read off a favourite): a virtual chip keyed by
+    // the same null id selectedProfileId holds, so isActive marks it.
+    list = [{ id: null, title: selectedProfileTitle }, ...profiles];
+  } else if (selectedProfileId != null && !profiles.some(p => String(p.id) === String(selectedProfileId))) {
     list = [{ id: selectedProfileId, title: selectedProfileTitle || 'Profile' }, ...profiles];
+  } else if (profileReadFirst && selectedProfileId != null) {
+    const i = list.findIndex(p => String(p.id) === String(selectedProfileId));
+    if (i > 0) list = [list[i], ...list.slice(0, i), ...list.slice(i + 1)];
   }
   renderChipGrid(
     're-profile-chips',
     orderedChips(list, selectedProfileId, 5),
     p => String(p.id) === String(selectedProfileId),
     p => profileLabel(p),
-    p => { selectedProfileId = p.id; selectedProfileTitle = profileLabel(p); selectedProfileSnapshot = null; renderProfileChips(); fillFromProfile(p); },
+    p => { selectedProfileId = p.id; selectedProfileTitle = profileLabel(p); selectedProfileSnapshot = null; profileReadFirst = false; renderProfileChips(); fillFromProfile(p); },
     { beans: false, url: '/api/v1/plugins/dye2.reaplugin/profile-picker?return=/api/v1/plugins/dye2.reaplugin/recipe-edit' }
   );
 }
@@ -10999,6 +11047,9 @@ function fillFromProfile(record) {
   const yieldG = pos(prof.target_weight) ?? pos(prof.target_volume);
   const step0 = Array.isArray(prof.steps) && prof.steps.length ? prof.steps[0] : null;
   const brewC = step0 ? num(step0.temperature) : null;
+  // A chip standing in for a profile the library does not hold carries nothing to read, and must
+  // not reset the strips to their first presets either.
+  if (yieldG == null && brewC == null) return;
 
   if (yieldG != null) {
     const drinkEl = document.getElementById('re-drink-value');

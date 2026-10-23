@@ -142,3 +142,69 @@ const fn = (src, sig) => { const i = src.indexOf(sig); return src.slice(i, src.i
 
   console.log('ok   fillFromProfile: yield, brew temp, derived dose, zero guard, first presets');
 }
+
+// ── favouriteToRecipePatch (recipe-edit.ts) ─────────────────────────────────
+// "Read From > From Favourite" should land everything the record holds: the snapshot first, the
+// ready-to-PUT workflow behind it (an auto favourite's snapshot leaves out fields its
+// workflow.context still carries), and the captured profile's first step as the brew temperature.
+{
+  const page = read('../src/pages/recipe-edit.ts');
+  const api = read('../src/utils/dev-api.ts');
+  const src = fn(page, 'function profileTitleOf(snapshot, wfProfile)')
+    + fn(page, 'function profileIdByTitle(title)')
+    + fn(page, 'function favouriteToRecipePatch(fav)');
+  const usable = fn(api, 'function usableProfileSnapshot(p)');
+
+  const profiles = [{ id: 'profile:lib', profile: { title: 'Blooming Allongé' } }];
+  const beans = [{ id: 'bean:red', name: 'Red Brick' }];
+  const build = (fav, recipeName = '') => new Function(
+    'beans', 'profiles', 'recipe', 'profileLabel', 'fav',
+    usable + src + '; return favouriteToRecipePatch(fav);',
+  )(beans, profiles, { name: recipeName }, (p) => (p.profile && p.profile.title) || p.title, fav);
+
+  const steps = [{ name: 'pre', temperature: 95 }, { name: 'brew', temperature: 93 }];
+  const auto = {
+    title: 'Red Brick', auto: true,
+    snapshot: { coffeeName: 'Red Brick', coffeeRoaster: 'Has Bean', profileTitle: 'Blooming Allongé', dose: 28, drink: 80 },
+    workflow: { context: { grinderSetting: '20.00', targetDoseWeight: 28, targetYield: 80, extras: { rpm: 19, basketId: 'b1', basketName: 'ims' }, grinderId: 'g1', grinderModel: 'Niche Zero', baristaName: 'Mark' },
+                profile: { title: 'Blooming Allongé', steps } },
+  };
+
+  let p = build(auto);
+  assert.equal(p.dashboardVariables.brewC, 95, 'brew temperature is the captured profile first step');
+  assert.equal(p.dashboardVariables.ratio, 2.9, 'ratio is derived from dose and drink (80/28)');
+  assert.equal(p.dashboardVariables.grind, 20, 'grind falls back to workflow.context.grinderSetting');
+  assert.equal(p.dashboardVariables.rpm, 19, 'rpm falls back to context extras');
+  assert.equal(p.dashboardVariables.basketId, 'b1', 'so does the basket');
+  assert.equal(p.dashboardVariables.grinderModel, 'Niche Zero', 'and the grinder model');
+  assert.equal(p.barista, 'Mark', 'barista falls back to context baristaName');
+  assert.equal(p.beanId, 'bean:red', 'the bean is matched by coffee name so its chip highlights');
+  // Decaid drops profile.id, so a recorded profile arrives with a title and steps only.
+  assert.equal(p.profileId, 'profile:lib', 'the id is recovered by matching the title in the library');
+  assert.equal(p.profileSnapshot.steps.length, 2, 'the recorded profile is kept as the snapshot');
+  assert.equal(p.name, 'Red Brick', 'a blank recipe takes the favourite title');
+  assert.equal(build(auto, 'My own name').name, 'My own name', 'a named one keeps its name');
+
+  // The snapshot's own profileSnapshot is what the contract says to apply, so it wins.
+  p = build({ ...auto, snapshot: { ...auto.snapshot, profileSnapshot: { title: 'Own', steps: [{ temperature: 88 }] } } });
+  assert.equal(p.profileSnapshot.title, 'Own', 'snapshot.profileSnapshot wins over workflow.profile');
+  assert.equal(p.dashboardVariables.brewC, 88, 'and the brew temperature comes from it');
+
+  // An empty steps array is not a profile: no snapshot, and nothing to read a brew temp from.
+  p = build({ ...auto, workflow: { ...auto.workflow, profile: { title: 'T', id: 'profile:x', steps: [] } } });
+  assert.equal(p.profileSnapshot, null, 'an empty steps array is not a usable snapshot');
+  assert.equal(p.dashboardVariables.brewC, undefined, 'and gives no brew temperature');
+  assert.equal(p.profileId, 'profile:x', 'the id on the stub is still worth keeping');
+
+  // A favourite carries no steam / flush / hot water at all (its workflow is { context, profile? }).
+  for (const k of ['steamFlowMls', 'steamTimeS', 'flushS', 'hotWaterMl', 'hotWaterTempC']) {
+    assert.ok(!(k in build(auto).dashboardVariables), `${k} is not invented from a favourite`);
+  }
+
+  // No dose or drink anywhere: no ratio rather than a divide-by-zero.
+  p = build({ title: 'T', snapshot: {}, workflow: { context: {} } });
+  assert.equal(p.dashboardVariables.ratio, undefined, 'no ratio without both weights');
+  assert.equal(p.dashboardVariables.dose, undefined, 'and no dose');
+
+  console.log('ok   favouriteToRecipePatch: snapshot, workflow fallbacks, brew temp, recovered profile id');
+}
