@@ -215,6 +215,8 @@ function cssVarFallbacks(): string {
       --dye-chart-red:   #C0392B;
       --dye-chart-blue:  #2F6BD1;
       --dye-chart-green: #2E8B57;
+      /* Figma Light Mode/Status/Ongoing — the green on the Show on Streamline Dashboard check. */
+      --status-ok:       #0CA581;
       --dye-chart-pink:  #E89AB0;
       --dye-surface:     #F8FAFC;
       --dye-border:      #E5E9EE;

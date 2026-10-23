@@ -114,8 +114,9 @@ const styles = `
     font-family: 'Inter', sans-serif; white-space: nowrap; display: flex; align-items: center; gap: 8px;
     background: var(--box-color);
   }
-  /* Figma 2386:1884: bordered pill with check | divider | label. On/off reads by fill,
-     not just opacity — solid blue + check when on, outline + x when off. */
+  /* Figma 2386:1884: bordered pill with check | divider | label. On is the frame's own state —
+     white ground, blue stroke and text, green check. Off keeps the stroke and text grey with an
+     x in place of the check, which is the only part the frame does not draw. */
   .re-show-streamline {
     display: flex; align-items: center; gap: 14px;
     border: 2px solid var(--mimoja-blue); border-radius: 23px;
@@ -123,11 +124,10 @@ const styles = `
     font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 600;
     cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .re-show-streamline.on  { background: var(--mimoja-blue); color: #fff; }
+  .re-show-streamline.on  { background: var(--box-color); color: var(--mimoja-blue); }
   .re-show-streamline.off { background: var(--box-color); color: var(--text-primary-disabled); border-color: var(--profile-button-outline-color); }
   .re-show-streamline-icon { flex-shrink: 0; display: flex; align-items: center; }
   .re-show-streamline-sep { width: 2px; height: 36px; background: var(--profile-button-outline-color); flex-shrink: 0; }
-  .re-show-streamline.on .re-show-streamline-sep { background: rgba(255,255,255,0.4); }
   .read-from-dropdown {
     display: none; position: absolute; bottom: calc(100% + 4px); left: 0;
     min-width: 220px; background: var(--box-color);
@@ -166,9 +166,9 @@ const styles = `
   .re-mode-sep { color: var(--profile-button-outline-color); }
 `;
 
-// currentColor so these follow .re-show-streamline's text color (white when on, gray when
-// off) instead of staying a fixed blue that reads the same regardless of state.
-const streamlineOnSvg  = lucideIcon('check-circle', 28, 'currentColor', 2);
+// The check is the frame's green (Status/Ongoing) whatever the text does; the x follows the
+// label's colour, so the off state greys out whole.
+const streamlineOnSvg  = lucideIcon('check-circle', 28, 'var(--status-ok)', 2);
 const streamlineOffSvg = lucideIcon('x',            28, 'currentColor', 2.5);
 
 function buildContent(): string {

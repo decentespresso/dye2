@@ -294,6 +294,8 @@ ${kbPlanScript}
       --dye-chart-red:   #C0392B;
       --dye-chart-blue:  #2F6BD1;
       --dye-chart-green: #2E8B57;
+      /* Figma Light Mode/Status/Ongoing — the green on the Show on Streamline Dashboard check. */
+      --status-ok:       #0CA581;
       --dye-chart-pink:  #E89AB0;
       --dye-surface:     #F8FAFC;
       --dye-border:      #E5E9EE;
@@ -10214,8 +10216,9 @@ function stripReplaceLabel(holder, n) { return 'REPLACE ' + (holder.name || 'REC
     font-family: 'Inter', sans-serif; white-space: nowrap; display: flex; align-items: center; gap: 8px;
     background: var(--box-color);
   }
-  /* Figma 2386:1884: bordered pill with check | divider | label. On/off reads by fill,
-     not just opacity — solid blue + check when on, outline + x when off. */
+  /* Figma 2386:1884: bordered pill with check | divider | label. On is the frame's own state —
+     white ground, blue stroke and text, green check. Off keeps the stroke and text grey with an
+     x in place of the check, which is the only part the frame does not draw. */
   .re-show-streamline {
     display: flex; align-items: center; gap: 14px;
     border: 2px solid var(--mimoja-blue); border-radius: 23px;
@@ -10223,11 +10226,10 @@ function stripReplaceLabel(holder, n) { return 'REPLACE ' + (holder.name || 'REC
     font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 600;
     cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .re-show-streamline.on  { background: var(--mimoja-blue); color: #fff; }
+  .re-show-streamline.on  { background: var(--box-color); color: var(--mimoja-blue); }
   .re-show-streamline.off { background: var(--box-color); color: var(--text-primary-disabled); border-color: var(--profile-button-outline-color); }
   .re-show-streamline-icon { flex-shrink: 0; display: flex; align-items: center; }
   .re-show-streamline-sep { width: 2px; height: 36px; background: var(--profile-button-outline-color); flex-shrink: 0; }
-  .re-show-streamline.on .re-show-streamline-sep { background: rgba(255,255,255,0.4); }
   .read-from-dropdown {
     display: none; position: absolute; bottom: calc(100% + 4px); left: 0;
     min-width: 220px; background: var(--box-color);
@@ -10265,7 +10267,7 @@ function stripReplaceLabel(holder, n) { return 'REPLACE ' + (holder.name || 'REC
   .re-mode-seg.active { color: var(--mimoja-blue); }
   .re-mode-sep { color: var(--profile-button-outline-color); }
 `;
-	var streamlineOnSvg = lucideIcon("check-circle", 28, "currentColor", 2);
+	var streamlineOnSvg = lucideIcon("check-circle", 28, "var(--status-ok)", 2);
 	var streamlineOffSvg = lucideIcon("x", 28, "currentColor", 2.5);
 	function buildContent() {
 		const chevUpSvg = lucideIcon("chevron-up", 24, "var(--mimoja-blue)", 2.5);
