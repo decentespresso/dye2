@@ -199,10 +199,16 @@ git push origin v0.2.0
 4. Zips **with `dye2.reaplugin/` as the top-level entry** — the bundling fetch script unpacks into `assets/plugins/` and then reads `assets/plugins/dye2.reaplugin/manifest.json`, so the folder must be there. (Decaid's own installer is more relaxed: it accepts a flat zip or a single wrapper directory, and takes the install directory name from `manifest.id`.)
 5. Publishes `dye2.reaplugin-vX.Y.Z.zip` to Releases.
 
-Two rules the workflow can't enforce for you:
+Pushes to `main` carry no tag, so they skip 1–5 and instead publish the built package to a `dist` branch — see the rules below.
 
-- **Commit the rebuilt `dye2.reaplugin/`.** Decaid can install straight from the `main` branch, so the committed output must be real. A push to `main` whose committed build differs from a clean build raises a CI warning.
+Rules the workflow can't enforce for you:
+
+- **Commit the rebuilt `dye2.reaplugin/`.** A push to `main` whose committed build differs from a clean build raises a CI warning. Note `main` itself is *not* installable from a branch — its root has no `manifest.json` — so branch installs go through `dist` or a release.
+- **The `dist` branch root is the *contents* of `dye2.reaplugin/`, not the folder.** Decaid descends exactly one level under GitHub's archive wrapper to find the package root, so a `dye2.reaplugin/` directory inside the branch would be one level too deep and fail with "Plugin package has no manifest.json". A branch root holding two manifest-bearing directories also fails, deliberately.
+- **Release and `dist` share one install slot.** Both carry the same `manifest.id`, so switching channel overwrites the recorded source. Install one or the other, not both.
 - **Keep the branch head at or above the latest tag.** Decaid refuses any install that would downgrade an existing one unless downgrades are explicitly allowed. After tagging, bring `main`'s manifest version up to the released version and commit the rebuild — this is the one bump you make by hand, and it follows the tag rather than leading it.
+- **That rule governs `dist` too, and it bites in the window between a release and that bump.** A tag build takes the tag's version while `main`'s committed manifest still holds the previous one, so `dist` publishes the *older* version; installing it over the release is then refused as a downgrade (HTTP 409, "Plugin dye2.reaplugin X.Y.Z is installed; remove it before installing …"). Bump `main` before relying on `dist`, or install the release.
+- **`dist` is a rolling target.** `force_orphan` rewrites the branch on every push to `main`, so the recorded `source.commit` moves and "install from dist" can never be pinned. Pin with a release when that matters.
 
 ---
 

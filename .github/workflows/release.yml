@@ -68,6 +68,20 @@ jobs:
           name: dye2.reaplugin
           path: dye2.reaplugin/
 
+      # On every push to main: publish the built package to a dist branch so it
+      # can be installed with install/github-branch. The branch root must be the
+      # CONTENTS of dye2.reaplugin/, not the folder -- Decaid resolves exactly one
+      # nested package root under GitHub's archive wrapper, so a dye2.reaplugin/
+      # directory inside the branch would sit one level too deep.
+      - name: Deploy plugin package to dist branch
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dye2.reaplugin
+          publish_branch: dist
+          force_orphan: true
+
       # Zip keeps the dye2.reaplugin/ folder as the top-level entry, because REA
       # identifies a plugin by that folder name.
       - name: Create release archive
