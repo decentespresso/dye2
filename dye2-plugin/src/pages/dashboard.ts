@@ -1732,6 +1732,15 @@ function setupClipboardPaste() {
   });
 }
 
+function referrerBack() {
+  try {
+    const r = new URL(document.referrer);
+    if (r.protocol !== 'http:' && r.protocol !== 'https:') return '';
+    if (r.hostname !== window.location.hostname) return '';
+    if (r.pathname.indexOf('/api/v1/plugins/') === 0) return '';   // another DYE2 page, not the skin
+    return r.toString();
+  } catch (e) { return ''; }
+}
 // Leave the dashboard for the REA Web UI, which runs on :3000 (this plugin is served
 // from :8080); ?_=Date.now() cache-busts, matching settings.reaplugin's back link. A
 // caller that wants somewhere else passes ?return=.
@@ -1751,6 +1760,15 @@ function leaveDashboard() {
       u.searchParams.set('dyeApplied', lastApplied);
       window.location.href = u.toString();
     } catch (e) { window.location.href = ret; }
+    return;
+  }
+  // The :3000 fallback is a 307 redirector to the skin's real origin, so anything the skin
+  // kept in sessionStorage is gone after it. The referrer is the skin's real page when the
+  // skin opened us by link, so it goes first.
+  const back = referrerBack();
+  if (back) {
+    try { const u = new URL(back); u.searchParams.set('dyeApplied', lastApplied); window.location.href = u.toString(); }
+    catch (e) { window.location.href = back; }
     return;
   }
   window.location.href = 'http://' + window.location.hostname + ':3000/?_=' + Date.now() + '&dyeApplied=' + encodeURIComponent(lastApplied);

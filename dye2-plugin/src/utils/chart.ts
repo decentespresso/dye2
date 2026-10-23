@@ -287,5 +287,48 @@ function plotHistoricalShot(measurements, workflow) {
   chartClearPlaceholder(el);
   Plotly.react(el, traces, layout, { responsive: true, displayModeBar: false });
   Plotly.relayout(el, { 'xaxis.dtick': dtick });
+  chartSettle(el);
+}
+
+// Plotly sizes itself from the container at draw time. The shell scales <body> by a
+// transform and may not have settled by then, so on the tablet the plot can be laid out
+// at zero size (an empty SVG, no error). Container size in layout px (clientWidth) is not
+// affected by the transform; getBoundingClientRect is, so it is divided by the shell's
+// scale when clientWidth is unusable. Sizing only: nothing here changes appearance.
+function chartContainerSize(el) {
+  var sc = window.__dyeScale || { x: 1, y: 1 };
+  var r = el.getBoundingClientRect();
+  return {
+    w: el.clientWidth  || (sc.x ? r.width  / sc.x : 0),
+    h: el.clientHeight || (sc.y ? r.height / sc.y : 0),
+    sx: sc.x, sy: sc.y, rw: r.width, rh: r.height,
+  };
+}
+
+function chartCheckSize(el) {
+  if (!el || !window.Plotly || !el._fullLayout) return;
+  var c = chartContainerSize(el);
+  var fl = el._fullLayout;
+  if (!fl.width || !fl.height || !c.w || !c.h) {
+    console.warn('[dye2 chart] zero size at draw: plot ' + fl.width + 'x' + fl.height +
+      ', container ' + c.w + 'x' + c.h + ', rect ' + c.rw + 'x' + c.rh +
+      ', scale ' + c.sx + ',' + c.sy);
+  }
+  if (c.w > 0 && c.h > 0 && (Math.abs(fl.width - c.w) > 1 || Math.abs(fl.height - c.h) > 1)) {
+    try { Plotly.Plots.resize(el); } catch (e) { console.warn('[dye2 chart] resize failed', e); }
+  }
+}
+
+// Re-check once layout has settled: next frame, after the shell's own fit (its resize
+// listener is registered before this script runs), and on every later viewport resize.
+var chartSettleWired = false;
+function chartSettle(el) {
+  var again = function () { chartCheckSize(document.getElementById('plotly-chart')); };
+  if (window.requestAnimationFrame) window.requestAnimationFrame(function () { again(); });
+  chartCheckSize(el);
+  if (chartSettleWired) return;
+  chartSettleWired = true;
+  window.addEventListener('resize', again);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', again);
 }
 `;

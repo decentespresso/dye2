@@ -122,6 +122,7 @@ function kbPlan(o) {
     var root = document.body.firstElementChild;
     if (root) { root.style.width = '100%'; root.style.height = '100%'; }
     lastSy = sy;
+    window.__dyeScale = { x: sx, y: sy };   // read by chart.ts to size Plotly from unscaled px
   }
   var lastSy = 1;
   // Android's soft keyboard shrinks the viewport height (interactive-widget=overlays-content
@@ -5512,6 +5513,49 @@ function plotHistoricalShot(measurements, workflow) {
   chartClearPlaceholder(el);
   Plotly.react(el, traces, layout, { responsive: true, displayModeBar: false });
   Plotly.relayout(el, { 'xaxis.dtick': dtick });
+  chartSettle(el);
+}
+
+// Plotly sizes itself from the container at draw time. The shell scales <body> by a
+// transform and may not have settled by then, so on the tablet the plot can be laid out
+// at zero size (an empty SVG, no error). Container size in layout px (clientWidth) is not
+// affected by the transform; getBoundingClientRect is, so it is divided by the shell's
+// scale when clientWidth is unusable. Sizing only: nothing here changes appearance.
+function chartContainerSize(el) {
+  var sc = window.__dyeScale || { x: 1, y: 1 };
+  var r = el.getBoundingClientRect();
+  return {
+    w: el.clientWidth  || (sc.x ? r.width  / sc.x : 0),
+    h: el.clientHeight || (sc.y ? r.height / sc.y : 0),
+    sx: sc.x, sy: sc.y, rw: r.width, rh: r.height,
+  };
+}
+
+function chartCheckSize(el) {
+  if (!el || !window.Plotly || !el._fullLayout) return;
+  var c = chartContainerSize(el);
+  var fl = el._fullLayout;
+  if (!fl.width || !fl.height || !c.w || !c.h) {
+    console.warn('[dye2 chart] zero size at draw: plot ' + fl.width + 'x' + fl.height +
+      ', container ' + c.w + 'x' + c.h + ', rect ' + c.rw + 'x' + c.rh +
+      ', scale ' + c.sx + ',' + c.sy);
+  }
+  if (c.w > 0 && c.h > 0 && (Math.abs(fl.width - c.w) > 1 || Math.abs(fl.height - c.h) > 1)) {
+    try { Plotly.Plots.resize(el); } catch (e) { console.warn('[dye2 chart] resize failed', e); }
+  }
+}
+
+// Re-check once layout has settled: next frame, after the shell's own fit (its resize
+// listener is registered before this script runs), and on every later viewport resize.
+var chartSettleWired = false;
+function chartSettle(el) {
+  var again = function () { chartCheckSize(document.getElementById('plotly-chart')); };
+  if (window.requestAnimationFrame) window.requestAnimationFrame(function () { again(); });
+  chartCheckSize(el);
+  if (chartSettleWired) return;
+  chartSettleWired = true;
+  window.addEventListener('resize', again);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', again);
 }
 `;
 	//#endregion
@@ -7332,6 +7376,15 @@ function setupClipboardPaste() {
   });
 }
 
+function referrerBack() {
+  try {
+    const r = new URL(document.referrer);
+    if (r.protocol !== 'http:' && r.protocol !== 'https:') return '';
+    if (r.hostname !== window.location.hostname) return '';
+    if (r.pathname.indexOf('/api/v1/plugins/') === 0) return '';   // another DYE2 page, not the skin
+    return r.toString();
+  } catch (e) { return ''; }
+}
 // Leave the dashboard for the REA Web UI, which runs on :3000 (this plugin is served
 // from :8080); ?_=Date.now() cache-busts, matching settings.reaplugin's back link. A
 // caller that wants somewhere else passes ?return=.
@@ -7351,6 +7404,15 @@ function leaveDashboard() {
       u.searchParams.set('dyeApplied', lastApplied);
       window.location.href = u.toString();
     } catch (e) { window.location.href = ret; }
+    return;
+  }
+  // The :3000 fallback is a 307 redirector to the skin's real origin, so anything the skin
+  // kept in sessionStorage is gone after it. The referrer is the skin's real page when the
+  // skin opened us by link, so it goes first.
+  const back = referrerBack();
+  if (back) {
+    try { const u = new URL(back); u.searchParams.set('dyeApplied', lastApplied); window.location.href = u.toString(); }
+    catch (e) { window.location.href = back; }
     return;
   }
   window.location.href = 'http://' + window.location.hostname + ':3000/?_=' + Date.now() + '&dyeApplied=' + encodeURIComponent(lastApplied);

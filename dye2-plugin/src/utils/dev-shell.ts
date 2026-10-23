@@ -42,6 +42,7 @@ const fitScript = `
     var root = document.body.firstElementChild;
     if (root) { root.style.width = '100%'; root.style.height = '100%'; }
     lastSy = sy;
+    window.__dyeScale = { x: sx, y: sy };   // read by chart.ts to size Plotly from unscaled px
   }
   var lastSy = 1;
   // Android's soft keyboard shrinks the viewport height (interactive-widget=overlays-content
