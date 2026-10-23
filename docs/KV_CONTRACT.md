@@ -371,10 +371,10 @@ plugins should not read it.
                                 // written only if something was dropped, real recipes are untouched.
                                 // The same one-time pass de-duplicates a shared stripSlot (see writer rule).
                                 //
-                                // SKIN DEPENDENCY: streamline_project `recipeStripCells`
-                                // (src/modules/dye-selection.js) still reads the position off `recipe.id`. Until
-                                // it reads `stripSlot` (and ignores rows where it is null) the R strip is wrong:
-                                // new recipes have no slot-shaped id. Same bucket as streamline-js#159.
+                                // The skin places by this field: streamline_project `recipeStripCells`
+                                // (src/modules/dye-selection.js) reads `stripSlot`, ignores rows where it is
+                                // null, and falls back to the legacy `recipe.id` position only when NO row
+                                // carries the field at all (an older DYE2 mid-upgrade).
   name, beverage, barista, drinker,
   beanId, beanName, profileId, profileTitle,
   beanBatchId, beanRoaster,    // optional — the batch/roaster picked with the bean; apply sets
