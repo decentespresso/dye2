@@ -2360,7 +2360,7 @@ function attachCardLongPress(card, onLong) {
   .dye-stepper-sub {
     font-size: 18px; font-weight: 600; color: var(--text-primary); text-align: center;
   }
-  .dye-stepper-label { font-weight: 700; font-size: 24px; color: var(--mimoja-blue); }
+  .dye-stepper-label { font-weight: 700; font-size: 25.5px; color: var(--mimoja-blue); }
   `;
 	}
 	function stepperHtml(idPrefix, label, labelWidth = "75px", showSub = false, subHtml = "") {
@@ -2387,7 +2387,7 @@ function attachCardLongPress(card, onLong) {
      (Text/Primary over Text/Tertiary), not by weight. */
   .dye-preset {
     font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 600;
-    color: var(--text-primary-disabled); background: none; border: none;
+    color: var(--muted-grey); background: none; border: none;
     cursor: pointer; padding: 0; white-space: nowrap;
   }
   .dye-preset.dye-preset-active { color: var(--text-primary); }
@@ -10138,7 +10138,7 @@ function stripReplaceLabel(holder, n) { return 'REPLACE ' + (holder.name || 'REC
   .re-input-row {
     display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;
     border: 2px solid var(--box-border); background: var(--box-color);
-    height: 80px; padding: 0 15px 0 22px;
+    height: 81px; padding: 0 15px 0 22px;
   }
   .re-input-row:focus-within { border-color: var(--mimoja-blue); }
   .re-input {

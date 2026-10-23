@@ -121,7 +121,7 @@ export function stepperCss(): string {
   .dye-stepper-sub {
     font-size: 18px; font-weight: 600; color: var(--text-primary); text-align: center;
   }
-  .dye-stepper-label { font-weight: 700; font-size: 24px; color: var(--mimoja-blue); }
+  .dye-stepper-label { font-weight: 700; font-size: 25.5px; color: var(--mimoja-blue); }
   `;
 }
 
@@ -162,7 +162,7 @@ export function presetStripCss(): string {
      (Text/Primary over Text/Tertiary), not by weight. */
   .dye-preset {
     font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 600;
-    color: var(--text-primary-disabled); background: none; border: none;
+    color: var(--muted-grey); background: none; border: none;
     cursor: pointer; padding: 0; white-space: nowrap;
   }
   .dye-preset.dye-preset-active { color: var(--text-primary); }

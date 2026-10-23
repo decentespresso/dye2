@@ -38,7 +38,7 @@ const styles = `
   .re-input-row {
     display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;
     border: 2px solid var(--box-border); background: var(--box-color);
-    height: 80px; padding: 0 15px 0 22px;
+    height: 81px; padding: 0 15px 0 22px;
   }
   .re-input-row:focus-within { border-color: var(--mimoja-blue); }
   .re-input {
