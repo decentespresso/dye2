@@ -10184,7 +10184,10 @@ function stripReplaceLabel(holder, n) { return 'REPLACE ' + (holder.name || 'REC
     height: 60px; display: flex; align-items: center; justify-content: center;
     font-size: 21px; font-weight: 600; color: var(--mimoja-blue); cursor: pointer;
   }
-  .re-divider { height: 1px; background: var(--profile-button-outline-color); }
+  /* flex-shrink: 0 is load-bearing — #re-right's content overflows its column, and a 1px flex
+     item with the default shrink collapses to nothing, so the Figma rules between Dose, Brew
+     and Flush (2396:888/936/989) vanished while the left column's identical ones survived. */
+  .re-divider { height: 1px; background: var(--profile-button-outline-color); flex-shrink: 0; }
   /* Figma 2396:865/910/962: 2px rule between the two steppers in each variables row */
   .re-vrule { width: 2px; align-self: stretch; background: var(--profile-button-outline-color); flex-shrink: 0; }
   .re-var-block { display: flex; flex-direction: column; gap: 8px; }
