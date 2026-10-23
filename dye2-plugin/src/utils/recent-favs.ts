@@ -38,10 +38,6 @@ const DAY_MS = 86400000;
 const UNRATED_SCORES_AT_PRIOR = true;
 // NOT user-confirmed: a group whose newest shot is older than this is dropped from the strip.
 const STALE_DAYS = 60;
-// R strip suggestions: groups ranked after the F strip's RECENT_MAX, and only those with enough
-// evidence and a rated quality at or above the prior. Fewer qualify => fewer suggestions, no padding.
-const SUGGEST_AFTER = RECENT_MAX;
-const SUGGEST_MIN_SHOTS = 2;
 const INDEX_KEY = "shotIndex";
 const INDEX_VERSION = 2;   // 2: tail rows carry `rid`, index carries `uses`
 
@@ -184,11 +180,10 @@ export function rankGroups(tail: TailEntry[], now: number): { key: string; score
 
 /**
  * The strip positions 1..5 are `recipes[].stripSlot`, not the row id (ids are opaque and stable).
- * Returns the lowest free stripSlot, or the requested one (which takes the slot over). A `suggested`
- * row counts as free. No slot requested and none free: `{ taken }`, for the caller's 409.
+ * Returns the lowest free stripSlot, or the requested one (which takes the slot over). No slot requested and none free: `{ taken }`, for the caller's 409.
  */
 export function allocateRecipeSlot(recipes: AnyRecord[], requested?: unknown): { slot: number } | { taken: number[] } {
-  const taken = [1, 2, 3, 4, 5].filter((n) => (recipes || []).some((r) => r && r.stripSlot === n && !r.suggested));
+  const taken = [1, 2, 3, 4, 5].filter((n) => (recipes || []).some((r) => r && r.stripSlot === n ));
   const want = Number(requested);
   if (requested != null && [1, 2, 3, 4, 5].includes(want)) return { slot: want };
   const free = [1, 2, 3, 4, 5].find((n) => !taken.includes(n));
@@ -205,19 +200,13 @@ export function migrateRecipeSlots(recipes: AnyRecord[]): AnyRecord[] {
   return recipes.map((r) => (r && r.stripSlot === undefined && /^[1-5]$/.test(String(r.id)) ? { ...r, stripSlot: Number(r.id) } : r));
 }
 
-/** A recipe row (R strip) built from a recent favourite. `suggested` until the barista uses it. */
-export function toSuggestedRecipe(fav: AnyRecord, slot: number): AnyRecord {
-  const s = fav.snapshot;
-  return {
-    id: "sug-" + fav.id, stripSlot: slot, name: fav.title, title: fav.title, subtitle: s.coffeeName || "", suggested: true,
-    beanName: s.coffeeName, beanRoaster: s.coffeeRoaster, beanBatchId: s.beanBatchId,
-    profileTitle: s.profileTitle, profileSnapshot: fav.workflow.profile,
-    dashboardVariables: {
-      dose: s.dose, drink: s.drink, grind: s.grindSetting, rpm: s.rpm,
-      grinderId: s.grinderId, grinderModel: s.grinderModel,
-    },
-    workflow: fav.workflow, capturedAt: fav.capturedAt,
-  };
+/**
+ * One-off cleanup: an earlier release wrote `suggested: true` rows into `recipes`. Drops them and
+ * leaves every other row untouched. Returns the same array when there is nothing to drop.
+ */
+export function dropSuggestedRecipes(recipes: AnyRecord[]): AnyRecord[] {
+  if (!Array.isArray(recipes) || !recipes.some((r) => r && r.suggested === true)) return recipes;
+  return recipes.filter((r) => !(r && r.suggested === true));
 }
 
 /**
@@ -455,20 +444,6 @@ async function runRefresh(fetchFn: FetchLike, base: string): Promise<AnyRecord[]
   const saved = (Array.isArray(storeVal) ? storeVal : []).filter((x: AnyRecord) => x && !x.auto);
   const placedRecents = assignSlots(recents, saved);
   await kvWrite("autoFavourites", [...placedRecents, ...saved]);
-
-  // R strip: fill slots a barista has not claimed with `suggested` rows; never touch a real recipe.
-  // Drawn from the groups ranked after the F strip, so the two strips never show the same item.
-  // ponytail: no de-duplication against existing real recipes of the same bean and profile.
-  const worthy = applyTitleDisambiguation(all.slice(SUGGEST_AFTER)
-    .filter((r) => r.shots >= SUGGEST_MIN_SHOTS && r.quality >= PRIOR)
-    .map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
-  const recipes: AnyRecord[] = await kvRead("recipes").then((v) => (Array.isArray(v) ? v : []));
-  const kept = migrateRecipeSlots(recipes).filter((r) => r && !r.suggested);
-  const occupied = new Set(kept.map((r) => r.stripSlot));
-  const suggested = [1, 2, 3, 4, 5].filter((n) => !occupied.has(n))
-    .map((slot, i) => (worthy[i] ? toSuggestedRecipe(worthy[i], slot) : null)).filter(Boolean);
-  const next = [...kept, ...suggested];
-  if (JSON.stringify(next) !== JSON.stringify(recipes)) await kvWrite("recipes", next);
 
   return placedRecents;
 }

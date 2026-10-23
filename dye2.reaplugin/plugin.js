@@ -915,7 +915,6 @@ async function updateRecipe(id, patch) {
   const fresh = arr.find(x => x && x.id === id) || {};
   const { dashboardVariables, ...rest } = patch || {};
   const item = { ...fresh, ...rest, id, capturedAt: new Date().toISOString() };
-  delete item.suggested;   // an edit accepts a plugin-suggested row (recent-favs.ts)
   if (!fresh.id && item.stripSlot === undefined) item.stripSlot = null;   // a new row: saved, not on the strip
   if (dashboardVariables) item.dashboardVariables = { ...(fresh.dashboardVariables || {}), ...dashboardVariables };
   item.title = item.name || 'Recipe';
@@ -9846,7 +9845,7 @@ function setupControls() {
     const s = data.snapshot;
     try {
       const existing = (await getRecipes()).find(r => r && r.stripSlot === slot);
-      const overwrite = !!existing && !existing.suggested;
+      const overwrite = !!existing;
       if (overwrite && overwriteArmed !== slot) {
         overwriteArmed = slot;
         el('afe-save-btn').textContent = 'REPLACE RECIPE ' + slot + '?';
@@ -9871,7 +9870,7 @@ function setupControls() {
 
   // Default the picker to the lowest free recipe slot (all taken: it stays on 1 and asks to replace).
   getRecipes().then(rs => {
-    const taken = new Set(rs.filter(r => r && !r.suggested).map(r => r.stripSlot));
+    const taken = new Set(rs.filter(r => r).map(r => r.stripSlot));
     const free = [1, 2, 3, 4, 5].find(n => !taken.has(n)) || 1;
     document.querySelectorAll('.afe-fav-num').forEach(b => b.classList.toggle('active', parseInt(b.dataset.num) === free));
   }).catch(() => {});
@@ -9971,12 +9970,12 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 // What the tab for strip slot n says: whoever holds it, else 'Empty n'.
 function stripTabLabel(recipes, n) {
   const h = (recipes || []).find(r => r && r.stripSlot === n);
-  return h ? (h.name || 'Recipe') + (h.suggested ? ' (suggested)' : '') : 'Empty ' + n;
+  return h ? (h.name || 'Recipe') : 'Empty ' + n;
 }
-// The other recipe a SAVE onto slot n would replace. A suggested row counts as free.
+// The other recipe a SAVE onto slot n would replace.
 function stripSlotHolder(recipes, openId, n) {
   if (n == null) return null;
-  return (recipes || []).find(r => r && r.id !== openId && r.stripSlot === n && !r.suggested) || null;
+  return (recipes || []).find(r => r && r.id !== openId && r.stripSlot === n) || null;
 }
 // The slot after tapping tab n: tapping the active tab clears the target.
 function stripNextTarget(current, n) { return current === n ? null : n; }
@@ -11506,7 +11505,7 @@ function renderCards() {
     card.className = 'dye-card' + (recipe.id === selectedRecipeId ? ' dye-card-selected' : '');
     const title = recipe.name || recipe.title || 'Untitled recipe';
     const sub = [recipe.beanName, recipe.profileTitle].filter(Boolean).join(' · ') || recipe.subtitle || '';
-    const foot = [recipe.stripSlot ? 'Recipe ' + recipe.stripSlot : '', recipe.suggested ? 'Suggested' : ''].filter(Boolean).join(' · ');
+    const foot = [recipe.stripSlot ? 'Recipe ' + recipe.stripSlot : ''].filter(Boolean).join(' · ');
     card.title = 'Long-press to edit';
     card.innerHTML =
       '<div class="dye-card-name">' + esc(title) + '</div>' +
@@ -12065,8 +12064,6 @@ bcInit();
 	var TAIL_DAYS = 120;
 	var DAY_MS = 864e5;
 	var STALE_DAYS = 60;
-	var SUGGEST_AFTER = RECENT_MAX;
-	var SUGGEST_MIN_SHOTS = 2;
 	var INDEX_KEY = "shotIndex";
 	var INDEX_VERSION = 2;
 	function norm(v) {
@@ -12189,8 +12186,7 @@ bcInit();
 	}
 	/**
 	* The strip positions 1..5 are `recipes[].stripSlot`, not the row id (ids are opaque and stable).
-	* Returns the lowest free stripSlot, or the requested one (which takes the slot over). A `suggested`
-	* row counts as free. No slot requested and none free: `{ taken }`, for the caller's 409.
+	* Returns the lowest free stripSlot, or the requested one (which takes the slot over). No slot requested and none free: `{ taken }`, for the caller's 409.
 	*/
 	function allocateRecipeSlot(recipes, requested) {
 		const taken = [
@@ -12199,7 +12195,7 @@ bcInit();
 			3,
 			4,
 			5
-		].filter((n) => (recipes || []).some((r) => r && r.stripSlot === n && !r.suggested));
+		].filter((n) => (recipes || []).some((r) => r && r.stripSlot === n));
 		const want = Number(requested);
 		if (requested != null && [
 			1,
@@ -12229,32 +12225,13 @@ bcInit();
 			stripSlot: Number(r.id)
 		} : r);
 	}
-	/** A recipe row (R strip) built from a recent favourite. `suggested` until the barista uses it. */
-	function toSuggestedRecipe(fav, slot) {
-		const s = fav.snapshot;
-		return {
-			id: "sug-" + fav.id,
-			stripSlot: slot,
-			name: fav.title,
-			title: fav.title,
-			subtitle: s.coffeeName || "",
-			suggested: true,
-			beanName: s.coffeeName,
-			beanRoaster: s.coffeeRoaster,
-			beanBatchId: s.beanBatchId,
-			profileTitle: s.profileTitle,
-			profileSnapshot: fav.workflow.profile,
-			dashboardVariables: {
-				dose: s.dose,
-				drink: s.drink,
-				grind: s.grindSetting,
-				rpm: s.rpm,
-				grinderId: s.grinderId,
-				grinderModel: s.grinderModel
-			},
-			workflow: fav.workflow,
-			capturedAt: fav.capturedAt
-		};
+	/**
+	* One-off cleanup: an earlier release wrote `suggested: true` rows into `recipes`. Drops them and
+	* leaves every other row untouched. Returns the same array when there is nothing to drop.
+	*/
+	function dropSuggestedRecipes(recipes) {
+		if (!Array.isArray(recipes) || !recipes.some((r) => r && r.suggested === true)) return recipes;
+		return recipes.filter((r) => !(r && r.suggested === true));
 	}
 	/**
 	* RPM as corrected in Edit Shot wins over the pre-shot value, same precedence as
@@ -12504,25 +12481,11 @@ bcInit();
 			idx.builtAt = now;
 			await kvWrite(INDEX_KEY, idx);
 		}
-		const all = rankGroups(idx.tail, now);
-		const recents = applyTitleDisambiguation(all.slice(0, RECENT_MAX).map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
+		const recents = applyTitleDisambiguation(rankGroups(idx.tail, now).slice(0, RECENT_MAX).map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
 		const storeVal = await kvRead("autoFavourites");
 		const saved = (Array.isArray(storeVal) ? storeVal : []).filter((x) => x && !x.auto);
 		const placedRecents = assignSlots(recents, saved);
 		await kvWrite("autoFavourites", [...placedRecents, ...saved]);
-		const worthy = applyTitleDisambiguation(all.slice(SUGGEST_AFTER).filter((r) => r.shots >= SUGGEST_MIN_SHOTS && r.quality >= PRIOR).map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
-		const recipes = await kvRead("recipes").then((v) => Array.isArray(v) ? v : []);
-		const kept = migrateRecipeSlots(recipes).filter((r) => r && !r.suggested);
-		const occupied = new Set(kept.map((r) => r.stripSlot));
-		const suggested = [
-			1,
-			2,
-			3,
-			4,
-			5
-		].filter((n) => !occupied.has(n)).map((slot, i) => worthy[i] ? toSuggestedRecipe(worthy[i], slot) : null).filter(Boolean);
-		const next = [...kept, ...suggested];
-		if (JSON.stringify(next) !== JSON.stringify(recipes)) await kvWrite("recipes", next);
 		return placedRecents;
 	}
 	/**
@@ -12997,17 +12960,6 @@ bcInit();
 				return null;
 			}
 		}
-		async function acceptSuggested(recipes, rid) {
-			const row = recipes.find((r) => r && String(r.id) === rid);
-			if (!row || !row.suggested) return;
-			delete row.suggested;
-			const res = await fetch(`${API}/store/${NS}/recipes`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(recipes)
-			});
-			if (!res.ok) throw new Error(`HTTP ${res.status} accepting suggested recipe`);
-		}
 		async function derive(wf, known) {
 			const [recipes, favourites] = await Promise.all([known || kv("recipes"), kv("autoFavourites")]);
 			const hist = await recipeFor(recipeIdOf(wf), recipes);
@@ -13023,7 +12975,6 @@ bcInit();
 			let recipes;
 			if (rid) {
 				recipes = await kv("recipes");
-				await acceptSuggested(recipes, rid);
 				const recipe = await recipeFor(rid, recipes);
 				const known = baseline && baseline.id === rid ? baseline : null;
 				if ((known || cold) && idProfileChanged(known, recipe, wf)) {
@@ -13111,7 +13062,6 @@ bcInit();
 				saved: false,
 				reason: "no recipe is selected"
 			});
-			await acceptSuggested(await kv("recipes"), sel.id);
 			wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
 			try {
 				const armed = baseline && baseline.id === sel.id ? baseline : null;
@@ -13208,7 +13158,7 @@ bcInit();
 				const res = await fetch(`${API}/store/${NS}/recipes`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(recipes.filter((r) => !(r && r.suggested && r.stripSlot === stripSlot)).map((r) => r && r.stripSlot === stripSlot ? {
+					body: JSON.stringify(recipes.map((r) => r && r.stripSlot === stripSlot ? {
 						...r,
 						stripSlot: null
 					} : r).concat(row))
@@ -13232,7 +13182,7 @@ bcInit();
 		async function migrateRecipes() {
 			if (typeof fetch !== "function") return;
 			const rows = await kv("recipes");
-			const next = migrateRecipeSlots(rows);
+			const next = dropSuggestedRecipes(migrateRecipeSlots(rows));
 			if (next === rows) return;
 			const res = await fetch(`${API}/store/${NS}/recipes`, {
 				method: "POST",

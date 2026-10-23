@@ -62,7 +62,7 @@ console.log('ok   migrateRecipeSlots: maps once, idempotent, ids untouched');
   assert.deepEqual(allocateRecipeSlot([]), { slot: 1 });
   assert.deepEqual(allocateRecipeSlot([row('x', 1), row('y', 3)]), { slot: 2 }, 'lowest free stripSlot');
   assert.deepEqual(allocateRecipeSlot([row('1', null)]), { slot: 1 }, 'an id of "1" does not occupy slot 1');
-  assert.deepEqual(allocateRecipeSlot([row('s', 1, { suggested: true })]), { slot: 1 }, 'suggested is free');
+  assert.deepEqual(allocateRecipeSlot([row('s', 1)]), { slot: 2 }, 'any row holding a stripSlot occupies it');
   const full = [1, 2, 3, 4, 5].map((n) => row('r' + n, n));
   assert.deepEqual(allocateRecipeSlot(full), { taken: [1, 2, 3, 4, 5] }, 'full -> caller 409s');
   assert.deepEqual(allocateRecipeSlot(full, '4'), { slot: 4 }, 'explicit slot honoured');
@@ -86,11 +86,11 @@ console.log('ok   select-recipe reuses decideCardTap');
   const lib = [
     { id: 'a', name: 'Ethiopia', stripSlot: 1 },
     { id: 'b', stripSlot: 2 },
-    { id: 'c', name: 'Guess', stripSlot: 3, suggested: true },
+    { id: 'c', name: 'Guess', stripSlot: 3 },
     { id: 'd', name: 'Unassigned', stripSlot: null },
   ];
   assert.deepEqual([1, 2, 3, 4, 5].map((n) => t.stripTabLabel(lib, n)),
-    ['Ethiopia', 'Recipe', 'Guess (suggested)', 'Empty 4', 'Empty 5']);
+    ['Ethiopia', 'Recipe', 'Guess', 'Empty 4', 'Empty 5']);
 
   // The open recipe 'd' has no slot: targeting a held slot names the holder and needs the confirm.
   const holder = t.stripSlotHolder(lib, 'd', 1);
@@ -98,7 +98,7 @@ console.log('ok   select-recipe reuses decideCardTap');
   assert.equal(t.stripReplaceLabel(holder, 1), 'REPLACE Ethiopia ON 1?');
   assert.equal(t.stripReplaceLabel(t.stripSlotHolder(lib, 'd', 2), 2), 'REPLACE RECIPE ON 2?');
   assert.equal(t.stripSlotHolder(lib, 'd', 4), null, 'a free slot needs no confirm');
-  assert.equal(t.stripSlotHolder(lib, 'd', 3), null, 'a suggested holder counts as free');
+  assert.equal(t.stripSlotHolder(lib, 'd', 3).id, 'c', 'every holder counts');
   assert.equal(t.stripSlotHolder(lib, 'a', 1), null, 'its own slot is not a replacement');
   assert.equal(t.stripSlotHolder(lib, 'd', null), null);
 

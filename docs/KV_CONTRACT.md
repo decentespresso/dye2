@@ -109,7 +109,7 @@ workflow whose steam is off (`targetTemperature` below 135).
 
 **`save-recipe`** builds the row from the live workflow (`dashboardVariables` from
 `recipeFields`, bean/grinder/profile from `context`/`profile`, `workflow` the live one trimmed,
-`extras.dye` rebuilt as `markDye` flags for the fields the row carries, without `recipeId`/`selection`), stores it as a new row with an opaque id and `stripSlot` the lowest free `1..5` (or the body's `slot`, whose previous holder stays in the library and loses the slot; a `suggested` row counts as free; all five taken and no `slot` answers 409 with the occupied slots) and PUTs its id as `recipeId`. The name is the
+`extras.dye` rebuilt as `markDye` flags for the fields the row carries, without `recipeId`/`selection`), stores it as a new row with an opaque id and `stripSlot` the lowest free `1..5` (or the body's `slot`, whose previous holder stays in the library and loses the slot; all five taken and no `slot` answers 409 with the occupied slots) and PUTs its id as `recipeId`. The name is the
 body's `name`, else `<first word of profile title> <drink>`: a generic title word (Default,
 Advanced, Custom, Profile, New, Untitled) is dropped; drink is, in order, steam on and set
 (duration <=20 s Flat White, <=35 s Cappuccino, otherwise or unknown Latte), hot water set
@@ -332,9 +332,6 @@ group whose newest shot is older is dropped from the strip) and `UNRATED_SCORES_
 }
 ```
 
-`suggested` recipe rows come from groups ranked after the five on the F strip, and only groups with at
-least `SUGGEST_MIN_SHOTS = 2` shots in the tail and `quality >= prior`; fewer qualify, fewer rows.
-
 `uses` counts tail rows whose workflow carries `context.extras.dye.recipeId` (rows without one are
 not counted). "Used" therefore means used in the last `TAIL_DAYS` (120 days), the same window as
 the score; aborted shots and shots with no group never reach the tail, so they are not counted.
@@ -357,15 +354,14 @@ plugins should not read it.
                                 // holder); SAVE writes the targeted slot through updateRecipe.
                                 // Migration (plugin load, idempotent): a row whose id is '1'..'5' and that has
                                 // no `stripSlot` gets stripSlot = Number(id). Cleared (null) stays cleared.
+                                // One-off cleanup (plugin load, same pass, idempotent): an earlier release
+                                // wrote `suggested: true` rows here; every such row is dropped, the key is
+                                // written only if something was dropped, real recipes are untouched.
                                 //
                                 // SKIN DEPENDENCY: streamline_project `recipeStripCells`
                                 // (src/modules/dye-selection.js) still reads the position off `recipe.id`. Until
                                 // it reads `stripSlot` (and ignores rows where it is null) the R strip is wrong:
                                 // new recipes have no slot-shaped id. Same bucket as streamline-js#159.
-  suggested,                   // optional true: DYE2 filled this empty slot from the best-ranked recent
-                                // groups; not a barista's recipe. Re-ranking replaces it; applying it,
-                                // editing it or recording onto it drops the flag. Never set on a row
-                                // you write. Skins may render it differently (dye2 does not).
   name, beverage, barista, drinker,
   beanId, beanName, profileId, profileTitle,
   beanBatchId, beanRoaster,    // optional — the batch/roaster picked with the bean; apply sets

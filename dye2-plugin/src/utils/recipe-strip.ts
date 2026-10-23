@@ -5,12 +5,12 @@ export const recipeStripScript = `
 // What the tab for strip slot n says: whoever holds it, else 'Empty n'.
 function stripTabLabel(recipes, n) {
   const h = (recipes || []).find(r => r && r.stripSlot === n);
-  return h ? (h.name || 'Recipe') + (h.suggested ? ' (suggested)' : '') : 'Empty ' + n;
+  return h ? (h.name || 'Recipe') : 'Empty ' + n;
 }
-// The other recipe a SAVE onto slot n would replace. A suggested row counts as free.
+// The other recipe a SAVE onto slot n would replace.
 function stripSlotHolder(recipes, openId, n) {
   if (n == null) return null;
-  return (recipes || []).find(r => r && r.id !== openId && r.stripSlot === n && !r.suggested) || null;
+  return (recipes || []).find(r => r && r.id !== openId && r.stripSlot === n) || null;
 }
 // The slot after tapping tab n: tapping the active tab clears the target.
 function stripNextTarget(current, n) { return current === n ? null : n; }

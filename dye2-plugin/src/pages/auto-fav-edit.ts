@@ -657,7 +657,7 @@ function setupControls() {
     const s = data.snapshot;
     try {
       const existing = (await getRecipes()).find(r => r && r.stripSlot === slot);
-      const overwrite = !!existing && !existing.suggested;
+      const overwrite = !!existing;
       if (overwrite && overwriteArmed !== slot) {
         overwriteArmed = slot;
         el('afe-save-btn').textContent = 'REPLACE RECIPE ' + slot + '?';
@@ -682,7 +682,7 @@ function setupControls() {
 
   // Default the picker to the lowest free recipe slot (all taken: it stays on 1 and asks to replace).
   getRecipes().then(rs => {
-    const taken = new Set(rs.filter(r => r && !r.suggested).map(r => r.stripSlot));
+    const taken = new Set(rs.filter(r => r).map(r => r.stripSlot));
     const free = [1, 2, 3, 4, 5].find(n => !taken.has(n)) || 1;
     document.querySelectorAll('.afe-fav-num').forEach(b => b.classList.toggle('active', parseInt(b.dataset.num) === free));
   }).catch(() => {});

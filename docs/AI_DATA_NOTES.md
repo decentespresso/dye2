@@ -218,9 +218,8 @@ re-ranks without a rescan. A missing index or a different `v` is a full build of
 editing one needs no work. Pages read the resulting `autoFavourites` / `recipes`; the one exception is Select Recipe, which reads
 `shotIndex.uses` (shots per `recipeId`) for its Most/Least Used sorts. Like the score, `uses` only
 covers `TAIL_DAYS` (120 days): a recipe last used earlier counts 0.
-The same top groups also fill empty recipe strip slots (`stripSlot`) with `suggested: true` rows (opaque `sug-…` ids); real recipes are
-never overwritten. Writers of `recipes` that act on a row (`record`, an apply, `updateRecipe`)
-drop the flag first.
+The refresh writes only `autoFavourites` and `shotIndex`; it never writes `recipes`. The R strip is
+the barista's own recipes only.
 
 ## Cross-Plugin Calls
 

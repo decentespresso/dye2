@@ -17,7 +17,7 @@ import { renderAutoFavEditPage } from "./pages/auto-fav-edit";
 import { renderRecipeEditPage } from "./pages/recipe-edit";
 import { renderSelectRecipePage } from "./pages/select-recipe";
 import { renderBcImportPage } from "./pages/bc-import";
-import { refreshRecentFavourites, shotPatchAffectsRecents, noteShotUpdated, allocateRecipeSlot, migrateRecipeSlots } from "./utils/recent-favs";
+import { refreshRecentFavourites, shotPatchAffectsRecents, noteShotUpdated, allocateRecipeSlot, migrateRecipeSlots, dropSuggestedRecipes } from "./utils/recent-favs";
 import {
   deriveSelection,
   recipeIdOf,
@@ -102,19 +102,6 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     }
   }
 
-  // A `suggested` recipe row (recent-favs.ts) becomes an ordinary recipe the moment it is used.
-  async function acceptSuggested(recipes: any[], rid: string): Promise<void> {
-    const row = recipes.find((r) => r && String(r.id) === rid);
-    if (!row || !row.suggested) return;
-    delete row.suggested;
-    const res = await fetch(`${API}/store/${NS}/recipes`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(recipes),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status} accepting suggested recipe`);
-  }
-
   async function derive(wf: any, known?: any[]): Promise<Derived> {
     const [recipes, favourites] = await Promise.all([known || kv("recipes"), kv("autoFavourites")]);
     const hist = await recipeFor(recipeIdOf(wf), recipes);
@@ -131,7 +118,6 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     let recipes: any[] | undefined;
     if (rid) {
       recipes = await kv("recipes");
-      await acceptSuggested(recipes, rid);   // an apply sets the recipeId
       const recipe = await recipeFor(rid, recipes);
       // A recipe's identity is its profile: a profile change from any source drops the id.
       // A new id's first event is the apply itself, so only the baseline (or, right after a
@@ -223,7 +209,6 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     if (!wf) return json(request, 502, { saved: false, reason: "could not read the workflow" });
     const sel = await derive(wf);
     if (!sel || sel.kind !== "recipe") return json(request, 200, { saved: false, reason: "no recipe is selected" });
-    await acceptSuggested(await kv("recipes"), sel.id);   // never record onto a still-suggested row
     // Flush temperature and flow live on the DE1, not the workflow (dye2#23).
     wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
     try {
@@ -288,8 +273,8 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       const res = await fetch(`${API}/store/${NS}/recipes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // The slot's previous holder keeps its row and loses the slot; a suggested one is dropped.
-        body: JSON.stringify(recipes.filter((r) => !(r && r.suggested && r.stripSlot === stripSlot))
+        // The slot's previous holder keeps its row and loses the slot.
+        body: JSON.stringify(recipes
           .map((r) => (r && r.stripSlot === stripSlot ? { ...r, stripSlot: null } : r)).concat(row)),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status} writing recipes`);
@@ -303,12 +288,12 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     }
   }
 
-  // Idempotent (docs/KV_CONTRACT.md recipes[]): a legacy row id '1'..'5' gains stripSlot. Run before
-  // the first refresh so the suggester sees the slots as taken.
+  // Idempotent (docs/KV_CONTRACT.md recipes[]): a legacy row id '1'..'5' gains stripSlot, and the
+  // `suggested` rows an earlier release wrote are dropped. Writes only when something changed.
   async function migrateRecipes(): Promise<void> {
     if (typeof fetch !== "function") return;
     const rows = await kv("recipes");
-    const next = migrateRecipeSlots(rows);
+    const next = dropSuggestedRecipes(migrateRecipeSlots(rows));
     if (next === rows) return;
     const res = await fetch(`${API}/store/${NS}/recipes`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next),

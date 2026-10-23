@@ -99,7 +99,7 @@ function renderCards() {
     card.className = 'dye-card' + (recipe.id === selectedRecipeId ? ' dye-card-selected' : '');
     const title = recipe.name || recipe.title || 'Untitled recipe';
     const sub = [recipe.beanName, recipe.profileTitle].filter(Boolean).join(' · ') || recipe.subtitle || '';
-    const foot = [recipe.stripSlot ? 'Recipe ' + recipe.stripSlot : '', recipe.suggested ? 'Suggested' : ''].filter(Boolean).join(' · ');
+    const foot = [recipe.stripSlot ? 'Recipe ' + recipe.stripSlot : ''].filter(Boolean).join(' · ');
     card.title = 'Long-press to edit';
     card.innerHTML =
       '<div class="dye-card-name">' + esc(title) + '</div>' +

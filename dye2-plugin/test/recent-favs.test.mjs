@@ -13,7 +13,7 @@ import {
   foldShot,
   pruneTail,
   allocateRecipeSlot,
-  toSuggestedRecipe,
+  dropSuggestedRecipes,
   noteShotUpdated,
   toRecentFavourite,
   isExecutableRecordedProfile,
@@ -280,17 +280,20 @@ const many = (prefix, key, n, daysAgo, rating = null) => Array.from({ length: n 
 
 console.log('ok   rankGroups: month rule, rated vs unrated, stale cutoff, monotonic, tie-break');
 
-// --- allocateRecipeSlot / toSuggestedRecipe -----------------------------------------------------
+// --- dropSuggestedRecipes -----------------------------------------------------------------------
 
 {
-  const r = toSuggestedRecipe(toRecentFavourite(makeShot('s1', '2026-05-30T00:00:00Z'), 1), 2);
-  assert.equal(r.stripSlot, 2);
-  assert.ok(r.id.startsWith('sug-') && r.id !== '2', 'opaque id, not the slot');
-  assert.equal(r.suggested, true);
-  assert.equal(r.dashboardVariables.dose, 18);
+  const real = [{ id: '1', name: 'Mine', stripSlot: 1 }, { id: 'u', name: 'Other', stripSlot: null }, null];
+  assert.equal(dropSuggestedRecipes(real), real, 'nothing to drop: the same array comes back (no write)');
+  assert.equal(dropSuggestedRecipes(undefined), undefined);
+  const mixed = [real[0], { id: 'sug-x', stripSlot: 2, suggested: true }, real[1], { id: 'sug-y', stripSlot: 3, suggested: true }];
+  const out = dropSuggestedRecipes(mixed);
+  assert.deepEqual(out, [real[0], real[1]], 'only suggested: true rows go; real recipes are untouched');
+  assert.equal(dropSuggestedRecipes(out), out, 'idempotent');
+  assert.deepEqual(dropSuggestedRecipes([{ id: 'k', suggested: false }]), [{ id: 'k', suggested: false }], 'only === true');
 }
 
-console.log('ok   allocateRecipeSlot / toSuggestedRecipe');
+console.log('ok   dropSuggestedRecipes: drops only suggested rows, idempotent');
 
 // --- foldShot / pruneTail ------------------------------------------------------------------------
 
@@ -352,7 +355,7 @@ const shotAt = (id, days, bean, extra) => makeShot(id, recent(days), { context: 
 const scans = (calls) => calls.filter((c) => c.indexOf('/shots?limit=100') >= 0).length;
 
 {
-  // Full build, saved favourites untouched, autos first, suggested recipes only in free slots.
+  // Full build, saved favourites untouched, autos first, recipes never written.
   const shots = [shotAt('s3', 1, 'B'), shotAt('s2', 2, 'A'), shotAt('s1', 3, 'A')];
   const kv = {
     autoFavourites: [
@@ -362,11 +365,11 @@ const scans = (calls) => calls.filter((c) => c.indexOf('/shots?limit=100') >= 0)
     recipes: [
       { id: '1', name: 'Mine' },
       { id: '4', name: 'Also mine' },
-      { id: '2', suggested: true, name: 'old suggestion' },
       { id: 'stray-uuid', name: 'stray' },
     ],
   };
-  const { fetchFn } = makeBridge(shots, kv);
+  const recipesBefore = JSON.parse(JSON.stringify(kv.recipes));
+  const { fetchFn, calls } = makeBridge(shots, kv);
   const autos = await refreshRecentFavourites(fetchFn, BASE);
 
   assert.deepEqual(autos.map((a) => a.sourceShotId), ['s2', 's3'], 'group A (2 shots) outranks group B (1)');
@@ -374,12 +377,8 @@ const scans = (calls) => calls.filter((c) => c.indexOf('/shots?limit=100') >= 0)
   assert.deepEqual(kv.autoFavourites.at(-1), { id: 'saved-1', title: 'My Favourite', favSlot: 2 }, 'saved passes through');
   assert.equal(kv.autoFavourites.some((a) => a.id === 'recent:old'), false, 'stale auto replaced');
 
-  const byId = Object.fromEntries(kv.recipes.map((r) => [r.id, r]));
-  assert.equal(byId['1'].name, 'Mine'); assert.equal(byId['4'].name, 'Also mine');
-  assert.ok(!byId['1'].suggested && !byId['4'].suggested, 'real recipes are never touched');
-  assert.equal(byId['stray-uuid'].name, 'stray');
-  assert.equal(byId['2'], undefined, 'old suggestion dropped; only 2 groups, both on the F strip, so none suggested');
-  assert.equal(byId['3'], undefined);
+  assert.deepEqual(kv.recipes, recipesBefore, 'the refresh leaves recipes exactly as stored (not even the slot migration)');
+  assert.equal(calls.some((c) => c.indexOf('POST /store/dye2.reaplugin/recipes') >= 0), false, 'the refresh never writes the recipes key');
   assert.equal(kv.shotIndex.v, 2);
   assert.equal(kv.shotIndex.total, 3);
 }
@@ -431,39 +430,19 @@ const scans = (calls) => calls.filter((c) => c.indexOf('/shots?limit=100') >= 0)
 }
 
 {
-  // Suggestions never repeat an F-strip group: 7 groups (2 shots each) -> F gets 5, R gets ranks 6-7
-  // in the free slots; an unqualified group (one shot) is never suggested.
+  // Plenty of qualifying groups still never produce recipe rows: the R strip is the barista's alone.
   const shots = [];
   for (let g = 0; g < 7; g++) { shots.push(shotAt('g' + g + 'a', 1 + g * 0.1, 'G' + g)); shots.push(shotAt('g' + g + 'b', 2 + g * 0.1, 'G' + g)); }
-  shots.push(shotAt('lone', 0.5, 'LONE'));
   shots.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
-  const kv = { recipes: [{ id: '1', name: 'Mine' }] };   // legacy row: migrated to stripSlot 1 on the way
-  await refreshRecentFavourites(makeBridge(shots, kv).fetchFn, BASE);
-  const sug = kv.recipes.filter((r) => r.suggested);
-  assert.equal(sug.length, 2, 'ranks 6 and 7 qualify; "lone" has one shot');
-  assert.deepEqual(sug.map((r) => r.stripSlot), [2, 3]);
-  const fBeans = new Set(kv.autoFavourites.filter((a) => a.auto).map((a) => a.workflow.context.beanBatchId));
-  sug.forEach((r) => assert.equal(fBeans.has(r.workflow.context.beanBatchId), false, 'an F-strip group is never suggested'));
+  const kv = {};
+  const { fetchFn, calls } = makeBridge(shots, kv);
+  await refreshRecentFavourites(fetchFn, BASE);
+  assert.equal(kv.autoFavourites.filter((a) => a.auto).length, 5, 'the F strip still fills');
+  assert.equal(kv.recipes, undefined, 'recipes key not created');
+  assert.equal(calls.some((c) => c.indexOf('/store/dye2.reaplugin/recipes') >= 0 && c.startsWith('POST')), false);
 }
 
-{
-  // Accepted (flag dropped) rows are real recipes: the next run keeps them.
-  const shots = [];
-  for (let g = 0; g < 6; g++) { shots.push(shotAt('g' + g + 'a', 1 + g * 0.1, 'G' + g)); shots.push(shotAt('g' + g + 'b', 2 + g * 0.1, 'G' + g)); }
-  shots.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
-  const kv = { recipes: [] };
-  await refreshRecentFavourites(makeBridge(shots, kv).fetchFn, BASE);
-  assert.equal(kv.recipes[0].suggested, true);
-  const name = kv.recipes[0].name;
-  delete kv.recipes[0].suggested;
-  shots.unshift(shotAt('s2', 0, 'Z'));
-  await refreshRecentFavourites(makeBridge(shots, kv).fetchFn, BASE);
-  const kept = kv.recipes.find((r) => r.stripSlot === 1);
-  assert.equal(kept.suggested, undefined, 'an accepted suggestion is kept as is');
-  assert.equal(kept.name, name);
-}
-
-console.log('ok   refreshRecentFavourites: full build, cached startup, delta, prune, rating patch, suggested rows');
+console.log('ok   refreshRecentFavourites: full build, cached startup, delta, prune, rating patch, no recipes writes');
 
 // Overlap: two calls made back to back coalesce into the in-flight run, then a rerun
 // picks up a shot stored in between — the last write reflects the latest shots.
