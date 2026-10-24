@@ -1,0 +1,134 @@
+{
+  "id": "dye2.reaplugin",
+  "author": "Streamline",
+  "name": "Streamline/DYE2",
+  "description": "Beans, grinders, and shot workflow for Decent Espresso. Track roast batches and freshness, pick a bean and grinder before pulling, edit and rate shots afterwards, and manage auto-favourite recipes. Dashboard: http://localhost:8080/api/v1/plugins/dye2.reaplugin/dashboard",
+  "version": "0.1.26",
+  "apiVersion": 1,
+  "permissions": [
+    "log",
+    "api",
+    "emit",
+    "pluginStorage",
+    "events.shots",
+    "events.workflow"
+  ],
+  "settings": {},
+  "api": [
+    {
+      "id": "dashboard",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "grinders",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "baskets",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "equipment",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "grinder-picker",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "basket-picker",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "bean-picker",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "roasters",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "add-bean",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "profile-picker",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "edit-shot",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "auto-favs",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "auto-fav-edit",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "recipe-edit",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "select-recipe",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "bc-import",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "recent-favs",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "selection",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "record",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "save-recipe",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "skin",
+      "type": "http",
+      "data": {}
+    },
+    {
+      "id": "changed",
+      "type": "websocket",
+      "data": {}
+    },
+    {
+      "id": "plotly",
+      "type": "http",
+      "data": {}
+    }
+  ]
+}
