@@ -221,14 +221,6 @@ export function dedupeRecipeSlots(recipes: AnyRecord[]): AnyRecord[] {
   return recipes.map((r) => (loses(r) ? { ...r, stripSlot: null } : r));
 }
 
-/**
- * Self-heal for favourites: two SAVED rows must never share a `favSlot` (the pages clear the
- * previous holder on write, this repairs data written before that). Of rows sharing a slot, one
- * that is shown (`alwaysOnDashboard !== false`) beats a hidden one, then the newest `capturedAt`,
- * then the larger id by string compare; losers become `favSlot: null` and keep every other field.
- * `auto: true` recents are ignored (assignSlots re-places them on every refresh). Idempotent;
- * returns the same array when no slot is shared.
- */
 /* One-time repair (plugin load, idempotent): a favourite stored with a profile in name only.
    Decaid drops profile.id, so a snapshot taken off the live workflow has no id to resolve later,
    and a live profile without steps left profileSnapshot null — such a row names e.g. 'Adaptive v2'
@@ -294,6 +286,14 @@ export function fattenFavouriteProfiles(favs: AnyRecord[], profileRecords: AnyRe
   return changed ? out : favs;
 }
 
+/**
+ * Self-heal for favourites: two SAVED rows must never share a `favSlot` (the pages clear the
+ * previous holder on write, this repairs data written before that). Of rows sharing a slot, one
+ * that is shown (`alwaysOnDashboard !== false`) beats a hidden one, then the newest `capturedAt`,
+ * then the larger id by string compare; losers become `favSlot: null` and keep every other field.
+ * `auto: true` recents are ignored (assignSlots re-places them on every refresh). Idempotent;
+ * returns the same array when no slot is shared.
+ */
 export function dedupeFavSlots(favs: AnyRecord[]): AnyRecord[] {
   if (!Array.isArray(favs)) return favs;
   const ts = (r: AnyRecord) => { const t = Date.parse(String(r.capturedAt)); return Number.isFinite(t) ? t : -Infinity; };

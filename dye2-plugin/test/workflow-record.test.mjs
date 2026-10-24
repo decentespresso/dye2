@@ -248,10 +248,8 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
     querySelector: () => ({ dataset: { mode: active } }),
   };
   const slot = { dashboardVariables: { steamTimeS: 30, steamFlowMls: 1.2 } };
-  // renderHeld (the read-only 'Also held' list) is a no-op here: a stub in case the slices above
-  // stop carrying its declaration, and the real one finds no #re-held in this stub document.
-  const api = new Function('document', 'recipe', 'syncPresetActive', 'wirePresetButtons', 'renderHeld',
-    code + '; return { stashModeValue, applyMode };')(doc, slot, () => {}, () => {}, () => {});
+  const api = new Function('document', 'recipe', 'syncPresetActive', 'wirePresetButtons',
+    code + '; return { stashModeValue, applyMode };')(doc, slot, () => {}, () => {});
 
   api.stashModeValue('re-steam-mode');          // what is on screen belongs to `time`
   active = 'flow';

@@ -12648,14 +12648,6 @@ bcInit();
 			stripSlot: null
 		} : r);
 	}
-	/**
-	* Self-heal for favourites: two SAVED rows must never share a `favSlot` (the pages clear the
-	* previous holder on write, this repairs data written before that). Of rows sharing a slot, one
-	* that is shown (`alwaysOnDashboard !== false`) beats a hidden one, then the newest `capturedAt`,
-	* then the larger id by string compare; losers become `favSlot: null` and keep every other field.
-	* `auto: true` recents are ignored (assignSlots re-places them on every refresh). Idempotent;
-	* returns the same array when no slot is shared.
-	*/
 	var wholeProfile = (p) => !!(p && Array.isArray(p.steps) && p.steps.length);
 	function favouriteProfileIsThin(fav) {
 		const snp = fav && fav.snapshot;
@@ -12710,6 +12702,14 @@ bcInit();
 		});
 		return changed ? out : favs;
 	}
+	/**
+	* Self-heal for favourites: two SAVED rows must never share a `favSlot` (the pages clear the
+	* previous holder on write, this repairs data written before that). Of rows sharing a slot, one
+	* that is shown (`alwaysOnDashboard !== false`) beats a hidden one, then the newest `capturedAt`,
+	* then the larger id by string compare; losers become `favSlot: null` and keep every other field.
+	* `auto: true` recents are ignored (assignSlots re-places them on every refresh). Idempotent;
+	* returns the same array when no slot is shared.
+	*/
 	function dedupeFavSlots(favs) {
 		if (!Array.isArray(favs)) return favs;
 		const ts = (r) => {
