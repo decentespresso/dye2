@@ -78,10 +78,15 @@ page travels in the URL. Current params:
 - `?return=<url>` — where Back/Done goes (any page).
 - `?id=<recipeId>` — `recipe-edit` only: edit that recipe. Wins over `sessionStorage.dye_editRecipeId`.
 - `?new=1` — `recipe-edit` only: start a blank recipe, ignoring any stored id.
+- `?slot=<1..5>` — `recipe-edit` only: the R-strip slot this recipe is headed for. The skin
+  sends it when a BLANK strip cell is tapped, so the editor opens with that tab selected and
+  SAVE lands on the cell the barista actually pressed. Out-of-range or missing means no slot
+  (saved to the library), and the recipe's own `stripSlot` is only overridden when the value
+  is a valid 1..5.
 
-`recipe-edit` copies `id` into `dye_editRecipeId`, then drops `id`/`new` from the address bar
-(`history.replaceState`, `return` kept), so a picker round trip or reload keeps the same
-recipe and a `new` is never replayed. DYE2's own pages still use the sessionStorage key.
+`recipe-edit` copies `id` into `dye_editRecipeId`, then drops `id`/`new`/`slot` from the address
+bar (`history.replaceState`, `return` kept), so a picker round trip or reload keeps the same
+recipe and neither a `new` nor a `slot` is replayed. DYE2's own pages still use the sessionStorage key.
 
 ## Page Assembly
 

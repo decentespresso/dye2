@@ -247,6 +247,14 @@ press that recipe's button on the Streamline strip and choose **Save changes** �
 values you actually moved are written. Favourites work the same way. (Earlier versions saved
 every change back automatically, which meant the machine's state quietly became the recipe.)
 
+**Most of it fills itself.** Tap a profile and the dose, drink and brew temperature are read
+from that profile, and steam, flush and hot water take their first preset — so a new recipe
+starts from real numbers rather than blanks. `Read From ⌃ → From Favourite` fills everything the
+favourite actually holds (beans, grinder and its setting, basket, barista, drinker, dose, drink,
+ratio), moves the profile it was brewed with to the front of the profile row and highlights it,
+and falls back to a sensible default only where neither the favourite nor its profile has a
+value. Anything filled in this way is still yours to change before you save.
+
 - **Left column** — recipe name, the coffee it's for, the profile it uses, beverage type,
   barista and drinker.
 - **Right column ("Dashboard Variables")** — dose, drink, brew temperature, steam (as flow
@@ -277,8 +285,10 @@ recipe, profile or grinder, and the sort buttons work as elsewhere.
 - **Press and hold** a card for half a second to open it for editing instead.
 - **ADD NEW FAVOURITE** creates one.
 
-In the editor you give the favourite a title, a beverage, a number from 1 to 5, and choose
-whether it always shows on the dashboard. The useful part is **Data to Copy** on the right:
+In the editor you give the favourite a title, a beverage, a number from 1 to 4, and choose
+whether it always shows on the dashboard. The number is its place on the dashboard's favourites
+strip, and only one favourite can hold each place — give a number that is already taken and the
+favourite that had it drops off the strip (it keeps everything else). The useful part is **Data to Copy** on the right:
 each row (profile, beans, roast date, grinder, grind setting, dose, drink, barista, drinker,
 note) has its own switch, and only the switched-on rows are copied when you use the
 favourite. So a favourite can carry a grind setting without dragging a coffee along with it.

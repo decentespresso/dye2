@@ -30,6 +30,8 @@ If you are about to edit anything under `dye2-plugin/src/`, read `AI_RUNTIME_NOT
 | Auto-favourites, recipes, baskets, equipment | `src/utils/dev-api.ts` KV section | `docs/KV_CONTRACT.md`, then `AI_DATA_NOTES.md` |
 | Equipment on a shot / favourite / recipe | `src/utils/equipment-field.ts`, `pages/edit-shot.ts` | `AI_DATA_NOTES.md` |
 | Workflow, applying a favourite or recipe | `dev-api.ts` `buildFavouriteWorkflow`, `pages/dashboard.ts` | `AI_DATA_NOTES.md` |
+| A stored profile that is a name only, or an apply that loads no profile | `dev-api.ts` `usableProfileSnapshot` / `fattenFavouriteProfile`, `recent-favs.ts` `fattenFavouriteProfiles` | `docs/KV_CONTRACT.md` whole-profile rule |
+| A one-time migration or self-heal on plugin load | `src/plugin.ts` `migrate*` / `run*Migration` | `AI_DATA_NOTES.md`, `docs/KV_CONTRACT.md` |
 | Dial-in recorded onto a recipe/favourite, the derived selection, the `changed` push | `src/utils/workflow-record.ts`, `plugin.ts` | `AI_DATA_NOTES.md` |
 | Recipe library, Select Recipe, strip slot (`stripSlot`) | `src/pages/select-recipe.ts`, `pages/recipe-edit.ts`, `dev-api.ts` `updateRecipe` | `AI_UI_NOTES.md`, `docs/KV_CONTRACT.md` |
 | Shot history, paging, ratings | `src/utils/shot-paging.ts`, `pages/edit-shot.ts` | `AI_DATA_NOTES.md` |

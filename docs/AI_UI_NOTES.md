@@ -70,8 +70,9 @@ offline and pages are single self-contained documents.
   is where the tokens (and their dark values) are defined; the host injects nothing. See
   "Dark mode" below.
 - Common variables: `--bgmain-color`, `--box-color`, `--mimoja-blue`,
-  `--profile-button-outline-color`, `--text-primary`, `--text-primary-disabled`, plus the
-  `--dye-*` redesign extras (chart colours, surface, border).
+  `--profile-button-outline-color`, `--text-primary`, `--text-primary-disabled`,
+  `--muted-grey` (inactive preset / secondary label), `--status-ok` (the green confirm tick),
+  plus the `--dye-*` redesign extras (chart colours, surface, border).
 - Tailwind is available on every page and is inlined at build time. Write **complete class
   names** in source strings — the scanner reads `./src/**/*.ts` and purges anything it
   cannot see literally. Arbitrary values (`bg-[var(--mimoja-blue)]`, `rounded-[68px]`) work.

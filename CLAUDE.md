@@ -28,7 +28,7 @@ cd dye2-plugin
 npm run build    # build:css + vite → ../dye2.reaplugin/plugin.js
 npm run dev      # vite watch (run alongside serve)
 npm run serve    # dev server on :4444, proxies /api/v1/* to localhost:8080
-npm test         # bc-map, shot-paging, equipment, enjoyment-scale, grinder edit, recent-favs
+npm test         # 24 suites under test/ (the list lives in package.json)
 ```
 
 `dye2.reaplugin/` is generated **and committed** — rebuild and commit it with any source

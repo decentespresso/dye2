@@ -91,7 +91,7 @@ npm install
 npm run build    # build:css (tailwind) then vite → ../dye2.reaplugin/{plugin.js,manifest.json}
 npm run dev      # vite watch mode — does NOT re-run the tailwind step
 npm run serve    # dev server on :4444, proxies /api/v1/* to a real machine
-npm test         # node --experimental-strip-types, two named files
+npm test         # 24 suites under test/, run in series (see package.json)
 ```
 
 `test` names `bc-map.test.mjs` and `shot-paging.test.mjs` explicitly rather than globbing, so a new `*.test.mjs` does not run until you add it to the script.

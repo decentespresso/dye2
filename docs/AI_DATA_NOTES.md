@@ -93,6 +93,15 @@ PUTs are **partial** — `{ context: {...}, profile?: {...} }` — and the host 
 `deepMergeJson`, where an explicit `null` overwrites and an empty `{}` is a no-op. So
 clearing a field needs an explicit per-field `null`; omitting it leaves the old value.
 
+**Never PUT a profile stub.** Because the merge is deep, a `{ id, title }` profile *renames the
+live profile* rather than replacing it — its steps stay, so the barista gets the name they picked
+and somebody else's steps. A write carries either the whole profile or no `profile` key at all.
+`usableProfileSnapshot(p)` (`dev-api.ts`) is the single test for "whole":
+`Array.isArray(p.steps) && p.steps.length`. An empty `steps` array passes a bare `Array.isArray`,
+which is what made a tapped recipe apply nothing; both repos had that bug. Decaid also drops
+`profile.id` on a PUT, so a profile captured back off the live workflow has no id to resolve with
+later — resolve by title as a fallback and backfill the id when you find it.
+
 `buildFavouriteWorkflow(fav)` and `buildRecipeWorkflow(recipe)` (`dev-api.ts:250,285`)
 return a ready-to-PUT body. They mirror `dashboard.ts`'s apply functions but build a fresh
 context and **return** it instead of mutating `currentWorkflow` — if you change how a
@@ -154,8 +163,14 @@ change meant the machine's state became the recipe (dye2#30, #31, #33).
   `armSelection` / `trackWorkflow` / the echo guard in `workflow-record.ts` are the retired
   armed-pointer API: unused by `plugin.ts`, kept only for their tests, to delete with the shim.
 - Storage reads cannot be awaited (`host.storage` is void; the value returns as a
-  `storageRead` event); only the one-shot `selectionMigrated` and `recipesMigrated` flags use it. `recipesMigrated`
-  gates the plugin's one-time `recipes` migration/self-heal (writer rule: `KV_CONTRACT.md`).
+  `storageRead` event); only the one-shot migration flags use it: `selectionMigrated`,
+  `recipesMigrated` (the `recipes` migration and self-heal), `favSlotsMigrated`
+  (`dedupeFavSlots` over the saved rows) and `favProfilesMigrated` (`fattenFavouriteProfiles`,
+  for favourites stored with a profile in name only). Each pass's writer rule is in
+  `KV_CONTRACT.md`. A flag is written whether or not the pass changed anything and a failed
+  pass is not retried, so every pass must be idempotent and must re-read its key immediately
+  before writing it. Flags are read in `onLoad` and handled in the `storageRead` event; the
+  no-storage path runs all three passes directly.
 - `host.emit('changed', ...)` on the `changed` websocket endpoint tells Streamline to re-read. A
   payload of `{"what":"skin"}` refreshes only its surfaces, so KV changes push something else.
 

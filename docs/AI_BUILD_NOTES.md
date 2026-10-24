@@ -10,7 +10,7 @@ cd dye2-plugin
 npm run build    # build:css (Tailwind) then vite build
 npm run dev      # vite build --watch
 npm run serve    # dev server, PORT=4444, BRIDGE_URL=http://localhost:8080
-npm test         # three node --experimental-strip-types suites
+npm test         # 24 suites under test/, in series
 ```
 
 `vite.config.ts` builds `src/plugin.ts` as a **single IIFE** exposing `createPlugin` on the
@@ -98,8 +98,16 @@ version anyone sees. Leave it alone during a release.
 cd dye2-plugin && npm test
 ```
 
-Runs `test/bc-map.test.mjs`, `test/shot-paging.test.mjs`, `test/equipment.test.mjs` under
-`node --experimental-strip-types` (so the suites import `.ts` directly, no build step).
+Runs every suite named in `package.json`'s `test` script, in series — 24 of them as of
+v0.1.26. Most run under `node --experimental-strip-types`, so they import `.ts` directly with no
+build step; the few that only read a page's source as text (`save-recipe-slot`,
+`recipe-profile-fill`, `suggested-cleanup`) run under plain `node`. Adding a suite means adding
+it to that script: there is no directory glob, so a file nobody listed never runs.
+
+Two patterns worth copying, since the browser-side code is untyped template-literal strings:
+a suite either imports the pure helper from the `.ts` module, or pulls a function out of a page
+string by its signature and evaluates it against a fake `document`. A new guard is also worth
+mutation-checking once — revert the guard by hand and confirm the suite goes red.
 
 `src/utils/fit-logic.test.mjs` is **orphaned** — not in `npm test`, not in CI. Run it by
 hand if you touch the fit/scaling logic, and consider wiring it into the `test` script:

@@ -67,6 +67,22 @@ every other field. `auto: true` recents are not de-duplicated: `assignSlots` re-
 refresh (which also applies `dedupeFavSlots` to the saved rows it rewrites, so it cannot undo the
 migration). An existing saved row still holding slot 5 is left as stored; it just never appears.
 
+**`autoFavourites` whole-profile rule.** A favourite that names a profile must HOLD that
+profile, with its steps, in **both** places a consumer reads: `snapshot.profileSnapshot` (DYE2's
+own apply) and `workflow.profile` (what the skin PUTs straight from the row). A row carrying only
+a title or an id is applied with no profile at all, which silently leaves whatever profile is
+loaded running — and a `{ id, title }` stub is worse than nothing, because `PUT /workflow`
+deep-merges and so renames the live profile instead of replacing it. Three enforcement points:
+`fattenFavouriteProfile` (dev-api) resolves the real record before every favourite write;
+`toRecentFavourite` puts the recorded profile on the snapshot as well as the workflow, so a
+refresh cannot undo a repair; and a one-time pass gated by the `favProfilesMigrated`
+plugin-storage flag runs `fattenFavouriteProfiles` over the stored rows, resolving by `profileId`
+first and then by `profileTitle` (first match wins — titles are not unique), backfilling a missing
+id, and writing the result to both places. Rows that name no profile are left alone, and the
+library (`GET /profiles?includeHidden=true`) is fetched only when
+`favouritesNeedProfileRepair(rows)` says some row needs it. Decaid drops `profile.id` on a PUT,
+which is why a title fallback is needed at all.
+
 This includes "dialling in" from the Streamline dashboard. DYE2's plugin runtime
 writes edits from the live workflow onto the selected recipe itself, when asked
 (below); a skin must not read-modify-write the arrays to do the same. (Older skin builds that
@@ -296,10 +312,13 @@ CONFIRM handler in `basket-picker.ts`), not a full context replacement.
               dose, drink, barista, drinker, note },   // booleans; absent ⇒ on
   snapshot: {
     profileId, profileTitle,
-    profileSnapshot,           // optional, full recorded Profile (steps included) captured when the
-                                // source profile might not be in the library — apply this directly
-                                // instead of resolving profileId when it's set (nested under snapshot
-                                // here, unlike the recipe's top-level field)
+    profileSnapshot,           // the whole recorded Profile, steps included (nested under snapshot
+                                // here, unlike the recipe's top-level field). Apply this directly
+                                // instead of resolving profileId. Written on every favourite that
+                                // names a profile and restored on older rows by the one-time repair
+                                // (see the autoFavourites whole-profile rule); null only where no
+                                // profile could be resolved at all. An empty `steps` array does NOT
+                                // count as a profile.
     beanBatchId, coffeeName, coffeeRoaster,
     roastDate, grinderId, grinderModel, basketId, basketName, grindSetting, rpm,
     dose, drink, barista, drinker, note,
@@ -393,9 +412,12 @@ plugins should not read it.
                                 // context.beanBatchId / coffeeRoaster from them. Absent on older
                                 // recipes. Dial-in does not repoint them (a mid-dial-in batch
                                 // switch disarms the selection instead).
-  profileSnapshot,             // optional, full recorded Profile (steps included) captured when the
-                                // source profile might not be in the library — apply this directly
-                                // instead of resolving profileId when it's set
+  profileSnapshot,             // optional, the whole recorded Profile (steps included) captured when
+                                // the source profile might not be in the library — apply this directly
+                                // instead of resolving profileId when it's set. Whole or absent: an
+                                // empty `steps` array does NOT count as a profile, and a { id, title }
+                                // stub PUT at the workflow renames the live profile instead of
+                                // replacing it.
   showOnStreamlineDashboard,
   dashboardVariables: {
     dose, drink, brewC, steamMode, steamTimeS, steamFlowMls,
