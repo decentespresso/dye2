@@ -7002,6 +7002,7 @@ function renderRecipePills(workflow) {
     ? recipes.filter(r => r && r.stripSlot != null && r.showOnStreamlineDashboard !== false).sort((a, b) => a.stripSlot - b.stripSlot)   // the strip holds the slotted ones; the rest live in Select Recipe
     : (workflow.favorites || workflow.recipes || []);
   const selRecipeId = derivedSel && derivedSel.kind === 'recipe' ? String(derivedSel.id) : null;
+  const selFavId = derivedSel && derivedSel.kind === 'favourite' ? String(derivedSel.id) : null;
   const selMark = derivedSel && derivedSel.modified ? ' *' : '';
   // The selected recipe may hold no strip slot (so recipeItems omits it): show it as a pill, first.
   const slotless = selRecipeId && recipes.length ? recipes.find(r => r && String(r.id) === selRecipeId && r.stripSlot == null) : null;
@@ -7016,8 +7017,16 @@ function renderRecipePills(workflow) {
     const snap = (isRecent && item.snapshot) || {};
     const pillLabel = isRecent ? ([snap.profileTitle, snap.coffeeName].filter(Boolean).join(' · ') || title) : title;
     const isSel = !isRecent && typeof item === 'object' && selRecipeId && String(item.id) === selRecipeId;
+    // Highlight the item the plugin says is selected, by id. Matching the item's name against
+    // the live profile title instead (as this did) highlighted nothing after applying a recent
+    // -- its name is the favourite's, never the profile's -- and lit up every recipe that
+    // happened to share a profile title. A label-only workflow string has no id, so it keeps
+    // the title match.
+    const isActive = typeof item === 'object'
+      ? (isRecent ? !!selFavId && String(item.id) === selFavId : !!isSel)
+      : title === activeTitle;
     const pill = document.createElement('button');
-    pill.className = 'dye-recipe-pill' + (isRecent ? ' dye-pill-recent' : '') + (title === activeTitle || (isSel && item === slotless) ? ' active' : '');
+    pill.className = 'dye-recipe-pill' + (isRecent ? ' dye-pill-recent' : '') + (isActive ? ' active' : '');
     pill.title = title;
     const label = document.createElement('span');
     label.className = 'dye-recipe-pill-label';
@@ -7026,6 +7035,7 @@ function renderRecipePills(workflow) {
     pill.addEventListener('click', async () => {
       document.querySelectorAll('.dye-recipe-pill').forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
+      centreRailOn(pill);
       if (typeof item !== 'object') return;
       await refreshWorkflow();   // apply over the live Workflow, not the page-open copy (dye2#31)
       if (isRecent) {
@@ -7046,7 +7056,40 @@ function renderRecipePills(workflow) {
     container.appendChild(pill);
   });
   refreshDerivedSelection();
+  // Centre the highlighted pill, but only when the highlight itself moved: this runs on every
+  // workflow refresh and every \`changed\` push too, and re-centring then would drag the rail
+  // back under a barista who had scrolled it to look at something else.
+  const activeKey = derivedSel ? derivedSel.kind + ':' + derivedSel.id : (activeTitle || '');
+  if (activeKey !== railCentredKey) {
+    railCentredKey = activeKey;
+    centreRailOn(container.querySelector('.dye-recipe-pill.active'));
+  }
   updateRailArrows();
+}
+
+// The pill the rail is already centred on, so a plain re-render leaves the scroll alone.
+let railCentredKey = '';
+
+// Bring a pill to the middle of the rail. scrollIntoView is not used: it scrolls every
+// scrollable ancestor, and the page itself is one. Measured off rects, not offsetLeft --
+// the pill's offsetParent is #dye-dash-root rather than the rail, so offsetLeft is in the
+// wrong space. Rects are in painted pixels and dev-shell scales the page (and not evenly
+// in x and y), while scrollBy wants layout pixels, hence the divide.
+function centreRailOn(pill) {
+  const rail = document.getElementById('dye-recipe-pills');
+  if (!rail || !pill) return;
+  const r = rail.getBoundingClientRect(), p = pill.getBoundingClientRect();
+  const scale = r.width / rail.clientWidth || 1;
+  const delta = ((p.left + p.width / 2) - (r.left + r.width / 2)) / scale;
+  rail.scrollBy({ left: delta, behavior: 'smooth' });   // the browser clamps at both ends
+}
+
+// One arrow press moves one pill, so the rail always lands flush with a cell edge. 12 is the
+// rail's gap-[12px]; a rail with no pills in it cannot scroll anyway.
+function railStep() {
+  const rail = document.getElementById('dye-recipe-pills');
+  const pill = rail && rail.querySelector('.dye-recipe-pill');
+  return pill ? pill.offsetWidth + 12 : 0;
 }
 
 // Grey out the rail arrows at each end of the scroll; both go off when the pills fit.
@@ -7665,8 +7708,8 @@ function wireDashboardControls() {
   setupHistoryRevert();
   subscribeChanged();   // a strip "Save changes" clears the pill's star without a reload
   const pills = document.getElementById('dye-recipe-pills');
-  document.getElementById('dye-recipe-prev')?.addEventListener('click', () => pills?.scrollBy({ left: -pills.clientWidth, behavior: 'smooth' }));
-  document.getElementById('dye-recipe-next')?.addEventListener('click', () => pills?.scrollBy({ left: pills.clientWidth, behavior: 'smooth' }));
+  document.getElementById('dye-recipe-prev')?.addEventListener('click', () => pills?.scrollBy({ left: -railStep(), behavior: 'smooth' }));
+  document.getElementById('dye-recipe-next')?.addEventListener('click', () => pills?.scrollBy({ left: railStep(), behavior: 'smooth' }));
   // The smooth scrollBy animates, so the scroll event settles the final arrow state.
   pills?.addEventListener('scroll', updateRailArrows);
   window.addEventListener('resize', updateRailArrows);
