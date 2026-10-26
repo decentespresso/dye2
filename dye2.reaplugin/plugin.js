@@ -555,8 +555,9 @@ function markDye(ctx, keys) {
 }
 
 async function updateWorkflow(data) {
-  /* extras.dye.selection is the plugin runtime's (plugin.ts writes it); a whole-workflow PUT
-     carrying a stale copy would re-arm what it cleared, so it never leaves this page. */
+  /* extras.dye.selection is the retired stored selection (plugin.ts only nulls it, in the
+     one-time dye2#36 migration); a whole-workflow PUT carrying a stale copy would bring it
+     back, so it never leaves this page. */
   const dye = data && data.context && data.context.extras && data.context.extras.dye;
   if (dye && 'selection' in dye) {
     const { selection, ...rest } = dye;
@@ -12322,21 +12323,21 @@ function setupStreamlineToggle() {
   });
 }
 
-// The live Workflow still holds the pre-save values of the armed recipe, so the next workflow
-// change of any kind would record them back over the save (dye2#33). Apply the save and re-arm
-// on it — PUT first, then POST, as the dashboard does: the plugin reads the live workflow to
-// fingerprint the profile and to suppress the apply's own echo. Only for the armed recipe; a
-// save of any other slot leaves the Workflow alone.
+// The live Workflow still holds the pre-save values of the selected recipe, so it would keep
+// showing them (dye2#33). Re-apply the save in ONE PUT, carrying context.extras.dye.recipeId so
+// the selection (derived from the workflow, dye2#36) stays on this recipe. Only for the
+// selected recipe; a save of any other slot leaves the Workflow alone.
 async function reapplyIfSelected(saved) {
   if (!saved || !saved.workflow) return false;
   let sel = null;
   try { sel = await (await fetch('/api/v1/plugins/dye2.reaplugin/selection')).json(); }
   catch (e) { console.warn('selection read failed', e); return false; }
   if (!sel || sel.kind !== 'recipe' || String(sel.id) !== String(saved.id)) return false;
-  await updateWorkflow(saved.workflow);
-  await fetch('/api/v1/plugins/dye2.reaplugin/selection', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ kind: 'recipe', id: String(saved.id) }),
+  const wfCtx = saved.workflow.context || {};
+  const wfExtras = wfCtx.extras || {};
+  await updateWorkflow({
+    ...saved.workflow,
+    context: { ...wfCtx, extras: { ...wfExtras, dye: { ...(wfExtras.dye || {}), v: 1, recipeId: String(saved.id) } } },
   });
   return true;
 }
@@ -13259,8 +13260,6 @@ bcInit();
 			field: "snapshot"
 		}
 	};
-	var selection = null;
-	var onSelectionChange = null;
 	function profileFingerprint(profile) {
 		if (!profile) return null;
 		const steps = Array.isArray(profile.steps) ? profile.steps.map(({ temperature, limiter, ...rest }) => ({
@@ -13363,7 +13362,7 @@ bcInit();
 			return null;
 		}
 	}
-	/** Those machine settings of `wf` that have a value: the baseline armSelection stores. */
+	/** Those machine settings of `wf` that have a value: the armed baseline holds. */
 	function machineFields(wf) {
 		const all = recipeFields(wf);
 		const out = {};
@@ -13453,14 +13452,13 @@ bcInit();
 	}
 	function updateSelection(sel, changes) {
 		Object.assign(sel, changes);
-		if (selection === sel && onSelectionChange) onSelectionChange(sel);
 	}
 	/**
 	* Patch the armed item for workflow `wf`. Returns true if it wrote. Re-reads the KV
 	* array right before writing, touches only the armed item's changed fields, and is a
 	* no-op if the item has since been deleted.
 	*/
-	async function recordWorkflow(wf, fetchFn, armed = selection, base = "http://localhost:8080/api/v1") {
+	async function recordWorkflow(wf, fetchFn, armed, base = "http://localhost:8080/api/v1") {
 		if (!armed || !wf) return false;
 		const { key, field } = TARGETS[armed.kind];
 		const url = base + "/store/dye2.reaplugin/" + key;

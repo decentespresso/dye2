@@ -5,9 +5,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  armSelection, clearSelection, getSelection, setSelectionListener,
-  profileFingerprint, profileDrifted, itemPatch, recordWorkflow, trackWorkflow,
-  suppress, profileAtBrewC, withMachineSettings, readMachineSettings,
+  profileFingerprint, itemPatch, recordWorkflow,
+  profileAtBrewC, withMachineSettings, readMachineSettings,
   recipeIdOf, heldFields, recipeModified, recipeProfileChanged, favouriteMatches, deriveSelection,
   resolveRecipeFromHistory, proposeRecipeName, idProfileChanged,
 } from '../src/utils/workflow-record.ts';
@@ -174,57 +173,11 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
     profileFingerprint({ ...profile(93), target_weight: 40, target_volume: 50 }),
     'yield (target_weight/target_volume) is not part of identity'
   );
-  const sel = { kind: 'recipe', id: '1', profileFingerprint: profileFingerprint(profile(93)) };
-  assert.equal(profileDrifted(sel, wf()), false);
-  assert.equal(profileDrifted(sel, wf({ profile: { ...profile(93), title: 'Other' } })), true);
-
   // A limiter of value 0 limits nothing, and Streamline nulls it before every PUT
   // (api.js updateWorkflow) — the two must hash alike (dye2#32, streamline-js#158).
   const lim = (l) => ({ title: 'P', tank_temperature: 0, steps: [{ name: 's', temperature: 93, limiter: l }] });
   assert.equal(profileFingerprint(lim({ value: 0, range: 0.6 })), profileFingerprint(lim(null)), 'a 0 limiter is no limiter');
   assert.notEqual(profileFingerprint(lim({ value: 2, range: 0.6 })), profileFingerprint(lim(null)), 'a real limiter still counts');
-  assert.equal(profileDrifted({ kind: 'recipe', id: '1', profileFingerprint: profileFingerprint(lim({ value: 0, range: 0.6 })) },
-    { profile: lim(null) }), false, 'Streamline nulling a 0 limiter does not disarm');
-
-  armSelection({ kind: 'recipe', id: '1' }, wf(), 0);
-  assert.ok(getSelection());
-  trackWorkflow(wf({ profile: { ...profile(93), title: 'Other' } }), 10_000);
-  assert.equal(getSelection(), null, 'drifted workflow clears the armed item');
-}
-
-// --- bean / grinder switch disarms ---------------------------------------------------
-{
-  const withCtx = (extra) => wf({ context: { targetDoseWeight: 18, targetYield: 36, grinderSetting: '4.2', ...extra } });
-  const never = async () => { throw new Error('no'); };
-  const run = (w) => trackWorkflow(w, 10_000);
-
-  armSelection({ kind: 'recipe', id: '1' }, withCtx({ beanBatchId: 'b1', grinderId: 'g1' }), 0);
-  assert.equal(getSelection().armedBeanBatchId, 'b1');
-  assert.equal(getSelection().armedGrinderId, 'g1');
-  run(withCtx({ beanBatchId: 'b2', grinderId: 'g1' }));
-  assert.equal(getSelection(), null, 'a different bean batch disarms');
-
-  armSelection({ kind: 'recipe', id: '1' }, withCtx({ beanBatchId: 'b1', grinderId: 'g1' }), 0);
-  run(withCtx({ beanBatchId: 'b1', grinderId: 'g2' }));
-  assert.equal(getSelection(), null, 'a different grinder disarms');
-
-  // unset is consistent: null / undefined / '' are all "none", so none of them disarms
-  armSelection({ kind: 'recipe', id: '1' }, withCtx({ beanBatchId: null }), 0);
-  run(withCtx({ beanBatchId: '', grinderId: undefined }));
-  assert.ok(getSelection(), 'unset -> unset keeps the selection');
-  run(withCtx({ beanBatchId: 'b1' }));
-  assert.ok(getSelection(), 'unset -> a batch is specifying, not switching: stays armed');
-  run(withCtx({ beanBatchId: 'b2' }));
-  assert.equal(getSelection(), null, 'and then a different batch disarms');
-
-  // armed without a workflow: unknown, adopted from the first event rather than disarming
-  armSelection({ kind: 'recipe', id: '1' });
-  run(withCtx({ beanBatchId: 'b1', grinderId: 'g1' }));
-  assert.equal(getSelection().armedBeanBatchId, 'b1', 'unknown baseline adopted');
-  run(withCtx({ beanBatchId: 'b3', grinderId: 'g1' }));
-  assert.equal(getSelection(), null);
-
-  clearSelection();
 }
 
 // --- recipe editor: a mode switch shows that mode's own value (dye2#23) ---------------
@@ -415,26 +368,6 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.deepEqual(calls, ['GET', 'POST'], 'read the array, wrote it back: no machine-settings call');
 }
 
-// --- the echo guard still matches across the overlay --------------------------------
-{
-  // The apply reads the DE1 pair; the host's event payload is the workflow alone. Comparing it
-  // would never match, and every apply would record itself straight back.
-  clearSelection();
-  const s = fakeStore({ recipes: [recipe()] });
-  const applied = withMachineSettings(wf(), { flushTemp: 88, flushFlow: 4 });
-  armSelection({ kind: 'recipe', id: '1' }, applied, 1000);
-  const armedMachineAtArm = JSON.stringify(getSelection().armedMachine);
-  // Nothing records automatically any more, so the guard's job is the baseline: the apply's
-  // own event must not be adopted as "what the barista changed", or the DE1 pair the apply
-  // read would look like a dial-in the next explicit save writes back.
-  trackWorkflow(wf(), 1200);
-  assert.equal(JSON.stringify(getSelection().armedMachine), armedMachineAtArm,
-    "the apply's own event is still an echo: the arm-time baseline stands");
-  assert.deepEqual(s.writes, [], 'and a workflow event writes nothing by itself');
-  clearSelection();
-  console.log('ok   flush temperature and flow are read from the DE1');
-}
-
 // --- steam switched off on the machine is not recorded (dye2#30) -------------------
 {
   const r = recipe();
@@ -484,14 +417,15 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   let r = await run({ kind: 'recipe', id: '1' }, saved);
   assert.equal(r.ok, true);
   assert.equal(r.calls[1][0], 'PUT /workflow', 'the save is applied to the live workflow');
-  assert.equal(r.calls[1][1], '{"context":{"targetDoseWeight":19.5}}', 'with the saved values');
-  assert.equal(r.calls[2][1], 'POST', 're-armed AFTER the PUT, so the apply is the new baseline');
+  assert.equal(r.calls[1][1], '{"context":{"targetDoseWeight":19.5,"extras":{"dye":{"v":1,"recipeId":"1"}}}}',
+    'with the saved values and the recipe id, merged into the same PUT');
+  assert.equal(r.calls.length, 2, 'one round trip: no separate selection POST');
   for (const other of [null, { kind: 'recipe', id: '2' }, { kind: 'favourite', id: '1' }]) {
     r = await run(other, saved);
     assert.equal(r.ok, false);
     assert.equal(r.calls.length, 1, 'not the armed recipe: the workflow is left alone');
   }
-  console.log('ok   saving the armed recipe applies it and re-arms');
+  console.log('ok   saving the selected recipe re-applies it in one PUT');
 }
 
 // --- an unresolvable profile is omitted, not sent as an {id,title} stub ---------------
@@ -540,28 +474,21 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
 
 // --- recording is opt-in: a workflow change alone writes nothing -----------------------
 {
-  clearSelection();
   const s = fakeStore({ recipes: [recipe()] });
-  armSelection({ kind: 'recipe', id: '1' }, wf(), 0);
+  const sel = { kind: 'recipe', id: '1', profileFingerprint: null, armedBrewC: 93, armedBeanBatchId: '', armedGrinderId: '', armedMachine: null };
 
-  // A genuine barista change, not the apply's own echo.
+  // A genuine barista change. Only the explicit save writes it, and only the fields that moved.
   const dialled = wf({ context: { targetDoseWeight: 19.5, targetYield: 36, grinderSetting: '4.2' } });
-  trackWorkflow(dialled, 10_000);
-  assert.ok(getSelection(), 'the item stays selected');
-  assert.deepEqual(s.writes, [], 'but nothing is written: a workflow change is not a decision');
-
-  // Only the explicit save writes, and only the fields that moved.
-  const wrote = await recordWorkflow(dialled, s.fetchFn, getSelection());
+  const wrote = await recordWorkflow(dialled, s.fetchFn, sel);
   assert.equal(wrote, true, 'the explicit save writes');
   assert.equal(s.store.recipes[0].dashboardVariables.dose, 19.5, 'the dialled dose lands');
   assert.equal(s.store.recipes[0].dashboardVariables.drink, 36, 'and the yield');
 
   // Saving again with nothing further changed writes nothing.
   const before = s.writes.length;
-  await recordWorkflow(dialled, s.fetchFn, getSelection());
+  await recordWorkflow(dialled, s.fetchFn, sel);
   assert.equal(s.writes.length, before, 'a second save with no change is a no-op');
-  clearSelection();
-  console.log('ok   recording is opt-in: the event tracks, only an explicit save writes');
+  console.log('ok   recording is opt-in: only an explicit save writes');
 }
 
 // --- derived selection (dye2#36) -------------------------------------------------------

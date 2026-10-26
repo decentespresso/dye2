@@ -204,8 +204,10 @@ export default function createPlugin(host: PluginHost): PluginInstance {
   async function handleSelection(request: HttpRequest): Promise<HttpResponse> {
     if (typeof fetch !== "function") return json(request, 503, { error: "no api permission" });
     if (request.method !== "GET") {
-      // ponytail: compat shim for callers that still POST; nothing is stored, the id rides in
-      // the workflow. Drop the route with streamline-js#159.
+      // Permanent compat arm for an older skin/caller (tablets may hold an older DYE2 where this
+      // is the only working path): nothing is stored, it PUTs recipeId (null for anything that
+      // is not a recipe) and answers the derived selection. streamline-js#159 is closed; the
+      // route stays.
       const body = parseBody(request);
       const id = body && body.kind === "recipe" && body.id != null ? String(body.id) : null;
       await putWorkflow({ context: { extras: { dye: { recipeId: id } } } });

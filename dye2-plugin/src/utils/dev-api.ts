@@ -130,8 +130,9 @@ function markDye(ctx, keys) {
 }
 
 async function updateWorkflow(data) {
-  /* extras.dye.selection is the plugin runtime's (plugin.ts writes it); a whole-workflow PUT
-     carrying a stale copy would re-arm what it cleared, so it never leaves this page. */
+  /* extras.dye.selection is the retired stored selection (plugin.ts only nulls it, in the
+     one-time dye2#36 migration); a whole-workflow PUT carrying a stale copy would bring it
+     back, so it never leaves this page. */
   const dye = data && data.context && data.context.extras && data.context.extras.dye;
   if (dye && 'selection' in dye) {
     const { selection, ...rest } = dye;

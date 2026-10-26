@@ -125,9 +125,8 @@ no highlight, quietly.
 
 ```
 GET  /api/v1/plugins/dye2.reaplugin/selection    -> { kind: 'recipe'|'favourite', id, modified, auto? } | null
-POST /api/v1/plugins/dye2.reaplugin/selection {kind, id}  -> compat shim, stores nothing: {kind:'recipe'} PUTs
-                                                   recipeId, anything else nulls it; returns the derived selection.
-                                                   Going away with streamline-js#159.
+POST /api/v1/plugins/dye2.reaplugin/selection {kind, id}  -> permanent compat arm for older callers, stores nothing:
+                                                   {kind:'recipe'} PUTs recipeId, anything else nulls it; returns the derived selection.
 POST /api/v1/plugins/dye2.reaplugin/record       -> { saved, kind, id } writes the dial-in onto the selected recipe
 POST /api/v1/plugins/dye2.reaplugin/save-recipe {name?, slot?} -> { id, name } new recipe from the live workflow, selected at once
 ```

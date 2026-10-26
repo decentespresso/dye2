@@ -6,14 +6,14 @@
  *
  * Like recent-favs.ts this runs in the PLUGIN runtime (no DOM, no imports) and is also
  * importable by a node test (test/workflow-record.test.mjs). The fetch-like dependency
- * is injected; plugin.ts wires it to the real `fetch` and persists the selection.
+ * is injected.
  *
- * Flow: dashboard applies an item -> POST /selection -> armSelection(). The host fires
- * `workflowUpdated` on every workflow change -> trackWorkflow(), which disarms on drift and
- * fills in any missing baseline but NEVER writes. The barista saves explicitly ("Save changes"
- * on the strip's long-press menu -> POST /record) -> recordWorkflow() patches ONLY the fields
- * that differ on that ONE item. A workflow change is not by itself a decision to change the
- * recipe, which is what the automatic version got wrong (dye2#30, #31, #33).
+ * The selection is derived per call from the live workflow (`deriveSelection`), never
+ * stored. This module holds the field maps, the drift tests and `recordWorkflow`, which
+ * patches ONLY the fields that differ on the ONE selected item when the barista saves
+ * explicitly ("Save changes" on the strip's long-press menu -> POST /record). A workflow
+ * change is not by itself a decision to change the recipe, which is what the automatic
+ * version got wrong (dye2#30, #31, #33).
  */
 
 type AnyRecord = Record<string, any>;
@@ -54,18 +54,11 @@ export interface Selection {
   armedMachine: AnyRecord | null;
 }
 
-const ECHO_WINDOW_MS = 3000;
-
 // kind -> KV key and the sub-object holding the dashboard-derived values.
 const TARGETS = {
   recipe: { key: "recipes", field: "dashboardVariables" },
   favourite: { key: "autoFavourites", field: "snapshot" },
 } as const;
-
-let selection: Selection | null = null;
-let onSelectionChange: ((s: Selection | null) => void) | null = null;
-let timer: any = null;
-let suppressed: { values: string; at: number } | null = null;
 
 // ── profile drift ───────────────────────────────────────────────────────────
 // Ported from streamline_project/src/modules/dye-selection.js. Decaid's
@@ -93,33 +86,6 @@ export function profileFingerprint(profile: AnyRecord | null | undefined): strin
     tank_temperature: profile.tank_temperature,
     steps,
   });
-}
-
-/** Has the live workflow's profile moved away from the one the selection was armed on? */
-export function profileDrifted(sel: Selection | null, workflow: AnyRecord | null | undefined): boolean {
-  if (!sel) return false;
-  const fp = profileFingerprint(workflow && workflow.profile);
-  return !!(sel.profileFingerprint && fp && fp !== sel.profileFingerprint);
-}
-
-/** Has the workflow's bean batch or grinder moved off what the selection was armed on? */
-export function contextDrifted(sel: Selection | null, workflow: AnyRecord | null | undefined): boolean {
-  if (!sel) return false;
-  const ctx = (workflow && workflow.context) || {};
-  // Only a switch away from one the selection actually had. An armed "" means the workflow
-  // had none — apply sets beanBatchId only for a recipe that holds one (dye2#27) — so picking
-  // a bean then
-  // is the barista saying which coffee this is, not switching off the recipe; disarming
-  // there would stop recording on the normal apply-then-pick-bean order.
-  return (
-    (!!sel.armedBeanBatchId && sel.armedBeanBatchId !== idOf(ctx.beanBatchId)) ||
-    (!!sel.armedGrinderId && sel.armedGrinderId !== idOf(ctx.grinderId))
-  );
-}
-
-// null / undefined / "" all mean "not set", so an unset id never counts as a change.
-function idOf(v: unknown): string {
-  return v == null ? "" : String(v);
 }
 
 // ── field mappers ───────────────────────────────────────────────────────────
@@ -215,7 +181,7 @@ export async function readMachineSettings(fetchFn: FetchLike, base: string): Pro
   }
 }
 
-/** Those machine settings of `wf` that have a value: the baseline armSelection stores. */
+/** Those machine settings of `wf` that have a value: the armed baseline holds. */
 export function machineFields(wf: AnyRecord): AnyRecord {
   const all = recipeFields(wf);
   const out: AnyRecord = {};
@@ -336,89 +302,14 @@ export function profileAtBrewC(profile: AnyRecord | null | undefined, brewC: unk
 
 // ── selection ───────────────────────────────────────────────────────────────
 
-export function getSelection(): Selection | null {
-  return selection;
-}
-
-/** plugin.ts registers this to persist the selection whenever it changes. */
-export function setSelectionListener(fn: ((s: Selection | null) => void) | null) {
-  onSelectionChange = fn;
-}
-
-function cancelPending() {
-  if (timer != null && typeof clearTimeout === "function") clearTimeout(timer);
-  timer = null;
-}
-
-function setSel(next: Selection | null) {
-  // Anything debounced belongs to the previous selection; never let it land on the new one.
-  cancelPending();
-  selection = next;
-  if (onSelectionChange) onSelectionChange(next);
-}
-
 function liveBrewC(wf: AnyRecord): number | null {
   const v = recipeFields(wf).brewC;
   return v === undefined ? null : v;
 }
 
-// Mutates the armed selection in place (identity is what the debounce timer checks)
-// and tells the persistence listener, so a reload does not lose the baseline.
+// Mutates the baseline in place; the caller owns it (src/plugin.ts's `baseline`).
 function updateSelection(sel: Selection, changes: Partial<Selection>) {
   Object.assign(sel, changes);
-  if (selection === sel && onSelectionChange) onSelectionChange(sel);
-}
-
-export function clearSelection() {
-  setSel(null);
-}
-
-/**
- * Arm `{kind,id}` on the live workflow `wf` (used for the profile fingerprint). A
- * `recent:` id is not stable (docs/KV_CONTRACT.md, "Auto (recent) entries"), so arming
- * one clears the selection instead. Arming happens right after the dashboard's apply,
- * so it also records that apply as an echo (see suppress).
- */
-export function armSelection(req: AnyRecord | null | undefined, wf?: AnyRecord | null, now = Date.now()): Selection | null {
-  const kind = req && req.kind;
-  const id = req && req.id;
-  if ((kind !== "recipe" && kind !== "favourite") || id == null || id === "" || String(id).indexOf("recent:") === 0) {
-    clearSelection();
-    return null;
-  }
-  setSel({
-    kind,
-    id: String(id),
-    profileFingerprint: profileFingerprint(wf && wf.profile),
-    armedBrewC: wf ? liveBrewC(wf) : null,
-    armedBeanBatchId: wf ? idOf(wf.context && wf.context.beanBatchId) : null,
-    armedGrinderId: wf ? idOf(wf.context && wf.context.grinderId) : null,
-    armedMachine: wf ? machineFields(wf) : null,
-  });
-  if (wf) suppress(wf, now);
-  return selection;
-}
-
-// ── echo guard ──────────────────────────────────────────────────────────────
-// DYE2's own apply writes the workflow, which fires `workflowUpdated`; without this
-// every apply would immediately "record" the same values straight back. Mirrors the
-// skin's withAutoSaveSuppressed, but by value + time because the event arrives
-// asynchronously from the host rather than inside the call that caused it.
-function echoKey(wf: AnyRecord): string {
-  const fields = recipeFields(wf);
-  // The DE1-only pair is overlaid on the workflow the apply read (plugin.ts) but absent from the
-  // host's own event payload, so comparing it here would never match and every apply would
-  // record itself straight back.
-  for (const k of Object.keys(DE1_ONLY)) delete fields[k];
-  return JSON.stringify([fields, favouriteFields(wf)]);
-}
-
-export function suppress(wf: AnyRecord, now = Date.now()) {
-  suppressed = { values: echoKey(wf), at: now };
-}
-
-function isEcho(wf: AnyRecord, now: number): boolean {
-  return !!suppressed && now - suppressed.at < ECHO_WINDOW_MS && suppressed.values === echoKey(wf);
 }
 
 // ── recording ───────────────────────────────────────────────────────────────
@@ -431,7 +322,7 @@ function isEcho(wf: AnyRecord, now: number): boolean {
 export async function recordWorkflow(
   wf: AnyRecord,
   fetchFn: FetchLike,
-  armed: Selection | null = selection,
+  armed: Selection | null,
   base = "http://localhost:8080/api/v1"
 ): Promise<boolean> {
   if (!armed || !wf) return false;
@@ -498,44 +389,9 @@ export async function recordWorkflow(
   return true;
 }
 
-/**
- * Entry point for a `workflowUpdated` event. Recording is explicit now -- the skin's
- * "Save changes" posts to the `record` route -- so this never writes. It only keeps the armed
- * selection honest: drift disarms it, and a selection armed before the workflow was known
- * adopts its baselines here, so a later change still reads as the barista's.
- */
-export function trackWorkflow(wf: AnyRecord, now = Date.now()): void {
-  if (!selection || !wf) return;
-  if (profileDrifted(selection, wf) || contextDrifted(selection, wf)) {
-    clearSelection();
-    return;
-  }
-  // Our own apply: its values are the baseline already, set at arm time.
-  if (isEcho(wf, now)) return;
-  // The skin armed us before the profile was known (no fetch at arm time): adopt it now.
-  if (!selection.profileFingerprint) {
-    updateSelection(selection, { profileFingerprint: profileFingerprint(wf.profile) });
-  }
-
-  // Armed without a workflow: take the machine settings live now as the baseline, so only a
-  // later change counts as the barista's.
-  if (!selection.armedMachine) updateSelection(selection, { armedMachine: machineFields(wf) });
-
-  // No baseline yet (armed without a workflow) or an empty one (the workflow had no bean
-  // or grinder when armed): adopt what the workflow says now, so the NEXT switch disarms.
-  if (!selection.armedBeanBatchId || !selection.armedGrinderId) {
-    updateSelection(selection, {
-      armedBeanBatchId: selection.armedBeanBatchId || idOf(wf.context && wf.context.beanBatchId),
-      armedGrinderId: selection.armedGrinderId || idOf(wf.context && wf.context.grinderId),
-    });
-  }
-}
-
 // ── derived selection (dye2#36) ─────────────────────────────────────────────
 // The highlight is computed from the live workflow, never stored: a recipe by the id in
 // context.extras.dye.recipeId, a favourite or recent by comparing the fields it owns.
-// (armSelection/trackWorkflow above are the retired armed-pointer API; plugin.ts no longer
-// calls them. ponytail: delete them and their tests with streamline-js#159.)
 
 export function recipeIdOf(wf: AnyRecord | null | undefined): string | null {
   const id = wf && wf.context && wf.context.extras && wf.context.extras.dye && wf.context.extras.dye.recipeId;
