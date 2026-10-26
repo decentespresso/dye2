@@ -124,8 +124,8 @@ Colour that stays literal is semantic on purpose: white text on `--mimoja-blue`,
 
 ## Select Recipe And The Slot Control
 
-`pages/select-recipe.ts` is the recipe library (dashboard list icon and Settings ▸ Recipes). It
-is auto-favs without the tab strip: the same `pickerHeaderHtml`, `sortSidebarHtml` and card grid,
+`pages/select-recipe.ts` is the recipe library (Settings ▸ Recipes; the dashboard's duplicate
+list-icon button was removed). It is auto-favs without the tab strip: the same `pickerHeaderHtml`, `sortSidebarHtml` and card grid,
 whose CSS is `gridStyles` exported from `auto-favs.ts` — do not copy it. Tap selects, a second
 tap or 500 ms long-press opens `recipe-edit` for that recipe (`decideCardTap`), CONFIRM hands the
 id to the dashboard (`dye_selectedRecipeId`) which applies it. Slot assignment is not on the list:

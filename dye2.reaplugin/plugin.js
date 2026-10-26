@@ -5830,6 +5830,9 @@ function shotWeights(shot) {
     color: var(--chip-text);
     transition: background 0.15s, color 0.15s;
   }
+  /* Rail arrow at the end of its travel. Opacity, not a colour: the arrow SVGs carry
+     stroke="var(--mimoja-blue)" inline, so dimming the button works in both themes. */
+  .dye-rail-arrow-off { opacity: 0.3; pointer-events: none; }
   .dye-recipe-pill.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
   /* Recent labels lead with the profile and may wrap to two lines: several recents share a
      bean, and one-line truncation made them identical ("Colombia El Par..."). There is no
@@ -6054,7 +6057,6 @@ function shotWeights(shot) {
           <button id="dye-recipe-next" class="flex items-center justify-center shrink-0 cursor-pointer text-[var(--mimoja-blue)]">
             <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
-          <button id="dye-recipes-btn" class="flex items-center justify-center shrink-0 cursor-pointer" title="All recipes" aria-label="All recipes">${lucideIcon("list", 42, "var(--mimoja-blue)", 2.5)}</button>
         </div>
 
         <div class="h-[2px] bg-[var(--profile-button-outline-color)] shrink-0"></div>
@@ -7005,7 +7007,7 @@ function renderRecipePills(workflow) {
   const slotless = selRecipeId && recipes.length ? recipes.find(r => r && String(r.id) === selRecipeId && r.stripSlot == null) : null;
   const items = [...(slotless ? [slotless] : []), ...recentItems, ...recipeItems];
   container.innerHTML = '';
-  if (items.length === 0) { container.innerHTML = '<span style="color:var(--low-contrast-white);font-size:21px;">No recipes yet</span>'; return; }
+  if (items.length === 0) { container.innerHTML = '<span style="color:var(--low-contrast-white);font-size:21px;">No recipes yet</span>'; updateRailArrows(); return; }
   const activeTitle = workflow.profile && workflow.profile.title;
   items.forEach((item, i) => {
     const isRecent = typeof item === 'object' && item && item.auto === true;
@@ -7044,6 +7046,19 @@ function renderRecipePills(workflow) {
     container.appendChild(pill);
   });
   refreshDerivedSelection();
+  updateRailArrows();
+}
+
+// Grey out the rail arrows at each end of the scroll; both go off when the pills fit.
+function updateRailArrows() {
+  const rail = document.getElementById('dye-recipe-pills');
+  const prev = document.getElementById('dye-recipe-prev');
+  const next = document.getElementById('dye-recipe-next');
+  if (!rail || !prev || !next) return;
+  const atStart = rail.scrollLeft <= 0;
+  const atEnd = rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 1;
+  prev.disabled = atStart; prev.classList.toggle('dye-rail-arrow-off', atStart);
+  next.disabled = atEnd; next.classList.toggle('dye-rail-arrow-off', atEnd);
 }
 
 // PUT /api/v1/workflow deep-merges its body onto whatever workflow is already
@@ -7649,10 +7664,12 @@ function wireDashboardControls() {
   setupAddNote();
   setupHistoryRevert();
   subscribeChanged();   // a strip "Save changes" clears the pill's star without a reload
-  document.getElementById('dye-recipes-btn')?.addEventListener('click', openRecipes);
   const pills = document.getElementById('dye-recipe-pills');
   document.getElementById('dye-recipe-prev')?.addEventListener('click', () => pills?.scrollBy({ left: -pills.clientWidth, behavior: 'smooth' }));
   document.getElementById('dye-recipe-next')?.addEventListener('click', () => pills?.scrollBy({ left: pills.clientWidth, behavior: 'smooth' }));
+  // The smooth scrollBy animates, so the scroll event settles the final arrow state.
+  pills?.addEventListener('scroll', updateRailArrows);
+  window.addEventListener('resize', updateRailArrows);
   document.addEventListener('click', () => {
     document.querySelectorAll('.dye-dash-dropdown.open').forEach(dd => dd.classList.remove('open'));
   });
