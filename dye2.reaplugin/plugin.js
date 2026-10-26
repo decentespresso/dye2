@@ -9651,7 +9651,17 @@ function sortByMeanRating(list, tail, idOf, fieldOf) {
   #dye-cards-grid .dye-card.dye-card-add { background: var(--af-page); border-color: var(--af-action); justify-content: center; align-items: center; }
   #dye-cards-grid .dye-card.dye-card-selected { background: var(--af-action); border-color: var(--af-action); }
   #dye-cards-grid .dye-card-divider { border-top-color: var(--af-border); }
-  #dye-cards-container::-webkit-scrollbar-thumb { background: var(--af-border); }
+  /* The native bar ran most of the column and read as a page divider, so it is hidden
+     (scrollbar-width for the standard engines, ::-webkit-scrollbar for the tablet's
+     Chromium WebView, which ignores the former) and replaced by #dye-cards-thumb. */
+  #dye-cards-container { scrollbar-width: none; }
+  #dye-cards-container::-webkit-scrollbar { display: none; }
+  /* Fixed-length indicator: never taller than CARDS_THUMB_MAX of the column, so a long list
+     cannot draw a long bar. Position, not length, says where you are. */
+  #dye-cards-thumb {
+    position: absolute; right: 4px; width: 6px; border-radius: 3px;
+    background: var(--af-border); pointer-events: none;
+  }
   .fav-card-head { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 8px 16px; }
   .fav-card-title { font-size: 24px; font-weight: 600; line-height: 1.2; color: var(--af-text); }
   .fav-card-sub   { font-size: 24px; font-weight: 400; line-height: 1.2; color: var(--af-text); margin-top: 12px; }
@@ -9691,7 +9701,7 @@ function sortByMeanRating(list, tail, idOf, fieldOf) {
   <div class="afav-header">${pickerHeaderHtml("DYE Auto Favourites", "CONFIRM")}</div>
   <div class="flex flex-1 overflow-hidden">
     ${sortSidebarHtml()}
-    <div class="flex flex-col flex-1 overflow-hidden px-[20px]">
+    <div class="flex flex-col flex-1 overflow-hidden px-[20px] relative">
       <div class="dye-tab-strip shrink-0" id="dye-tab-strip">
         <div class="dye-tab-label">Group recent favourites by</div>
         <div class="dye-tab-group">
@@ -9701,6 +9711,8 @@ function sortByMeanRating(list, tail, idOf, fieldOf) {
       <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[20px] pr-[20px]">
         <div id="dye-cards-grid" class="grid grid-cols-3 gap-[30px]"></div>
       </div>
+      <!-- Our own scroll indicator; the native bar is hidden in CSS. See updateCardsThumb. -->
+      <div id="dye-cards-thumb" hidden></div>
     </div>
   </div>
 </div>
@@ -9821,6 +9833,27 @@ function renderCards(favs) {
     window.location.href = '/api/v1/plugins/dye2.reaplugin/auto-fav-edit';
   });
   grid.appendChild(addCard);
+  updateCardsThumb();
+}
+
+// Scroll indicator for the card column. Length is the usual proportional thumb CLAMPED to
+// CARDS_THUMB_MAX of the column (and a floor so it never vanishes), because a native bar on a
+// long list drew a strip down the whole page. Measured in the container's own pixels, which the
+// dev-shell transform scales along with everything else, so no scale maths is needed here.
+const CARDS_THUMB_MAX = 0.15;
+const CARDS_THUMB_MIN_PX = 40;
+function updateCardsThumb() {
+  const box = document.getElementById('dye-cards-container');
+  const thumb = document.getElementById('dye-cards-thumb');
+  if (!box || !thumb) return;
+  const track = box.clientHeight;
+  const hidden = box.scrollHeight - track;
+  if (hidden <= 1) { thumb.hidden = true; return; }
+  const len = Math.max(CARDS_THUMB_MIN_PX, Math.min(track * CARDS_THUMB_MAX, track * (track / box.scrollHeight)));
+  const frac = Math.min(1, Math.max(0, box.scrollTop / hidden));
+  thumb.hidden = false;
+  thumb.style.height = len + 'px';
+  thumb.style.top = (box.offsetTop + frac * (track - len)) + 'px';
 }
 
 // Which snapshot field the tab strip groups by.
@@ -9857,6 +9890,9 @@ function setupTabs() {
 async function initAutoFavs() {
   setupTabs();
   setupSortButtons(sort => { currentSort = sort; render(); });
+
+  document.getElementById('dye-cards-container')?.addEventListener('scroll', updateCardsThumb);
+  window.addEventListener('resize', updateCardsThumb);
 
   document.getElementById('dye-cancel-btn')?.addEventListener('click', () => window.history.back());
   document.getElementById('dye-confirm-btn')?.addEventListener('click', () => {
