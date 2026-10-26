@@ -101,6 +101,18 @@ console.log('ok   select-recipe reuses decideCardTap');
   assert.equal(t.stripSlotHolder(lib, 'a', 1), null, 'its own slot is not a replacement');
   assert.equal(t.stripSlotHolder(lib, 'd', null), null);
 
+  // A recipe cleared off the strip from Streamline's long-press menu keeps its stripSlot but
+  // carries showOnStreamlineDashboard:false. Its tab reads empty, matching the blank the R
+  // strip shows, and saving onto that slot needs no REPLACE confirm.
+  const cleared = [
+    { id: 'a', name: 'Ethiopia', stripSlot: 1, showOnStreamlineDashboard: false },
+    { id: 'c', name: 'Guess', stripSlot: 3, showOnStreamlineDashboard: true },
+  ];
+  assert.deepEqual([1, 2, 3, 4, 5].map((n) => t.stripTabLabel(cleared, n)),
+    ['', '', 'Guess', '', '']);
+  assert.equal(t.stripSlotHolder(cleared, 'd', 1), null, 'a cleared holder raises no confirm');
+  assert.equal(t.stripSlotHolder(cleared, 'd', 3).id, 'c', 'an explicitly shown holder still counts');
+
   // Tapping the active tab clears the target; SAVE of that keeps the recipe in the library.
   assert.equal(t.stripNextTarget(null, 4), 4);
   assert.equal(t.stripNextTarget(4, 4), null);
