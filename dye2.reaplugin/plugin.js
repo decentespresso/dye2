@@ -5855,6 +5855,9 @@ function shotWeights(shot) {
     text-overflow: ellipsis;
   }
 
+  /* The rail carries scrollbar-width:none inline, which the tablet's Chromium WebView
+     ignores: it needs this rule too, or a scrollbar sits across the bottom of the pills. */
+  #dye-recipe-pills::-webkit-scrollbar,
   #dye-grinder-tabs::-webkit-scrollbar { display: none; }
 
   /* ── Visualizer connected state ──────────────────────── */
