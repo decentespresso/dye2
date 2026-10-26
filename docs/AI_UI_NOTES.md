@@ -15,6 +15,10 @@ components in any framework sense. Each control is up to three separate exports:
 sortSidebarCss()        // style block, called at render time
 sortSidebarHtml()       // markup string, called at render time
 sortSidebarScript       // browser code, passed to devPageShell's scripts[]
+                        // sorts: Recent, Oldest, A-Z, Z-A, Most Used, Least Used, Rating.
+                        // The first entry renders active, and both pages default to 'recent',
+                        // so a new sort goes on the end. Select Recipe passes its own copy of
+                        // this list to dyePickerRailHtml: add a sort in both places.
 ```
 
 The same triad exists for the stepper, preset strip, toggle row, picker card, segment

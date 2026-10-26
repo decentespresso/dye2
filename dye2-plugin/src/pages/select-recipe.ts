@@ -1,6 +1,6 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
-import { recipeUseSortScript } from "../utils/recipe-sort";
+import { recipeUseSortScript, ratingSortScript } from "../utils/recipe-sort";
 import { favCardTapScript, cardLongPressScript } from "../utils/fav-card-tap";
 import { sortSidebarScript, dyePickerCss, dyePickerHeaderHtml, dyePickerRailHtml } from "../utils/shared-components";
 import { recipeStripScript } from "../utils/recipe-strip";
@@ -17,7 +17,7 @@ const content = `
 
   <div class="flex flex-1 overflow-hidden">
 
-    ${dyePickerRailHtml([['recent', 'Recent'], ['oldest', 'Oldest'], ['az', 'A-Z'], ['za', 'Z-A'], ['most-used', 'Most Used'], ['least-used', 'Least Used']])}
+    ${dyePickerRailHtml([['recent', 'Recent'], ['oldest', 'Oldest'], ['az', 'A-Z'], ['za', 'Z-A'], ['most-used', 'Most Used'], ['least-used', 'Least Used'], ['rating', 'Rating']])}
 
     <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[28px] px-[38px] pb-[28px]">
       <div id="dye-cards-grid" class="grid grid-cols-3 gap-[20px]"></div>
@@ -32,6 +32,7 @@ ${sortSidebarScript}
 ${favCardTapScript}
 ${cardLongPressScript}
 ${recipeUseSortScript}
+${ratingSortScript}
 ${recipeStripScript}
 
 let recipesCache = [];
@@ -52,6 +53,8 @@ let selectedRecipeId = assignSlot != null ? null : sessionStorage.getItem('dye_e
 let currentSort = 'recent';
 // shotIndex.uses: shots per recipe id in the last 120 days. Unreadable -> {} and the use sorts keep list order.
 let recipeUses = null;
+// shotIndex.tail: the rows the Rating sort averages. Not an array -> null and Rating keeps list order.
+let shotTail = null;
 let searchQuery = '';
 
 function matchesSearch(r) {
@@ -70,6 +73,7 @@ function sortRecipes(list, sortKey) {
     case 'za':     s.sort((a, b) => name(b).localeCompare(name(a))); break;
     case 'most-used':  return recipeUses ? sortRecipesByUse(s, recipeUses, 'desc') : s;
     case 'least-used': return recipeUses ? sortRecipesByUse(s, recipeUses, 'asc') : s;
+    case 'rating':     return shotTail ? sortByMeanRating(s, shotTail, r => r.id, t => t.rid) : s;
   }
   return s;
 }
@@ -186,8 +190,8 @@ async function initSelectRecipe() {
   } catch (e) { recipesCache = []; }
   try {
     const res = await fetch(API_BASE_URL + '/store/' + DYE_KV_NS + '/shotIndex');
-    if (res.ok) { const idx = await res.json(); if (idx && idx.uses && typeof idx.uses === 'object') recipeUses = idx.uses; }
-  } catch (e) { recipeUses = null; }
+    if (res.ok) { const idx = await res.json(); if (idx && idx.uses && typeof idx.uses === 'object') recipeUses = idx.uses; if (idx && Array.isArray(idx.tail)) shotTail = idx.tail; }
+  } catch (e) { recipeUses = null; shotTail = null; }
   renderCards();
 }
 

@@ -19,7 +19,6 @@ type FetchLike = (
 
 const RECENT_MAX = 5;
 const SHOT_PAGE_LIMIT = 100;
-const SKIPPED_BEVERAGE_TYPES = new Set(["cleaning", "calibrate"]);
 // stopReason is an open set. Decaid writes ShotDecisionReason.name (reaprime
 // lib/src/models/data/shot_state_event.dart:8): noScale, targetWeight, targetVolume, apiStop,
 // appStop, machineEnded, profileAdvance, profileSkip, error, disconnected, stoppingBackstop.
@@ -69,11 +68,15 @@ export function isExecutableRecordedProfile(profile: AnyRecord): boolean {
  * recent group — a cleaning/calibrate run, or one with no bean identity at all.
  */
 export function recentGroupKey(shot: AnyRecord): string | null {
+  // Self-contained on purpose: recipe-sort.ts embeds this function's source (.toString()) in the
+  // pages, so it may not reference anything outside itself. Keep it that way.
+  const skipped = ["cleaning", "calibrate"];
+  const norm = (v: unknown): string => String(v == null ? "" : v).trim().toLowerCase();
   const wf = (shot && shot.workflow) || {};
   const ctx = wf.context || {};
   const profile = wf.profile || {};
 
-  if (SKIPPED_BEVERAGE_TYPES.has(profile.beverage_type)) return null;
+  if (skipped.indexOf(profile.beverage_type) >= 0) return null;
   if (!ctx.beanBatchId && !ctx.coffeeName) return null;
 
   const beanPart = ctx.beanBatchId

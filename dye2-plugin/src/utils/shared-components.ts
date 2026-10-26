@@ -25,6 +25,7 @@ export function sortSidebarHtml(): string {
     ['za', 'Z-A'],
     ['most-used', 'Most Used'],
     ['least-used', 'Least Used'],
+    ['rating', 'Rating'],
   ];
   const buttons = sorts
     .map(([key, label], i) =>

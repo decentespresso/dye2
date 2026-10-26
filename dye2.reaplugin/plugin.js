@@ -2328,7 +2328,8 @@ function attachCardLongPress(card, onLong) {
 			["az", "A-Z"],
 			["za", "Z-A"],
 			["most-used", "Most Used"],
-			["least-used", "Least Used"]
+			["least-used", "Least Used"],
+			["rating", "Rating"]
 		].map(([key, label], i) => `<button class="dye-sort-btn${i === 0 ? " dye-sort-active" : ""}" data-sort="${key}">${label}</button>`).join("\n    ")}
   </div>`;
 	}
@@ -8953,6 +8954,630 @@ function resolveRoastDate(id, batches) {
 }
 `;
 	//#endregion
+	//#region src/utils/recent-favs.ts
+	var RECENT_MAX = 5;
+	var SHOT_PAGE_LIMIT = 100;
+	var ABORTED_STOP_REASONS = new Set([
+		"error",
+		"disconnected",
+		"aborted",
+		"cancelled",
+		"canceled"
+	]);
+	var PRIOR = .6;
+	var PRIOR_WEIGHT = 2;
+	var HALF_LIFE_DAYS = 15;
+	var TAIL_DAYS = 120;
+	var DAY_MS = 864e5;
+	var STALE_DAYS = 60;
+	var INDEX_KEY = "shotIndex";
+	var INDEX_VERSION = 2;
+	function norm(v) {
+		return String(v == null ? "" : v).trim().toLowerCase();
+	}
+	function isExecutableRecordedProfile(profile) {
+		if (!profile) return false;
+		return (typeof profile.title === "string" ? profile.title.trim() : "").length > 0 && Array.isArray(profile.steps) && profile.steps.length > 0 && profile.tank_temperature != null && profile.target_volume_count_start != null;
+	}
+	/**
+	* The grouping key for a shot: bean (batch id, else roaster+name) + profile title +
+	* grinder (id, else model). Returns null for a shot that should never form its own
+	* recent group — a cleaning/calibrate run, or one with no bean identity at all.
+	*/
+	function recentGroupKey(shot) {
+		const skipped = ["cleaning", "calibrate"];
+		const norm = (v) => String(v == null ? "" : v).trim().toLowerCase();
+		const wf = shot && shot.workflow || {};
+		const ctx = wf.context || {};
+		const profile = wf.profile || {};
+		if (skipped.indexOf(profile.beverage_type) >= 0) return null;
+		if (!ctx.beanBatchId && !ctx.coffeeName) return null;
+		return [
+			ctx.beanBatchId ? "batch:" + norm(ctx.beanBatchId) : "name:" + norm(ctx.coffeeRoaster) + "::" + norm(ctx.coffeeName),
+			"profile:" + norm(profile.title),
+			ctx.grinderId ? "gid:" + norm(ctx.grinderId) : "gmodel:" + norm(ctx.grinderModel)
+		].join("|");
+	}
+	/**
+	* Can this shotUpdated patch change a recent? The workflow (recentGroupKey, the recorded
+	* profile), the rpm annotation (resolveRpm) and the rating (the ranking) feed them; a note
+	* edit does not. A patch that is missing or unreadable answers true (fail safe).
+	*/
+	function shotPatchAffectsRecents(patch) {
+		let p = patch;
+		if (typeof p === "string") try {
+			p = JSON.parse(p);
+		} catch {
+			return true;
+		}
+		if (!p || typeof p !== "object") return true;
+		if ("workflow" in p) return true;
+		if (p.annotations && "enjoyment" in p.annotations) return true;
+		const extras = p.annotations && p.annotations.extras;
+		return !!extras && typeof extras === "object" && "rpm" in extras;
+	}
+	/** The index row for a shot, or null if it never counts (no group, aborted, no usable time). */
+	function tailEntry(shot) {
+		const key = recentGroupKey(shot);
+		const ts = Date.parse(shot && shot.timestamp);
+		if (!key || isNaN(ts) || ABORTED_STOP_REASONS.has(norm(shot.stopReason))) return null;
+		const e = shot.annotations && shot.annotations.enjoyment;
+		return {
+			id: shot.id,
+			ts,
+			key,
+			rid: shotRecipeId(shot),
+			rating: typeof e === "number" ? Math.min(10, Math.max(0, e)) / 10 : null
+		};
+	}
+	function shotRecipeId(shot) {
+		const id = shot && shot.workflow && shot.workflow.context && shot.workflow.context.extras && shot.workflow.context.extras.dye && shot.workflow.context.extras.dye.recipeId;
+		return id == null || id === "" ? null : String(id);
+	}
+	/** Shots per recipe id over the tail; rows without a recipe id (or an old v1 row) are ignored. */
+	function countUses(tail) {
+		const uses = {};
+		for (const t of tail) if (t.rid) uses[t.rid] = (uses[t.rid] || 0) + 1;
+		return uses;
+	}
+	/** Folds one full shot into the index (insert, or replace the same id). Pure apart from `idx`/`known`. */
+	function foldShot(idx, shot, known) {
+		idx.tail = idx.tail.filter((t) => t.id !== shot.id);
+		const e = tailEntry(shot);
+		if (e) idx.tail.push(e);
+		if (known) known.set(shot.id, shot);
+	}
+	/** Drops tail rows outside TAIL_DAYS, and rows whose id is not in `liveIds` when given. */
+	function pruneTail(idx, now, liveIds) {
+		idx.tail = idx.tail.filter((t) => now - t.ts <= TAIL_DAYS * DAY_MS && (!liveIds || liveIds.has(t.id)));
+	}
+	/**
+	* Every group in the tail, scored and ordered. now is a parameter, never Date.now(), so this is
+	* deterministic.
+	*   quality = (Σ rating + m·prior) / (n + m)          rating 0..1, n = rated shots
+	*   w(shot) = 0.5 ^ (ageDays / HALF_LIFE_DAYS);  volume = Σ w
+	*   score   = quality × volume / (volume + 1)
+	* Groups whose newest shot is older than STALE_DAYS are dropped. Ties: newest shot desc, key asc.
+	*/
+	function rankGroups(tail, now) {
+		const groups = /* @__PURE__ */ new Map();
+		for (const t of tail) {
+			const g = groups.get(t.key) || {
+				vol: 0,
+				sum: 0,
+				n: 0,
+				newestTs: 0,
+				shots: 0
+			};
+			g.vol += Math.pow(.5, Math.max(0, now - t.ts) / DAY_MS / HALF_LIFE_DAYS);
+			if (t.rating != null) {
+				g.sum += t.rating;
+				g.n++;
+			}
+			g.shots++;
+			g.newestTs = Math.max(g.newestTs, t.ts);
+			groups.set(t.key, g);
+		}
+		const ranked = [];
+		groups.forEach((g, key) => {
+			if (now - g.newestTs > STALE_DAYS * DAY_MS) return;
+			const quality = (g.n, (g.sum + PRIOR_WEIGHT * PRIOR) / (g.n + PRIOR_WEIGHT));
+			ranked.push({
+				key,
+				score: quality * g.vol / (g.vol + 1),
+				newestTs: g.newestTs,
+				shots: g.shots,
+				quality
+			});
+		});
+		return ranked.sort((a, b) => b.score - a.score || b.newestTs - a.newestTs || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+	}
+	/**
+	* The strip positions 1..5 are `recipes[].stripSlot`, not the row id (ids are opaque and stable).
+	* A recipe is NEVER placed automatically: only an explicit request names a slot. Returns that slot
+	* (1..5, a numeric string is accepted), or null for anything missing/invalid = save to the library.
+	*/
+	function explicitRecipeSlot(requested) {
+		if (requested == null || requested === "") return null;
+		const want = Number(requested);
+		return [
+			1,
+			2,
+			3,
+			4,
+			5
+		].includes(want) ? want : null;
+	}
+	/**
+	* One-shot, idempotent: a legacy row whose id is '1'..'5' and that has no `stripSlot` gets
+	* `stripSlot = Number(id)`. The id stays put: extras.dye.recipeId in the live workflow and in shot
+	* history points at it (dye2#36). Returns the same array when nothing needed migrating.
+	*/
+	function migrateRecipeSlots(recipes) {
+		if (!(recipes || []).some((r) => r && r.stripSlot === void 0 && /^[1-5]$/.test(String(r.id)))) return recipes;
+		return recipes.map((r) => r && r.stripSlot === void 0 && /^[1-5]$/.test(String(r.id)) ? {
+			...r,
+			stripSlot: Number(r.id)
+		} : r);
+	}
+	/**
+	* Self-heal: two rows must never share a `stripSlot` (updateRecipe clears the previous holder, but
+	* two writers on the `recipes` key could still interleave and leave both). For each slot held by
+	* more than one row the row with the newest `capturedAt` keeps it (ties, and rows with no valid
+	* `capturedAt`, go to the larger id by string compare); the others become `stripSlot: null` and
+	* keep everything else. Idempotent; returns the same array when no slot is shared.
+	*/
+	function dedupeRecipeSlots(recipes) {
+		if (!Array.isArray(recipes)) return recipes;
+		const ts = (r) => {
+			const t = Date.parse(String(r.capturedAt));
+			return Number.isFinite(t) ? t : -Infinity;
+		};
+		const beats = (a, b) => ts(a) !== ts(b) ? ts(a) > ts(b) : String(a.id) > String(b.id);
+		const winner = /* @__PURE__ */ new Map();
+		for (const r of recipes) {
+			if (!r || r.stripSlot == null) continue;
+			const w = winner.get(r.stripSlot);
+			if (!w || beats(r, w)) winner.set(r.stripSlot, r);
+		}
+		const loses = (r) => r && r.stripSlot != null && winner.get(r.stripSlot) !== r;
+		if (!recipes.some(loses)) return recipes;
+		return recipes.map((r) => loses(r) ? {
+			...r,
+			stripSlot: null
+		} : r);
+	}
+	var wholeProfile = (p) => !!(p && Array.isArray(p.steps) && p.steps.length);
+	function favouriteProfileIsThin(fav) {
+		const snp = fav && fav.snapshot;
+		if (!snp) return false;
+		const wf = fav.workflow || {};
+		if (wholeProfile(snp.profileSnapshot) && wholeProfile(wf.profile)) return false;
+		return !!(snp.profileId || snp.profileTitle || wf.profile && (wf.profile.id || wf.profile.title));
+	}
+	/** Is the library worth fetching? True when any row names a profile it does not hold. */
+	function favouritesNeedProfileRepair(favs) {
+		return Array.isArray(favs) && favs.some(favouriteProfileIsThin);
+	}
+	function fattenFavouriteProfiles(favs, profileRecords) {
+		if (!Array.isArray(favs)) return favs;
+		const whole = wholeProfile;
+		const byId = /* @__PURE__ */ new Map();
+		const byTitle = /* @__PURE__ */ new Map();
+		for (const rec of Array.isArray(profileRecords) ? profileRecords : []) {
+			const prof = rec && rec.profile;
+			if (!whole(prof)) continue;
+			byId.set(String(rec.id), prof);
+			if (prof.title && !byTitle.has(String(prof.title))) byTitle.set(String(prof.title), {
+				id: rec.id,
+				profile: prof
+			});
+		}
+		let changed = false;
+		const out = favs.map((fav) => {
+			if (!favouriteProfileIsThin(fav)) return fav;
+			const snp = fav.snapshot;
+			const wf = fav.workflow || {};
+			const title = snp.profileTitle || wf.profile && wf.profile.title || null;
+			const id = snp.profileId || wf.profile && wf.profile.id || null;
+			const hit = (id != null ? byId.get(String(id)) : null) || null;
+			const byName = !hit && title ? byTitle.get(String(title)) : null;
+			const full = hit || (byName ? byName.profile : null);
+			if (!whole(full)) return fav;
+			changed = true;
+			return {
+				...fav,
+				snapshot: {
+					...snp,
+					profileId: id != null ? id : byName ? byName.id : null,
+					profileTitle: title || full.title || null,
+					profileSnapshot: full
+				},
+				workflow: {
+					...wf,
+					profile: full
+				}
+			};
+		});
+		return changed ? out : favs;
+	}
+	/**
+	* Self-heal for favourites: two SAVED rows must never share a `favSlot` (the pages clear the
+	* previous holder on write, this repairs data written before that). Of rows sharing a slot, one
+	* that is shown (`alwaysOnDashboard !== false`) beats a hidden one, then the newest `capturedAt`,
+	* then the larger id by string compare; losers become `favSlot: null` and keep every other field.
+	* `auto: true` recents are ignored (assignSlots re-places them on every refresh). Idempotent;
+	* returns the same array when no slot is shared.
+	*/
+	function dedupeFavSlots(favs) {
+		if (!Array.isArray(favs)) return favs;
+		const ts = (r) => {
+			const t = Date.parse(String(r.capturedAt));
+			return Number.isFinite(t) ? t : -Infinity;
+		};
+		const shown = (r) => r.alwaysOnDashboard !== false;
+		const beats = (a, b) => shown(a) !== shown(b) ? shown(a) : ts(a) !== ts(b) ? ts(a) > ts(b) : String(a.id) > String(b.id);
+		const saved = (r) => r && !r.auto && r.favSlot != null;
+		const winner = /* @__PURE__ */ new Map();
+		for (const r of favs) {
+			if (!saved(r)) continue;
+			const w = winner.get(r.favSlot);
+			if (!w || beats(r, w)) winner.set(r.favSlot, r);
+		}
+		const loses = (r) => saved(r) && winner.get(r.favSlot) !== r;
+		if (!favs.some(loses)) return favs;
+		return favs.map((r) => loses(r) ? {
+			...r,
+			favSlot: null
+		} : r);
+	}
+	/**
+	* One-off cleanup: an earlier release wrote `suggested: true` rows into `recipes`. Drops them and
+	* leaves every other row untouched. Returns the same array when there is nothing to drop.
+	*/
+	function dropSuggestedRecipes(recipes) {
+		if (!Array.isArray(recipes) || !recipes.some((r) => r && r.suggested === true)) return recipes;
+		return recipes.filter((r) => !(r && r.suggested === true));
+	}
+	/**
+	* RPM as corrected in Edit Shot wins over the pre-shot value, same precedence as
+	* shotBasketRpm() in src/utils/recorded-shot.ts (annotations.extras, then
+	* workflow.context.extras, then legacy grinderData). Restated here rather than
+	* shared because this file runs in the plugin runtime and can't import that
+	* browser-side script string (AI_RUNTIME_NOTES.md).
+	*/
+	function resolveRpm(shot) {
+		const wf = shot.workflow || {};
+		const extras = wf.context && wf.context.extras || {};
+		const gd = wf.grinderData || {};
+		const ax = shot.annotations && shot.annotations.extras || {};
+		const rpm = ax.rpm != null ? ax.rpm : extras.rpm != null ? extras.rpm : gd.rpm;
+		return rpm != null ? rpm : null;
+	}
+	/** Builds one auto-favourite from a representative shot. No title de-duplication yet
+	*  — that depends on the other recents in the batch, see applyTitleDisambiguation. */
+	function toRecentFavourite(shot, rank) {
+		const wf = shot.workflow || {};
+		const ctx = wf.context || {};
+		const profile = wf.profile || {};
+		const grinderModel = ctx.grinderModel != null ? ctx.grinderModel : null;
+		const rpm = resolveRpm(shot);
+		const context = {
+			beanBatchId: ctx.beanBatchId != null ? ctx.beanBatchId : null,
+			coffeeName: ctx.coffeeName != null ? ctx.coffeeName : null,
+			coffeeRoaster: ctx.coffeeRoaster != null ? ctx.coffeeRoaster : null,
+			grinderId: ctx.grinderId != null ? ctx.grinderId : null,
+			grinderModel
+		};
+		if (ctx.grinderSetting != null) context.grinderSetting = ctx.grinderSetting;
+		if (ctx.targetDoseWeight != null) context.targetDoseWeight = ctx.targetDoseWeight;
+		if (ctx.targetYield != null) context.targetYield = ctx.targetYield;
+		if (rpm != null) context.extras = { rpm };
+		return {
+			id: "recent:" + shot.id,
+			auto: true,
+			recentRank: rank,
+			sourceShotId: shot.id,
+			title: ctx.coffeeName || "Recent shot",
+			subtitle: [
+				ctx.coffeeRoaster,
+				profile.title,
+				grinderModel
+			].filter(Boolean).join(" · "),
+			beverage: "",
+			alwaysOnDashboard: false,
+			favSlot: null,
+			copyMask: {
+				profile: true,
+				beans: true,
+				grinder: true,
+				grindSetting: true,
+				dose: true,
+				drink: true,
+				roastDate: false,
+				basket: false,
+				equipment: false,
+				barista: false,
+				drinker: false,
+				note: false
+			},
+			snapshot: {
+				profileTitle: profile.title || null,
+				profileSnapshot: isExecutableRecordedProfile(profile) ? profile : null,
+				beanBatchId: ctx.beanBatchId || null,
+				coffeeName: ctx.coffeeName || null,
+				coffeeRoaster: ctx.coffeeRoaster || null,
+				grinderId: ctx.grinderId || null,
+				grinderModel,
+				grindSetting: ctx.grinderSetting != null ? ctx.grinderSetting : null,
+				rpm,
+				dose: ctx.targetDoseWeight != null ? ctx.targetDoseWeight : null,
+				drink: ctx.targetYield != null ? ctx.targetYield : null
+			},
+			capturedAt: shot.timestamp,
+			workflow: isExecutableRecordedProfile(profile) ? {
+				context,
+				profile
+			} : { context }
+		};
+	}
+	/** Two same-titled recents get the profile title appended; if that still collides
+	*  (same bean, same profile, different grinder) the grinder model is appended too.
+	*  Mutates and returns the given array. */
+	function applyTitleDisambiguation(recents) {
+		const appendWhereDuplicate = (suffixOf) => {
+			const counts = /* @__PURE__ */ new Map();
+			recents.forEach((r) => counts.set(r.title, (counts.get(r.title) || 0) + 1));
+			recents.forEach((r) => {
+				if ((counts.get(r.title) || 0) <= 1) return;
+				const suffix = suffixOf(r);
+				if (suffix) r.title = r.title + " · " + suffix;
+			});
+		};
+		appendWhereDuplicate((r) => r.snapshot && r.snapshot.profileTitle);
+		appendWhereDuplicate((r) => r.snapshot && r.snapshot.grinderModel);
+		return recents;
+	}
+	/**
+	* A saved favourite claims a dashboard slot 1..FAV_SLOT_MAX when it opts in (alwaysOnDashboard
+	* !== false) and has a favSlot in range. Recents fill whatever slots are left, in
+	* recentRank order; any that don't fit get favSlot: null, alwaysOnDashboard: false —
+	* still readable from the KV array, just not shown on the Streamline dashboard strip.
+	*/
+	function assignSlots(recents, saved) {
+		const claimed = /* @__PURE__ */ new Set();
+		(saved || []).forEach((f) => {
+			if (f && f.alwaysOnDashboard !== false && f.favSlot >= 1 && f.favSlot <= 4) claimed.add(f.favSlot);
+		});
+		let slot = 1;
+		return recents.map((r) => {
+			while (slot <= 4 && claimed.has(slot)) slot++;
+			if (slot > 4) return {
+				...r,
+				favSlot: null,
+				alwaysOnDashboard: false
+			};
+			const placed = {
+				...r,
+				favSlot: slot,
+				alwaysOnDashboard: true
+			};
+			claimed.add(slot);
+			slot++;
+			return placed;
+		});
+	}
+	var refreshInFlight = null;
+	var rerunRequested = false;
+	var pendingUpdates = [];
+	/** Queue an edited shot (shotUpdated's `shot`) for the next refresh to fold in. */
+	function noteShotUpdated(shot) {
+		if (shot && typeof shot === "object" && shot.id) pendingUpdates.push(shot);
+	}
+	var slim = (shot) => {
+		const rpm = shot.annotations && shot.annotations.extras && shot.annotations.extras.rpm;
+		return {
+			id: shot.id,
+			timestamp: shot.timestamp,
+			workflow: shot.workflow,
+			...rpm != null ? { annotations: { extras: { rpm } } } : {}
+		};
+	};
+	async function runRefresh(fetchFn, base) {
+		const kvUrl = (k) => base + "/store/dye2.reaplugin/" + k;
+		async function kvRead(k) {
+			const res = await fetchFn(kvUrl(k));
+			if (!res.ok) throw new Error("HTTP " + res.status + " reading " + k);
+			return res.json();
+		}
+		async function kvWrite(k, v) {
+			const res = await fetchFn(kvUrl(k), {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(v)
+			});
+			if (!res.ok) throw new Error("HTTP " + res.status + " writing " + k);
+		}
+		async function getPage(offset, limit = SHOT_PAGE_LIMIT, init) {
+			const res = await fetchFn(base + "/shots?limit=" + limit + "&offset=" + offset + "&order=desc", init);
+			if (res.status === 304) return {
+				notModified: true,
+				items: [],
+				total: 0,
+				etag: null
+			};
+			if (!res.ok) throw new Error("HTTP " + res.status + " fetching shots");
+			const data = await res.json();
+			const items = Array.isArray(data) ? data : data && data.items ? data.items : [];
+			const etag = res.headers && res.headers.get ? res.headers.get("ETag") : null;
+			return {
+				notModified: false,
+				items,
+				total: data && typeof data.total === "number" ? data.total : items.length,
+				etag
+			};
+		}
+		const now = Date.now();
+		const stored = await kvRead(INDEX_KEY);
+		const fresh = !stored || stored.v !== INDEX_VERSION || !Array.isArray(stored.tail);
+		const idx = fresh ? {
+			v: INDEX_VERSION,
+			builtAt: now,
+			newestShotId: null,
+			newestTs: null,
+			total: 0,
+			etag: null,
+			reps: {},
+			tail: [],
+			uses: {}
+		} : stored;
+		const before = JSON.stringify(idx);
+		const known = /* @__PURE__ */ new Map();
+		const probe = await getPage(0, 1, !fresh && idx.etag ? { headers: { "If-None-Match": idx.etag } } : void 0);
+		const head = probe.items[0];
+		if (!(!fresh && (probe.notModified || probe.total === idx.total && (head ? head.id : null) === idx.newestShotId))) {
+			let offset = 0, added = 0, hitKnown = false;
+			while (!hitKnown) {
+				const page = await getPage(offset);
+				for (const shot of page.items) {
+					if (!fresh && shot.id === idx.newestShotId) {
+						hitKnown = true;
+						break;
+					}
+					if (now - Date.parse(shot.timestamp) > TAIL_DAYS * DAY_MS) {
+						hitKnown = true;
+						break;
+					}
+					foldShot(idx, shot, known);
+					added++;
+				}
+				offset += page.items.length;
+				if (page.items.length === 0 || offset >= page.total) break;
+			}
+			if (!fresh && probe.total !== idx.total + added) {
+				const res = await fetchFn(base + "/shots/ids");
+				if (!res.ok) throw new Error("HTTP " + res.status + " fetching shot ids");
+				pruneTail(idx, now, new Set(await res.json()));
+			}
+			idx.newestShotId = head ? head.id : null;
+			idx.newestTs = head ? Date.parse(head.timestamp) : null;
+			idx.total = probe.total;
+			idx.etag = probe.etag;
+		}
+		for (const shot of pendingUpdates.splice(0)) foldShot(idx, shot, known);
+		pruneTail(idx, now);
+		const newest = /* @__PURE__ */ new Map();
+		idx.uses = countUses(idx.tail);
+		idx.tail.forEach((t) => {
+			const n = newest.get(t.key);
+			if (!n || t.ts > n.ts || t.ts === n.ts && t.id < n.id) newest.set(t.key, t);
+		});
+		const reps = {};
+		for (const [key, e] of newest) {
+			const have = known.get(e.id);
+			if (have) reps[key] = slim(have);
+			else if (idx.reps[key] && idx.reps[key].id === e.id) reps[key] = idx.reps[key];
+			else {
+				const res = await fetchFn(base + "/shots/" + encodeURIComponent(e.id));
+				if (!res.ok) throw new Error("HTTP " + res.status + " fetching shot " + e.id);
+				reps[key] = slim(await res.json());
+			}
+		}
+		idx.reps = reps;
+		if (JSON.stringify(idx) !== before) {
+			idx.builtAt = now;
+			await kvWrite(INDEX_KEY, idx);
+		}
+		const recents = applyTitleDisambiguation(rankGroups(idx.tail, now).slice(0, RECENT_MAX).map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
+		const storeVal = await kvRead("autoFavourites");
+		const saved = dedupeFavSlots((Array.isArray(storeVal) ? storeVal : []).filter((x) => x && !x.auto));
+		const placedRecents = assignSlots(recents, saved);
+		await kvWrite("autoFavourites", [...placedRecents, ...saved]);
+		return placedRecents;
+	}
+	/**
+	* Recomputes the recent auto-favourites and rewrites the whole autoFavourites KV
+	* array (recents first, then untouched saved favourites). Single-flight: a call made
+	* while one is already running does not start a second run — it sets a rerun flag and
+	* returns the SAME in-flight promise, then a fresh run starts right after the first
+	* finishes, so a shot stored mid-refresh is never missed. Concurrent overlapping
+	* callers therefore never see more than one run each, and never more than two runs
+	* happen back to back.
+	*/
+	function refreshRecentFavourites(fetchFn, base = "http://localhost:8080/api/v1") {
+		if (refreshInFlight) {
+			rerunRequested = true;
+			return refreshInFlight;
+		}
+		refreshInFlight = runRefresh(fetchFn, base).finally(() => {
+			refreshInFlight = null;
+			if (rerunRequested) {
+				rerunRequested = false;
+				refreshRecentFavourites(fetchFn, base).catch(() => {});
+			}
+		});
+		return refreshInFlight;
+	}
+	//#endregion
+	//#region src/utils/recipe-sort.ts
+	/**
+	* Select Recipe's use sorts, as a browser-side script string that
+	* test/select-recipe.test.mjs evals directly. `uses` is shotIndex.uses: shots per recipe id in the
+	* last TAIL_DAYS. A recipe with no shots counts 0; ties go newest capturedAt first.
+	*/
+	var recipeUseSortScript = `
+function sortRecipesByUse(list, uses, dir) {
+  const u = uses || {};
+  const n = r => u[r.id] || 0;
+  const t = r => new Date(r.capturedAt || 0).getTime() || 0;
+  return [...list].sort((a, b) => (dir === 'asc' ? n(a) - n(b) : n(b) - n(a)) || t(b) - t(a));
+}
+`;
+	/**
+	* Rating sort for Select Recipe and Auto Favs. `tail` is shotIndex.tail: rows { id, ts, rating, key,
+	* rid }, rating null when unrated. An item's rating is the plain mean of its non-null ratings;
+	* rated items go best first, unrated last, ties and unrated newest capturedAt first.
+	* `idOf(item)` and `fieldOf(row)` pick what to match: recipe id vs rid, or favourite group key vs
+	* key. recentGroupKey is embedded from recent-favs.ts itself (it is self-contained for exactly
+	* that reason), so a favourite is keyed by the one formula the index used; no usable workflow ->
+	* null -> unrated. The embedded source is assigned to a `const` of a name we choose rather than
+	* relied on to declare one: what the bundler calls the function is its business, and a rename
+	* would otherwise leave the pages calling a name that no longer exists -- in string code, with
+	* nothing to catch it before the tablet.
+	*/
+	var ratingSortScript = `
+const recentGroupKey = (${recentGroupKey.toString()});
+// A recent favourite's own shot is a tail row, so take that row's key instead of recomputing it:
+// a shot whose recorded profile is not executable is stored with no workflow.profile at all
+// (recent-favs.ts toRecentFavourite), and a recomputed key would then miss its own group.
+function favouriteGroupKey(fav, tail) {
+  if (fav && fav.sourceShotId) {
+    const own = tail.find(t => t && t.id === fav.sourceShotId);
+    if (own && own.key) return own.key;
+  }
+  return recentGroupKey(fav);
+}
+function sortByMeanRating(list, tail, idOf, fieldOf) {
+  const sum = {}, n = {};
+  for (const row of tail) {
+    if (!row || typeof row.rating !== 'number' || isNaN(row.rating)) continue;
+    const k = fieldOf(row);
+    if (k == null) continue;
+    sum[k] = (sum[k] || 0) + row.rating; n[k] = (n[k] || 0) + 1;
+  }
+  const mean = item => { const k = idOf(item); return k != null && n[k] ? sum[k] / n[k] : null; };
+  const captured = r => new Date(r.capturedAt || 0).getTime() || 0;
+  const m = new Map(list.map(i => [i, mean(i)]));
+  return [...list].sort((a, b) => {
+    const x = m.get(a), y = m.get(b);
+    if (x == null && y == null) return captured(b) - captured(a);
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return (y - x) || captured(b) - captured(a);
+  });
+}
+`;
+	//#endregion
 	//#region src/pages/auto-favs.ts
 	var TAB_KEYS = [
 		"beans",
@@ -9062,12 +9687,15 @@ ${sortSidebarScript}
 ${favDateScript}
 ${favCardTapScript}
 ${cardLongPressScript}
+${ratingSortScript}
 
 let favsCache = [];    // saved favourites
 let recentsCache = []; // auto: true entries computed from shot history; shown in the same grid
 let selectedFavId = null;
 let currentSort = 'recent';
 let currentTab  = 'beans';
+// shotIndex.tail for the Rating sort; not an array -> null and Rating keeps list order.
+let shotTail = null;
 
 function sortFavs(favs, sortKey) {
   const s = [...favs];
@@ -9078,6 +9706,7 @@ function sortFavs(favs, sortKey) {
     case 'za':        s.sort((a, b) => (b.title || '').localeCompare(a.title || '')); break;
     case 'most-used': s.sort((a, b) => (b.useCount || 0) - (a.useCount || 0)); break;
     case 'least-used':s.sort((a, b) => (a.useCount || 0) - (b.useCount || 0)); break;
+    case 'rating':    return shotTail ? sortByMeanRating(s, shotTail, f => favouriteGroupKey(f, shotTail), t => t.key) : s;
   }
   return s;
 }
@@ -9223,6 +9852,11 @@ async function initAutoFavs() {
     recentsCache = [];
     favsCache = [];
   }
+
+  try {
+    const res = await fetch(API_BASE_URL + '/store/' + DYE_KV_NS + '/shotIndex');
+    if (res.ok) { const idx = await res.json(); if (idx && Array.isArray(idx.tail)) shotTail = idx.tail; }
+  } catch (e) { shotTail = null; }
 
   render();
 
@@ -11891,21 +12525,6 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 		};
 	}
 	//#endregion
-	//#region src/utils/recipe-sort.ts
-	/**
-	* Select Recipe's use sorts, as a browser-side script string (no imports, so
-	* test/select-recipe.test.mjs can eval it). `uses` is shotIndex.uses: shots per recipe id in the
-	* last TAIL_DAYS. A recipe with no shots counts 0; ties go newest capturedAt first.
-	*/
-	var recipeUseSortScript = `
-function sortRecipesByUse(list, uses, dir) {
-  const u = uses || {};
-  const n = r => u[r.id] || 0;
-  const t = r => new Date(r.capturedAt || 0).getTime() || 0;
-  return [...list].sort((a, b) => (dir === 'asc' ? n(a) - n(b) : n(b) - n(a)) || t(b) - t(a));
-}
-`;
-	//#endregion
 	//#region src/pages/select-recipe.ts
 	var content$1 = `
 <div class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col">
@@ -11920,7 +12539,8 @@ function sortRecipesByUse(list, uses, dir) {
 		["az", "A-Z"],
 		["za", "Z-A"],
 		["most-used", "Most Used"],
-		["least-used", "Least Used"]
+		["least-used", "Least Used"],
+		["rating", "Rating"]
 	])}
 
     <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[28px] px-[38px] pb-[28px]">
@@ -11935,6 +12555,7 @@ ${sortSidebarScript}
 ${favCardTapScript}
 ${cardLongPressScript}
 ${recipeUseSortScript}
+${ratingSortScript}
 ${recipeStripScript}
 
 let recipesCache = [];
@@ -11955,6 +12576,8 @@ let selectedRecipeId = assignSlot != null ? null : sessionStorage.getItem('dye_e
 let currentSort = 'recent';
 // shotIndex.uses: shots per recipe id in the last 120 days. Unreadable -> {} and the use sorts keep list order.
 let recipeUses = null;
+// shotIndex.tail: the rows the Rating sort averages. Not an array -> null and Rating keeps list order.
+let shotTail = null;
 let searchQuery = '';
 
 function matchesSearch(r) {
@@ -11973,6 +12596,7 @@ function sortRecipes(list, sortKey) {
     case 'za':     s.sort((a, b) => name(b).localeCompare(name(a))); break;
     case 'most-used':  return recipeUses ? sortRecipesByUse(s, recipeUses, 'desc') : s;
     case 'least-used': return recipeUses ? sortRecipesByUse(s, recipeUses, 'asc') : s;
+    case 'rating':     return shotTail ? sortByMeanRating(s, shotTail, r => r.id, t => t.rid) : s;
   }
   return s;
 }
@@ -12089,8 +12713,8 @@ async function initSelectRecipe() {
   } catch (e) { recipesCache = []; }
   try {
     const res = await fetch(API_BASE_URL + '/store/' + DYE_KV_NS + '/shotIndex');
-    if (res.ok) { const idx = await res.json(); if (idx && idx.uses && typeof idx.uses === 'object') recipeUses = idx.uses; }
-  } catch (e) { recipeUses = null; }
+    if (res.ok) { const idx = await res.json(); if (idx && idx.uses && typeof idx.uses === 'object') recipeUses = idx.uses; if (idx && Array.isArray(idx.tail)) shotTail = idx.tail; }
+  } catch (e) { recipeUses = null; shotTail = null; }
   renderCards();
 }
 
@@ -12585,570 +13209,6 @@ bcInit();
 			headers: { "Content-Type": "text/html; charset=utf-8" },
 			body: devPageShell("Import from Beanconqueror", content, styles, [devApiScript, pageScript])
 		};
-	}
-	//#endregion
-	//#region src/utils/recent-favs.ts
-	var RECENT_MAX = 5;
-	var SHOT_PAGE_LIMIT = 100;
-	var SKIPPED_BEVERAGE_TYPES = new Set(["cleaning", "calibrate"]);
-	var ABORTED_STOP_REASONS = new Set([
-		"error",
-		"disconnected",
-		"aborted",
-		"cancelled",
-		"canceled"
-	]);
-	var PRIOR = .6;
-	var PRIOR_WEIGHT = 2;
-	var HALF_LIFE_DAYS = 15;
-	var TAIL_DAYS = 120;
-	var DAY_MS = 864e5;
-	var STALE_DAYS = 60;
-	var INDEX_KEY = "shotIndex";
-	var INDEX_VERSION = 2;
-	function norm(v) {
-		return String(v == null ? "" : v).trim().toLowerCase();
-	}
-	function isExecutableRecordedProfile(profile) {
-		if (!profile) return false;
-		return (typeof profile.title === "string" ? profile.title.trim() : "").length > 0 && Array.isArray(profile.steps) && profile.steps.length > 0 && profile.tank_temperature != null && profile.target_volume_count_start != null;
-	}
-	/**
-	* The grouping key for a shot: bean (batch id, else roaster+name) + profile title +
-	* grinder (id, else model). Returns null for a shot that should never form its own
-	* recent group — a cleaning/calibrate run, or one with no bean identity at all.
-	*/
-	function recentGroupKey(shot) {
-		const wf = shot && shot.workflow || {};
-		const ctx = wf.context || {};
-		const profile = wf.profile || {};
-		if (SKIPPED_BEVERAGE_TYPES.has(profile.beverage_type)) return null;
-		if (!ctx.beanBatchId && !ctx.coffeeName) return null;
-		return [
-			ctx.beanBatchId ? "batch:" + norm(ctx.beanBatchId) : "name:" + norm(ctx.coffeeRoaster) + "::" + norm(ctx.coffeeName),
-			"profile:" + norm(profile.title),
-			ctx.grinderId ? "gid:" + norm(ctx.grinderId) : "gmodel:" + norm(ctx.grinderModel)
-		].join("|");
-	}
-	/**
-	* Can this shotUpdated patch change a recent? The workflow (recentGroupKey, the recorded
-	* profile), the rpm annotation (resolveRpm) and the rating (the ranking) feed them; a note
-	* edit does not. A patch that is missing or unreadable answers true (fail safe).
-	*/
-	function shotPatchAffectsRecents(patch) {
-		let p = patch;
-		if (typeof p === "string") try {
-			p = JSON.parse(p);
-		} catch {
-			return true;
-		}
-		if (!p || typeof p !== "object") return true;
-		if ("workflow" in p) return true;
-		if (p.annotations && "enjoyment" in p.annotations) return true;
-		const extras = p.annotations && p.annotations.extras;
-		return !!extras && typeof extras === "object" && "rpm" in extras;
-	}
-	/** The index row for a shot, or null if it never counts (no group, aborted, no usable time). */
-	function tailEntry(shot) {
-		const key = recentGroupKey(shot);
-		const ts = Date.parse(shot && shot.timestamp);
-		if (!key || isNaN(ts) || ABORTED_STOP_REASONS.has(norm(shot.stopReason))) return null;
-		const e = shot.annotations && shot.annotations.enjoyment;
-		return {
-			id: shot.id,
-			ts,
-			key,
-			rid: shotRecipeId(shot),
-			rating: typeof e === "number" ? Math.min(10, Math.max(0, e)) / 10 : null
-		};
-	}
-	function shotRecipeId(shot) {
-		const id = shot && shot.workflow && shot.workflow.context && shot.workflow.context.extras && shot.workflow.context.extras.dye && shot.workflow.context.extras.dye.recipeId;
-		return id == null || id === "" ? null : String(id);
-	}
-	/** Shots per recipe id over the tail; rows without a recipe id (or an old v1 row) are ignored. */
-	function countUses(tail) {
-		const uses = {};
-		for (const t of tail) if (t.rid) uses[t.rid] = (uses[t.rid] || 0) + 1;
-		return uses;
-	}
-	/** Folds one full shot into the index (insert, or replace the same id). Pure apart from `idx`/`known`. */
-	function foldShot(idx, shot, known) {
-		idx.tail = idx.tail.filter((t) => t.id !== shot.id);
-		const e = tailEntry(shot);
-		if (e) idx.tail.push(e);
-		if (known) known.set(shot.id, shot);
-	}
-	/** Drops tail rows outside TAIL_DAYS, and rows whose id is not in `liveIds` when given. */
-	function pruneTail(idx, now, liveIds) {
-		idx.tail = idx.tail.filter((t) => now - t.ts <= TAIL_DAYS * DAY_MS && (!liveIds || liveIds.has(t.id)));
-	}
-	/**
-	* Every group in the tail, scored and ordered. now is a parameter, never Date.now(), so this is
-	* deterministic.
-	*   quality = (Σ rating + m·prior) / (n + m)          rating 0..1, n = rated shots
-	*   w(shot) = 0.5 ^ (ageDays / HALF_LIFE_DAYS);  volume = Σ w
-	*   score   = quality × volume / (volume + 1)
-	* Groups whose newest shot is older than STALE_DAYS are dropped. Ties: newest shot desc, key asc.
-	*/
-	function rankGroups(tail, now) {
-		const groups = /* @__PURE__ */ new Map();
-		for (const t of tail) {
-			const g = groups.get(t.key) || {
-				vol: 0,
-				sum: 0,
-				n: 0,
-				newestTs: 0,
-				shots: 0
-			};
-			g.vol += Math.pow(.5, Math.max(0, now - t.ts) / DAY_MS / HALF_LIFE_DAYS);
-			if (t.rating != null) {
-				g.sum += t.rating;
-				g.n++;
-			}
-			g.shots++;
-			g.newestTs = Math.max(g.newestTs, t.ts);
-			groups.set(t.key, g);
-		}
-		const ranked = [];
-		groups.forEach((g, key) => {
-			if (now - g.newestTs > STALE_DAYS * DAY_MS) return;
-			const quality = (g.n, (g.sum + PRIOR_WEIGHT * PRIOR) / (g.n + PRIOR_WEIGHT));
-			ranked.push({
-				key,
-				score: quality * g.vol / (g.vol + 1),
-				newestTs: g.newestTs,
-				shots: g.shots,
-				quality
-			});
-		});
-		return ranked.sort((a, b) => b.score - a.score || b.newestTs - a.newestTs || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
-	}
-	/**
-	* The strip positions 1..5 are `recipes[].stripSlot`, not the row id (ids are opaque and stable).
-	* A recipe is NEVER placed automatically: only an explicit request names a slot. Returns that slot
-	* (1..5, a numeric string is accepted), or null for anything missing/invalid = save to the library.
-	*/
-	function explicitRecipeSlot(requested) {
-		if (requested == null || requested === "") return null;
-		const want = Number(requested);
-		return [
-			1,
-			2,
-			3,
-			4,
-			5
-		].includes(want) ? want : null;
-	}
-	/**
-	* One-shot, idempotent: a legacy row whose id is '1'..'5' and that has no `stripSlot` gets
-	* `stripSlot = Number(id)`. The id stays put: extras.dye.recipeId in the live workflow and in shot
-	* history points at it (dye2#36). Returns the same array when nothing needed migrating.
-	*/
-	function migrateRecipeSlots(recipes) {
-		if (!(recipes || []).some((r) => r && r.stripSlot === void 0 && /^[1-5]$/.test(String(r.id)))) return recipes;
-		return recipes.map((r) => r && r.stripSlot === void 0 && /^[1-5]$/.test(String(r.id)) ? {
-			...r,
-			stripSlot: Number(r.id)
-		} : r);
-	}
-	/**
-	* Self-heal: two rows must never share a `stripSlot` (updateRecipe clears the previous holder, but
-	* two writers on the `recipes` key could still interleave and leave both). For each slot held by
-	* more than one row the row with the newest `capturedAt` keeps it (ties, and rows with no valid
-	* `capturedAt`, go to the larger id by string compare); the others become `stripSlot: null` and
-	* keep everything else. Idempotent; returns the same array when no slot is shared.
-	*/
-	function dedupeRecipeSlots(recipes) {
-		if (!Array.isArray(recipes)) return recipes;
-		const ts = (r) => {
-			const t = Date.parse(String(r.capturedAt));
-			return Number.isFinite(t) ? t : -Infinity;
-		};
-		const beats = (a, b) => ts(a) !== ts(b) ? ts(a) > ts(b) : String(a.id) > String(b.id);
-		const winner = /* @__PURE__ */ new Map();
-		for (const r of recipes) {
-			if (!r || r.stripSlot == null) continue;
-			const w = winner.get(r.stripSlot);
-			if (!w || beats(r, w)) winner.set(r.stripSlot, r);
-		}
-		const loses = (r) => r && r.stripSlot != null && winner.get(r.stripSlot) !== r;
-		if (!recipes.some(loses)) return recipes;
-		return recipes.map((r) => loses(r) ? {
-			...r,
-			stripSlot: null
-		} : r);
-	}
-	var wholeProfile = (p) => !!(p && Array.isArray(p.steps) && p.steps.length);
-	function favouriteProfileIsThin(fav) {
-		const snp = fav && fav.snapshot;
-		if (!snp) return false;
-		const wf = fav.workflow || {};
-		if (wholeProfile(snp.profileSnapshot) && wholeProfile(wf.profile)) return false;
-		return !!(snp.profileId || snp.profileTitle || wf.profile && (wf.profile.id || wf.profile.title));
-	}
-	/** Is the library worth fetching? True when any row names a profile it does not hold. */
-	function favouritesNeedProfileRepair(favs) {
-		return Array.isArray(favs) && favs.some(favouriteProfileIsThin);
-	}
-	function fattenFavouriteProfiles(favs, profileRecords) {
-		if (!Array.isArray(favs)) return favs;
-		const whole = wholeProfile;
-		const byId = /* @__PURE__ */ new Map();
-		const byTitle = /* @__PURE__ */ new Map();
-		for (const rec of Array.isArray(profileRecords) ? profileRecords : []) {
-			const prof = rec && rec.profile;
-			if (!whole(prof)) continue;
-			byId.set(String(rec.id), prof);
-			if (prof.title && !byTitle.has(String(prof.title))) byTitle.set(String(prof.title), {
-				id: rec.id,
-				profile: prof
-			});
-		}
-		let changed = false;
-		const out = favs.map((fav) => {
-			if (!favouriteProfileIsThin(fav)) return fav;
-			const snp = fav.snapshot;
-			const wf = fav.workflow || {};
-			const title = snp.profileTitle || wf.profile && wf.profile.title || null;
-			const id = snp.profileId || wf.profile && wf.profile.id || null;
-			const hit = (id != null ? byId.get(String(id)) : null) || null;
-			const byName = !hit && title ? byTitle.get(String(title)) : null;
-			const full = hit || (byName ? byName.profile : null);
-			if (!whole(full)) return fav;
-			changed = true;
-			return {
-				...fav,
-				snapshot: {
-					...snp,
-					profileId: id != null ? id : byName ? byName.id : null,
-					profileTitle: title || full.title || null,
-					profileSnapshot: full
-				},
-				workflow: {
-					...wf,
-					profile: full
-				}
-			};
-		});
-		return changed ? out : favs;
-	}
-	/**
-	* Self-heal for favourites: two SAVED rows must never share a `favSlot` (the pages clear the
-	* previous holder on write, this repairs data written before that). Of rows sharing a slot, one
-	* that is shown (`alwaysOnDashboard !== false`) beats a hidden one, then the newest `capturedAt`,
-	* then the larger id by string compare; losers become `favSlot: null` and keep every other field.
-	* `auto: true` recents are ignored (assignSlots re-places them on every refresh). Idempotent;
-	* returns the same array when no slot is shared.
-	*/
-	function dedupeFavSlots(favs) {
-		if (!Array.isArray(favs)) return favs;
-		const ts = (r) => {
-			const t = Date.parse(String(r.capturedAt));
-			return Number.isFinite(t) ? t : -Infinity;
-		};
-		const shown = (r) => r.alwaysOnDashboard !== false;
-		const beats = (a, b) => shown(a) !== shown(b) ? shown(a) : ts(a) !== ts(b) ? ts(a) > ts(b) : String(a.id) > String(b.id);
-		const saved = (r) => r && !r.auto && r.favSlot != null;
-		const winner = /* @__PURE__ */ new Map();
-		for (const r of favs) {
-			if (!saved(r)) continue;
-			const w = winner.get(r.favSlot);
-			if (!w || beats(r, w)) winner.set(r.favSlot, r);
-		}
-		const loses = (r) => saved(r) && winner.get(r.favSlot) !== r;
-		if (!favs.some(loses)) return favs;
-		return favs.map((r) => loses(r) ? {
-			...r,
-			favSlot: null
-		} : r);
-	}
-	/**
-	* One-off cleanup: an earlier release wrote `suggested: true` rows into `recipes`. Drops them and
-	* leaves every other row untouched. Returns the same array when there is nothing to drop.
-	*/
-	function dropSuggestedRecipes(recipes) {
-		if (!Array.isArray(recipes) || !recipes.some((r) => r && r.suggested === true)) return recipes;
-		return recipes.filter((r) => !(r && r.suggested === true));
-	}
-	/**
-	* RPM as corrected in Edit Shot wins over the pre-shot value, same precedence as
-	* shotBasketRpm() in src/utils/recorded-shot.ts (annotations.extras, then
-	* workflow.context.extras, then legacy grinderData). Restated here rather than
-	* shared because this file runs in the plugin runtime and can't import that
-	* browser-side script string (AI_RUNTIME_NOTES.md).
-	*/
-	function resolveRpm(shot) {
-		const wf = shot.workflow || {};
-		const extras = wf.context && wf.context.extras || {};
-		const gd = wf.grinderData || {};
-		const ax = shot.annotations && shot.annotations.extras || {};
-		const rpm = ax.rpm != null ? ax.rpm : extras.rpm != null ? extras.rpm : gd.rpm;
-		return rpm != null ? rpm : null;
-	}
-	/** Builds one auto-favourite from a representative shot. No title de-duplication yet
-	*  — that depends on the other recents in the batch, see applyTitleDisambiguation. */
-	function toRecentFavourite(shot, rank) {
-		const wf = shot.workflow || {};
-		const ctx = wf.context || {};
-		const profile = wf.profile || {};
-		const grinderModel = ctx.grinderModel != null ? ctx.grinderModel : null;
-		const rpm = resolveRpm(shot);
-		const context = {
-			beanBatchId: ctx.beanBatchId != null ? ctx.beanBatchId : null,
-			coffeeName: ctx.coffeeName != null ? ctx.coffeeName : null,
-			coffeeRoaster: ctx.coffeeRoaster != null ? ctx.coffeeRoaster : null,
-			grinderId: ctx.grinderId != null ? ctx.grinderId : null,
-			grinderModel
-		};
-		if (ctx.grinderSetting != null) context.grinderSetting = ctx.grinderSetting;
-		if (ctx.targetDoseWeight != null) context.targetDoseWeight = ctx.targetDoseWeight;
-		if (ctx.targetYield != null) context.targetYield = ctx.targetYield;
-		if (rpm != null) context.extras = { rpm };
-		return {
-			id: "recent:" + shot.id,
-			auto: true,
-			recentRank: rank,
-			sourceShotId: shot.id,
-			title: ctx.coffeeName || "Recent shot",
-			subtitle: [
-				ctx.coffeeRoaster,
-				profile.title,
-				grinderModel
-			].filter(Boolean).join(" · "),
-			beverage: "",
-			alwaysOnDashboard: false,
-			favSlot: null,
-			copyMask: {
-				profile: true,
-				beans: true,
-				grinder: true,
-				grindSetting: true,
-				dose: true,
-				drink: true,
-				roastDate: false,
-				basket: false,
-				equipment: false,
-				barista: false,
-				drinker: false,
-				note: false
-			},
-			snapshot: {
-				profileTitle: profile.title || null,
-				profileSnapshot: isExecutableRecordedProfile(profile) ? profile : null,
-				beanBatchId: ctx.beanBatchId || null,
-				coffeeName: ctx.coffeeName || null,
-				coffeeRoaster: ctx.coffeeRoaster || null,
-				grinderId: ctx.grinderId || null,
-				grinderModel,
-				grindSetting: ctx.grinderSetting != null ? ctx.grinderSetting : null,
-				rpm,
-				dose: ctx.targetDoseWeight != null ? ctx.targetDoseWeight : null,
-				drink: ctx.targetYield != null ? ctx.targetYield : null
-			},
-			capturedAt: shot.timestamp,
-			workflow: isExecutableRecordedProfile(profile) ? {
-				context,
-				profile
-			} : { context }
-		};
-	}
-	/** Two same-titled recents get the profile title appended; if that still collides
-	*  (same bean, same profile, different grinder) the grinder model is appended too.
-	*  Mutates and returns the given array. */
-	function applyTitleDisambiguation(recents) {
-		const appendWhereDuplicate = (suffixOf) => {
-			const counts = /* @__PURE__ */ new Map();
-			recents.forEach((r) => counts.set(r.title, (counts.get(r.title) || 0) + 1));
-			recents.forEach((r) => {
-				if ((counts.get(r.title) || 0) <= 1) return;
-				const suffix = suffixOf(r);
-				if (suffix) r.title = r.title + " · " + suffix;
-			});
-		};
-		appendWhereDuplicate((r) => r.snapshot && r.snapshot.profileTitle);
-		appendWhereDuplicate((r) => r.snapshot && r.snapshot.grinderModel);
-		return recents;
-	}
-	/**
-	* A saved favourite claims a dashboard slot 1..FAV_SLOT_MAX when it opts in (alwaysOnDashboard
-	* !== false) and has a favSlot in range. Recents fill whatever slots are left, in
-	* recentRank order; any that don't fit get favSlot: null, alwaysOnDashboard: false —
-	* still readable from the KV array, just not shown on the Streamline dashboard strip.
-	*/
-	function assignSlots(recents, saved) {
-		const claimed = /* @__PURE__ */ new Set();
-		(saved || []).forEach((f) => {
-			if (f && f.alwaysOnDashboard !== false && f.favSlot >= 1 && f.favSlot <= 4) claimed.add(f.favSlot);
-		});
-		let slot = 1;
-		return recents.map((r) => {
-			while (slot <= 4 && claimed.has(slot)) slot++;
-			if (slot > 4) return {
-				...r,
-				favSlot: null,
-				alwaysOnDashboard: false
-			};
-			const placed = {
-				...r,
-				favSlot: slot,
-				alwaysOnDashboard: true
-			};
-			claimed.add(slot);
-			slot++;
-			return placed;
-		});
-	}
-	var refreshInFlight = null;
-	var rerunRequested = false;
-	var pendingUpdates = [];
-	/** Queue an edited shot (shotUpdated's `shot`) for the next refresh to fold in. */
-	function noteShotUpdated(shot) {
-		if (shot && typeof shot === "object" && shot.id) pendingUpdates.push(shot);
-	}
-	var slim = (shot) => {
-		const rpm = shot.annotations && shot.annotations.extras && shot.annotations.extras.rpm;
-		return {
-			id: shot.id,
-			timestamp: shot.timestamp,
-			workflow: shot.workflow,
-			...rpm != null ? { annotations: { extras: { rpm } } } : {}
-		};
-	};
-	async function runRefresh(fetchFn, base) {
-		const kvUrl = (k) => base + "/store/dye2.reaplugin/" + k;
-		async function kvRead(k) {
-			const res = await fetchFn(kvUrl(k));
-			if (!res.ok) throw new Error("HTTP " + res.status + " reading " + k);
-			return res.json();
-		}
-		async function kvWrite(k, v) {
-			const res = await fetchFn(kvUrl(k), {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(v)
-			});
-			if (!res.ok) throw new Error("HTTP " + res.status + " writing " + k);
-		}
-		async function getPage(offset, limit = SHOT_PAGE_LIMIT, init) {
-			const res = await fetchFn(base + "/shots?limit=" + limit + "&offset=" + offset + "&order=desc", init);
-			if (res.status === 304) return {
-				notModified: true,
-				items: [],
-				total: 0,
-				etag: null
-			};
-			if (!res.ok) throw new Error("HTTP " + res.status + " fetching shots");
-			const data = await res.json();
-			const items = Array.isArray(data) ? data : data && data.items ? data.items : [];
-			const etag = res.headers && res.headers.get ? res.headers.get("ETag") : null;
-			return {
-				notModified: false,
-				items,
-				total: data && typeof data.total === "number" ? data.total : items.length,
-				etag
-			};
-		}
-		const now = Date.now();
-		const stored = await kvRead(INDEX_KEY);
-		const fresh = !stored || stored.v !== INDEX_VERSION || !Array.isArray(stored.tail);
-		const idx = fresh ? {
-			v: INDEX_VERSION,
-			builtAt: now,
-			newestShotId: null,
-			newestTs: null,
-			total: 0,
-			etag: null,
-			reps: {},
-			tail: [],
-			uses: {}
-		} : stored;
-		const before = JSON.stringify(idx);
-		const known = /* @__PURE__ */ new Map();
-		const probe = await getPage(0, 1, !fresh && idx.etag ? { headers: { "If-None-Match": idx.etag } } : void 0);
-		const head = probe.items[0];
-		if (!(!fresh && (probe.notModified || probe.total === idx.total && (head ? head.id : null) === idx.newestShotId))) {
-			let offset = 0, added = 0, hitKnown = false;
-			while (!hitKnown) {
-				const page = await getPage(offset);
-				for (const shot of page.items) {
-					if (!fresh && shot.id === idx.newestShotId) {
-						hitKnown = true;
-						break;
-					}
-					if (now - Date.parse(shot.timestamp) > TAIL_DAYS * DAY_MS) {
-						hitKnown = true;
-						break;
-					}
-					foldShot(idx, shot, known);
-					added++;
-				}
-				offset += page.items.length;
-				if (page.items.length === 0 || offset >= page.total) break;
-			}
-			if (!fresh && probe.total !== idx.total + added) {
-				const res = await fetchFn(base + "/shots/ids");
-				if (!res.ok) throw new Error("HTTP " + res.status + " fetching shot ids");
-				pruneTail(idx, now, new Set(await res.json()));
-			}
-			idx.newestShotId = head ? head.id : null;
-			idx.newestTs = head ? Date.parse(head.timestamp) : null;
-			idx.total = probe.total;
-			idx.etag = probe.etag;
-		}
-		for (const shot of pendingUpdates.splice(0)) foldShot(idx, shot, known);
-		pruneTail(idx, now);
-		const newest = /* @__PURE__ */ new Map();
-		idx.uses = countUses(idx.tail);
-		idx.tail.forEach((t) => {
-			const n = newest.get(t.key);
-			if (!n || t.ts > n.ts || t.ts === n.ts && t.id < n.id) newest.set(t.key, t);
-		});
-		const reps = {};
-		for (const [key, e] of newest) {
-			const have = known.get(e.id);
-			if (have) reps[key] = slim(have);
-			else if (idx.reps[key] && idx.reps[key].id === e.id) reps[key] = idx.reps[key];
-			else {
-				const res = await fetchFn(base + "/shots/" + encodeURIComponent(e.id));
-				if (!res.ok) throw new Error("HTTP " + res.status + " fetching shot " + e.id);
-				reps[key] = slim(await res.json());
-			}
-		}
-		idx.reps = reps;
-		if (JSON.stringify(idx) !== before) {
-			idx.builtAt = now;
-			await kvWrite(INDEX_KEY, idx);
-		}
-		const recents = applyTitleDisambiguation(rankGroups(idx.tail, now).slice(0, RECENT_MAX).map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
-		const storeVal = await kvRead("autoFavourites");
-		const saved = dedupeFavSlots((Array.isArray(storeVal) ? storeVal : []).filter((x) => x && !x.auto));
-		const placedRecents = assignSlots(recents, saved);
-		await kvWrite("autoFavourites", [...placedRecents, ...saved]);
-		return placedRecents;
-	}
-	/**
-	* Recomputes the recent auto-favourites and rewrites the whole autoFavourites KV
-	* array (recents first, then untouched saved favourites). Single-flight: a call made
-	* while one is already running does not start a second run — it sets a rerun flag and
-	* returns the SAME in-flight promise, then a fresh run starts right after the first
-	* finishes, so a shot stored mid-refresh is never missed. Concurrent overlapping
-	* callers therefore never see more than one run each, and never more than two runs
-	* happen back to back.
-	*/
-	function refreshRecentFavourites(fetchFn, base = "http://localhost:8080/api/v1") {
-		if (refreshInFlight) {
-			rerunRequested = true;
-			return refreshInFlight;
-		}
-		refreshInFlight = runRefresh(fetchFn, base).finally(() => {
-			refreshInFlight = null;
-			if (rerunRequested) {
-				rerunRequested = false;
-				refreshRecentFavourites(fetchFn, base).catch(() => {});
-			}
-		});
-		return refreshInFlight;
 	}
 	//#endregion
 	//#region src/utils/workflow-record.ts

@@ -6,6 +6,7 @@ import {
   sortSidebarCss, sortSidebarHtml, sortSidebarScript,
   pickerCardCss, pickerHeaderHtml,
 } from "../utils/shared-components";
+import { ratingSortScript } from "../utils/recipe-sort";
 
 const TAB_KEYS = ['beans', 'recipe', 'profile', 'grinder'];
 const TAB_LABELS = ['Beans', 'Recipe', 'Profile', 'Grinder'];
@@ -111,12 +112,15 @@ ${sortSidebarScript}
 ${favDateScript}
 ${favCardTapScript}
 ${cardLongPressScript}
+${ratingSortScript}
 
 let favsCache = [];    // saved favourites
 let recentsCache = []; // auto: true entries computed from shot history; shown in the same grid
 let selectedFavId = null;
 let currentSort = 'recent';
 let currentTab  = 'beans';
+// shotIndex.tail for the Rating sort; not an array -> null and Rating keeps list order.
+let shotTail = null;
 
 function sortFavs(favs, sortKey) {
   const s = [...favs];
@@ -127,6 +131,7 @@ function sortFavs(favs, sortKey) {
     case 'za':        s.sort((a, b) => (b.title || '').localeCompare(a.title || '')); break;
     case 'most-used': s.sort((a, b) => (b.useCount || 0) - (a.useCount || 0)); break;
     case 'least-used':s.sort((a, b) => (a.useCount || 0) - (b.useCount || 0)); break;
+    case 'rating':    return shotTail ? sortByMeanRating(s, shotTail, f => favouriteGroupKey(f, shotTail), t => t.key) : s;
   }
   return s;
 }
@@ -272,6 +277,11 @@ async function initAutoFavs() {
     recentsCache = [];
     favsCache = [];
   }
+
+  try {
+    const res = await fetch(API_BASE_URL + '/store/' + DYE_KV_NS + '/shotIndex');
+    if (res.ok) { const idx = await res.json(); if (idx && Array.isArray(idx.tail)) shotTail = idx.tail; }
+  } catch (e) { shotTail = null; }
 
   render();
 

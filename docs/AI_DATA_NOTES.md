@@ -234,6 +234,16 @@ re-ranks without a rescan. A missing index or a different `v` is a full build of
 editing one needs no work. Pages read the resulting `autoFavourites` / `recipes`; the one exception is Select Recipe, which reads
 `shotIndex.uses` (shots per `recipeId`) for its Most/Least Used sorts. Like the score, `uses` only
 covers `TAIL_DAYS` (120 days): a recipe last used earlier counts 0.
+
+Select Recipe and Auto Favs also read `shotIndex.tail` for the **Rating** sort
+(`utils/recipe-sort.ts` `ratingSortScript`): the plain mean of a row's non-null `rating`
+(`annotations.enjoyment / 10`), best first, items with no rated shot last in `capturedAt` order.
+A recipe's rows are those whose `rid` is its id; a favourite's are those sharing its group key,
+which is `recentGroupKey` on the favourite's own stored workflow — embedded into the page from
+`recent-favs.ts` rather than copied, which is why that function must stay self-contained. For a
+recent, the key comes from the tail row matching its `sourceShotId` instead: a shot whose recorded
+profile is not executable is stored with no `workflow.profile`, and recomputing would then miss its
+own group. An unreadable `shotIndex` leaves the order untouched, as with the use sorts.
 The refresh writes only `autoFavourites` and `shotIndex`; it never writes `recipes`. The R strip is
 the barista's own recipes only.
 
