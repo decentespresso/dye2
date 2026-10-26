@@ -81,7 +81,7 @@ console.log('ok   select-recipe reuses decideCardTap');
 // recipe-edit's five-tab strip: labels, confirm on a held slot, clearing keeps the recipe.
 {
   const { recipeStripScript } = await import('../src/utils/recipe-strip.ts');
-  const t = new Function(recipeStripScript + '\nreturn { stripTabLabel, stripSlotHolder, stripNextTarget, stripReplaceLabel };')();
+  const t = new Function(recipeStripScript + '\nreturn { stripTabLabel, stripSlotHolder, stripNextTarget, stripReplaceLabel, assignSlotFrom, assignQuery };')();
   const lib = [
     { id: 'a', name: 'Ethiopia', stripSlot: 1 },
     { id: 'b', stripSlot: 2 },
@@ -123,6 +123,71 @@ console.log('ok   select-recipe reuses decideCardTap');
   assert.equal(stored[0].name, 'Ethiopia');
 }
 console.log('ok   recipe-edit tab strip: labels, confirm on a held slot, clear keeps the recipe');
+
+// select-recipe's assign mode: Streamline's "Replace <name>" sends ?slot=N&return=<url>, the pick
+// lands on that slot, and a detour into recipe-edit comes back INTO the flow.
+{
+  const { recipeStripScript } = await import('../src/utils/recipe-strip.ts');
+  const t = new Function(recipeStripScript + '\nreturn { assignSlotFrom, assignQuery };')();
+
+  assert.equal(t.assignSlotFrom('?slot=3&return=http://x/'), 3);
+  assert.equal(t.assignSlotFrom('?slot=1'), 1);
+  assert.equal(t.assignSlotFrom('?slot=5'), 5);
+  for (const bad of ['', '?slot=', '?slot=0', '?slot=6', '?slot=abc', '?id=rcp_x'])
+    assert.equal(t.assignSlotFrom(bad), null, bad + ' is not a slot, so the page applies as usual');
+  // parseInt leniency, shared with recipe-edit's askedSlot: nothing sends a fractional slot, and
+  // tightening it here would leave the two readers of ?slot= disagreeing.
+  assert.equal(t.assignSlotFrom('?slot=2.7'), 2);
+
+  // The query that survives a round trip through recipe-edit.
+  const q = t.assignQuery(3, 'http://host/?dyeReturn=1');
+  assert.deepEqual([...new URLSearchParams(q.slice(1))].sort(),
+    [['return', 'http://host/?dyeReturn=1'], ['slot', '3']]);
+  assert.equal(t.assignSlotFrom(q), 3, 'the carried query re-enters assign mode');
+  assert.equal(t.assignQuery(null, 'http://host/'), '', 'no slot, no assign mode to carry');
+  assert.equal(t.assignQuery(2, null), '?slot=2', 'a missing return falls back to the dashboard');
+
+  // The page is a template literal, so nothing but a source check catches a dropped
+  // interpolation -- and without recipeStripScript the page dies on load with
+  // "assignSlotFrom is not defined" while every test here still passes.
+  const page = readFileSync(new URL('../src/pages/select-recipe.ts', import.meta.url), 'utf8');
+  assert.ok(page.includes('${recipeStripScript}'), 'select-recipe inlines recipeStripScript');
+  assert.equal(page.split('${recipeStripScript}').length - 1, 1, 'exactly once');
+
+  // What CONFIRM writes. Both fields matter and only the source says so: the slot alone would
+  // assign a cleared recipe to a button that then renders blank, because a cleared row keeps
+  // its stripSlot and stripHolds/recipeStripCells both ignore it.
+  const confirm = page.slice(page.indexOf('if (assignSlot != null) {'));
+  const call = confirm.match(/updateRecipe\(selectedRecipeId, \{[^}]*\}\)/);
+  assert.ok(call, 'assign mode writes through updateRecipe');
+  assert.match(call[0], /stripSlot: assignSlot/, 'the slot that was long-pressed');
+  assert.match(call[0], /showOnStreamlineDashboard: true/, 'and forces the pick visible');
+  // Assign mode must not inherit dye_editRecipeId: that key outlives the trip that set it, so
+  // a preselect would arm ASSIGN over a card nobody picked.
+  assert.match(page, /let selectedRecipeId = assignSlot != null \? null :/,
+    'assign mode starts with nothing selected');
+  assert.match(confirm, /if \(assigning\) return;/, 'a second tap cannot write twice');
+
+  // recipe-edit must consume dye_recipeEditBack, or a leftover assign-mode query answers for a
+  // later, unrelated visit -- a See-All picker detour wipes ?return= and it falls through.
+  const edit = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
+  const leave = edit.slice(edit.indexOf('function leaveRecipeEdit()'));
+  assert.match(leave.slice(0, leave.indexOf('\n}')), /removeItem\('dye_recipeEditBack'\)/,
+    'the back route is read once and cleared');
+
+  // takeSlot's demote-not-delete is covered by recipe-slot-dedupe / save-recipe-slot; this just
+  // pins that the assign goes through the same single-write path.
+  stored = [
+    { id: 'held', name: 'Held', stripSlot: 3 },
+    { id: 'pick', name: 'Pick', stripSlot: 1, showOnStreamlineDashboard: false },
+  ];
+  posts = 0;
+  await api.updateRecipe('pick', { stripSlot: 3, showOnStreamlineDashboard: true });
+  assert.equal(posts, 1, 'assigning is one write');
+  assert.deepEqual(slots(), { held: null, pick: 3 });
+  assert.equal(stored.find((r) => r.id === 'held').name, 'Held', 'the old holder stays in the library');
+}
+console.log('ok   select-recipe assign mode: slot parsed, carried, and written exclusively');
 
 // bean-picker and select-recipe share one copy of the picker CSS/header/rail (Figma 2345:2457).
 {

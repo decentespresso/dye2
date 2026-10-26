@@ -10186,6 +10186,23 @@ function stripSlotHolder(recipes, openId, n) {
 function stripNextTarget(current, n) { return current === n ? null : n; }
 // SAVE's label while a held slot is targeted and not yet confirmed.
 function stripReplaceLabel(holder, n) { return 'REPLACE ' + (holder.name || 'RECIPE') + ' ON ' + n + '?'; }
+
+// --- select-recipe's assign mode ------------------------------------------------------------
+// Streamline's R-strip long-press "Replace <name>" opens select-recipe?slot=N&return=<url>, so
+// the picked card lands on the button that was long-pressed. Anything outside 1..5 is not a
+// slot and leaves the page in its ordinary apply-a-recipe mode.
+function assignSlotFrom(search) {
+  const n = parseInt(new URLSearchParams(search).get('slot'), 10);
+  return Number.isInteger(n) && n >= 1 && n <= 5 ? n : null;
+}
+// The query that carries assign mode across a detour into recipe-edit, which leaves by route
+// and would otherwise drop the barista out of the Replace flow onto the dashboard.
+function assignQuery(slot, returnTo) {
+  if (slot == null) return '';
+  const q = new URLSearchParams({ slot: String(slot) });
+  if (returnTo) q.set('return', returnTo);
+  return '?' + q.toString();
+}
 `;
 	//#endregion
 	//#region src/pages/recipe-edit.ts
@@ -11351,6 +11368,11 @@ function setupSlots() {
 // its route in dye_recipeEditBack (the ?return= is lost across a picker round trip).
 function leaveRecipeEdit() {
   const ret = new URLSearchParams(location.search).get('return') || sessionStorage.getItem('dye_recipeEditBack');
+  // One trip, one use. The key outlives the visit that set it, and a See-All picker detour
+  // wipes ?return=, so a leftover value answers for a LATER visit it knows nothing about --
+  // which, now that select-recipe stores its assign-mode query here, would drop the barista
+  // onto "ASSIGN TO n" for an unrelated recipe.
+  try { sessionStorage.removeItem('dye_recipeEditBack'); } catch (e) { /* private mode */ }
   window.location.href = ret || 'dashboard';
 }
 
@@ -11853,11 +11875,23 @@ ${sortSidebarScript}
 ${favCardTapScript}
 ${cardLongPressScript}
 ${recipeUseSortScript}
+${recipeStripScript}
 
 let recipesCache = [];
+// Assign mode: Streamline's R-strip long-press "Replace <name>" opens this page as
+// select-recipe?slot=N&return=<streamline url>. CONFIRM then puts the picked recipe on
+// strip slot N and goes straight back, instead of applying it to the machine.
+const assignSlot = assignSlotFrom(location.search);
+const returnTo = new URLSearchParams(location.search).get('return');
+// Where CANCEL and a finished assign go. Streamline's return URL carries dyeReturn=1, which
+// tears its overlay down and reloads the strip.
+function leaveSelectRecipe() { window.location.href = returnTo || 'dashboard'; }
 // dye_editRecipeId is the preselected card: the dashboard sets it to the recipe being dialled
 // in, and a card's edit sets it so coming back from recipe-edit lands on the same card.
-let selectedRecipeId = sessionStorage.getItem('dye_editRecipeId');
+// Assign mode starts with NOTHING selected: that key outlives the trip that set it, so a
+// preselect there would arm ASSIGN over a card the barista never picked, and one stray tap
+// would overwrite the slot. "Pick a card, then assign" is the whole point of the flow.
+let selectedRecipeId = assignSlot != null ? null : sessionStorage.getItem('dye_editRecipeId');
 let currentSort = 'recent';
 // shotIndex.uses: shots per recipe id in the last 120 days. Unreadable -> {} and the use sorts keep list order.
 let recipeUses = null;
@@ -11907,7 +11941,9 @@ function selectCard(card, recipe) {
 // recipe-edit leaves by route, not history.back(): a picker round trip there pushes entries.
 function openEditPage(recipeId) {
   if (recipeId) sessionStorage.setItem('dye_editRecipeId', recipeId); else sessionStorage.removeItem('dye_editRecipeId');
-  sessionStorage.setItem('dye_recipeEditBack', 'select-recipe');
+  // Carry assign mode back with us: recipe-edit returns by route and the query is otherwise
+  // lost, which would drop the barista out of the Replace flow onto the dashboard.
+  sessionStorage.setItem('dye_recipeEditBack', 'select-recipe' + assignQuery(assignSlot, returnTo));
   window.location.href = 'recipe-edit';
 }
 
@@ -11954,9 +11990,36 @@ async function initSelectRecipe() {
     searchInput.addEventListener('input', () => { searchQuery = searchInput.value.trim().toLowerCase(); renderCards(); });
   }
   // Route out, not history.back(): coming back from recipe-edit puts that page behind us.
-  document.getElementById('dye-cancel-btn')?.addEventListener('click', () => { window.location.href = 'dashboard'; });
-  document.getElementById('dye-confirm-btn')?.addEventListener('click', () => {
+  document.getElementById('dye-cancel-btn')?.addEventListener('click', leaveSelectRecipe);
+  if (assignSlot != null) {
+    // Say which button the pick lands on; 'CONFIRM' alone reads like "apply this recipe".
+    const btn = document.getElementById('dye-confirm-btn');
+    if (btn) btn.innerHTML = '<span>ASSIGN TO ' + assignSlot + '</span>';
+  }
+  let assigning = false;
+  document.getElementById('dye-confirm-btn')?.addEventListener('click', async () => {
     if (!selectedRecipeId) return;
+    if (assignSlot != null) {
+      if (assigning) return;   // a second tap before the write lands would write twice
+      assigning = true;
+      const btn = document.getElementById('dye-confirm-btn');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span>ASSIGNING…</span>'; }
+      // updateRecipe's takeSlot frees the slot on whoever held it (demoted to the library, not
+      // deleted). showOnStreamlineDashboard goes true as well: a recipe cleared off the strip
+      // keeps its old slot, and assigning it without this would leave the button blank.
+      try {
+        await updateRecipe(selectedRecipeId, { stripSlot: assignSlot, showOnStreamlineDashboard: true });
+      } catch (e) {
+        // Stay on the page rather than returning as if it worked -- and say so on the button,
+        // which is the only surface these pages have (no toasts here).
+        console.error('assign to strip slot failed:', e);
+        assigning = false;
+        if (btn) { btn.disabled = false; btn.innerHTML = '<span>FAILED — TAP TO RETRY</span>'; }
+        return;
+      }
+      leaveSelectRecipe();
+      return;
+    }
     sessionStorage.setItem('dye_selectedRecipeId', selectedRecipeId);   // the dashboard applies it on load
     window.location.href = 'dashboard';
   });

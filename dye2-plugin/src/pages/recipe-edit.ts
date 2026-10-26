@@ -1117,6 +1117,11 @@ function setupSlots() {
 // its route in dye_recipeEditBack (the ?return= is lost across a picker round trip).
 function leaveRecipeEdit() {
   const ret = new URLSearchParams(location.search).get('return') || sessionStorage.getItem('dye_recipeEditBack');
+  // One trip, one use. The key outlives the visit that set it, and a See-All picker detour
+  // wipes ?return=, so a leftover value answers for a LATER visit it knows nothing about --
+  // which, now that select-recipe stores its assign-mode query here, would drop the barista
+  // onto "ASSIGN TO n" for an unrelated recipe.
+  try { sessionStorage.removeItem('dye_recipeEditBack'); } catch (e) { /* private mode */ }
   window.location.href = ret || 'dashboard';
 }
 
