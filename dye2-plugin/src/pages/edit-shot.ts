@@ -89,8 +89,10 @@ const styles = `
 
 function buildContent(): string {
   const searchSvg   = lucideIcon('search',       42, 'var(--mimoja-blue)', 2);
-  const prevSvg     = lucideIcon('chevron-left',  36, 'var(--mimoja-blue)', 2.5);
-  const nextSvg     = lucideIcon('chevron-right', 36, 'var(--mimoja-blue)', 2.5);
+  // Arrows, not chevrons, and the same size as the search icon beside them: the three header
+  // icons are one 114px row in Figma (2345:2058/2064/2066), with no container around the pair.
+  const prevSvg     = lucideIcon('arrow-left',    42, 'var(--mimoja-blue)', 2);
+  const nextSvg     = lucideIcon('arrow-right',   42, 'var(--mimoja-blue)', 2);
   const expandSvg   = lucideIcon('maximize-2',    26, 'var(--mimoja-blue)', 2);
   const pencilSvg   = lucideIcon('pencil',        26, 'var(--text-primary-disabled)', 2);
   const chevUpSvg   = lucideIcon('chevron-up',    24, 'var(--mimoja-blue)', 2.5);
@@ -106,12 +108,12 @@ function buildContent(): string {
       </div>
       <div id="es-shot-subtitle" class="text-[22px] font-normal text-[var(--text-primary)] mt-[4px]">—</div>
     </div>
-    <div class="flex items-center gap-[30px]">
+    <div class="flex items-center gap-[27px]">
       <button id="es-search-btn">${searchSvg}</button>
-      <div class="flex items-center border-2 border-[var(--mimoja-blue)] rounded-[23px] overflow-hidden">
-        <button id="es-prev-btn" class="flex items-center justify-center w-[60px] h-[54px]">${prevSvg}</button>
-        <div class="w-[2px] h-[54px] bg-[var(--profile-button-outline-color)]"></div>
-        <button id="es-next-btn" class="flex items-center justify-center w-[60px] h-[54px]">${nextSvg}</button>
+      <!-- Figma 2345:2057: bare icons, 26px apart at canvas scale (x0.75), no outlined pill. -->
+      <div class="flex items-center gap-[20px]">
+        <button id="es-prev-btn" class="flex items-center justify-center w-[54px] h-[54px]">${prevSvg}</button>
+        <button id="es-next-btn" class="flex items-center justify-center w-[54px] h-[54px]">${nextSvg}</button>
       </div>
     </div>
   </div>
