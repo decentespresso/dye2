@@ -661,26 +661,49 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
     hotWaterData: { volume: 0, duration: 0 },
     ...over,
   });
-  const steam = (d) => ({ steamSettings: { targetTemperature: 150, duration: d } });
-  assert.equal(proposeRecipeName(w('Turbo', { targetYield: 27 })), 'Turbo Ristretto', 'ratio 1.5');
-  assert.equal(proposeRecipeName(w('Turbo', { targetYield: 38.9 })), 'Turbo Espresso', '2.16');
-  assert.equal(proposeRecipeName(w('Turbo', { targetYield: 43.2 })), 'Turbo Espresso', '2.4 is still espresso');
-  assert.equal(proposeRecipeName(w('Turbo', { targetYield: 54 })), 'Turbo Lungo', 'ratio 3');
-  assert.equal(proposeRecipeName(w('Turbo', { targetYield: undefined })), 'Turbo Espresso', 'no ratio: espresso');
-  assert.equal(proposeRecipeName(w('Default', {}, { hotWaterData: { volume: 120 } })), 'Americano', 'generic profile dropped');
-  assert.equal(proposeRecipeName(w('advanced thing', {})), 'Espresso');
-  assert.equal(proposeRecipeName(w('Turbo Shot 2', {})), 'Turbo Espresso', 'first word only');
-  assert.equal(proposeRecipeName(w('Turbo', {}, steam(20))), 'Turbo Flat White');
-  assert.equal(proposeRecipeName(w('Turbo', {}, steam(35))), 'Turbo Cappuccino');
-  assert.equal(proposeRecipeName(w('Turbo', {}, steam(36))), 'Turbo Latte');
-  assert.equal(proposeRecipeName(w('Turbo', {}, { steamSettings: { targetTemperature: 150 } })), 'Turbo Latte', 'unknown duration: latte');
-  assert.equal(proposeRecipeName(w('Turbo', {}, { ...steam(15), hotWaterData: { volume: 100 } })), 'Turbo Flat White', 'steam beats hot water');
-  assert.equal(proposeRecipeName(w('Turbo', { targetYield: 27 }, { hotWaterData: { duration: 10 } })), 'Turbo Americano', 'hot water beats ratio');
-  assert.equal(proposeRecipeName(w('Turbo', { targetYield: 27 }, steam(10))), 'Turbo Flat White', 'milk beats ratio');
-  // collisions: the bean's first word, then a counter
-  const ctx = { targetYield: 27, coffeeName: 'Ethiopia Guji' };
-  assert.equal(proposeRecipeName(w('Turbo', ctx), ['Turbo Ristretto']), 'Turbo Ristretto Ethiopia');
-  assert.equal(proposeRecipeName(w('Turbo', ctx), ['turbo ristretto', 'Turbo Ristretto Ethiopia']), 'Turbo Ristretto Ethiopia 2');
-  assert.equal(proposeRecipeName(w('Turbo', { targetYield: 27 }), ['Turbo Ristretto', 'Turbo Ristretto 2']), 'Turbo Ristretto 3', 'no bean: counter');
+  const oct26 = new Date(2026, 9, 26);
+  const bean = (coffeeName) => ({ coffeeName });
+
+  // profile + bean, the bean in full.
+  assert.equal(proposeRecipeName(w('Turbo', bean('Ethiopia Guji Natural')), [], '', oct26),
+    'Turbo Ethiopia Guji Natural');
+  assert.equal(proposeRecipeName(w('Turbo Shot 2', bean('Ethiopia')), [], '', oct26),
+    'Turbo Ethiopia', 'first word of the profile title only');
+  assert.equal(proposeRecipeName(w('Default', bean('Ethiopia')), [], '', oct26),
+    'Ethiopia', 'a generic profile word is dropped');
+
+  // A typed beverage comes last, and the bean stays.
+  assert.equal(proposeRecipeName(w('Turbo', bean('Ethiopia Guji')), [], 'Cappuccino', oct26),
+    'Turbo Ethiopia Guji Cappuccino');
+  assert.equal(proposeRecipeName(w('Turbo', bean('Ethiopia')), [], '  ', oct26),
+    'Turbo Ethiopia', 'a blank beverage adds nothing');
+
+  // Nothing about the shot may produce a drink word. These all named a drink before.
+  const steamed = { steamSettings: { targetTemperature: 150, duration: 15 } };
+  assert.equal(proposeRecipeName(w('Turbo', bean('Ethiopia'), steamed), [], '', oct26),
+    'Turbo Ethiopia', 'steam does not make it a Flat White');
+  assert.equal(proposeRecipeName(w('Turbo', bean('Ethiopia'), { hotWaterData: { volume: 120 } }), [], '', oct26),
+    'Turbo Ethiopia', 'hot water does not make it an Americano');
+  assert.equal(proposeRecipeName(w('Turbo', { ...bean('Ethiopia'), targetYield: 27 }), [], '', oct26),
+    'Turbo Ethiopia', 'a 1.5 ratio does not make it a Ristretto');
+  assert.equal(proposeRecipeName(w('Turbo', { ...bean('Ethiopia'), targetYield: 54 }), [], '', oct26),
+    'Turbo Ethiopia', 'a 3.0 ratio does not make it a Lungo');
+
+  // No bean: the date disambiguates instead of a drink word.
+  assert.equal(proposeRecipeName(w('Turbo', {}), [], '', oct26), 'Turbo 26 Oct');
+  assert.equal(proposeRecipeName(w('Turbo', { coffeeName: '   ' }), [], '', oct26), 'Turbo 26 Oct',
+    'a blank bean name counts as none');
+  assert.equal(proposeRecipeName(w('Turbo', {}), [], 'Cappuccino', oct26), 'Turbo Cappuccino 26 Oct',
+    'the date goes last, after a typed beverage');
+  assert.equal(proposeRecipeName(w('Default', {}), [], '', oct26), 'Recipe 26 Oct',
+    'nothing identifying at all');
+  assert.equal(proposeRecipeName(w('Turbo', {}), [], '', new Date(2026, 0, 3)), 'Turbo 3 Jan',
+    'no zero padding, short month');
+
+  // Collisions: a counter. The bean is already in the name, so a clash is the same coffee again.
+  assert.equal(proposeRecipeName(w('Turbo', bean('Ethiopia')), ['Turbo Ethiopia'], '', oct26),
+    'Turbo Ethiopia 2');
+  assert.equal(proposeRecipeName(w('Turbo', bean('Ethiopia')), ['turbo ethiopia', 'Turbo Ethiopia 2'], '', oct26),
+    'Turbo Ethiopia 3', 'case-insensitive, counts past the taken ones');
   console.log('ok   recipe names are proposed from the workflow');
 }

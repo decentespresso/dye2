@@ -255,9 +255,13 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       const recipes = await kv("recipes");
       const body = parseBody(request);
       const ctx = wf.context || {};
+      // The beverage is a DYE2 row field, not a workflow one, so the caller hands over the one
+      // typed on the item being saved from -- it is the only reason a drink word is ever in the
+      // name. Nothing typed, nothing guessed.
+      const beverage = (body && typeof body.beverage === "string" && body.beverage.trim()) || "";
       const name =
         (body && typeof body.name === "string" && body.name.trim()) ||
-        proposeRecipeName(wf, recipes.map((r) => r && (r.name || r.title)));
+        proposeRecipeName(wf, recipes.map((r) => r && (r.name || r.title)), beverage);
       // No automatic placement: without an explicit valid `slot` the recipe is saved to the library.
       const stripSlot = explicitRecipeSlot(body && body.slot);
       const id = `recipe-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -278,7 +282,7 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         dashboardVariables.grinderModel = ctx.grinderModel;
       }
       const row: any = {
-        id, stripSlot, name, title: name,
+        id, stripSlot, name, title: name, beverage,
         barista: ctx.baristaName, drinker: ctx.drinkerName,
         beanName: ctx.coffeeName, beanRoaster: ctx.coffeeRoaster, beanBatchId: ctx.beanBatchId,
         profileTitle: wf.profile && wf.profile.title, profileSnapshot: wf.profile,

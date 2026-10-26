@@ -637,7 +637,13 @@ function renderRecipe(recipe) {
 
 // Build a recipe-shaped patch from the live workflow.
 async function readFromWorkflow() {
-  const wf = await getWorkflow().catch(() => null);
+  return workflowToRecipePatch(await getWorkflow().catch(() => null));
+}
+
+// The mapping on its own, so "SAVE AS RECIPE" in edit-shot can hand it a RECORDED shot's
+// workflow instead of the live one. Same fields either way; a shot's workflow is the workflow
+// as it stood when that shot was pulled.
+function workflowToRecipePatch(wf) {
   const ctx = (wf && wf.context) || {};
   const g = grinders.find(x => ctx.grinderId ? x.id === ctx.grinderId : (x.model || x.name) === ctx.grinderModel);
   const extras = ctx.extras || {};
@@ -1551,6 +1557,18 @@ async function initRecipeEdit() {
         applyToCurrentRecipe(patch);
       }
     } catch (e) { console.warn('Could not load selected auto-favourite:', e); }
+  }
+  // "SAVE AS RECIPE" from edit-shot: fill this blank form from that shot's workflow, the same
+  // mapping Read From > Current Workflow uses. After the favourite block for the same reason:
+  // an explicit seed overwrites whatever the form was holding.
+  const shotWfRaw = sessionStorage.getItem('dye_recipeFromShotWf');
+  if (shotWfRaw) {
+    sessionStorage.removeItem('dye_recipeFromShotWf');
+    try {
+      const patch = workflowToRecipePatch(JSON.parse(shotWfRaw));
+      patch.dashboardVariables = withDefaultVariables(patch.dashboardVariables);
+      applyToCurrentRecipe(patch);
+    } catch (e) { console.warn('Could not seed a recipe from the shot:', e); }
   }
   renderSlots();
   renderRecipe(recipe);

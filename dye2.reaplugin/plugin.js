@@ -8078,6 +8078,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   <div class="flex items-center px-[38px] h-[90px] shrink-0 bg-[var(--box-color)] border-t border-[var(--profile-button-outline-color)] gap-[18px]">
     <button id="es-delete-btn" class="footer-btn-danger">Delete Shot</button>
     <button id="es-clear-btn" class="footer-btn-ghost">Clear all</button>
+    <button id="es-save-recipe-btn" class="footer-btn-ghost">Save as Recipe</button>
     <div class="relative">
       <button id="es-read-from-btn" class="footer-btn-ghost flex items-center gap-[8px]">
         Read From ${chevUpSvg}
@@ -8791,6 +8792,22 @@ function setupControls() {
     if (currentShot) ann().espressoNotes = v;
     set('es-notes-preview', v ? v.slice(0, 60) + (v.length > 60 ? '…' : '') : '—');
     document.getElementById('es-drinker-notes-overlay')?.classList.remove('open');
+  });
+
+  // Turn the shot being looked at into a recipe. A favourite and a recent have no save target
+  // of their own, so promoting the shot is the only way to keep a dial-in from one -- and
+  // landing in recipe-edit means the slot is chosen on its tab strip (or left in the library),
+  // rather than this page having to guess one.
+  document.getElementById('es-save-recipe-btn')?.addEventListener('click', () => {
+    if (!currentShot) return;
+    // The workflow as edited on this page, so a dose or grind corrected here carries over.
+    try {
+      sessionStorage.setItem('dye_recipeFromShotWf', JSON.stringify(currentShot.workflow || {}));
+    } catch (e) { console.warn('Could not hand the shot to recipe-edit:', e); return; }
+    // goToPicker stashes this page's unsaved shot + its index and sets dye_editShotReturn, so
+    // leaving recipe-edit comes back here with the edits intact.
+    sessionStorage.setItem('dye_recipeEditBack', 'edit-shot');
+    goToPicker('recipe-edit?new=1');
   });
 
   // Read From dropdown
@@ -11584,7 +11601,13 @@ function renderRecipe(recipe) {
 
 // Build a recipe-shaped patch from the live workflow.
 async function readFromWorkflow() {
-  const wf = await getWorkflow().catch(() => null);
+  return workflowToRecipePatch(await getWorkflow().catch(() => null));
+}
+
+// The mapping on its own, so "SAVE AS RECIPE" in edit-shot can hand it a RECORDED shot's
+// workflow instead of the live one. Same fields either way; a shot's workflow is the workflow
+// as it stood when that shot was pulled.
+function workflowToRecipePatch(wf) {
   const ctx = (wf && wf.context) || {};
   const g = grinders.find(x => ctx.grinderId ? x.id === ctx.grinderId : (x.model || x.name) === ctx.grinderModel);
   const extras = ctx.extras || {};
@@ -12498,6 +12521,18 @@ async function initRecipeEdit() {
         applyToCurrentRecipe(patch);
       }
     } catch (e) { console.warn('Could not load selected auto-favourite:', e); }
+  }
+  // "SAVE AS RECIPE" from edit-shot: fill this blank form from that shot's workflow, the same
+  // mapping Read From > Current Workflow uses. After the favourite block for the same reason:
+  // an explicit seed overwrites whatever the form was holding.
+  const shotWfRaw = sessionStorage.getItem('dye_recipeFromShotWf');
+  if (shotWfRaw) {
+    sessionStorage.removeItem('dye_recipeFromShotWf');
+    try {
+      const patch = workflowToRecipePatch(JSON.parse(shotWfRaw));
+      patch.dashboardVariables = withDefaultVariables(patch.dashboardVariables);
+      applyToCurrentRecipe(patch);
+    } catch (e) { console.warn('Could not seed a recipe from the shot:', e); }
   }
   renderSlots();
   renderRecipe(recipe);
@@ -13583,29 +13618,49 @@ bcInit();
 		} : null;
 	}
 	var GENERIC_PROFILE = /^(default|advanced|custom|profile|new|untitled)$/i;
-	/** `<first word of profile title> <drink type>`; see docs/KV_CONTRACT.md for the drink table. */
-	function proposeRecipeName(wf, existingNames = []) {
+	var MONTHS = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec"
+	];
+	/**
+	* `<first word of profile title> <bean name> [beverage]`; see docs/KV_CONTRACT.md.
+	*
+	* No drink is ever inferred from the shot. Steam settings and a yield/dose ratio describe how
+	* the coffee was made, not what the barista calls it, and a name guessed from them is wrong as
+	* often as it is right -- "Cappuccino" on a shot that was steamed for a second drink, "Lungo"
+	* on a long ristretto. A beverage appears only when it was typed, on the item being saved.
+	*
+	* With no bean name there is nothing identifying left, so the date disambiguates instead of a
+	* bare counter: two saves of the same profile on different days read as different recipes.
+	*/
+	function proposeRecipeName(wf, existingNames = [], beverage = "", now = /* @__PURE__ */ new Date()) {
 		const word = String(wf && wf.profile && wf.profile.title || "").trim().split(/\s+/)[0] || "";
 		const ctx = wf && wf.context || {};
-		const steamT = Number(wf && wf.steamSettings && wf.steamSettings.targetTemperature);
-		const steamS = wf && wf.steamSettings && wf.steamSettings.duration;
-		const hw = wf && wf.hotWaterData || {};
-		const ratio = Math.round(Number(ctx.targetYield) / Number(ctx.targetDoseWeight) * 100) / 100;
-		let drink = "Espresso";
-		if (steamT >= 135 && Number(steamS) !== 0) {
-			const s = Number(steamS);
-			drink = s > 0 && s <= 20 ? "Flat White" : s > 0 && s <= 35 ? "Cappuccino" : "Latte";
-		} else if (Number(hw.duration) > 0 || Number(hw.volume) > 0) drink = "Americano";
-		else if (Number.isFinite(ratio) && ratio > 0) drink = ratio < 1.6 ? "Ristretto" : ratio <= 2.4 ? "Espresso" : "Lungo";
-		const base = (GENERIC_PROFILE.test(word) ? "" : word + " ") + drink;
+		const bean = String(ctx.coffeeName || "").trim();
+		const typed = String(beverage || "").trim();
+		const parts = [
+			GENERIC_PROFILE.test(word) ? "" : word,
+			bean,
+			typed
+		].filter(Boolean);
+		if (!parts.length) parts.push("Recipe");
+		if (!bean) parts.push(now.getDate() + " " + MONTHS[now.getMonth()]);
+		const base = parts.join(" ");
 		const taken = (n) => existingNames.some((x) => String(x).toLowerCase() === n.toLowerCase());
 		if (!taken(base)) return base;
-		const bean = String(ctx.coffeeName || "").trim().split(/\s+/)[0];
-		const named = bean ? base + " " + bean : base;
-		if (!taken(named)) return named;
 		let n = 2;
-		while (taken(named + " " + n)) n++;
-		return named + " " + n;
+		while (taken(base + " " + n)) n++;
+		return base + " " + n;
 	}
 	//#endregion
 	//#region src/plugin.ts
@@ -13803,7 +13858,8 @@ bcInit();
 				const recipes = await kv("recipes");
 				const body = parseBody(request);
 				const ctx = wf.context || {};
-				const name = body && typeof body.name === "string" && body.name.trim() || proposeRecipeName(wf, recipes.map((r) => r && (r.name || r.title)));
+				const beverage = body && typeof body.beverage === "string" && body.beverage.trim() || "";
+				const name = body && typeof body.name === "string" && body.name.trim() || proposeRecipeName(wf, recipes.map((r) => r && (r.name || r.title)), beverage);
 				const stripSlot = explicitRecipeSlot(body && body.slot);
 				const id = `recipe-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 				wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
@@ -13841,6 +13897,7 @@ bcInit();
 					stripSlot,
 					name,
 					title: name,
+					beverage,
 					barista: ctx.baristaName,
 					drinker: ctx.drinkerName,
 					beanName: ctx.coffeeName,

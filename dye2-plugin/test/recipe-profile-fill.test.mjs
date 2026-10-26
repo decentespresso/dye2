@@ -344,3 +344,63 @@ const fn = (src, sig) => { const i = src.indexOf(sig); return src.slice(i, src.i
 
   console.log('ok   fattenFavouriteProfile: by id, by title, id backfill, stubs and failures');
 }
+
+// ── workflowToRecipePatch + "Save as Recipe" from edit-shot (recipe-edit.ts / edit-shot.ts) ──
+// A favourite and a recent have no save target, so promoting the shot is the only way to keep a
+// dial-in from one. edit-shot hands recipe-edit the shot's RECORDED workflow and the same mapper
+// Read From > Current Workflow uses reads it, so the two can never drift apart.
+{
+  const edit = read('../src/pages/recipe-edit.ts');
+  const shot = read('../src/pages/edit-shot.ts');
+  const grinders = [{ id: 'g1', model: 'Niche Zero' }, { id: 'g2', model: 'C40' }];
+  // usableProfileSnapshot reaches the page from devApiScript, so inject the real one.
+  const usableSrc = fn(read('../src/utils/dev-api.ts'), 'function usableProfileSnapshot(p)');
+  const toPatch = new Function('grinders',
+    usableSrc + fn(edit, 'function workflowToRecipePatch(wf)') + '; return workflowToRecipePatch;')(grinders);
+
+  const wf = {
+    profile: { id: 'profile:x', title: 'Adaptive v2', steps: [{ temperature: 92 }] },
+    context: {
+      targetDoseWeight: 18.5, targetYield: 37, grinderSetting: '4.2',
+      baristaName: 'Mark', drinkerName: 'John', grinderModel: 'C40',
+      extras: { rpm: 75, basketId: 'b1', basketName: '18g VST' },
+    },
+  };
+  const p = toPatch(wf);
+  assert.equal(p.profileId, 'profile:x');
+  assert.equal(p.profileTitle, 'Adaptive v2');
+  assert.equal(p.profileSnapshot.steps[0].temperature, 92, 'a recorded profile with steps is captured');
+  assert.deepEqual(p.dashboardVariables,
+    { dose: 18.5, drink: 37, grind: '4.2', rpm: 75, grinderId: 'g2', basketId: 'b1', basketName: '18g VST' },
+    'the grinder is resolved by model when the shot carries no id');
+  assert.equal(p.barista, 'Mark');
+  assert.equal(p.drinker, 'John');
+
+  // A thin recorded profile is not a snapshot, and an empty workflow is not a crash.
+  assert.equal(toPatch({ profile: { id: 'p', title: 'T', steps: [] }, context: {} }).profileSnapshot, null,
+    'steps captured as an empty array is not a usable snapshot');
+  assert.equal(toPatch(null).profileId, null);
+  assert.deepEqual(toPatch({}).dashboardVariables.dose, undefined);
+
+  // readFromWorkflow must stay a thin wrapper over it, or the live and recorded paths diverge.
+  assert.match(fn(edit, 'async function readFromWorkflow()'), /return workflowToRecipePatch\(await getWorkflow\(\)/);
+
+  // The handoff: edit-shot stashes the recorded workflow, recipe-edit consumes it once.
+  const handler = shot.slice(shot.indexOf("getElementById('es-save-recipe-btn')"));
+  const body = handler.slice(0, handler.indexOf('\n  });'));
+  assert.match(body, /setItem\('dye_recipeFromShotWf', JSON\.stringify\(currentShot\.workflow/,
+    'the shot as edited on the page is what gets promoted');
+  assert.match(body, /setItem\('dye_recipeEditBack', 'edit-shot'\)/, 'and leaving the recipe comes back here');
+  assert.match(body, /goToPicker\('recipe-edit\?new=1'\)/,
+    'reuses the stash-and-navigate that keeps the unsaved shot');
+  assert.ok(shot.includes('id="es-save-recipe-btn"'), 'the button exists in the footer');
+
+  const seed = edit.slice(edit.indexOf("sessionStorage.getItem('dye_recipeFromShotWf')"));
+  assert.match(seed.slice(0, 400), /removeItem\('dye_recipeFromShotWf'\)/,
+    'consumed once, so a later blank recipe is not seeded from a stale shot');
+  assert.match(seed.slice(0, 400), /workflowToRecipePatch\(JSON\.parse\(shotWfRaw\)\)/);
+  assert.ok(edit.indexOf("getItem('dye_selectedAutoFavId')") < edit.indexOf("getItem('dye_recipeFromShotWf')"),
+    'after the favourite seed, so an explicit shot seed wins');
+
+  console.log('ok   workflowToRecipePatch: shared by the live read and edit-shot\'s Save as Recipe');
+}

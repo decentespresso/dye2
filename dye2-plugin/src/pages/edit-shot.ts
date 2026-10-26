@@ -199,6 +199,7 @@ function buildContent(): string {
   <div class="flex items-center px-[38px] h-[90px] shrink-0 bg-[var(--box-color)] border-t border-[var(--profile-button-outline-color)] gap-[18px]">
     <button id="es-delete-btn" class="footer-btn-danger">Delete Shot</button>
     <button id="es-clear-btn" class="footer-btn-ghost">Clear all</button>
+    <button id="es-save-recipe-btn" class="footer-btn-ghost">Save as Recipe</button>
     <div class="relative">
       <button id="es-read-from-btn" class="footer-btn-ghost flex items-center gap-[8px]">
         Read From ${chevUpSvg}
@@ -917,6 +918,22 @@ function setupControls() {
     if (currentShot) ann().espressoNotes = v;
     set('es-notes-preview', v ? v.slice(0, 60) + (v.length > 60 ? '…' : '') : '—');
     document.getElementById('es-drinker-notes-overlay')?.classList.remove('open');
+  });
+
+  // Turn the shot being looked at into a recipe. A favourite and a recent have no save target
+  // of their own, so promoting the shot is the only way to keep a dial-in from one -- and
+  // landing in recipe-edit means the slot is chosen on its tab strip (or left in the library),
+  // rather than this page having to guess one.
+  document.getElementById('es-save-recipe-btn')?.addEventListener('click', () => {
+    if (!currentShot) return;
+    // The workflow as edited on this page, so a dose or grind corrected here carries over.
+    try {
+      sessionStorage.setItem('dye_recipeFromShotWf', JSON.stringify(currentShot.workflow || {}));
+    } catch (e) { console.warn('Could not hand the shot to recipe-edit:', e); return; }
+    // goToPicker stashes this page's unsaved shot + its index and sets dye_editShotReturn, so
+    // leaving recipe-edit comes back here with the edits intact.
+    sessionStorage.setItem('dye_recipeEditBack', 'edit-shot');
+    goToPicker('recipe-edit?new=1');
   });
 
   // Read From dropdown

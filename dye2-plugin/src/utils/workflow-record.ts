@@ -639,29 +639,38 @@ export async function resolveRecipeFromHistory(
 }
 
 const GENERIC_PROFILE = /^(default|advanced|custom|profile|new|untitled)$/i;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** `<first word of profile title> <drink type>`; see docs/KV_CONTRACT.md for the drink table. */
-export function proposeRecipeName(wf: AnyRecord, existingNames: string[] = []): string {
+/**
+ * `<first word of profile title> <bean name> [beverage]`; see docs/KV_CONTRACT.md.
+ *
+ * No drink is ever inferred from the shot. Steam settings and a yield/dose ratio describe how
+ * the coffee was made, not what the barista calls it, and a name guessed from them is wrong as
+ * often as it is right -- "Cappuccino" on a shot that was steamed for a second drink, "Lungo"
+ * on a long ristretto. A beverage appears only when it was typed, on the item being saved.
+ *
+ * With no bean name there is nothing identifying left, so the date disambiguates instead of a
+ * bare counter: two saves of the same profile on different days read as different recipes.
+ */
+export function proposeRecipeName(
+  wf: AnyRecord,
+  existingNames: string[] = [],
+  beverage = "",
+  now: Date = new Date()
+): string {
   const word = String((wf && wf.profile && wf.profile.title) || "").trim().split(/\s+/)[0] || "";
   const ctx = (wf && wf.context) || {};
-  const steamT = Number(wf && wf.steamSettings && wf.steamSettings.targetTemperature);
-  const steamS = wf && wf.steamSettings && wf.steamSettings.duration;
-  const hw = (wf && wf.hotWaterData) || {};
-  const ratio = Math.round((Number(ctx.targetYield) / Number(ctx.targetDoseWeight)) * 100) / 100; // 43.2/18 is 2.4000000000000004
-  let drink = "Espresso";
-  if (steamT >= 135 && Number(steamS) !== 0) {
-    const s = Number(steamS);
-    drink = s > 0 && s <= 20 ? "Flat White" : s > 0 && s <= 35 ? "Cappuccino" : "Latte";
-  } else if (Number(hw.duration) > 0 || Number(hw.volume) > 0) drink = "Americano";
-  else if (Number.isFinite(ratio) && ratio > 0) drink = ratio < 1.6 ? "Ristretto" : ratio <= 2.4 ? "Espresso" : "Lungo";
-  const base = (GENERIC_PROFILE.test(word) ? "" : word + " ") + drink;
+  const bean = String(ctx.coffeeName || "").trim();
+  const typed = String(beverage || "").trim();
+  const parts = [GENERIC_PROFILE.test(word) ? "" : word, bean, typed].filter(Boolean);
+  // A generic profile, no bean and no typed beverage: "Recipe 26 Oct" rather than a bare date.
+  if (!parts.length) parts.push("Recipe");
+  if (!bean) parts.push(now.getDate() + " " + MONTHS[now.getMonth()]);
+  const base = parts.join(" ");
   const taken = (n: string) => existingNames.some((x) => String(x).toLowerCase() === n.toLowerCase());
   if (!taken(base)) return base;
-  // Collision: the bean's first word after the name, then a counter.
-  const bean = String(ctx.coffeeName || "").trim().split(/\s+/)[0];
-  const named = bean ? base + " " + bean : base;
-  if (!taken(named)) return named;
+  // The bean is already in the name, so a collision is the same coffee again: just count.
   let n = 2;
-  while (taken(named + " " + n)) n++;
-  return named + " " + n;
+  while (taken(base + " " + n)) n++;
+  return base + " " + n;
 }

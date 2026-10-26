@@ -150,11 +150,13 @@ workflow whose steam is off (`targetTemperature` below 135).
 **`save-recipe`** builds the row from the live workflow (`dashboardVariables` from
 `recipeFields`, bean/grinder/profile from `context`/`profile`, `workflow` the live one trimmed,
 `extras.dye` rebuilt as `markDye` flags for the fields the row carries, without `recipeId`/`selection`), stores it as a new row with an opaque id and `stripSlot` the body's `slot` (1..5; its previous holder stays in the library and loses the slot) or `null` when none is given (library only; a recipe is never placed automatically, so there is no 409) and PUTs its id as `recipeId`. The name is the
-body's `name`, else `<first word of profile title> <drink>`: a generic title word (Default,
-Advanced, Custom, Profile, New, Untitled) is dropped; drink is, in order, steam on and set
-(duration <=20 s Flat White, <=35 s Cappuccino, otherwise or unknown Latte), hot water set
-(Americano), else yield/dose ratio (<1.6 Ristretto, <=2.4 Espresso, otherwise Lungo; Espresso
-when unknown). A collision appends the bean's first word, then a counter.
+body's `name`, else `<first word of profile title> <bean name> [beverage]`: a generic title word
+(Default, Advanced, Custom, Profile, New, Untitled) is dropped, the bean name is
+`context.coffeeName` in full, and the beverage is the body's `beverage` -- the typed field of the
+item being saved from, since no beverage exists on a workflow. **No drink is inferred**: steam
+settings and the yield/dose ratio never name a recipe. With no bean name the save date (`26 Oct`)
+is appended instead, and with nothing identifying at all the name is `Recipe <date>`. A collision
+appends a counter. The body's `beverage` is also stored on the new row.
 
 ## Freshness
 
