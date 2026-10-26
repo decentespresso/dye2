@@ -110,6 +110,9 @@ tried before recents.
 a favourite or recent, pasting a shot, or any profile change from any source (including the
 Streamline P strip: the plugin compares `profileFingerprint` on every `workflowUpdated`) sets it
 to `null`; tile edits (dose / yield / grind) and machine-originated changes leave it alone.
+A profile change that lands on the selected recipe's *own* profile is the exception (dye2#38):
+re-applying a recipe whose profile was edited since the apply is a re-apply, so the id survives
+and the comparison baseline moves to the new profile.
 **Consumer side:** an apply made by DYE2's dashboard nulls the id itself, but a skin applying a
 favourite, recent or profile from its own strip must also PUT
 `context.extras.dye.recipeId: null`, or a favourite naming no profile leaves a stale recipe

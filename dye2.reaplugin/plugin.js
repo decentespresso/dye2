@@ -13485,11 +13485,11 @@ bcInit();
 				recipes = await kv("recipes");
 				const recipe = await recipeFor(rid, recipes);
 				const known = baseline && baseline.id === rid ? baseline : null;
-				if ((known || cold) && idProfileChanged(known, recipe, wf)) {
+				if ((known || cold) && idProfileChanged(known, recipe, wf) && (!recipe || recipeProfileChanged(recipe, wf))) {
 					await putWorkflow({ context: { extras: { dye: { recipeId: null } } } });
 					return;
 				}
-				if (!baseline || baseline.id !== rid) {
+				if (!baseline || baseline.id !== rid || baseline.profileFingerprint !== profileFingerprint(wf.profile)) {
 					const full = withMachineSettings(wf, await readMachineSettings(fetch, API));
 					const live = ownedRecipeFields(wf).brewC;
 					baseline = {

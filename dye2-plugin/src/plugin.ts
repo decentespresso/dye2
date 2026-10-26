@@ -23,6 +23,7 @@ import {
   recipeIdOf,
   recipeModified,
   idProfileChanged,
+  recipeProfileChanged,
   profileFingerprint,
   resolveRecipeFromHistory,
   proposeRecipeName,
@@ -122,12 +123,17 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       // A recipe's identity is its profile: a profile change from any source drops the id.
       // A new id's first event is the apply itself, so only the baseline (or, right after a
       // plugin restart, the stored profile) is compared, never a stored profile against a fresh apply.
+      // Unless the profile that arrived IS the recipe's own: re-applying a recipe whose profile
+      // was edited since the apply that set the baseline is a re-apply, not a switch off it
+      // (dye2#38), so keep the id and re-baseline below. A profile matching neither still clears.
       const known = baseline && baseline.id === rid ? baseline : null;
-      if ((known || cold) && idProfileChanged(known, recipe, wf)) {
+      if ((known || cold) && idProfileChanged(known, recipe, wf) && (!recipe || recipeProfileChanged(recipe, wf))) {
         await putWorkflow({ context: { extras: { dye: { recipeId: null } } } });
         return; // the PUT fires another workflowUpdated, which mirrors the result
       }
-      if (!baseline || baseline.id !== rid) {
+      // The fingerprint test re-baselines that re-apply: under one id the profile only ever
+      // moves here when it moved onto the recipe's own, every other move having cleared above.
+      if (!baseline || baseline.id !== rid || baseline.profileFingerprint !== profileFingerprint(wf.profile)) {
         const full = withMachineSettings(wf, await readMachineSettings(fetch, API));
         const live = ownedRecipeFields(wf).brewC;
         baseline = {
