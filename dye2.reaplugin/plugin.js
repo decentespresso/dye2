@@ -5837,6 +5837,10 @@ function shotWeights(shot) {
   /* Rail arrow at the end of its travel. Opacity, not a colour: the arrow SVGs carry
      stroke="var(--mimoja-blue)" inline, so dimming the button works in both themes. */
   .dye-rail-arrow-off { opacity: 0.3; pointer-events: none; }
+  /* Pills all fit: no scrolling to do, so the arrows go away. visibility, not display:
+     keeping their width stops the rail from widening, which would change how many pills
+     fit and make this test flip back and forth. */
+  .dye-rail-arrow-hide { visibility: hidden; pointer-events: none; }
   .dye-recipe-pill.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
   /* Recent labels lead with the profile and may wrap to two lines: several recents share a
      bean, and one-line truncation made them identical ("Colombia El Par..."). There is no
@@ -6071,9 +6075,6 @@ function shotWeights(shot) {
         <div class="flex flex-col gap-[18px] shrink-0">
           <div id="dye-profile-name" class="text-[var(--mimoja-blue)] font-semibold text-[24px] leading-[1.2] text-center truncate cursor-pointer" title="Choose a profile">—</div>
           <div class="flex items-center gap-[18px]">
-            <button id="dye-dose-drink-prev" class="flex items-center justify-center shrink-0 cursor-pointer">
-              <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
             <div class="flex items-center gap-[45px] flex-1 justify-center">
               <div class="flex items-center gap-[18px]">
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">Dose</span>
@@ -6095,9 +6096,6 @@ function shotWeights(shot) {
                 </div>
               </div>
             </div>
-            <button id="dye-dose-drink-next" class="flex items-center justify-center shrink-0 cursor-pointer">
-              <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
           </div>
         </div>
 
@@ -6106,9 +6104,6 @@ function shotWeights(shot) {
         <div class="flex flex-col gap-[18px] shrink-0">
           <div id="dye-grinder-tabs" class="flex gap-[27px] overflow-x-auto"></div>
           <div class="flex items-center gap-[18px]">
-            <button id="dye-grind-rpm-prev" class="flex items-center justify-center shrink-0 cursor-pointer">
-              <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
             <!-- Same 45px gap as the Dose/Drink row above: both rows hold identical
                  label+stepper groups, so equal gaps make Grind line up under Dose and
                  RPM under Drink. -->
@@ -6130,9 +6125,6 @@ function shotWeights(shot) {
                 </div>
               </div>
             </div>
-            <button id="dye-grind-rpm-next" class="flex items-center justify-center shrink-0 cursor-pointer">
-              <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
           </div>
         </div>
 
@@ -7105,6 +7097,9 @@ function updateRailArrows() {
   const prev = document.getElementById('dye-recipe-prev');
   const next = document.getElementById('dye-recipe-next');
   if (!rail || !prev || !next) return;
+  const fits = rail.scrollWidth <= rail.clientWidth + 1;
+  prev.classList.toggle('dye-rail-arrow-hide', fits);
+  next.classList.toggle('dye-rail-arrow-hide', fits);
   const atStart = rail.scrollLeft <= 0;
   const atEnd = rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 1;
   prev.disabled = atStart; prev.classList.toggle('dye-rail-arrow-off', atStart);
