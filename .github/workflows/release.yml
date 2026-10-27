@@ -21,21 +21,37 @@ jobs:
           cache: npm
           cache-dependency-path: dye2-plugin/package-lock.json
 
-      # On tag builds the tag is the single source of truth for the version.
-      # vite.config.ts copies dye2-plugin/manifest.src.json into the output folder
-      # as manifest.json, so patching the source here is enough — the shipped
-      # manifest picks it up.
-      # package.json / package-lock.json get the same version, because the middleware
-      # reads it from there to show the plugin version on the dashboard.
-      - name: Sync manifest version from tag
-        if: startsWith(github.ref, 'refs/tags/v')
+      # The COMMITTED version is the source of truth; the tag only has to agree with it.
+      # CI used to patch the version in from the tag, which left main behind every release
+      # and needed a hand catch-up commit afterwards (Decaid installs from main and the
+      # dist branch and rejects a downgrade, so main lagging is a real bug, and it was
+      # silently missed at v0.1.25). Bump the four files in the release commit instead and
+      # let this step fail the release when they disagree.
+      #
+      # The four: manifest.src.json (vite copies it to the output as manifest.json),
+      # the committed build's manifest.json, and package.json / package-lock.json -- the
+      # middleware reads the version from package.json to show it on the dashboard.
+      - name: Check the committed versions agree
         run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
-          jq --arg v "$version" '.version = $v' dye2-plugin/manifest.src.json > manifest.tmp
-          mv manifest.tmp dye2-plugin/manifest.src.json
-          (cd dye2-plugin && npm version --no-git-tag-version --allow-same-version "$version")
-          echo "Synced manifest + package version to: $version"
+          src="$(jq -r '.version' dye2-plugin/manifest.src.json)"
+          built="$(jq -r '.version' dye2.reaplugin/manifest.json)"
+          pkg="$(jq -r '.version' dye2-plugin/package.json)"
+          lock="$(jq -r '.version' dye2-plugin/package-lock.json)"
+          echo "manifest.src=$src built=$built package=$pkg lock=$lock"
+          for v in "$built" "$pkg" "$lock"; do
+            if [[ "$v" != "$src" ]]; then
+              echo "::error::version mismatch -- manifest.src.json is $src but found $v." \
+                   "Run: cd dye2-plugin && npm version --no-git-tag-version X.Y.Z," \
+                   "set .version in manifest.src.json, then npm run build and commit." >&2
+              exit 1
+            fi
+          done
+          if [[ "$GITHUB_REF" == refs/tags/v* ]] && [[ "${GITHUB_REF_NAME#v}" != "$src" ]]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match the committed version $src." \
+                 "Bump the version on main first, then tag that commit." >&2
+            exit 1
+          fi
 
       - name: Build
         run: npm ci && npm run build

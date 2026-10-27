@@ -59,35 +59,54 @@ updates straight from the `main` branch, so the tree has to carry a working buil
 
 ## Releasing
 
-The **git tag is the single source of truth for the version.** Never hand-bump
-`manifest.src.json` to *make* a release — CI overwrites it from the tag.
+The **committed version is the source of truth** and the tag must agree with it. Bump the
+version on `main` first, then tag that commit. CI no longer patches the version in from the
+tag — it checks, and fails the release on a mismatch.
 
-`.github/workflows/release.yml` triggers on push to `main`, on tags `v*`, and manually. On
-a tag it:
+Four files carry the version and must always read the same:
 
-1. rewrites `manifest.src.json` `.version` from the tag (`jq`), and runs
-   `npm version --no-git-tag-version` so `package.json` / `package-lock.json` match — the
-   middleware reads the version from there to show it on the dashboard;
-2. `npm ci && npm run build`;
-3. validates the output — non-empty `plugin.js` and `manifest.json`, `id == "dye2.reaplugin"`,
-   `apiVersion` and `version` present, and `plugin.js` contains `createPlugin`;
-4. zips with `dye2.reaplugin/` as the **top-level entry** (REA identifies a plugin by that
-   folder name) and attaches it to a GitHub Release.
+| File | Why |
+| --- | --- |
+| `dye2-plugin/manifest.src.json` | vite copies it to the output as `manifest.json` |
+| `dye2.reaplugin/manifest.json` | the committed build; what a `main`/`dist` install reads |
+| `dye2-plugin/package.json` | the middleware shows this one on the dashboard |
+| `dye2-plugin/package-lock.json` | follows `package.json` |
 
-To cut one:
+To cut a release:
 
 ```sh
+cd dye2-plugin
+npm version --no-git-tag-version X.Y.Z          # package.json + package-lock.json
+jq '.version = "X.Y.Z"' manifest.src.json > m && mv m manifest.src.json
+npm run build                                   # rewrites dye2.reaplugin/manifest.json
+cd .. && git commit -am "chore: release vX.Y.Z" && git push
 git tag vX.Y.Z && git push origin vX.Y.Z
 ```
+
+The bump can also ride along in the change's own commit — either way there is no separate
+post-tag catch-up commit any more.
 
 Version is the next patch — the series runs `v0.1.1` (first, 2026-07-28) upward. Do not
 propose a different scheme.
 
-**The one legitimate hand-bump:** because Decaid installs from `main` and rejects a
-downgrade, the committed `manifest.src.json` and `dye2.reaplugin/manifest.json` must never
-sit **below** the latest release tag. After tagging, bump both to that version, run
-`npm version --no-git-tag-version X.Y.Z` in `dye2-plugin`, rebuild, and commit. That catch-up
-commit is expected; a pre-emptive bump to force a version is not.
+`.github/workflows/release.yml` triggers on push to `main`, on tags `v*`, and manually. It:
+
+1. **checks the four versions agree**, and on a tag build that the tag matches them — this
+   is the guard that replaced the old sync step, and it runs on `main` pushes too, so a
+   half-done bump turns the next push red rather than shipping;
+2. `npm ci && npm run build`;
+3. validates the output — non-empty `plugin.js` and `manifest.json`, `id == "dye2.reaplugin"`,
+   `apiVersion` and `version` present, and `plugin.js` contains `createPlugin`;
+4. on `main`, deploys the package to the `dist` branch;
+5. on a tag, zips with `dye2.reaplugin/` as the **top-level entry** (REA identifies a plugin
+   by that folder name) and attaches it to a GitHub Release.
+
+**Why the committed version has to move with the tag:** Decaid installs from `main` and the
+`dist` branch and rejects a downgrade, so a `main` left behind a tag silently serves an old
+plugin. That happened at v0.1.25, when the catch-up commit was forgotten. The dist build
+ships the same plugin id as the release, so there is no room for the two to drift —
+`tadelv/passione` and `decentespresso/streamline-js` avoid this by giving the dist build its
+own id (`passione-dist`, `streamline.js-dist`); dye2 does not.
 
 `plugin.ts:27` also carries a hardcoded `version: "0.1.0"` that nothing syncs. It is not the
 version anyone sees. Leave it alone during a release.
@@ -126,7 +145,7 @@ will not fail a release.
 | Tailwind class has no effect | Purged — class name assembled dynamically, or `build:css` not re-run |
 | Class works after `npm run build`, not during watch | `npm run dev` skips `build:css` |
 | Decaid refuses to install from branch | A second `manifest.json` in the tree |
-| Released version wrong | Tag name; CI rewrites the manifest from `GITHUB_REF_NAME` |
+| Release failed on a version mismatch | The four committed versions, then the tag; bump on `main` and re-tag |
 | Decaid will not update from `main` | Committed manifest version sits below the latest tag |
 | Merge blocked, "local changes would be overwritten" | `npm run dev` watcher rewriting `plugin.js` |
 | CI warns about stale build | Source changed without committing a rebuilt `dye2.reaplugin/` |
