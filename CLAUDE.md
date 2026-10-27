@@ -34,6 +34,27 @@ npm test         # 24 suites under test/ (the list lives in package.json)
 `dye2.reaplugin/` is generated **and committed** — rebuild and commit it with any source
 change.
 
+## Verification
+
+**Any change that writes to the workflow — from DYE2 or from Streamline — is not done until
+the value is confirmed on Decaid's own `/workflow` endpoint.** The UI showing the new number
+proves nothing: the page holds its own copy, and `PUT /api/v1/workflow` *deep-merges* onto
+whatever the machine already has (`workflow_handler.dart` `_applyUpdate`), so a write can
+land partially, land on the wrong sub-object, or be silently dropped.
+
+```bash
+curl -s http://localhost:8080/api/v1/workflow | jq '.context'     # GET needs no token
+```
+
+Against the tablet, swap in its address. `npm run serve` proxies `/api/v1/*` to
+`localhost:8080`, so `http://localhost:4444/api/v1/workflow` works while the dev server is
+up. Make the change in the UI, re-read the endpoint, and check both halves: the field you
+meant to set holds the new value, **and** nothing else moved — especially `profile.steps`,
+which a `{id, title}` profile stub overwrites by name while leaving the old steps in place.
+
+Report what the endpoint returned, not what the page displayed. If it cannot be checked
+(no tablet, no bridge running), say so explicitly rather than implying it was verified.
+
 ## Orientation
 
 **@docs/AI_REPO_MAP.md routes any task to the one note that covers it.** Read the map, then
