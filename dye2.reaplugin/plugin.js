@@ -855,6 +855,15 @@ async function buildRecipeWorkflow(recipe) {
     ctx.coffeeName    = recipe.beanName    || null;
     ctx.coffeeRoaster = recipe.beanRoaster || null;
     ctx.beanBatchId   = recipe.beanBatchId || null;
+  } else {
+    // A recipe naming NO bean clears the live one rather than inheriting it. PUT deep-merges,
+    // so omitting these left the previously applied recipe's coffee standing: tap recipe A
+    // (Ethiopia) then recipe B (no bean) and the shot recorded B under Ethiopia. Decaid takes
+    // an explicit null here — workflow_handler.dart rejectExplicitNulls guards only
+    // context.targetYield — which is how a recent already clears bean and grinder.
+    ctx.coffeeName    = null;
+    ctx.coffeeRoaster = null;
+    ctx.beanBatchId   = null;
   }
   if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;
@@ -7167,6 +7176,12 @@ async function applyRecipe(recipe) {
     ctx.coffeeRoaster = recipe.beanRoaster || null;
     ctx.beanBatchId   = recipe.beanBatchId || null;
     wrote.push('coffeeName', 'coffeeRoaster', 'beanBatchId');
+  } else {
+    // Naming no bean clears the live one: switching from a recipe that names Ethiopia to one
+    // that names nothing must not leave the next shot recorded under Ethiopia. Equipment and
+    // session fields (grinder, basket, barista) are left alone — see dev-api buildRecipeWorkflow.
+    ctx.coffeeName = null; ctx.coffeeRoaster = null; ctx.beanBatchId = null;
+    wrote.push('coffeeName', 'coffeeRoaster', 'beanBatchId');
   }
   if (recipe.barista) { ctx.baristaName = recipe.barista; wrote.push('baristaName'); }
   if (recipe.drinker) { ctx.drinkerName = recipe.drinker; wrote.push('drinkerName'); }
@@ -9189,6 +9204,30 @@ function resolveRoastDate(id, batches) {
 		return recipes.map((r) => r && r.stripSlot === void 0 && /^[1-5]$/.test(String(r.id)) ? {
 			...r,
 			stripSlot: Number(r.id)
+		} : r);
+	}
+	/**
+	* The R strip applies a recipe by PUTting its STORED `workflow` body (streamline_project
+	* dyeStrip.js applyRecipe -> applyStoredWorkflow), and that body is only rebuilt when DYE2
+	* next writes the row. Rows saved before the bean-clearing rule carry no bean keys at all, so
+	* applying one still inherits the previous recipe's coffee. One-shot, idempotent: a row naming
+	* no bean gets explicit nulls in its stored context. Returns the same array when nothing needs it.
+	*/
+	function clearBeanlessRecipeWorkflows(recipes) {
+		if (!Array.isArray(recipes)) return recipes;
+		const needs = (r) => r && !r.beanId && !r.beanName && r.workflow && r.workflow.context && (r.workflow.context.coffeeName !== null || r.workflow.context.coffeeRoaster !== null || r.workflow.context.beanBatchId !== null);
+		if (!recipes.some(needs)) return recipes;
+		return recipes.map((r) => needs(r) ? {
+			...r,
+			workflow: {
+				...r.workflow,
+				context: {
+					...r.workflow.context,
+					coffeeName: null,
+					coffeeRoaster: null,
+					beanBatchId: null
+				}
+			}
 		} : r);
 	}
 	/**
@@ -14109,6 +14148,20 @@ bcInit();
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status} migrating recipes`);
 		}
+		async function migrateRecipeBeans() {
+			if (typeof fetch !== "function") return;
+			const rows = await kv("recipes");
+			if (clearBeanlessRecipeWorkflows(rows) === rows) return;
+			const fresh = await kv("recipes");
+			const next = clearBeanlessRecipeWorkflows(fresh);
+			if (next === fresh) return;
+			const res = await fetch(`${API}/store/${NS}/recipes`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(next)
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status} clearing beanless recipe workflows`);
+		}
 		async function migrateFavSlots() {
 			if (typeof fetch !== "function") return;
 			const rows = await kv("autoFavourites");
@@ -14160,6 +14213,14 @@ bcInit();
 				refreshRecents();
 			});
 		}
+		function runRecipeBeanMigration() {
+			migrateRecipeBeans().catch((e) => log(`recipe bean migration failed: ${e instanceof Error ? e.message : String(e)}`)).then(() => host.storage({
+				type: "write",
+				key: "recipeBeansMigrated",
+				namespace: NS,
+				data: true
+			}));
+		}
 		function runRecipeMigration() {
 			migrateRecipes().catch((e) => log(`recipe slot migration failed: ${e instanceof Error ? e.message : String(e)}`)).then(() => {
 				host.storage({
@@ -14204,6 +14265,11 @@ bcInit();
 					});
 					host.storage({
 						type: "read",
+						key: "recipeBeansMigrated",
+						namespace: NS
+					});
+					host.storage({
+						type: "read",
 						key: "favSlotsMigrated",
 						namespace: NS
 					});
@@ -14215,6 +14281,7 @@ bcInit();
 				}
 				if (typeof host.storage !== "function") {
 					runRecipeMigration();
+					runRecipeBeanMigration();
 					runFavSlotMigration();
 					runFavProfileMigration();
 				} else refreshRecents();
@@ -14233,6 +14300,7 @@ bcInit();
 				} else if (event.name === "storageRead") {
 					if (event.payload && event.payload.key === "selectionMigrated" && !event.payload.value) migrate();
 					if (event.payload && event.payload.key === "recipesMigrated" && !event.payload.value) runRecipeMigration();
+					if (event.payload && event.payload.key === "recipeBeansMigrated" && !event.payload.value) runRecipeBeanMigration();
 					if (event.payload && event.payload.key === "favSlotsMigrated" && !event.payload.value) runFavSlotMigration();
 					if (event.payload && event.payload.key === "favProfilesMigrated" && !event.payload.value) runFavProfileMigration();
 				} else if (event.name === "workflowUpdated") trackWorkflow(event.payload);

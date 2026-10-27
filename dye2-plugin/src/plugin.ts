@@ -17,7 +17,7 @@ import { renderAutoFavEditPage } from "./pages/auto-fav-edit";
 import { renderRecipeEditPage } from "./pages/recipe-edit";
 import { renderSelectRecipePage } from "./pages/select-recipe";
 import { renderBcImportPage } from "./pages/bc-import";
-import { refreshRecentFavourites, shotPatchAffectsRecents, noteShotUpdated, explicitRecipeSlot, migrateRecipeSlots, dropSuggestedRecipes, dedupeRecipeSlots, dedupeFavSlots, fattenFavouriteProfiles, favouritesNeedProfileRepair } from "./utils/recent-favs";
+import { refreshRecentFavourites, shotPatchAffectsRecents, noteShotUpdated, explicitRecipeSlot, migrateRecipeSlots, dropSuggestedRecipes, dedupeRecipeSlots, clearBeanlessRecipeWorkflows, dedupeFavSlots, fattenFavouriteProfiles, favouritesNeedProfileRepair } from "./utils/recent-favs";
 import {
   deriveSelection,
   recipeIdOf,
@@ -332,6 +332,23 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     if (!res.ok) throw new Error(`HTTP ${res.status} migrating recipes`);
   }
 
+  // One-time (the `recipeBeansMigrated` flag — `recipesMigrated` is long set on existing
+  // installs, so this needs a flag of its own): a recipe naming no bean gets explicit nulls in
+  // its STORED workflow body, which is what the R strip PUTs (clearBeanlessRecipeWorkflows).
+  // Same re-read-before-write shape as migrateRecipes.
+  async function migrateRecipeBeans(): Promise<void> {
+    if (typeof fetch !== "function") return;
+    const rows = await kv("recipes");
+    if (clearBeanlessRecipeWorkflows(rows) === rows) return;
+    const fresh = await kv("recipes");
+    const next = clearBeanlessRecipeWorkflows(fresh);
+    if (next === fresh) return;
+    const res = await fetch(`${API}/store/${NS}/recipes`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} clearing beanless recipe workflows`);
+  }
+
   // One-time, same shape (the `favSlotsMigrated` flag): saved favourites sharing a favSlot are
   // de-duplicated. Re-reads the key right before the write; recents (auto: true) are left alone.
   async function migrateFavSlots(): Promise<void> {
@@ -386,6 +403,14 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       });
   }
 
+  function runRecipeBeanMigration(): void {
+    migrateRecipeBeans()
+      .catch((e: unknown) => log(`recipe bean migration failed: ${e instanceof Error ? e.message : String(e)}`))
+      // Set either way: the pass is idempotent and every write from here on carries the nulls
+      // (dev-api buildRecipeWorkflow), so a failed run has nothing to retry for.
+      .then(() => host.storage({ type: "write", key: "recipeBeansMigrated", namespace: NS, data: true }));
+  }
+
   function runRecipeMigration(): void {
     migrateRecipes()
       .catch((e: unknown) => log(`recipe slot migration failed: ${e instanceof Error ? e.message : String(e)}`))
@@ -418,10 +443,11 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       if (typeof host.storage === "function") {
         host.storage({ type: "read", key: "selectionMigrated", namespace: NS });
         host.storage({ type: "read", key: "recipesMigrated", namespace: NS });
+        host.storage({ type: "read", key: "recipeBeansMigrated", namespace: NS });
         host.storage({ type: "read", key: "favSlotsMigrated", namespace: NS });
         host.storage({ type: "read", key: "favProfilesMigrated", namespace: NS });
       }
-      if (typeof host.storage !== "function") { runRecipeMigration(); runFavSlotMigration(); runFavProfileMigration(); }
+      if (typeof host.storage !== "function") { runRecipeMigration(); runRecipeBeanMigration(); runFavSlotMigration(); runFavProfileMigration(); }
       else refreshRecents();
       // A restart loses the baseline: look at the workflow once, comparing the stored profile.
       if (typeof fetch === "function") liveWorkflow().then((wf) => trackWorkflow(wf, true));
@@ -444,6 +470,7 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       } else if (event.name === "storageRead") {
         if (event.payload && event.payload.key === "selectionMigrated" && !event.payload.value) migrate();
         if (event.payload && event.payload.key === "recipesMigrated" && !event.payload.value) runRecipeMigration();
+        if (event.payload && event.payload.key === "recipeBeansMigrated" && !event.payload.value) runRecipeBeanMigration();
         if (event.payload && event.payload.key === "favSlotsMigrated" && !event.payload.value) runFavSlotMigration();
         if (event.payload && event.payload.key === "favProfilesMigrated" && !event.payload.value) runFavProfileMigration();
       } else if (event.name === "workflowUpdated") {

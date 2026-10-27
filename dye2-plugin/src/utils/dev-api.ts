@@ -430,6 +430,15 @@ async function buildRecipeWorkflow(recipe) {
     ctx.coffeeName    = recipe.beanName    || null;
     ctx.coffeeRoaster = recipe.beanRoaster || null;
     ctx.beanBatchId   = recipe.beanBatchId || null;
+  } else {
+    // A recipe naming NO bean clears the live one rather than inheriting it. PUT deep-merges,
+    // so omitting these left the previously applied recipe's coffee standing: tap recipe A
+    // (Ethiopia) then recipe B (no bean) and the shot recorded B under Ethiopia. Decaid takes
+    // an explicit null here — workflow_handler.dart rejectExplicitNulls guards only
+    // context.targetYield — which is how a recent already clears bean and grinder.
+    ctx.coffeeName    = null;
+    ctx.coffeeRoaster = null;
+    ctx.beanBatchId   = null;
   }
   if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
   if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;

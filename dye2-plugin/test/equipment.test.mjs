@@ -47,8 +47,14 @@ console.log('ok   equipment KV table');
   const bare = (await api.buildRecipeWorkflow({ beanName: 'Ethiopia' })).context;
   assert.equal(bare.beanBatchId, null);
   assert.equal(bare.coffeeRoaster, null);
+  // A recipe naming NO bean clears the live one, for the same deep-merge reason: tapping
+  // recipe A (Ethiopia) then recipe B (no bean) used to record B's shot under Ethiopia.
+  // Covered in full by test/recipe-bean-clear.test.mjs.
   const noBean = (await api.buildRecipeWorkflow({ dashboardVariables: { dose: 18 } })).context;
-  assert.ok(!('beanBatchId' in noBean), 'a recipe naming no bean leaves the workflow alone');
+  assert.equal(noBean.beanBatchId, null, 'a recipe naming no bean clears the live bean');
+  assert.equal(noBean.coffeeName, null);
+  assert.equal(noBean.coffeeRoaster, null);
+  assert.ok(!('grinderModel' in noBean), 'but not the grinder: equipment is not the recipe');
   console.log('ok   recipe workflow carries the bean batch');
 }
 
@@ -126,8 +132,13 @@ console.log('ok   equipment KV table');
   }, 'recipe flags what it set; the absent batch it clears is nulled');
   assert.ok(!('drinkerName' in r.extras.dye) && !('note' in r.extras.dye), 'unset fields are not flagged');
   assert.equal(r.extras.rpm, 900, 'values survive the flagging');
+  // A recipe naming no bean still writes something flaggable: the three nulls that clear the
+  // previous recipe's coffee. They are flagged null, exactly like the batch cleared above, so
+  // Streamline's post-shot clear knows DYE2 nulled them rather than never touching them.
   const none = (await api.buildRecipeWorkflow({ dashboardVariables: { dose: 18 } })).context;
-  assert.ok(!('extras' in none), 'a write of no flaggable field carries no marker');
+  assert.deepEqual(none.extras.dye, { v: 1, coffeeName: null, coffeeRoaster: null, beanBatchId: null });
+  assert.ok(!('grinderId' in none.extras.dye) && !('rpm' in none.extras.dye),
+    'and nothing else is claimed');
 
   const f = (await api.buildFavouriteWorkflow({ snapshot: { dose: 18, note: 'n', coffeeName: 'X', rpm: 800, grindSetting: 3 }, copyMask: { beans: false } })).context;
   assert.deepEqual(f.extras.dye, { v: 1, rpm: true, note: true }, 'copyMask-skipped fields are not flagged');

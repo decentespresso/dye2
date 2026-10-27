@@ -458,6 +458,18 @@ plugins should not read it.
 }
 ```
 
+**A recipe naming no bean carries explicit nulls.** `workflow.context` holds
+`coffeeName: null, coffeeRoaster: null, beanBatchId: null` whenever the row names no bean,
+because `PUT /api/v1/workflow` deep-merges: omitting the keys left the PREVIOUSLY applied
+recipe's coffee in the live workflow, so switching recipe A → recipe B recorded B's shot
+under A's bean. Decaid accepts the nulls (`workflow_handler.dart` `rejectExplicitNulls`
+guards only `context.targetYield`), and a recent already clears bean and grinder this way.
+The R strip applies the STORED body (streamline_project `dyeStrip.js` `applyStoredWorkflow`),
+so rows written before this rule are patched by a one-time pass on plugin load
+(`clearBeanlessRecipeWorkflows`, the `recipeBeansMigrated` flag). Grinder, basket and
+barista/drinker are deliberately NOT cleared: equipment and session state, not the recipe's
+identity. A recipe that names a bean but no batch still clears the batch (dye2#27).
+
 ### `equipment[]`
 
 The master list of kit (scale, tamper, WDT tool, dosing ring, kettle…),

@@ -1427,6 +1427,12 @@ async function applyRecipe(recipe) {
     ctx.coffeeRoaster = recipe.beanRoaster || null;
     ctx.beanBatchId   = recipe.beanBatchId || null;
     wrote.push('coffeeName', 'coffeeRoaster', 'beanBatchId');
+  } else {
+    // Naming no bean clears the live one: switching from a recipe that names Ethiopia to one
+    // that names nothing must not leave the next shot recorded under Ethiopia. Equipment and
+    // session fields (grinder, basket, barista) are left alone — see dev-api buildRecipeWorkflow.
+    ctx.coffeeName = null; ctx.coffeeRoaster = null; ctx.beanBatchId = null;
+    wrote.push('coffeeName', 'coffeeRoaster', 'beanBatchId');
   }
   if (recipe.barista) { ctx.baristaName = recipe.barista; wrote.push('baristaName'); }
   if (recipe.drinker) { ctx.drinkerName = recipe.drinker; wrote.push('drinkerName'); }

@@ -203,6 +203,34 @@ export function migrateRecipeSlots(recipes: AnyRecord[]): AnyRecord[] {
 }
 
 /**
+ * The R strip applies a recipe by PUTting its STORED `workflow` body (streamline_project
+ * dyeStrip.js applyRecipe -> applyStoredWorkflow), and that body is only rebuilt when DYE2
+ * next writes the row. Rows saved before the bean-clearing rule carry no bean keys at all, so
+ * applying one still inherits the previous recipe's coffee. One-shot, idempotent: a row naming
+ * no bean gets explicit nulls in its stored context. Returns the same array when nothing needs it.
+ */
+export function clearBeanlessRecipeWorkflows(recipes: AnyRecord[]): AnyRecord[] {
+  if (!Array.isArray(recipes)) return recipes;
+  const needs = (r: AnyRecord) =>
+    r && !r.beanId && !r.beanName && r.workflow && r.workflow.context &&
+    (r.workflow.context.coffeeName !== null ||
+      r.workflow.context.coffeeRoaster !== null ||
+      r.workflow.context.beanBatchId !== null);
+  if (!recipes.some(needs)) return recipes;
+  return recipes.map((r) =>
+    needs(r)
+      ? {
+          ...r,
+          workflow: {
+            ...r.workflow,
+            context: { ...r.workflow.context, coffeeName: null, coffeeRoaster: null, beanBatchId: null },
+          },
+        }
+      : r
+  );
+}
+
+/**
  * Self-heal: two rows must never share a `stripSlot` (updateRecipe clears the previous holder, but
  * two writers on the `recipes` key could still interleave and leave both). For each slot held by
  * more than one row the row with the newest `capturedAt` keeps it (ties, and rows with no valid
