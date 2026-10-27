@@ -928,6 +928,10 @@ async function updateRecipe(id, patch) {
   const { dashboardVariables, ...rest } = patch || {};
   const item = { ...fresh, ...rest, id, capturedAt: new Date().toISOString() };
   if (!fresh.id && item.stripSlot === undefined) item.stripSlot = null;   // a new row: saved, not on the strip
+  // One rule for "on the strip", shared with Streamline's recipeStripCells: a row hidden from
+  // the strip holds no slot. Streamline's long-press clear leaves the old stripSlot behind, and
+  // keeping it made DYE2 show the recipe placed while the R strip showed a blank.
+  if (item.showOnStreamlineDashboard === false) item.stripSlot = null;
   if (dashboardVariables) item.dashboardVariables = { ...(fresh.dashboardVariables || {}), ...dashboardVariables };
   item.title = item.name || 'Recipe';
   item.subtitle = recipeSubtitle(item);
@@ -10967,6 +10971,13 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 function stripHolds(r, n) {
   return !!r && r.stripSlot === n && r.showOnStreamlineDashboard !== false;
 }
+// Which slot the OPEN recipe holds, by the same rule the R strip places by: a recipe hidden
+// from the strip holds none, whatever stripSlot still says. Streamline's long-press clear writes
+// showOnStreamlineDashboard:false and leaves stripSlot behind, and its recipeStripCells filters
+// hidden rows out — so reading stripSlot raw lit up a tab for a recipe the strip showed blank.
+function stripTargetOf(r) {
+  return r && r.showOnStreamlineDashboard !== false && r.stripSlot != null ? r.stripSlot : null;
+}
 // What the tab for strip slot n says: whoever holds it, else blank (an unassigned slot
 // reads as an empty tab, not 'Empty n' — the user asked for no filler text).
 function stripTabLabel(recipes, n) {
@@ -12190,6 +12201,10 @@ function renderSlots() {
 function setupSlots() {
   document.querySelectorAll('#re-tabs .re-tab').forEach(btn => btn.addEventListener('click', () => {
     stripSlot = stripNextTarget(stripSlot, parseInt(btn.dataset.slot));
+    // On the strip means shown on it: Streamline's R strip skips a row carrying
+    // showOnStreamlineDashboard:false, so a targeted slot with the toggle off would save a
+    // placement the strip never shows. Same rule select-recipe's assign mode already applies.
+    if (stripSlot != null && !showOnStreamline) { showOnStreamline = true; updateStreamlineBtn(); }
     slotArmed = null;
     const save = document.getElementById('re-save-btn');
     if (save) save.textContent = 'SAVE RECIPE';
@@ -12434,6 +12449,15 @@ function setupNameCombo(field, loader) {
 function setupStreamlineToggle() {
   document.getElementById('re-show-streamline-btn')?.addEventListener('click', () => {
     showOnStreamline = !showOnStreamline;
+    // The other half of the rule in setupSlots: hidden means off the strip, so switching the
+    // toggle off releases the targeted slot instead of leaving an assignment nothing renders.
+    if (!showOnStreamline && stripSlot != null) {
+      stripSlot = null;
+      slotArmed = null;
+      const save = document.getElementById('re-save-btn');
+      if (save) save.textContent = 'SAVE RECIPE';
+      renderSlots();
+    }
     updateStreamlineBtn();
   });
 }
@@ -12563,7 +12587,7 @@ async function initRecipeEdit() {
   recipeBaseline = JSON.parse(JSON.stringify(stored || {}));
   recipe = stored ? { ...stored } : { id: editId || newId('recipe') };
   if (!editId) sessionStorage.setItem('dye_editRecipeId', recipe.id);   // so a picker round trip keeps the same new id
-  stripSlot = recipe.stripSlot == null ? null : recipe.stripSlot;
+  stripSlot = stripTargetOf(recipe);
   if (Number.isInteger(askedSlot) && askedSlot >= 1 && askedSlot <= 5) {
     stripSlot = askedSlot;
     recipe.stripSlot = askedSlot;
@@ -12591,7 +12615,7 @@ async function initRecipeEdit() {
   if (draftRaw) {
     try {
       const draft = JSON.parse(draftRaw);
-      if (draft.recipe && draft.recipe.id === recipe.id) { recipe = draft.recipe; stripSlot = recipe.stripSlot == null ? null : recipe.stripSlot; }
+      if (draft.recipe && draft.recipe.id === recipe.id) { recipe = draft.recipe; stripSlot = stripTargetOf(recipe); }
       const cur = recipe;
       const beanId = sessionStorage.getItem('dye_selectedBeanId');
       if (beanId) {

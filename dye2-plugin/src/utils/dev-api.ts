@@ -503,6 +503,10 @@ async function updateRecipe(id, patch) {
   const { dashboardVariables, ...rest } = patch || {};
   const item = { ...fresh, ...rest, id, capturedAt: new Date().toISOString() };
   if (!fresh.id && item.stripSlot === undefined) item.stripSlot = null;   // a new row: saved, not on the strip
+  // One rule for "on the strip", shared with Streamline's recipeStripCells: a row hidden from
+  // the strip holds no slot. Streamline's long-press clear leaves the old stripSlot behind, and
+  // keeping it made DYE2 show the recipe placed while the R strip showed a blank.
+  if (item.showOnStreamlineDashboard === false) item.stripSlot = null;
   if (dashboardVariables) item.dashboardVariables = { ...(fresh.dashboardVariables || {}), ...dashboardVariables };
   item.title = item.name || 'Recipe';
   item.subtitle = recipeSubtitle(item);

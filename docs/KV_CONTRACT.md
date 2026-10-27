@@ -410,6 +410,16 @@ plugins should not read it.
                                 // (src/modules/dye-selection.js) reads `stripSlot`, ignores rows where it is
                                 // null, and falls back to the legacy `recipe.id` position only when NO row
                                 // carries the field at all (an older DYE2 mid-upgrade).
+                                //
+                                // **Hidden holds no slot.** `showOnStreamlineDashboard: false` and a
+                                // non-null `stripSlot` contradict each other: the skin filters hidden rows
+                                // out of the strip, so such a row renders as a blank there while DYE2 read
+                                // it as placed — the two strips disagreed. `updateRecipe` now nulls the slot
+                                // of any row it stores hidden, recipe-edit's tabs read the slot through
+                                // `stripTargetOf` (same rule), and assigning a slot sets the flag true
+                                // (select-recipe's assign mode already did). A row Streamline cleared keeps
+                                // its stale `stripSlot` until DYE2 next writes it; nothing renders it, and
+                                // whoever takes that slot clears it as usual.
   name, beverage, barista, drinker,
   beanId, beanName, profileId, profileTitle,
   beanBatchId, beanRoaster,    // optional — the batch/roaster picked with the bean; apply sets

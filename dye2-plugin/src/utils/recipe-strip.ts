@@ -9,6 +9,13 @@ export const recipeStripScript = `
 function stripHolds(r, n) {
   return !!r && r.stripSlot === n && r.showOnStreamlineDashboard !== false;
 }
+// Which slot the OPEN recipe holds, by the same rule the R strip places by: a recipe hidden
+// from the strip holds none, whatever stripSlot still says. Streamline's long-press clear writes
+// showOnStreamlineDashboard:false and leaves stripSlot behind, and its recipeStripCells filters
+// hidden rows out — so reading stripSlot raw lit up a tab for a recipe the strip showed blank.
+function stripTargetOf(r) {
+  return r && r.showOnStreamlineDashboard !== false && r.stripSlot != null ? r.stripSlot : null;
+}
 // What the tab for strip slot n says: whoever holds it, else blank (an unassigned slot
 // reads as an empty tab, not 'Empty n' — the user asked for no filler text).
 function stripTabLabel(recipes, n) {

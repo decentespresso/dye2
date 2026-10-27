@@ -78,10 +78,44 @@ console.log('ok   explicitRecipeSlot: explicit 1..5 or null, never auto-placed')
 }
 console.log('ok   select-recipe reuses decideCardTap');
 
+// One rule for "on the strip", the same one Streamline's recipeStripCells uses: hidden means
+// off it. A cleared recipe keeps its stripSlot, so reading the field raw made DYE2 show it
+// placed (an active tab) while the R strip showed a blank — the strips disagreed.
+{
+  const { recipeStripScript } = await import('../src/utils/recipe-strip.ts');
+  const t = new Function(recipeStripScript + '\nreturn { stripTargetOf };')();
+  assert.equal(t.stripTargetOf({ stripSlot: 3 }), 3);
+  assert.equal(t.stripTargetOf({ stripSlot: 3, showOnStreamlineDashboard: true }), 3);
+  assert.equal(t.stripTargetOf({ stripSlot: 3, showOnStreamlineDashboard: false }), null,
+    'a recipe cleared off the strip targets no slot');
+  assert.equal(t.stripTargetOf({ stripSlot: null }), null);
+  assert.equal(t.stripTargetOf({}), null);
+  assert.equal(t.stripTargetOf(null), null);
+
+  // The writer enforces the same rule, so no row can be stored hidden AND placed.
+  stored = [];
+  await api.updateRecipe('a', { name: 'A', stripSlot: 2 });
+  await api.updateRecipe('a', { showOnStreamlineDashboard: false });
+  assert.equal(stored.find((r) => r.id === 'a').stripSlot, null, 'hiding releases the slot');
+  await api.updateRecipe('b', { name: 'B', stripSlot: 4, showOnStreamlineDashboard: false });
+  assert.equal(stored.find((r) => r.id === 'b').stripSlot, null, 'a hidden row is never placed');
+
+  // recipe-edit's own state: the tabs read the rule, and the toggle and the tabs keep each
+  // other honest. Browser-side strings, so the compiler never checks these.
+  const page = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
+  assert.ok(!/stripSlot = recipe\.stripSlot/.test(page), 'the open recipe\'s slot comes from stripTargetOf');
+  assert.match(page, /stripSlot = stripTargetOf\(recipe\)/);
+  assert.match(page, /if \(stripSlot != null && !showOnStreamline\) \{ showOnStreamline = true;/,
+    'targeting a slot shows the recipe on the strip');
+  assert.match(page, /if \(!showOnStreamline && stripSlot != null\) \{\n\s*stripSlot = null;/,
+    'hiding it releases the targeted slot');
+}
+console.log('ok   strip assignment matches Streamline: hidden holds no slot');
+
 // recipe-edit's five-tab strip: labels, confirm on a held slot, clearing keeps the recipe.
 {
   const { recipeStripScript } = await import('../src/utils/recipe-strip.ts');
-  const t = new Function(recipeStripScript + '\nreturn { stripTabLabel, stripSlotHolder, stripNextTarget, stripReplaceLabel, assignSlotFrom, assignQuery };')();
+  const t = new Function(recipeStripScript + '\nreturn { stripTabLabel, stripSlotHolder, stripNextTarget, stripReplaceLabel, assignSlotFrom, assignQuery, stripTargetOf };')();
   const lib = [
     { id: 'a', name: 'Ethiopia', stripSlot: 1 },
     { id: 'b', stripSlot: 2 },

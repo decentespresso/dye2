@@ -1142,6 +1142,10 @@ function renderSlots() {
 function setupSlots() {
   document.querySelectorAll('#re-tabs .re-tab').forEach(btn => btn.addEventListener('click', () => {
     stripSlot = stripNextTarget(stripSlot, parseInt(btn.dataset.slot));
+    // On the strip means shown on it: Streamline's R strip skips a row carrying
+    // showOnStreamlineDashboard:false, so a targeted slot with the toggle off would save a
+    // placement the strip never shows. Same rule select-recipe's assign mode already applies.
+    if (stripSlot != null && !showOnStreamline) { showOnStreamline = true; updateStreamlineBtn(); }
     slotArmed = null;
     const save = document.getElementById('re-save-btn');
     if (save) save.textContent = 'SAVE RECIPE';
@@ -1386,6 +1390,15 @@ function setupNameCombo(field, loader) {
 function setupStreamlineToggle() {
   document.getElementById('re-show-streamline-btn')?.addEventListener('click', () => {
     showOnStreamline = !showOnStreamline;
+    // The other half of the rule in setupSlots: hidden means off the strip, so switching the
+    // toggle off releases the targeted slot instead of leaving an assignment nothing renders.
+    if (!showOnStreamline && stripSlot != null) {
+      stripSlot = null;
+      slotArmed = null;
+      const save = document.getElementById('re-save-btn');
+      if (save) save.textContent = 'SAVE RECIPE';
+      renderSlots();
+    }
     updateStreamlineBtn();
   });
 }
@@ -1515,7 +1528,7 @@ async function initRecipeEdit() {
   recipeBaseline = JSON.parse(JSON.stringify(stored || {}));
   recipe = stored ? { ...stored } : { id: editId || newId('recipe') };
   if (!editId) sessionStorage.setItem('dye_editRecipeId', recipe.id);   // so a picker round trip keeps the same new id
-  stripSlot = recipe.stripSlot == null ? null : recipe.stripSlot;
+  stripSlot = stripTargetOf(recipe);
   if (Number.isInteger(askedSlot) && askedSlot >= 1 && askedSlot <= 5) {
     stripSlot = askedSlot;
     recipe.stripSlot = askedSlot;
@@ -1543,7 +1556,7 @@ async function initRecipeEdit() {
   if (draftRaw) {
     try {
       const draft = JSON.parse(draftRaw);
-      if (draft.recipe && draft.recipe.id === recipe.id) { recipe = draft.recipe; stripSlot = recipe.stripSlot == null ? null : recipe.stripSlot; }
+      if (draft.recipe && draft.recipe.id === recipe.id) { recipe = draft.recipe; stripSlot = stripTargetOf(recipe); }
       const cur = recipe;
       const beanId = sessionStorage.getItem('dye_selectedBeanId');
       if (beanId) {
