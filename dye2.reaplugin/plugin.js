@@ -790,9 +790,18 @@ async function buildFavouriteWorkflow(fav) {
     if (snp.basketName) ctx.extras = { ...(ctx.extras || {}), basketName: snp.basketName };
   }
   if (on('beans')) {
-    if (snp.beanBatchId) ctx.beanBatchId = snp.beanBatchId;
-    if (snp.coffeeName) ctx.coffeeName = snp.coffeeName;
-    if (snp.coffeeRoaster) ctx.coffeeRoaster = snp.coffeeRoaster;
+    // Same rule as a recipe (buildRecipeWorkflow) and as a recent, whose context has carried
+    // explicit bean nulls all along (recent-favs.ts toRecentFavourite): a favourite that
+    // copies beans but captured none CLEARS the live one, because PUT deep-merges and the
+    // previously applied item's coffee would otherwise stand. copyMask beans:false is the
+    // way to leave the live bean alone — then nothing here is written at all.
+    if (snp.beanBatchId || snp.coffeeName || snp.coffeeRoaster) {
+      ctx.beanBatchId   = snp.beanBatchId   || null;
+      ctx.coffeeName    = snp.coffeeName    || null;
+      ctx.coffeeRoaster = snp.coffeeRoaster || null;
+    } else {
+      ctx.beanBatchId = null; ctx.coffeeName = null; ctx.coffeeRoaster = null;
+    }
   }
   if (on('roastDate') && snp.roastDate) ctx.roastDate = snp.roastDate;
   if (on('barista')   && snp.barista)   ctx.baristaName = snp.barista;
@@ -7237,9 +7246,13 @@ async function applyAutoFavourite(fav) {
     if (snp.grinderModel) { ctx.grinderModel = snp.grinderModel; wrote.push('grinderModel'); }
   }
   if (on('beans')) {
-    if (snp.beanBatchId) { ctx.beanBatchId = snp.beanBatchId; wrote.push('beanBatchId'); }
-    if (snp.coffeeName) { ctx.coffeeName = snp.coffeeName; wrote.push('coffeeName'); }
-    if (snp.coffeeRoaster) { ctx.coffeeRoaster = snp.coffeeRoaster; wrote.push('coffeeRoaster'); }
+    // A favourite that copies beans but captured none clears the live bean, as a recipe and a
+    // recent do: switching items must not leave the previous coffee on the next shot. Turn the
+    // beans mask off to leave the live bean alone instead.
+    ctx.beanBatchId   = snp.beanBatchId   || null;
+    ctx.coffeeName    = snp.coffeeName    || null;
+    ctx.coffeeRoaster = snp.coffeeRoaster || null;
+    wrote.push('beanBatchId', 'coffeeName', 'coffeeRoaster');
   }
   if (on('roastDate') && snp.roastDate) ctx.roastDate = snp.roastDate;
   if (on('barista')   && snp.barista)   { ctx.baristaName = snp.barista; wrote.push('baristaName'); }
@@ -9229,6 +9242,36 @@ function resolveRoastDate(id, batches) {
 				}
 			}
 		} : r);
+	}
+	/**
+	* The favourites' sibling of clearBeanlessRecipeWorkflows, for the same reason: the F strip
+	* PUTs a favourite's STORED body, rebuilt only when DYE2 next writes the row. Recents
+	* (`auto: true`) already carry explicit bean nulls from toRecentFavourite, and a favourite
+	* whose `copyMask.beans` is false must keep the live bean, so both are skipped. One-shot,
+	* idempotent; returns the same array when nothing needs it.
+	*/
+	function clearBeanlessFavouriteWorkflows(favs) {
+		if (!Array.isArray(favs)) return favs;
+		const needs = (f) => {
+			if (!f || f.auto || f.copyMask && f.copyMask.beans === false) return false;
+			const snp = f.snapshot || {};
+			if (snp.beanBatchId || snp.coffeeName || snp.coffeeRoaster) return false;
+			const c = f.workflow && f.workflow.context;
+			return !!c && (c.coffeeName !== null || c.coffeeRoaster !== null || c.beanBatchId !== null);
+		};
+		if (!favs.some(needs)) return favs;
+		return favs.map((f) => needs(f) ? {
+			...f,
+			workflow: {
+				...f.workflow,
+				context: {
+					...f.workflow.context,
+					coffeeName: null,
+					coffeeRoaster: null,
+					beanBatchId: null
+				}
+			}
+		} : f);
 	}
 	/**
 	* Self-heal: two rows must never share a `stripSlot` (updateRecipe clears the previous holder, but
@@ -14162,6 +14205,20 @@ bcInit();
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status} clearing beanless recipe workflows`);
 		}
+		async function migrateFavBeans() {
+			if (typeof fetch !== "function") return;
+			const rows = await kv("autoFavourites");
+			if (clearBeanlessFavouriteWorkflows(rows) === rows) return;
+			const fresh = await kv("autoFavourites");
+			const next = clearBeanlessFavouriteWorkflows(fresh);
+			if (next === fresh) return;
+			const res = await fetch(`${API}/store/${NS}/autoFavourites`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(next)
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status} clearing beanless favourite workflows`);
+		}
 		async function migrateFavSlots() {
 			if (typeof fetch !== "function") return;
 			const rows = await kv("autoFavourites");
@@ -14212,6 +14269,14 @@ bcInit();
 				});
 				refreshRecents();
 			});
+		}
+		function runFavBeanMigration() {
+			migrateFavBeans().catch((e) => log(`favourite bean migration failed: ${e instanceof Error ? e.message : String(e)}`)).then(() => host.storage({
+				type: "write",
+				key: "favBeansMigrated",
+				namespace: NS,
+				data: true
+			}));
 		}
 		function runRecipeBeanMigration() {
 			migrateRecipeBeans().catch((e) => log(`recipe bean migration failed: ${e instanceof Error ? e.message : String(e)}`)).then(() => host.storage({
@@ -14270,6 +14335,11 @@ bcInit();
 					});
 					host.storage({
 						type: "read",
+						key: "favBeansMigrated",
+						namespace: NS
+					});
+					host.storage({
+						type: "read",
 						key: "favSlotsMigrated",
 						namespace: NS
 					});
@@ -14282,6 +14352,7 @@ bcInit();
 				if (typeof host.storage !== "function") {
 					runRecipeMigration();
 					runRecipeBeanMigration();
+					runFavBeanMigration();
 					runFavSlotMigration();
 					runFavProfileMigration();
 				} else refreshRecents();
@@ -14301,6 +14372,7 @@ bcInit();
 					if (event.payload && event.payload.key === "selectionMigrated" && !event.payload.value) migrate();
 					if (event.payload && event.payload.key === "recipesMigrated" && !event.payload.value) runRecipeMigration();
 					if (event.payload && event.payload.key === "recipeBeansMigrated" && !event.payload.value) runRecipeBeanMigration();
+					if (event.payload && event.payload.key === "favBeansMigrated" && !event.payload.value) runFavBeanMigration();
 					if (event.payload && event.payload.key === "favSlotsMigrated" && !event.payload.value) runFavSlotMigration();
 					if (event.payload && event.payload.key === "favProfilesMigrated" && !event.payload.value) runFavProfileMigration();
 				} else if (event.name === "workflowUpdated") trackWorkflow(event.payload);

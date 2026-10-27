@@ -337,6 +337,17 @@ CONFIRM handler in `basket-picker.ts`), not a full context replacement.
 }
 ```
 
+**Beans: captured or cleared, never inherited.** When `copyMask.beans` is on (absent counts
+as on), `workflow.context` always carries all three of `coffeeName`, `coffeeRoaster` and
+`beanBatchId` — the captured values, or explicit `null` when the favourite captured no bean.
+Omitting them let the PREVIOUSLY applied item's coffee stand, because `PUT
+/api/v1/workflow` deep-merges, so the next shot recorded under the wrong bean. `beans: false`
+is the way to leave the live bean alone: then none of the three keys is written. Recents have
+always done this (`toRecentFavourite`); saved favourites and recipes now match, and rows
+written before the rule are patched by a one-time pass on plugin load
+(`clearBeanlessFavouriteWorkflows`, the `favBeansMigrated` flag). Grinder, basket and
+barista/drinker still follow the capture-only rule below.
+
 **Auto (recent) entries.** Entries with `auto: true` are computed by DYE2 from shot
 history (up to 5 bean-batch + profile + grinder groups, best first by `recentRank`) and are
 rewritten wholesale by DYE2's plugin runtime after every stored or edited shot and on DYE2 page

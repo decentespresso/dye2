@@ -1488,9 +1488,13 @@ async function applyAutoFavourite(fav) {
     if (snp.grinderModel) { ctx.grinderModel = snp.grinderModel; wrote.push('grinderModel'); }
   }
   if (on('beans')) {
-    if (snp.beanBatchId) { ctx.beanBatchId = snp.beanBatchId; wrote.push('beanBatchId'); }
-    if (snp.coffeeName) { ctx.coffeeName = snp.coffeeName; wrote.push('coffeeName'); }
-    if (snp.coffeeRoaster) { ctx.coffeeRoaster = snp.coffeeRoaster; wrote.push('coffeeRoaster'); }
+    // A favourite that copies beans but captured none clears the live bean, as a recipe and a
+    // recent do: switching items must not leave the previous coffee on the next shot. Turn the
+    // beans mask off to leave the live bean alone instead.
+    ctx.beanBatchId   = snp.beanBatchId   || null;
+    ctx.coffeeName    = snp.coffeeName    || null;
+    ctx.coffeeRoaster = snp.coffeeRoaster || null;
+    wrote.push('beanBatchId', 'coffeeName', 'coffeeRoaster');
   }
   if (on('roastDate') && snp.roastDate) ctx.roastDate = snp.roastDate;
   if (on('barista')   && snp.barista)   { ctx.baristaName = snp.barista; wrote.push('baristaName'); }

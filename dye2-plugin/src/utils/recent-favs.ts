@@ -231,6 +231,36 @@ export function clearBeanlessRecipeWorkflows(recipes: AnyRecord[]): AnyRecord[] 
 }
 
 /**
+ * The favourites' sibling of clearBeanlessRecipeWorkflows, for the same reason: the F strip
+ * PUTs a favourite's STORED body, rebuilt only when DYE2 next writes the row. Recents
+ * (`auto: true`) already carry explicit bean nulls from toRecentFavourite, and a favourite
+ * whose `copyMask.beans` is false must keep the live bean, so both are skipped. One-shot,
+ * idempotent; returns the same array when nothing needs it.
+ */
+export function clearBeanlessFavouriteWorkflows(favs: AnyRecord[]): AnyRecord[] {
+  if (!Array.isArray(favs)) return favs;
+  const needs = (f: AnyRecord) => {
+    if (!f || f.auto || (f.copyMask && f.copyMask.beans === false)) return false;
+    const snp = f.snapshot || {};
+    if (snp.beanBatchId || snp.coffeeName || snp.coffeeRoaster) return false;
+    const c = f.workflow && f.workflow.context;
+    return !!c && (c.coffeeName !== null || c.coffeeRoaster !== null || c.beanBatchId !== null);
+  };
+  if (!favs.some(needs)) return favs;
+  return favs.map((f) =>
+    needs(f)
+      ? {
+          ...f,
+          workflow: {
+            ...f.workflow,
+            context: { ...f.workflow.context, coffeeName: null, coffeeRoaster: null, beanBatchId: null },
+          },
+        }
+      : f
+  );
+}
+
+/**
  * Self-heal: two rows must never share a `stripSlot` (updateRecipe clears the previous holder, but
  * two writers on the `recipes` key could still interleave and leave both). For each slot held by
  * more than one row the row with the newest `capturedAt` keeps it (ties, and rows with no valid

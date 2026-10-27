@@ -365,9 +365,18 @@ async function buildFavouriteWorkflow(fav) {
     if (snp.basketName) ctx.extras = { ...(ctx.extras || {}), basketName: snp.basketName };
   }
   if (on('beans')) {
-    if (snp.beanBatchId) ctx.beanBatchId = snp.beanBatchId;
-    if (snp.coffeeName) ctx.coffeeName = snp.coffeeName;
-    if (snp.coffeeRoaster) ctx.coffeeRoaster = snp.coffeeRoaster;
+    // Same rule as a recipe (buildRecipeWorkflow) and as a recent, whose context has carried
+    // explicit bean nulls all along (recent-favs.ts toRecentFavourite): a favourite that
+    // copies beans but captured none CLEARS the live one, because PUT deep-merges and the
+    // previously applied item's coffee would otherwise stand. copyMask beans:false is the
+    // way to leave the live bean alone — then nothing here is written at all.
+    if (snp.beanBatchId || snp.coffeeName || snp.coffeeRoaster) {
+      ctx.beanBatchId   = snp.beanBatchId   || null;
+      ctx.coffeeName    = snp.coffeeName    || null;
+      ctx.coffeeRoaster = snp.coffeeRoaster || null;
+    } else {
+      ctx.beanBatchId = null; ctx.coffeeName = null; ctx.coffeeRoaster = null;
+    }
   }
   if (on('roastDate') && snp.roastDate) ctx.roastDate = snp.roastDate;
   if (on('barista')   && snp.barista)   ctx.baristaName = snp.barista;
