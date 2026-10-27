@@ -96,6 +96,21 @@ function num(v: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+/**
+ * A grind setting is free text on the host — WorkflowContext.grinderSetting is a
+ * `String?` (reaprime workflow_context.dart) — because not every grinder has a single
+ * numeric scale: a three-dial grinder reads "1.1.0", a stepped one "15 clicks". num()
+ * would keep "1.1" and silently drop the rest, so keep the text whenever it is not
+ * plainly a number. A numeric scale still stores a number, as KV_CONTRACT says.
+ */
+function grindValue(v: unknown): number | string | undefined {
+  if (v == null) return undefined;
+  const s = String(v).trim();
+  if (s === "") return undefined;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : s;
+}
+
 function put(out: AnyRecord, k: string, v: unknown) {
   if (v !== undefined && v !== null) out[k] = v;
 }
@@ -135,7 +150,7 @@ export function recipeFields(wf: AnyRecord): AnyRecord {
   const ctx = (wf && wf.context) || {};
   put(out, "dose", ctx.targetDoseWeight);
   put(out, "drink", ctx.targetYield);
-  put(out, "grind", num(ctx.grinderSetting));
+  put(out, "grind", grindValue(ctx.grinderSetting));
   // apply writes these into context.extras (dev-api.ts buildFavouriteWorkflow / applyRecipe).
   const extras = ctx.extras || {};
   put(out, "rpm", num(extras.rpm));
@@ -195,7 +210,7 @@ export function favouriteFields(wf: AnyRecord): AnyRecord {
   const ctx = (wf && wf.context) || {};
   put(out, "dose", ctx.targetDoseWeight);
   put(out, "drink", ctx.targetYield);
-  put(out, "grindSetting", num(ctx.grinderSetting));
+  put(out, "grindSetting", grindValue(ctx.grinderSetting));
   put(out, "rpm", num(ctx.extras && ctx.extras.rpm));
   return out;
 }

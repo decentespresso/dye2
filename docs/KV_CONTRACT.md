@@ -435,6 +435,10 @@ plugins should not read it.
   // The numeric dashboardVariables (dose … rpm) are a number, or null / absent when the recipe
   // editor's stepper was left blank. Never 0 for "blank": apply and dial-in recording skip a
   // null field but treat 0 as a real value.
+  // `grind` is the exception: a grinder scale need not be one number, so it is a number when
+  // the value is plainly numeric and otherwise the string as typed ("1.1.0", "15 clicks").
+  // The same holds for `snapshot.grindSetting` on a favourite. The host agrees —
+  // WorkflowContext.grinderSetting is a String? — so a reader must not assume a number.
 
   // added by this version (optional for consumers):
   title,                       // name || 'Recipe'

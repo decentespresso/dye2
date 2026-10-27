@@ -1532,7 +1532,15 @@ async function applyAutoFavourite(fav) {
   renderNextShot();
 }
 
-function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onChange) {
+// A grind setting is free text on the host (WorkflowContext.grinderSetting is a String?):
+// "1.1.0" on a three-dial grinder, "15 clicks" on a stepped one. parseFloat keeps "1.1" and
+// drops the rest, so the fields that carry one are wired with allowText and go through here.
+function isNumericText(t) {
+  const s = (t == null ? '' : String(t)).trim();
+  return s !== '' && Number.isFinite(Number(s));
+}
+
+function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onChange, allowText) {
   const minusBtn = document.getElementById(minusId);
   const plusBtn = document.getElementById(plusId);
   if (!minusBtn || !plusBtn) return;
@@ -1540,6 +1548,9 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
   minusBtn.addEventListener('click', () => {
     const valueEl = document.getElementById(valueId);
     if (!valueEl) return;
+    // Free text has no step to move by, and stepping would coerce it to a number.
+    // Leave it alone — typing is the way to change it.
+    if (allowText && !isNumericText(valueEl.textContent)) return;
     const raw = parseFloat(valueEl.textContent);
     // Empty field shows "—" → start from min so − begins working.
     const base = isNaN(raw) ? min : raw;
@@ -1552,6 +1563,9 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
   plusBtn.addEventListener('click', () => {
     const valueEl = document.getElementById(valueId);
     if (!valueEl) return;
+    // Free text has no step to move by, and stepping would coerce it to a number.
+    // Leave it alone — typing is the way to change it.
+    if (allowText && !isNumericText(valueEl.textContent)) return;
     const raw = parseFloat(valueEl.textContent);
     const base = isNaN(raw) ? min : raw;
     const val = max !== null ? Math.min(max, parseFloat((base + step).toFixed(2))) : parseFloat((base + step).toFixed(2));
@@ -1559,11 +1573,11 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => onChange(val), 500);
   });
-  makeValueEditable(valueId, min, max, formatter, onChange);
+  makeValueEditable(valueId, min, max, formatter, onChange, allowText);
 }
 
 // Tap the number to type a value directly (tablet-friendly).
-function makeValueEditable(valueId, min, max, formatter, onChange) {
+function makeValueEditable(valueId, min, max, formatter, onChange, allowText) {
   const valEl = document.getElementById(valueId);
   if (!valEl || valEl.dataset.editable) return;
   valEl.dataset.editable = '1';
@@ -1573,10 +1587,13 @@ function makeValueEditable(valueId, min, max, formatter, onChange) {
     if (valEl.querySelector('input')) return;
     const cur = parseFloat(valEl.textContent);
     const prev = valEl.textContent;
+    // A free-text field keeps what is shown, so opening the editor on "1.1.0" and tapping
+    // away cannot quietly rewrite it to 1.1.
+    const curText = allowText && prev !== '—' ? prev.trim() : (isNaN(cur) ? '' : String(cur));
     const input = document.createElement('input');
     input.type = 'text';
     input.inputMode = 'decimal';
-    input.value = isNaN(cur) ? '' : String(cur);
+    input.value = curText;
     input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:var(--input-bg);color:inherit;outline:none;padding:2px 4px';
     valEl.textContent = '';
     valEl.appendChild(input);
@@ -1584,7 +1601,15 @@ function makeValueEditable(valueId, min, max, formatter, onChange) {
     let done = false;
     const commit = (apply) => {
       if (done) return; done = true;
-      let v = parseFloat(input.value);
+      const raw = input.value.trim();
+      // Not plainly a number and the field allows text: store it as typed. parseFloat
+      // would read "1.1.0" as 1.1 and "15 clicks" as 15.
+      if (apply && allowText && raw !== '' && !isNumericText(raw)) {
+        valEl.textContent = raw;
+        onChange(raw);
+        return;
+      }
+      let v = parseFloat(raw);
       if (apply && !isNaN(v)) {
         if (min != null) v = Math.max(min, v);
         if (max != null) v = Math.min(max, v);
@@ -1612,8 +1637,9 @@ function setupDoseControls() {
     val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.targetYield = val; updateRatioDisplay(); pushWorkflow().catch(e => console.warn(e)); }
   );
   wireAdjuster('dye-grind-minus', 'dye-grind-plus', 'dye-grind-value', 0.1, 0, null,
-    val => val.toFixed(1),
-    val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.grinderSetting = String(val); pushWorkflow().catch(e => console.warn(e)); }
+    val => (typeof val === 'number' ? val.toFixed(1) : String(val)),
+    val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.grinderSetting = String(val); pushWorkflow().catch(e => console.warn(e)); },
+    true   // grind is free text: see isNumericText
   );
   wireAdjuster('dye-rpm-minus', 'dye-rpm-plus', 'dye-rpm-value', 1, 1, null,
     val => String(val),
