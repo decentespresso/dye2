@@ -155,8 +155,13 @@ change meant the machine's state became the recipe (dye2#30, #31, #33).
 - **Only record what apply writes.** `applyRecipe` writes every steam / hot-water / flush
   setting the recipe holds, so all are recorded, but only those the recipe already holds.
   `brewC` and settings the recipe does not hold are gated on a baseline (`machineFields` +
-  live brewC) snapshotted in memory when a new `recipeId` first appears (the dye2#23 adoption
-  path). No baseline (plugin restarted) means those fields are not adopted; degrade, do not guess.
+  live brewC, plus `basketId`) snapshotted in memory when a new `recipeId` first appears (the
+  dye2#23 adoption path). The basket is the safest member: only `basket-picker.ts`, an apply and
+  the dashboard's Clear (writes null) ever write `context.extras.basketId`, so a move off the armed
+  value is a human act; an absent live basket (Clear) is not drift and is never adopted or starred.
+  A recipe can therefore acquire a basket from a dial-in (recipes only: `favouriteFields` carries
+  no basket, so a favourite never adopts one). The name is written as the picker sent it, which
+  can be blank. No baseline (plugin restarted) means those fields are not adopted; degrade, do not guess.
 - Dangling id: `resolveRecipeFromHistory` uses the newest shot carrying it as the recipe.
 - `POST /selection` is a compat shim (still used by `recipe-edit.ts reapplyIfSelected` and
   the skin): it stores nothing, writes/nulls `recipeId`, and goes away with streamline-js#159.

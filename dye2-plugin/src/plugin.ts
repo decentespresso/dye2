@@ -143,11 +143,12 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       if (!baseline || baseline.id !== rid || baseline.profileFingerprint !== profileFingerprint(wf.profile)) {
         forgetMachineSettings(); // an apply may have moved the flush: arm from the machine, re-warm for the save
         const full = withMachineSettings(wf, await readMachineSettings(fetch, API));
-        const live = ownedRecipeFields(wf).brewC;
+        const owned = ownedRecipeFields(wf);
+        const live = owned.brewC;
         baseline = {
           kind: "recipe", id: rid, profileFingerprint: profileFingerprint(wf.profile),
           armedBrewC: live === undefined ? null : live,
-          armedBeanBatchId: null, armedGrinderId: null, armedMachine: machineFields(full),
+          armedBeanBatchId: null, armedGrinderId: null, armedMachine: { ...machineFields(full), basketId: owned.basketId ?? null },
         };
       }
     } else baseline = null;

@@ -302,7 +302,9 @@ Legacy fields (`snapshot`, `copyMask`, `dashboardVariables`, `name`, …) are **
 Unlike favourites/recipes, `baskets[]` items are not directly PUT-able to
 `/api/v1/workflow` — a basket is applied by writing just
 `context.extras.basketId` / `context.extras.basketName` (see the picker's
-CONFIRM handler in `basket-picker.ts`), not a full context replacement.
+CONFIRM handler in `basket-picker.ts`), not a full context replacement. A basket picked after
+a recipe apply is recorded onto the selected recipe's `dashboardVariables.basketId`/`basketName`
+by `POST …/record` once it differs from the basket live at apply time (even if the recipe held none).
 
 ## Item schemas
 

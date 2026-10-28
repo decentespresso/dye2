@@ -88,7 +88,15 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
     itemPatch('recipe', withExtras(), ex({ rpm: 600, basketId: 'bk1', basketName: 'IMS 20g' })),
     { basketId: 'bk1', basketName: 'IMS 20g' }, 'name moved: id written too'
   );
-  assert.deepEqual(itemPatch('recipe', recipe(), ex({ rpm: 700, basketId: 'bk2', basketName: 'X' })), {}, 'item holding none of them is left alone');
+  assert.deepEqual(itemPatch('recipe', recipe(), ex({ rpm: 700, basketId: 'bk2', basketName: 'X' })), {}, 'item holding none of them, no baseline: left alone');
+  {
+    const bk = (id) => ex({ basketId: id, basketName: 'X' });
+    assert.deepEqual(itemPatch('recipe', recipe(), bk('bk2'), null, { basketId: 'bk1' }),
+      { basketId: 'bk2', basketName: 'X' }, 'basket moved since arming: adopted, name written with it');
+    assert.deepEqual(itemPatch('recipe', recipe(), bk('bk2'), null, { basketId: 'bk2' }), {}, 'basket already live at apply: not stamped');
+    assert.deepEqual(itemPatch('recipe', recipe(), bk('bk2'), null, { basketId: null }),
+      { basketId: 'bk2', basketName: 'X' }, 'no basket at apply (post-Clear), one picked: adopted');
+  }
   assert.deepEqual(itemPatch('recipe', withExtras(), wf()), {}, 'workflow without extras patches nothing');
   // string names compare exactly, not numerically
   assert.deepEqual(

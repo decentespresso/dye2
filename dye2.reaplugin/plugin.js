@@ -13645,9 +13645,15 @@ bcInit();
 	* they could never be recorded at all. The baseline is what makes it safe: a workflow
 	* always has a value for every steam/hot-water/flush field, so adopting on presence alone
 	* would stamp the machine's whole current state onto the item on the first event.
+	* The basket rides the same baseline: only basket-picker.ts, the two apply builders
+	* (dev-api.ts) and the dashboard's Clear (dashboard.ts, writes null) ever write
+	* context.extras.basketId, the machine never drifts it, so a move off the armed value is a
+	* human act. An absent live basket (Clear) is not drift: ownedRecipeFields drops null, so
+	* nothing is adopted or starred. basketName is not listed: the pair rule in
+	* itemPatch writes it with the id. rpm stays out (not adoptable).
 	*/
 	function movedSinceArming(k, live, armed) {
-		if (!armed || !(k in MACHINE_MAP)) return false;
+		if (!armed || !(k in MACHINE_MAP) && k !== "basketId") return false;
 		return armed[k] !== void 0 && !sameValue(armed[k], live);
 	}
 	/**
@@ -13994,7 +14000,8 @@ bcInit();
 				if (!baseline || baseline.id !== rid || baseline.profileFingerprint !== profileFingerprint(wf.profile)) {
 					forgetMachineSettings();
 					const full = withMachineSettings(wf, await readMachineSettings(fetch, API));
-					const live = ownedRecipeFields(wf).brewC;
+					const owned = ownedRecipeFields(wf);
+					const live = owned.brewC;
 					baseline = {
 						kind: "recipe",
 						id: rid,
@@ -14002,7 +14009,10 @@ bcInit();
 						armedBrewC: live === void 0 ? null : live,
 						armedBeanBatchId: null,
 						armedGrinderId: null,
-						armedMachine: machineFields(full)
+						armedMachine: {
+							...machineFields(full),
+							basketId: owned.basketId ?? null
+						}
 					};
 				}
 			} else baseline = null;

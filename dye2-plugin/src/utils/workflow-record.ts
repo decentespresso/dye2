@@ -45,8 +45,9 @@ export interface Selection {
   armedBeanBatchId: string | null;
   armedGrinderId: string | null;
   /**
-   * The live steam / hot-water / flush settings when armed (MACHINE_MAP's keys; absent =
-   * the workflow had no value). A setting the item does not hold yet is adopted once it
+   * The live values the item may adopt once moved: the steam / hot-water / flush settings
+   * (MACHINE_MAP's keys) plus `basketId` (null = no basket live; absent = the workflow had
+   * no value). A setting the item does not hold yet is adopted once it
    * moves off this baseline, which makes Streamline's own settings page the editor for
    * them (dye2#23). Null = unknown (armed without a workflow), adopted from the first
    * event like profileFingerprint.
@@ -261,9 +262,15 @@ export function changedFields(patch: AnyRecord, stored: AnyRecord | undefined): 
  * they could never be recorded at all. The baseline is what makes it safe: a workflow
  * always has a value for every steam/hot-water/flush field, so adopting on presence alone
  * would stamp the machine's whole current state onto the item on the first event.
+ * The basket rides the same baseline: only basket-picker.ts, the two apply builders
+ * (dev-api.ts) and the dashboard's Clear (dashboard.ts, writes null) ever write
+ * context.extras.basketId, the machine never drifts it, so a move off the armed value is a
+ * human act. An absent live basket (Clear) is not drift: ownedRecipeFields drops null, so
+ * nothing is adopted or starred. basketName is not listed: the pair rule in
+ * itemPatch writes it with the id. rpm stays out (not adoptable).
  */
 function movedSinceArming(k: string, live: unknown, armed: AnyRecord | null): boolean {
-  if (!armed || !(k in MACHINE_MAP)) return false;
+  if (!armed || (!(k in MACHINE_MAP) && k !== "basketId")) return false;
   return armed[k] !== undefined && !sameValue(armed[k], live);
 }
 
