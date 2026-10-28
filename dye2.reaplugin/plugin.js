@@ -13590,10 +13590,24 @@ bcInit();
 		return out;
 	}
 	/** GET /machine/settings, or null on any failure — those two settings then go unrecorded. */
+	var MACHINE_TTL_MS = 6e4;
+	var cached = null;
+	/** Drop the memo: the arm-time read must see the machine as the apply just left it (dye2#40). */
+	function forgetMachineSettings() {
+		cached = null;
+	}
 	async function readMachineSettings(fetchFn, base) {
+		if (cached && cached.base === base && Date.now() - cached.at < MACHINE_TTL_MS) return cached.body;
 		try {
 			const res = await fetchFn(base + "/machine/settings");
-			return res.ok ? await res.json() : null;
+			if (!res.ok) return null;
+			const body = await res.json();
+			if (body) cached = {
+				base,
+				at: Date.now(),
+				body
+			};
+			return body;
 		} catch (e) {
 			return null;
 		}
@@ -13959,8 +13973,14 @@ bcInit();
 			});
 		}
 		let baseline = null;
+		let lastRinse = null;
 		async function workflowChanged(wf, cold) {
 			if (!wf) return;
+			const rinse = JSON.stringify(wf.rinseData || null);
+			if (rinse !== lastRinse) {
+				lastRinse = rinse;
+				forgetMachineSettings();
+			}
 			const rid = recipeIdOf(wf);
 			let recipes;
 			if (rid) {
@@ -13972,6 +13992,7 @@ bcInit();
 					return;
 				}
 				if (!baseline || baseline.id !== rid || baseline.profileFingerprint !== profileFingerprint(wf.profile)) {
+					forgetMachineSettings();
 					const full = withMachineSettings(wf, await readMachineSettings(fetch, API));
 					const live = ownedRecipeFields(wf).brewC;
 					baseline = {
@@ -14045,7 +14066,7 @@ bcInit();
 				saved: false,
 				reason: "no api permission"
 			});
-			let wf = await liveWorkflow();
+			const wf = await liveWorkflow();
 			if (!wf) return json(request, 502, {
 				saved: false,
 				reason: "could not read the workflow"
@@ -14055,7 +14076,6 @@ bcInit();
 				saved: false,
 				reason: "no recipe is selected"
 			});
-			wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
 			try {
 				const armed = baseline && baseline.id === sel.id ? baseline : null;
 				const wrote = await recordWorkflow(wf, fetch, armed || {

@@ -187,10 +187,27 @@ export function withMachineSettings(wf: AnyRecord, de1: AnyRecord | null | undef
 }
 
 /** GET /machine/settings, or null on any failure — those two settings then go unrecorded. */
+// ponytail: 60 s memo, successes only, keyed by base — a BLE read costs 1.4-5.7 s (dye2#40). A flush edit
+// made on Streamline inside the window is not seen; shorten MACHINE_TTL_MS if that matters.
+// Warming is last-write-wins: a read already in flight when forgetMachineSettings() runs (a record issued
+// inside an apply's BLE-read window; handleRecord is not serialised through `chain`) resolves afterwards
+// and overwrites the fresh value with the pre-apply one. Narrow; no guard.
+const MACHINE_TTL_MS = 60000;
+let cached: { base: string; at: number; body: AnyRecord } | null = null;
+
+/** Drop the memo: the arm-time read must see the machine as the apply just left it (dye2#40). */
+export function forgetMachineSettings(): void {
+  cached = null;
+}
+
 export async function readMachineSettings(fetchFn: FetchLike, base: string): Promise<AnyRecord | null> {
+  if (cached && cached.base === base && Date.now() - cached.at < MACHINE_TTL_MS) return cached.body;
   try {
     const res = await fetchFn(base + "/machine/settings");
-    return res.ok ? await res.json() : null;
+    if (!res.ok) return null;
+    const body = await res.json();
+    if (body) cached = { base, at: Date.now(), body };
+    return body;
   } catch (e) {
     return null;
   }
@@ -350,8 +367,8 @@ export async function recordWorkflow(
   const idx = list.findIndex((x) => x && String(x.id) === armed.id);
   if (idx === -1) return false;
   const item = list[idx];
-  // One extra GET, and only when the DE1-only pair could be written: the item holds one, or the
-  // baseline has one to move off. A dose change costs nothing.
+  // The DE1-only pair is wanted on the common path, when a baseline is armed (the machine always reports both), or the
+  // item holds one. The GET is served from the readMachineSettings memo on the common path.
   const stored = item[field] || {};
   const wantsDe1 = Object.keys(DE1_ONLY).some(
     (k) => stored[k] != null || (armed.armedMachine && armed.armedMachine[k] !== undefined)

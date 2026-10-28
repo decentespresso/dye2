@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   profileFingerprint, itemPatch, recordWorkflow,
-  profileAtBrewC, withMachineSettings, readMachineSettings,
+  profileAtBrewC, withMachineSettings, readMachineSettings, forgetMachineSettings,
   recipeIdOf, heldFields, recipeModified, recipeProfileChanged, favouriteMatches, deriveSelection,
   resolveRecipeFromHistory, proposeRecipeName, idProfileChanged,
 } from '../src/utils/workflow-record.ts';
@@ -327,14 +327,33 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(await readMachineSettings(fail, 'x'), null, 'a failed read is null, not a throw');
   assert.equal(await readMachineSettings(async () => { throw new Error('offline'); }, 'x'), null);
 
+  // memo (dye2#40): per base, successes only, and forgettable
+  forgetMachineSettings();
+  let reads = 0;
+  const ok = async () => { reads++; return { ok: true, status: 200, json: async () => ({ flushTemp: 88 }) }; };
+  const nul = async () => { reads++; return { ok: true, status: 200, json: async () => null }; };
+  await readMachineSettings(fail, 'm1'); await readMachineSettings(fail, 'm1');
+  await readMachineSettings(nul, 'm1'); await readMachineSettings(nul, 'm1');
+  assert.equal(reads, 2, 'failures and null bodies are not memoised');
+  reads = 0;
+  await readMachineSettings(ok, 'm1'); await readMachineSettings(ok, 'm1');
+  assert.equal(reads, 1, 'a success is memoised');
+  await readMachineSettings(ok, 'm2');
+  assert.equal(reads, 2, 'a different base costs its own read');
+  forgetMachineSettings();
+  await readMachineSettings(ok, 'm2');
+  assert.equal(reads, 3, 'forget makes the next read real');
+  forgetMachineSettings(); // leave later blocks (shared default base) cold
+
   // A machine-settings fetch only when the pair could be written.
   const calls = [];
+  const urls = [];
   const store = (initial) => {
     const data = { ...initial };
     return {
       data, calls,
       fetchFn: async (url, init) => {
-        calls.push((init && init.method) || 'GET');
+        calls.push((init && init.method) || 'GET'); urls.push(url);
         if (url.endsWith('/machine/settings')) return { ok: true, status: 200, json: async () => de1 };
         const key = url.split('/').pop();
         if (init && init.method === 'POST') { data[key] = JSON.parse(init.body); return { ok: true, status: 200, json: async () => null }; }
@@ -362,10 +381,29 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
 
   // neither: no extra round trip
   calls.length = 0;
+  forgetMachineSettings(); // else s1's warm memo would hide a wantsDe1 regression
   let s3 = store({ recipes: [recipe()] });
   await recordWorkflow(wf({ context: { targetDoseWeight: 19, targetYield: 36, grinderSetting: '4.2' } }), s3.fetchFn, armed());
   assert.equal(s3.data.recipes[0].dashboardVariables.dose, 19, 'the ordinary record still happens');
   assert.deepEqual(calls, ['GET', 'POST'], 'read the array, wrote it back: no machine-settings call');
+
+  // dye2#40: two records in a row read the machine once (memo), and handleRecord no longer reads it itself
+  urls.length = 0;
+  const held2 = recipe();
+  held2.dashboardVariables.flushTempC = 90;
+  const s4 = store({ recipes: [held2] });
+  const a4 = armed({ armedMachine: { flushTempC: 90, flushFlowMls: 4 } });
+  const b4 = 'http://dye2-40.test/api/v1'; // own base: the memo is keyed by it, so this starts cold
+  await recordWorkflow(wf(), s4.fetchFn, a4, b4);
+  await recordWorkflow(wf(), s4.fetchFn, a4, b4);
+  assert.equal(urls.filter((u) => u.endsWith('/machine/settings')).length, 1, 'two records, one machine read');
+  const psrc = readFileSync(new URL('../src/plugin.ts', import.meta.url), 'utf8');
+  const hr = psrc.indexOf('async function handleRecord(');
+  assert.ok(!psrc.slice(hr, psrc.indexOf('\n  }\n', hr)).includes('readMachineSettings'), 'handleRecord does not read the machine');
+  assert.match(psrc, /forgetMachineSettings\(\);[^\n]*\n\s*const full = withMachineSettings\(wf, await readMachineSettings\(/, 'the arm forgets the memo before its read');
+  const wc = psrc.indexOf('async function workflowChanged(');
+  assert.ok(/lastRinse[\s\S]*forgetMachineSettings\(\)/.test(psrc.slice(wc, psrc.indexOf('const rid', wc))), 'workflowChanged forgets the memo when rinseData moves');
+  forgetMachineSettings(); // later blocks share the default base: start them cold
 }
 
 // --- steam switched off on the machine is not recorded (dye2#30) -------------------

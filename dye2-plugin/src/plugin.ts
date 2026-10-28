@@ -31,6 +31,7 @@ import {
   machineFields,
   withMachineSettings,
   readMachineSettings,
+  forgetMachineSettings,
   recordWorkflow,
   type Selection,
 } from "./utils/workflow-record";
@@ -112,9 +113,15 @@ export default function createPlugin(host: PluginHost): PluginInstance {
   // Apply-time baselines for record (dye2#23 adoption, brewC rule), keyed by the recipeId seen.
   // ponytail: in memory only; after a plugin restart those fields are simply not adopted.
   let baseline: Selection | null = null;
+  let lastRinse: string | null = null;
 
   async function workflowChanged(wf: any, cold: boolean): Promise<void> {
     if (!wf) return;
+    // A PUT carrying rinseData reaches the DE1 (de1_controller.updateWorkflowSettings) before this
+    // event is published, so a moved value means the memo is stale even when the arm is skipped
+    // (a recipe's own flush edit keeps its id and profile). dye2#40.
+    const rinse = JSON.stringify(wf.rinseData || null);
+    if (rinse !== lastRinse) { lastRinse = rinse; forgetMachineSettings(); }
     const rid = recipeIdOf(wf);
     let recipes: any[] | undefined;
     if (rid) {
@@ -134,6 +141,7 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       // The fingerprint test re-baselines that re-apply: under one id the profile only ever
       // moves here when it moved onto the recipe's own, every other move having cleared above.
       if (!baseline || baseline.id !== rid || baseline.profileFingerprint !== profileFingerprint(wf.profile)) {
+        forgetMachineSettings(); // an apply may have moved the flush: arm from the machine, re-warm for the save
         const full = withMachineSettings(wf, await readMachineSettings(fetch, API));
         const live = ownedRecipeFields(wf).brewC;
         baseline = {
@@ -221,12 +229,10 @@ export default function createPlugin(host: PluginHost): PluginInstance {
   // ponytail: only recipes are a save target; a favourite or recent deselects on any drift.
   async function handleRecord(request: HttpRequest): Promise<HttpResponse> {
     if (typeof fetch !== "function") return json(request, 503, { saved: false, reason: "no api permission" });
-    let wf = await liveWorkflow();
+    const wf = await liveWorkflow();
     if (!wf) return json(request, 502, { saved: false, reason: "could not read the workflow" });
     const sel = await derive(wf);
     if (!sel || sel.kind !== "recipe") return json(request, 200, { saved: false, reason: "no recipe is selected" });
-    // Flush temperature and flow live on the DE1, not the workflow (dye2#23).
-    wf = withMachineSettings(wf, await readMachineSettings(fetch, API));
     try {
       const armed = baseline && baseline.id === sel.id ? baseline : null;
       const wrote = await recordWorkflow(wf, fetch, armed || { ...EMPTY_BASELINE, id: sel.id });
