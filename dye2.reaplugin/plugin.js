@@ -13801,9 +13801,11 @@ bcInit();
 		return out;
 	}
 	/** Has the live workflow drifted off the recipe's own fields? (the `*`) */
-	function recipeModified(recipe, wf) {
+	function recipeModified(recipe, wf, armed = null) {
 		const stored = recipe.dashboardVariables || {};
-		const held = heldFields(ownedRecipeFields(wf), stored);
+		const owned = ownedRecipeFields(wf);
+		const held = heldFields(owned, stored);
+		if (owned.basketId !== void 0 && movedSinceArming("basketId", owned.basketId, armed)) held.basketId = owned.basketId;
 		if (!profileOf(recipe)) delete held.brewC;
 		return Object.keys(changedFields(held, stored)).length > 0;
 	}
@@ -13833,14 +13835,14 @@ bcInit();
 		return Object.keys(held).length > 0 && Object.keys(changedFields(held, src)).length === 0;
 	}
 	/** recipeId wins when it resolves; else the first matching row (saved before recents). */
-	function deriveSelection(wf, rows) {
+	function deriveSelection(wf, rows, armed = null) {
 		if (!wf) return null;
 		const rid = recipeIdOf(wf);
 		const recipe = rid && (rows.recipes || []).find((r) => r && String(r.id) === rid);
 		if (recipe) return {
 			kind: "recipe",
 			id: rid,
-			modified: recipeModified(recipe, wf)
+			modified: recipeModified(recipe, wf, armed)
 		};
 		const favs = (rows.favourites || []).filter((f) => f && f.id != null);
 		const hit = favs.filter((f) => !f.auto).concat(favs.filter((f) => f.auto)).find((f) => favouriteMatches(f, wf));
@@ -13973,10 +13975,11 @@ bcInit();
 		async function derive(wf, known) {
 			const [recipes, favourites] = await Promise.all([known || kv("recipes"), kv("autoFavourites")]);
 			const hist = await recipeFor(recipeIdOf(wf), recipes);
+			const armed = baseline && baseline.id === recipeIdOf(wf) ? baseline.armedMachine : null;
 			return deriveSelection(wf, {
 				recipes: hist ? recipes.concat(hist) : recipes,
 				favourites
-			});
+			}, armed);
 		}
 		let baseline = null;
 		let lastRinse = null;

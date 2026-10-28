@@ -452,9 +452,13 @@ export function ownedRecipeFields(wf: AnyRecord): AnyRecord {
 }
 
 /** Has the live workflow drifted off the recipe's own fields? (the `*`) */
-export function recipeModified(recipe: AnyRecord, wf: AnyRecord): boolean {
+export function recipeModified(recipe: AnyRecord, wf: AnyRecord, armed: AnyRecord | null = null): boolean {
   const stored = recipe.dashboardVariables || {};
-  const held = heldFields(ownedRecipeFields(wf), stored);
+  const owned = ownedRecipeFields(wf);
+  const held = heldFields(owned, stored);
+  // The one non-held field compared: a basket picked since apply is adopted on Save (itemPatch),
+  // so it stars too. An absent live basket (Clear) is not drift: put() drops null. ponytail: basket only; other adoptables (steam/flush) still never star.
+  if (owned.basketId !== undefined && movedSinceArming("basketId", owned.basketId, armed)) held.basketId = owned.basketId;
   // brewC means nothing for a recipe that names no profile (apply cannot set it): it must
   // not asterisk the cell for good.
   if (!profileOf(recipe)) delete held.brewC;
@@ -502,12 +506,13 @@ export interface Derived {
 /** recipeId wins when it resolves; else the first matching row (saved before recents). */
 export function deriveSelection(
   wf: AnyRecord | null | undefined,
-  rows: { recipes?: AnyRecord[]; favourites?: AnyRecord[] }
+  rows: { recipes?: AnyRecord[]; favourites?: AnyRecord[] },
+  armed: AnyRecord | null = null
 ): Derived | null {
   if (!wf) return null;
   const rid = recipeIdOf(wf);
   const recipe = rid && (rows.recipes || []).find((r) => r && String(r.id) === rid);
-  if (recipe) return { kind: "recipe", id: rid as string, modified: recipeModified(recipe, wf) };
+  if (recipe) return { kind: "recipe", id: rid as string, modified: recipeModified(recipe, wf, armed) };
   const favs = (rows.favourites || []).filter((f) => f && f.id != null);
   const hit = favs.filter((f) => !f.auto).concat(favs.filter((f) => f.auto)).find((f) => favouriteMatches(f, wf));
   if (!hit) return null;

@@ -546,6 +546,15 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   };
   const r1 = () => ({ ...recipe(), workflow: { profile: profile(93) } });
   const rows = (extra) => ({ recipes: [r1()], favourites: [fav()], ...extra });
+  {
+    const w = withId('1'); w.context = { ...w.context, extras: { ...(w.context.extras || {}), basketId: 'bk2', basketName: 'X' } };
+    assert.equal(deriveSelection(w, rows()).modified, false, 'basket-less recipe, no baseline: no star');
+    assert.equal(deriveSelection(w, rows(), { basketId: 'bk1' }).modified, true, 'basket moved since arming: starred');
+    assert.equal(deriveSelection(w, rows(), { basketId: 'bk2' }).modified, false, 'basket unchanged since arming: no star');
+    const held = () => ({ ...r1(), dashboardVariables: { ...r1().dashboardVariables, basketId: 'bkA', basketName: 'A' } });
+    const cleared = withId('1'); cleared.context = { ...cleared.context, extras: { ...(cleared.context.extras || {}), basketId: null, basketName: null } };
+    assert.equal(deriveSelection(cleared, { recipes: [held()] }, { basketId: 'bkA' }).modified, false, 'basket cleared live: not drift, no star');
+  }
   assert.equal(recipeIdOf(withId('1')), '1');
   assert.equal(recipeIdOf(withId(null)), null);
   assert.equal(recipeIdOf(withId('')), null);

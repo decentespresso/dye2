@@ -107,7 +107,8 @@ export default function createPlugin(host: PluginHost): PluginInstance {
   async function derive(wf: any, known?: any[]): Promise<Derived> {
     const [recipes, favourites] = await Promise.all([known || kv("recipes"), kv("autoFavourites")]);
     const hist = await recipeFor(recipeIdOf(wf), recipes);
-    return deriveSelection(wf, { recipes: hist ? recipes.concat(hist) : recipes, favourites });
+    const armed = baseline && baseline.id === recipeIdOf(wf) ? baseline.armedMachine : null;
+    return deriveSelection(wf, { recipes: hist ? recipes.concat(hist) : recipes, favourites }, armed);
   }
 
   // Apply-time baselines for record (dye2#23 adoption, brewC rule), keyed by the recipeId seen.

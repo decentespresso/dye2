@@ -149,7 +149,8 @@ change meant the machine's state became the recipe (dye2#30, #31, #33).
   after a plugin restart is the recipe's stored profile compared), so a profile change from any
   source clears it. After a restart, a recipe naming no profile has nothing to compare and keeps the id.
 - Reuse `recipeFields` / `favouriteFields` / `changedFields` / `heldFields`; never re-derive a
-  field map, or every cell is permanently starred. Compare **held fields only**.
+  field map, or every cell is permanently starred. Compare **held fields only** (one exception:
+  `recipeModified` also admits `basketId` when the armed baseline says the basket moved).
 - The host pushes `workflowUpdated` with the **whole** workflow (`events.workflow`;
   `plugin_manager.dart:3091`), so "which field did the user touch" is unknowable; diff instead.
 - **Only record what apply writes.** `applyRecipe` writes every steam / hot-water / flush
