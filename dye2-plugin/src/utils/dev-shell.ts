@@ -7,7 +7,7 @@ import { themeBootstrap } from "./theme";
 import { kbPlanScript } from "./kb-plan";
 
 interface DevShellOptions {
-  plotly?: boolean;
+  echarts?: boolean;
 }
 
 // Pages are authored at a fixed 1920x1200 design reference (the Figma canvas at 75%,
@@ -42,7 +42,7 @@ const fitScript = `
     var root = document.body.firstElementChild;
     if (root) { root.style.width = '100%'; root.style.height = '100%'; }
     lastSy = sy;
-    window.__dyeScale = { x: sx, y: sy };   // read by chart.ts to size Plotly from unscaled px
+    window.__dyeScale = { x: sx, y: sy };   // read by chart.ts to size the chart from unscaled px
   }
   var lastSy = 1;
   // Android's soft keyboard shrinks the viewport height (interactive-widget=overlays-content
@@ -352,10 +352,10 @@ export function devPageShell(
   ${content}
   <script>${fitScript}</script>
   ${scripts.map((s) => `<script>${s}</script>`).join("\n")}
-  ${/* Last in body so the 1 MB parse does not block the first data request; a page script that touches Plotly at top level would now fail. Served by our own "plotly" route, never a CDN — the tablet is offline. Deliberately
+  ${/* Last in body so the ~500 KB parse does not block the first data request; a page script that touches echarts at top level would now fail. Served by our own "echarts" route, never a CDN — the tablet is offline. Deliberately
         page-relative so it resolves under both runtimes: /api/v1/plugins/dye2.reaplugin/
-        dashboard -> .../plotly on the tablet, and /dashboard -> /plotly on the dev server. */
-    opts.plotly ? '<script src="plotly" charset="utf-8" onload="window.dispatchEvent(new Event(\'dye2-plotly-ready\'))"></script>' : ""}
+        dashboard -> .../echarts on the tablet, and /dashboard -> /echarts on the dev server. */
+    opts.echarts ? '<script src="echarts" charset="utf-8" onload="window.dispatchEvent(new Event(\'dye2-echarts-ready\'))"></script>' : ""}
 </body>
 </html>`;
 }

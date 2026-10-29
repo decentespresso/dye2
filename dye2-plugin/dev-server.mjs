@@ -189,7 +189,7 @@ async function handleRecentFavs(req, res) {
 
 // ── HTTP server ─────────────────────────────────────────────────────
 
-const PLUGIN_ROUTES = ["grinders", "baskets", "equipment", "bean-picker", "grinder-picker", "basket-picker", "profile-picker", "roasters", "add-bean", "dashboard", "edit-shot", "auto-favs", "auto-fav-edit", "recipe-edit", "select-recipe", "bc-import", "plotly"];
+const PLUGIN_ROUTES = ["grinders", "baskets", "equipment", "bean-picker", "grinder-picker", "basket-picker", "profile-picker", "roasters", "add-bean", "dashboard", "edit-shot", "auto-favs", "auto-fav-edit", "recipe-edit", "select-recipe", "bc-import", "echarts"];
 
 const server = createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);

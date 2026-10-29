@@ -1,13 +1,20 @@
 /**
- * Browser-side Plotly chart logic for the dashboard page.
+ * Browser-side ECharts chart logic for the dashboard page.
  * Exported as a string to be inlined as a <script> block.
- * Requires Plotly, which devPageShell loads from the plugin's own "plotly" route.
+ * Requires echarts, which devPageShell loads from the plugin's own "echarts" route.
  *
  * Design follows streamline_project/src/modules/chart.js:
  * - Single Y-axis [0,10]; temperature scaled ÷10 to overlay
  * - Weight shown as smoothed flow rate (derivative), not raw weight
- * - Inline end-of-trace annotations, no legend
+ * - Inline end-of-trace annotations, no legend, no hover tooltip
  * - Step marker vertical line on substate change
+ *
+ * One historical shot at a time, drawn once per shot — no live/append path, so unlike
+ * streamline_project/src/modules/echarts-renderer.js there is no projectSeries/appendData
+ * machinery and no legend. ponytail: dropped the hover tooltip streamline_project gets from
+ * a hand-rolled DOM label — dye2's end-of-line markPoint labels already name every trace, and
+ * echarts' own tooltip component needs `triggerLineEvent` wired up before it fires at all; add
+ * both back if a hover readout turns out to be wanted.
  */
 export const chartScript = `
 var CHART_SMOOTHING = 0.1;
@@ -45,6 +52,8 @@ function chartIsDark() {
 }
 function chartColors() { return chartIsDark() ? CHART_COLORS_DARK : CHART_COLORS_LIGHT; }
 
+// Keyed by track, not a flat array: chartBuildOption looks an annotation up by the trace's
+// own key, so there is no name/colour/coordinate matching to fall back on.
 function chartGetAnnotations(tracks) {
   var skip = ['targetPressure', 'targetFlow', 'targetTemperature'];
   var nameMap = { pressure: 'Pressure', flow: 'Flow', temperature: '°C', weight: 'Weight' };
@@ -55,6 +64,7 @@ function chartGetAnnotations(tracks) {
     var tr = tracks[key];
     if (tr.x.length > 0) {
       candidates.push({
+        key:   key,
         name:  nameMap[key] || key,
         x:     tr.x[tr.x.length - 1],
         y:     tr.y[tr.y.length - 1],
@@ -65,7 +75,7 @@ function chartGetAnnotations(tracks) {
 
   candidates.sort(function(a, b) { return a.y - b.y; });
 
-  var annotations = [];
+  var annotations = {};
   var lastY = -Infinity;
   var minSep = 0.4;
   var minBuf = 0.2;
@@ -73,15 +83,7 @@ function chartGetAnnotations(tracks) {
   candidates.forEach(function(c) {
     var fy = Math.max(c.y, minBuf);
     if (lastY !== -Infinity && fy - lastY < minSep) fy = lastY + minSep;
-    annotations.push({
-      x: c.x, y: fy,
-      xref: 'x', yref: 'y',
-      text: c.name,
-      showarrow: false,
-      xanchor: 'left', yanchor: 'middle',
-      xshift: 6,
-      font: { color: c.color, size: 13 },
-    });
+    annotations[c.key] = { x: c.x, y: fy, text: c.name, color: c.color };
     lastY = fy;
   });
 
@@ -95,62 +97,109 @@ function chartAxisLine() { return chartIsDark() ? '#606579' : '#e2e8f0'; }
 // The step-marker vertical line.
 function chartMarkerColor() { return chartIsDark() ? '#606579' : '#94a3b8'; }
 
-function chartBuildLayout(shapes, annotations) {
-  var text = chartAxisText(), grid = chartGridColor(), axisLine = chartAxisLine();
-  return {
-    plot_bgcolor:  'transparent',
-    paper_bgcolor: 'transparent',
-    font: { family: 'Inter, sans-serif', color: text, size: 13 },
-    shapes:      shapes      || [],
-    annotations: annotations || [],
-    xaxis: {
-      gridcolor:  grid,
-      linecolor:  axisLine,
-      tickcolor:  axisLine,
-      tickfont:   { color: text },
-      dtick:      1,
-      fixedrange: true,
-      zeroline:   false,
-    },
-    yaxis: {
-      gridcolor:  grid,
-      linecolor:  axisLine,
-      tickcolor:  axisLine,
-      tickfont:   { color: text },
-      range:      [0, 10],
-      dtick:      1,
-      fixedrange: true,
-      zeroline:   false,
-    },
-    autosize:   true,
-    margin:     { l: 40, r: 60, t: 10, b: 36, pad: 0 },
-    showlegend: false,
-  };
-}
-
+// Dash values are stored as echarts lineStyle.type strings directly (there's no other
+// consumer of these track/shape objects left to need Plotly's vocabulary).
 function chartMakeTracks() {
   var c = chartColors();
   return {
-    pressure:          { x: [], y: [], name: 'Pressure',         type: 'scatter', mode: 'lines', line: { color: c.pressure, width: 2 },              hoverinfo: 'name' },
-    flow:              { x: [], y: [], name: 'Flow',             type: 'scatter', mode: 'lines', line: { color: c.flow, width: 2 },              hoverinfo: 'name' },
-    targetPressure:    { x: [], y: [], name: 'Target Pressure',  type: 'scatter', mode: 'lines', line: { color: c.targetPressure, width: 1.5, dash: 'dot' }, hoverinfo: 'name' },
-    targetFlow:        { x: [], y: [], name: 'Target Flow',      type: 'scatter', mode: 'lines', line: { color: c.targetFlow, width: 1.5, dash: 'dot' }, hoverinfo: 'name' },
-    temperature:       { x: [], y: [], name: '°C',               type: 'scatter', mode: 'lines', line: { color: c.temperature, width: 2 },              hoverinfo: 'name' },
-    targetTemperature: { x: [], y: [], name: 'Target °C',        type: 'scatter', mode: 'lines', line: { color: c.targetTemperature, width: 1.5, dash: 'dot' }, hoverinfo: 'name' },
-    weight:            { x: [], y: [], name: 'Weight',           type: 'scatter', mode: 'lines', line: { color: c.weight, width: 2 },              hoverinfo: 'name' },
+    pressure:          { x: [], y: [], name: 'Pressure',         line: { color: c.pressure, width: 2 } },
+    flow:              { x: [], y: [], name: 'Flow',             line: { color: c.flow, width: 2 } },
+    targetPressure:    { x: [], y: [], name: 'Target Pressure',  line: { color: c.targetPressure, width: 1.5, dash: 'dotted' } },
+    targetFlow:        { x: [], y: [], name: 'Target Flow',      line: { color: c.targetFlow, width: 1.5, dash: 'dotted' } },
+    temperature:       { x: [], y: [], name: '°C',               line: { color: c.temperature, width: 2 } },
+    targetTemperature: { x: [], y: [], name: 'Target °C',        line: { color: c.targetTemperature, width: 1.5, dash: 'dotted' } },
+    weight:            { x: [], y: [], name: 'Weight',           line: { color: c.weight, width: 2 } },
   };
 }
 
-function initChart() {
-  // Plotly is loaded by the shell from the plugin's own route — nothing to eagerly init.
+// One chart instance per container, tracked by echarts itself (getInstanceByDom) rather than
+// a module-level slot — so a disposed or never-created instance can't go stale independently
+// of the DOM it was drawn into.
+function chartGetOrCreate(el) {
+  var chart = echarts.getInstanceByDom(el);
+  if (chart && !chart.isDisposed()) return chart;
+  return echarts.init(el, null, { devicePixelRatio: window.devicePixelRatio || 1 });
 }
 
-// Plotly keeps its state on the chart node, so a placeholder written straight into it
-// breaks both directions: react() then redraws nothing (blank graph), and a placeholder
-// left in place survives the redraw and floats over whatever sits under the chart.
+function chartBuildOption(traces, dtick, annotations, shapes) {
+  var text = chartAxisText(), grid = chartGridColor(), axisLine = chartAxisLine();
+
+  var series = traces.map(function(tr) {
+    var ann = annotations[tr.key];
+    var s = {
+      id:   tr.key,
+      name: tr.name,
+      type: 'line',
+      data: tr.x.map(function(xv, idx) { return [xv, tr.y[idx]]; }),
+      symbol: 'none',
+      lineStyle: { color: tr.line.color, width: tr.line.width, type: tr.line.dash || 'solid' },
+      itemStyle: { color: tr.line.color },
+      emphasis:  { disabled: true },
+    };
+    if (ann) {
+      s.markPoint = {
+        silent: true, symbol: 'circle', symbolSize: 1,
+        itemStyle: { color: 'transparent', borderWidth: 0 },
+        label: {
+          show: true, formatter: ann.text, position: 'right', distance: 6,
+          color: ann.color, fontFamily: 'Inter, sans-serif', fontSize: 13,
+        },
+        data: [{ coord: [ann.x, ann.y] }],
+      };
+    }
+    return s;
+  });
+
+  // Step markers aren't tied to any one trace, so they ride on a hidden line series of
+  // their own via markLine (same approach as streamline_project's echarts-renderer.js).
+  if (shapes && shapes.length) {
+    series.push({
+      id: '__markers', type: 'line', data: [], symbol: 'none', silent: true,
+      lineStyle: { opacity: 0 },
+      markLine: {
+        silent: true, symbol: ['none', 'none'], label: { show: false },
+        data: shapes.map(function(sh) {
+          return { xAxis: sh.x0, lineStyle: { color: sh.line.color, width: sh.line.width, type: sh.line.dash } };
+        }),
+      },
+    });
+  }
+
+  return {
+    animation: false,
+    textStyle: { color: text, fontFamily: 'Inter, sans-serif', fontSize: 13 },
+    grid: { left: 40, right: 60, top: 10, bottom: 36 },
+    xAxis: {
+      // max: 'dataMax', not a fixed range -- a fixed interval alone rounds the axis out to
+      // the next tick past the data (e.g. 27s -> 30), pushing the end-of-line labels inside
+      // the plot instead of into the right margin they're sized for.
+      type: 'value', min: 0, max: 'dataMax', interval: dtick,
+      axisLabel: { color: text },
+      axisLine:  { lineStyle: { color: axisLine } },
+      axisTick:  { lineStyle: { color: axisLine } },
+      splitLine: { show: true, lineStyle: { color: grid } },
+    },
+    yAxis: {
+      type: 'value', min: 0, max: 10, interval: 1,
+      axisLabel: { color: text },
+      axisLine:  { lineStyle: { color: axisLine } },
+      axisTick:  { lineStyle: { color: axisLine } },
+      splitLine: { show: true, lineStyle: { color: grid } },
+    },
+    series: series,
+  };
+}
+
+// The chart keeps its state on the instance tied to the container node, so a placeholder
+// written straight into the node breaks both directions: setOption() then draws into a
+// detached/stale instance, and a placeholder left in place survives the next render and
+// floats over whatever sits under the chart. Every "nothing to plot" exit calls this.
 function chartShowPlaceholder(el, text) {
   if (!el) return;
-  if (window.Plotly && el._fullLayout) Plotly.purge(el);
+  if (window.echarts) {
+    var chart = echarts.getInstanceByDom(el);
+    if (chart && !chart.isDisposed()) chart.dispose();
+  }
   el.innerHTML = '<div class="dye-chart-empty" style="height:100%;display:flex;align-items:center;' +
     'justify-content:center;color:var(--low-contrast-white);font-size:24px;">' + text + '</div>';
 }
@@ -161,37 +210,29 @@ function chartClearPlaceholder(el) {
   if (ph) ph.remove();
 }
 
-// Plotly is the last script in the body, so a shot fetch that resolves first would reach
-// Plotly.react before the 1MB parse finishes — a ReferenceError swallowed by the caller's
-// .catch, leaving a blank chart that nothing redraws. Hold the draw and replay it on the
-// script's load event instead.
+// echarts is the last script in the body, so a shot fetch that resolves first would reach
+// chartGetOrCreate before the ~500 KB parse finishes — a ReferenceError swallowed by the
+// caller's .catch, leaving a blank chart that nothing redraws. Hold the draw and replay it
+// on the script's load event instead.
 var chartPendingPlot = null;
-window.addEventListener('dye2-plotly-ready', function () {
+window.addEventListener('dye2-echarts-ready', function () {
   var p = chartPendingPlot;
   chartPendingPlot = null;
   if (!p) return;
-  // The held draw wrote its placeholder with no Plotly to purge with, so the node can still
-  // carry Plotly state under that markup — react() into it redraws nothing (see
-  // chartShowPlaceholder). Reset it before replaying.
-  var el = document.getElementById('plotly-chart');
-  if (el) {
-    if (el._fullLayout) Plotly.purge(el);
-    el.innerHTML = '';
-  }
   plotHistoricalShot(p[0], p[1]);
 });
 
 function plotHistoricalShot(measurements, workflow) {
   var el = document.getElementById('plotly-chart');
   if (!el) return;
-  if (!window.Plotly) {
+  if (!window.echarts) {
     chartPendingPlot = [measurements, workflow];
     chartShowPlaceholder(el, 'Loading...');
     return;
   }
 
   if (!measurements || measurements.length === 0) {
-    el.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--low-contrast-white);font-size:18px;">No shot data</div>';
+    chartShowPlaceholder(el, 'No shot data');
     return;
   }
 
@@ -205,7 +246,7 @@ function plotHistoricalShot(measurements, workflow) {
     }
   }
   if (!shotStartTime) {
-    el.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--low-contrast-white);font-size:18px;">No pour data</div>';
+    chartShowPlaceholder(el, 'No pour data');
     return;
   }
 
@@ -239,8 +280,8 @@ function plotHistoricalShot(measurements, workflow) {
           // Step marker when substate transitions (e.g. preinfusion → pouring)
           if (prevSubstate !== null && sub !== prevSubstate) {
             shapes.push({
-              type: 'line', x0: t, x1: t, y0: 0, y1: 1, yref: 'paper',
-              line: { color: chartMarkerColor(), width: 1.5, dash: 'longdash' },
+              x0: t,
+              line: { color: chartMarkerColor(), width: 1.5, dash: 'dashed' },
             });
           }
           prevSubstate = sub;
@@ -295,29 +336,33 @@ function plotHistoricalShot(measurements, workflow) {
     }
   }
 
-  // Adaptive x-axis tick spacing
-  var allX    = Object.values(tracks).reduce(function(acc, tr) { return acc.concat(tr.x); }, []);
-  var maxTime = allX.length > 0 ? Math.max.apply(null, allX) : 0;
-  var dtick   = maxTime < 15 ? 1 : maxTime < 60 ? 5 : maxTime < 100 ? 20 : 30;
-
-  var annotations = chartGetAnnotations(tracks);
-  var layout      = chartBuildLayout(shapes, annotations);
-  var traces      = Object.values(tracks).filter(function(tr) { return tr.x.length > 0; });
+  var traces = Object.keys(tracks).map(function(key) {
+    tracks[key].key = key;
+    return tracks[key];
+  }).filter(function(tr) { return tr.x.length > 0; });
 
   if (traces.length === 0) {
     chartShowPlaceholder(el, 'No sensor data');
     return;
   }
 
+  // Adaptive x-axis tick spacing
+  var allX    = traces.reduce(function(acc, tr) { return acc.concat(tr.x); }, []);
+  var maxTime = allX.length > 0 ? Math.max.apply(null, allX) : 0;
+  var dtick   = maxTime < 15 ? 1 : maxTime < 60 ? 5 : maxTime < 100 ? 20 : 30;
+
+  var annotations = chartGetAnnotations(tracks);
+  var option      = chartBuildOption(traces, dtick, annotations, shapes);
+
   chartClearPlaceholder(el);
-  Plotly.react(el, traces, layout, { responsive: true, displayModeBar: false });
-  Plotly.relayout(el, { 'xaxis.dtick': dtick });
+  var chart = chartGetOrCreate(el);
+  chart.setOption(option, { notMerge: true, lazyUpdate: false, silent: true });
   chartSettle(el);
 }
 
-// Plotly sizes itself from the container at draw time. The shell scales <body> by a
+// echarts sizes itself from the container at draw time. The shell scales <body> by a
 // transform and may not have settled by then, so on the tablet the plot can be laid out
-// at zero size (an empty SVG, no error). Container size in layout px (clientWidth) is not
+// at zero size (an empty canvas, no error). Container size in layout px (clientWidth) is not
 // affected by the transform; getBoundingClientRect is, so it is divided by the shell's
 // scale when clientWidth is unusable. Sizing only: nothing here changes appearance.
 function chartContainerSize(el) {
@@ -331,16 +376,18 @@ function chartContainerSize(el) {
 }
 
 function chartCheckSize(el) {
-  if (!el || !window.Plotly || !el._fullLayout) return;
+  if (!el || !window.echarts) return;
+  var chart = echarts.getInstanceByDom(el);
+  if (!chart || chart.isDisposed()) return;
   var c = chartContainerSize(el);
-  var fl = el._fullLayout;
-  if (!fl.width || !fl.height || !c.w || !c.h) {
-    console.warn('[dye2 chart] zero size at draw: plot ' + fl.width + 'x' + fl.height +
-      ', container ' + c.w + 'x' + c.h + ', rect ' + c.rw + 'x' + c.rh +
+  var w = chart.getWidth();
+  var h = chart.getHeight();
+  if (!w || !h || !c.w || !c.h) {
+    console.warn('[dye2 chart] zero size at draw: plot ' + w + 'x' + h + ', container ' + c.w + 'x' + c.h + ', rect ' + c.rw + 'x' + c.rh +
       ', scale ' + c.sx + ',' + c.sy);
   }
-  if (c.w > 0 && c.h > 0 && (Math.abs(fl.width - c.w) > 1 || Math.abs(fl.height - c.h) > 1)) {
-    try { Plotly.Plots.resize(el); } catch (e) { console.warn('[dye2 chart] resize failed', e); }
+  if (c.w > 0 && c.h > 0 && (Math.abs(w - c.w) > 1 || Math.abs(h - c.h) > 1)) {
+    try { chart.resize({ width: c.w, height: c.h }); } catch (e) { console.warn('[dye2 chart] resize failed', e); }
   }
 }
 

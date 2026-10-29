@@ -10,20 +10,29 @@ function runChart({ fullW, fullH, clientW, clientH, rectW = 0, rectH = 0, scale 
   const warns = [], resizes = [], rafs = [];
   const el = {
     id: "plotly-chart", clientWidth: clientW, clientHeight: clientH,
-    _fullLayout: { width: fullW, height: fullH },
     getBoundingClientRect: () => ({ width: rectW, height: rectH }),
     querySelector: () => null,
   };
+  const chart = {
+    disposed: false,
+    isDisposed() { return this.disposed; },
+    dispose() { this.disposed = true; },
+    getWidth: () => fullW,
+    getHeight: () => fullH,
+    setOption() {},
+    resize: opts => resizes.push(opts),
+  };
+  let registered = null;
   const win = {
     __dyeScale: scale, requestAnimationFrame: f => rafs.push(f),
-    addEventListener() {}, Plotly: null,
+    addEventListener() {}, echarts: null,
   };
-  win.Plotly = {
-    react() {}, relayout() {}, purge() {},
-    Plots: { resize: e => resizes.push(e) },
+  win.echarts = {
+    init: () => { registered = chart; return chart; },
+    getInstanceByDom: () => registered,
   };
   const ctx = vm.createContext({
-    window: win, Plotly: win.Plotly, console: { warn: m => warns.push(m) },
+    window: win, echarts: win.echarts, console: { warn: m => warns.push(m) },
     document: { getElementById: () => el, documentElement: { getAttribute: () => "light" } },
   });
   vm.runInContext(chartScript, ctx);

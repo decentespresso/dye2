@@ -126,7 +126,7 @@
       "data": {}
     },
     {
-      "id": "plotly",
+      "id": "echarts",
       "type": "http",
       "data": {}
     }

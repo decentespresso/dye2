@@ -10,7 +10,7 @@ import { renderProfilePickerPage } from "./pages/profile-picker";
 import { renderRoastersPage } from "./pages/roasters";
 import { renderAddBeanPage } from "./pages/add-bean";
 import { renderDashboardPage } from "./pages/dashboard";
-import { renderPlotlyAsset } from "./utils/plotly-asset";
+import { renderEchartsAsset } from "./utils/echarts-asset";
 import { renderEditShotPage } from "./pages/edit-shot";
 import { renderAutoFavsPage } from "./pages/auto-favs";
 import { renderAutoFavEditPage } from "./pages/auto-fav-edit";
@@ -614,9 +614,9 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         case "skin":
           return json(request, 200, { version: 1, surfaces: [], live: { endpoint: "changed" } });
 
-        // Not a page: the local Plotly bundle for the dashboard chart.
-        case "plotly":
-          return renderPlotlyAsset(request);
+        // Not a page: the local ECharts bundle for the dashboard chart.
+        case "echarts":
+          return renderEchartsAsset(request);
 
         default:
           return {

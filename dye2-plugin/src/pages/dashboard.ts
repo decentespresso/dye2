@@ -986,7 +986,7 @@ async function renderLastShot() {
   if (!shot.measurements) {
     // The text above is already the new shot's, so drop the previous shot's trace rather than
     // leave it sitting under it for the length of the fetch (prev/next). chartShowPlaceholder
-    // purges Plotly's state and plotHistoricalShot clears the placeholder before it replots.
+    // disposes the chart instance and plotHistoricalShot clears the placeholder before it replots.
     // Only show the placeholder if the fetch is actually slow. Clearing the chart instantly
     // means every step flashes "Loading...", and a chart that is one tap stale for 150ms reads
     // better than one that blinks on every tap. Cancelled the moment the data lands.
@@ -2100,7 +2100,6 @@ async function initializeDyeDashboard() {
 
   autoFavs = allFavs.filter(f => f && f.auto);
 
-  initChart();
   await renderLastShot();
 
   // Not awaited: the text is already up. This only widens the loaded window so navigation can
@@ -2154,6 +2153,6 @@ export function renderDashboardPage(request: HttpRequest): HttpResponse {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Dashboard", buildContent(), styles, [devApiScript, shotPagingScript, chartScript, pageScript], { plotly: true }),
+    body: devPageShell("Dashboard", buildContent(), styles, [devApiScript, shotPagingScript, chartScript, pageScript], { echarts: true }),
   };
 }

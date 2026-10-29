@@ -61,7 +61,7 @@ dye2/
 │   │   ├── api/client.ts     # Earlier REST client — not wired up
 │   │   ├── styles/           # Tailwind input + generated CSS
 │   │   ├── utils/            # html`` template, escaping, chart, date picker
-│   │   └── vendor/           # Vendored browser libs (plotly)
+│   │   └── vendor/           # Vendored browser libs (echarts)
 │   ├── test/                 # Node test runner (.test.mjs)
 │   ├── manifest.src.json     # Plugin metadata — SOURCE of manifest.json
 │   ├── vite.config.ts        # IIFE build → ../dye2.reaplugin/plugin.js

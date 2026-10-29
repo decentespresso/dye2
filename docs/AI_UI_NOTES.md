@@ -123,7 +123,7 @@ unreadable. `#707485` is still a skin value (Text/Tertiary).
 `:root[data-theme="dark"]` the skin's dark values. **New markup uses tokens, not hexes.**
 Colour that stays literal is semantic on purpose: white text on `--mimoja-blue`, the
 `#E53935`/`#2E8B57`/`#2E7D32`/`#0ca581` status colours, bean/roast swatches and the
-`--dye-chart-*` set. Browser code that cannot use CSS variables (Plotly in `chart.ts`) reads
+`--dye-chart-*` set. Browser code that cannot use CSS variables (echarts in `chart.ts`) reads
 `document.documentElement.getAttribute('data-theme')` at render time instead.
 
 ## Select Recipe And The Slot Control

@@ -19,7 +19,7 @@ this note covers only what is Figma-specific.
   Not a CDN. Arbitrary-value classes are the norm.
 - Icons are **inline Lucide SVG** (preferred) or legacy base64 PNG data-URIs. No icon font,
   no sprite, no `<img src>` to a file.
-- **The tablet is offline.** Nothing loads from a CDN — not Tailwind, not Plotly, not fonts.
+- **The tablet is offline.** Nothing loads from a CDN — not Tailwind, not echarts, not fonts.
   Every asset is inlined or served by our own route.
 
 ## Scale Factor

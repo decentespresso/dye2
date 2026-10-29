@@ -45,14 +45,14 @@ Consequences that bite:
 Browser code shared across pages lives as exported string constants:
 `dev-api.ts`, `shot-paging.ts`, `recorded-shot.ts`, `chart.ts`, `shared-components.ts`,
 `equipment-field.ts`, `bc-map.ts`. Pages pass them to the shell as a script list.
-Plugin-runtime code that is not a page (`plotly-asset.ts`, `recent-favs.ts`) is instead
+Plugin-runtime code that is not a page (`echarts-asset.ts`, `recent-favs.ts`) is instead
 plain, real, type-checked TypeScript, imported normally by `plugin.ts` — no
 template-literal string, no browser runtime involved.
 
 ## Routing
 
 `dye2-plugin/src/plugin.ts:44` is a flat `switch` on `request.endpoint` — 16 page routes
-plus a `plotly` asset route. Nothing is auto-discovered.
+plus an `echarts` asset route. Nothing is auto-discovered.
 
 **Adding a page means editing three hand-maintained lists that nothing keeps in sync:**
 
@@ -101,8 +101,8 @@ Tailwind (inlined — the tablet is offline, never a CDN), `cssVarFallbacks()` p
 page's own `styles`, then `content`, then `fitScript`, then each entry of `scripts` as its
 own `<script>`.
 
-`opts.plotly` adds a **page-relative** `<script src="plotly">`, deliberately relative so it
-resolves both as `/api/v1/plugins/dye2.reaplugin/plotly` on the tablet and `/plotly` in dev.
+`opts.echarts` adds a **page-relative** `<script src="echarts">`, deliberately relative so it
+resolves both as `/api/v1/plugins/dye2.reaplugin/echarts` on the tablet and `/echarts` in dev.
 Do not make it absolute.
 
 `src/pages/layout.ts` is **dead** — zero importers, both `pageShell()` and `sharedStyles()`.
@@ -196,7 +196,7 @@ assumption for any value reaching HTML should be "needs escaping".
 | Page squashes while typing | Refit guard bypassed; see the geometry-only rule above |
 | Field hidden behind keyboard | `kbAdjust()` — modal vs inline path, and the `lastSy` division |
 | Modal overlay does not scale with the page | Overlay moved out of `body`'s direct children |
-| Plotly 404s on tablet only | `src="plotly"` made absolute instead of page-relative |
+| echarts 404s on tablet only | `src="echarts"` made absolute instead of page-relative |
 
 ## Focused Checks
 

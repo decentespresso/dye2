@@ -6,15 +6,15 @@ import { shotPatchAffectsRecents } from "../src/utils/recent-favs.ts";
 
 const shell = readFileSync(new URL("../src/utils/dev-shell.ts", import.meta.url), "utf8");
 
-// 1. Plotly loads after the page scripts, not before the first data request.
+// 1. echarts loads after the page scripts, not before the first data request.
 {
-  const tag = shell.indexOf('<script src="plotly"');
+  const tag = shell.indexOf('<script src="echarts"');
   const scripts = shell.indexOf("scripts.map(");
   const headEnd = shell.indexOf("</head>");
   assert.ok(tag > 0 && scripts > 0 && headEnd > 0, "all markers present");
-  assert.ok(tag > scripts, "plotly script tag comes after the page scripts");
+  assert.ok(tag > scripts, "echarts script tag comes after the page scripts");
   // Source order alone would still pass with the tag moved into the head template, so pin it
-  // past </head> as well: a blocking 1MB script in head delays every data request.
+  // past </head> as well: a blocking ~500 KB script in head delays every data request.
   assert.ok(tag > headEnd, "and it is outside <head>");
 }
 
