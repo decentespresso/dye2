@@ -8,6 +8,7 @@ import {
   expandFieldHtml,
 } from "../utils/shared-components";
 import { recordedShotScript } from "../utils/recorded-shot";
+import { shotWeightsScript } from "../utils/shot-weights";
 
 const styles = `
   ${stepperCss()}
@@ -259,6 +260,7 @@ const equipPencilSvgJs = JSON.stringify(lucideIcon('pencil', 20, 'currentColor',
 const pageScript = `
 ${enjoymentScaleScript}
 ${recordedShotScript}
+${shotWeightsScript}
 const PENCIL_SVG = ${equipPencilSvgJs};
 let currentShot = null;
 let currentStarRating = 0;
@@ -650,8 +652,19 @@ function applyPendingSelections(shot) {
 const DASHBOARD_ROUTE = 'dashboard';
 function leaveEditShot() {
   const ret = new URLSearchParams(location.search).get('return');
+  const liveId = currentShot && currentShot.id;
   clearReturnKeys();
-  window.location.href = ret || DASHBOARD_ROUTE;
+  let target = ret || DASHBOARD_ROUTE;
+  // Hand back the shot actually on screen: the arrows may have moved off the one the
+  // overlay was opened for, and the skin repaints that row when the frame comes back.
+  if (ret && liveId) {
+    try {
+      const u = new URL(ret, location.href);
+      u.searchParams.set('dyeShot', liveId);
+      target = u.toString();
+    } catch (e) { /* keep the plain return URL */ }
+  }
+  window.location.href = target;
 }
 
 function clearReturnKeys() {
@@ -683,19 +696,19 @@ function renderShot(shot) {
   set('es-shot-label', label);
   const wf = shot.workflow || {};
   const ctx = wf.context || {};
-  const dd = wf.doseData || {};
   const gd = wf.grinderData || {};
   const profile = wf.profile || {};
   set('es-shot-subtitle', full + (profile.title ? '  •  ' + profile.title : ''));
 
-  // Shot annotations are the canonical home for measured/entered values (see rea_restapi.yml
-  // ShotRecordSummary.annotations). Legacy dd/gd kept as read fallbacks for old shots.
-  const ann = shot.annotations || {};
-  const doseIn  = ann.actualDoseWeight != null ? ann.actualDoseWeight : dd.doseIn;
-  const doseOut = ann.actualYield      != null ? ann.actualYield      : dd.doseOut;
+  // Dose in / drink out: the same derivation as the dashboard's Last Shot stat, so the two
+  // screens cannot disagree. A saved annotation wins; otherwise drink out comes from the last
+  // scale sample, which only the full shot record carries (see loadFullShotAt).
+  const { doseIn, doseOut } = shotWeights(shot);
   set('es-dose-value',  doseIn  != null ? doseIn  + 'g' : '—');
   set('es-drink-value', doseOut != null ? doseOut + 'g' : '—');
   set('es-drink-sub', calcRatio(doseIn, doseOut));
+
+  const ann = shot.annotations || {};
 
   set('es-tds-value', ann.drinkTds != null ? ann.drinkTds + '%' : '—');
   set('es-ey-value',  ann.drinkEy  != null ? ann.drinkEy  + '%' : '—');
@@ -752,6 +765,22 @@ function renderShot(shot) {
   updateStars(rating);
 }
 
+// The list endpoint strips measurements, and the drink-out fallback (the last scale sample)
+// lives there, so walking the arrows must load the row it lands on. The summary paints first
+// and the full record replaces it when it arrives; a quick second tap discards the late answer.
+let shotLoadToken = 0;
+async function loadFullShotAt(index) {
+  const shot = allShots[index];
+  if (!shot || shot.measurements) return;
+  const token = ++shotLoadToken;
+  try {
+    const full = await getShot(shot.id);
+    if (token !== shotLoadToken || allShots[index]?.id !== shot.id) return;
+    allShots[index] = { ...shot, ...full };
+    if (shotIndex === index) renderShot(allShots[index]);
+  } catch (e) { console.warn('Could not fetch full shot:', e); }
+}
+
 function updateStars(rating) {
   document.querySelectorAll('#es-stars .dye-star').forEach(s => {
     const idx = parseInt(s.getAttribute('data-index'));
@@ -764,12 +793,13 @@ function updateStars(rating) {
 function shotDialing(shot) {
   const ann = (shot && shot.annotations) || {};
   const wf  = (shot && shot.workflow) || {};
-  const ctx = wf.context || {}, dd = wf.doseData || {}, gd = wf.grinderData || {};
+  const ctx = wf.context || {}, gd = wf.grinderData || {};
+  const weights = shotWeights(shot || {});
   const equip = equipmentArrays(ann.extras);
   const basketRpm = shotBasketRpm(shot);
   return {
-    dose:  ann.actualDoseWeight != null ? ann.actualDoseWeight : dd.doseIn,
-    yield: ann.actualYield      != null ? ann.actualYield      : dd.doseOut,
+    dose:  weights.doseIn,
+    yield: weights.doseOut,
     grind: ctx.grinderSetting   != null ? ctx.grinderSetting   : gd.setting,
     rpm:   basketRpm.rpm,
     basketId:   basketRpm.basketId,
@@ -828,10 +858,10 @@ function applyDialing(d) {
 function setupControls() {
   // Shot nav
   document.getElementById('es-prev-btn')?.addEventListener('click', () => {
-    if (shotIndex < allShots.length - 1) { shotIndex++; renderShot(allShots[shotIndex]); }
+    if (shotIndex < allShots.length - 1) { shotIndex++; renderShot(allShots[shotIndex]); loadFullShotAt(shotIndex); }
   });
   document.getElementById('es-next-btn')?.addEventListener('click', () => {
-    if (shotIndex > 0) { shotIndex--; renderShot(allShots[shotIndex]); }
+    if (shotIndex > 0) { shotIndex--; renderShot(allShots[shotIndex]); loadFullShotAt(shotIndex); }
   });
 
   // Steppers
@@ -1007,7 +1037,20 @@ function setupControls() {
 async function initEditShot() {
   setupControls();
   getEquipment().then(list => { equipmentCache = list; }).catch(e => console.warn('Could not load equipment:', e));
+  // ?shotId= comes from Streamline's shot-history panel, which is normally on another
+  // origin and so cannot set our sessionStorage. The URL wins over the stored id (the DYE2
+  // dashboard's own Edit Shot button), except on a picker round trip: that draft is already
+  // on the shot it stashed. Consumed once and dropped from the address bar, like
+  // recipe-edit's ?id=, so a reload or a picker return falls back to the stored id.
+  const qs = new URLSearchParams(location.search);
+  const askedShotId = qs.get('shotId');
   const returning = sessionStorage.getItem('dye_editShotReturn') === '1';
+  if (askedShotId && !returning) sessionStorage.setItem('dye_editShotId', askedShotId);
+  if (qs.has('shotId')) {
+    qs.delete('shotId');
+    const rest = qs.toString();
+    try { history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash); } catch (e) { /* not fatal */ }
+  }
   try {
     const result = await getShots({ limit: 50, order: 'desc' }).catch(() => ({ items: [] }));
     allShots = (result && result.items) ? result.items : (Array.isArray(result) ? result : []);
