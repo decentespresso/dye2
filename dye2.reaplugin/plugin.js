@@ -13,7 +13,7 @@ var createPlugin = (function() {
 	}
 	//#endregion
 	//#region src/styles/tailwind.generated.css?inline
-	var tailwind_generated_default = "*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:\"\"}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.\\!container{width:100%!important}.container{width:100%}@media (min-width:640px){.\\!container{max-width:640px!important}.container{max-width:640px}}@media (min-width:768px){.\\!container{max-width:768px!important}.container{max-width:768px}}@media (min-width:1024px){.\\!container{max-width:1024px!important}.container{max-width:1024px}}@media (min-width:1280px){.\\!container{max-width:1280px!important}.container{max-width:1280px}}@media (min-width:1536px){.\\!container{max-width:1536px!important}.container{max-width:1536px}}.visible{visibility:visible}.invisible{visibility:hidden}.collapse{visibility:collapse}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.mb-8{margin-bottom:2rem}.mb-\\[14px\\]{margin-bottom:14px}.ml-\\[16px\\]{margin-left:16px}.ml-auto{margin-left:auto}.mr-\\[24px\\]{margin-right:24px}.mt-16{margin-top:4rem}.mt-8{margin-top:2rem}.mt-\\[20px\\]{margin-top:20px}.mt-\\[4px\\]{margin-top:4px}.mt-\\[6px\\]{margin-top:6px}.mt-auto{margin-top:auto}.block{display:block}.inline{display:inline}.flex{display:flex}.table{display:table}.\\!grid{display:grid!important}.grid{display:grid}.hidden{display:none}.h-\\[110px\\]{height:110px}.h-\\[124px\\]{height:124px}.h-\\[134px\\]{height:134px}.h-\\[150px\\]{height:150px}.h-\\[165px\\]{height:165px}.h-\\[2px\\]{height:2px}.h-\\[40px\\]{height:40px}.h-\\[54px\\]{height:54px}.h-\\[60px\\]{height:60px}.h-\\[62px\\]{height:62px}.h-\\[70px\\]{height:70px}.h-\\[72px\\]{height:72px}.h-\\[76px\\]{height:76px}.h-\\[82px\\]{height:82px}.h-\\[90px\\]{height:90px}.h-full{height:100%}.min-h-0{min-height:0}.min-h-\\[330px\\]{min-height:330px}.w-1\\/2{width:50%}.w-\\[1200px\\]{width:1200px}.w-\\[180px\\]{width:180px}.w-\\[1px\\]{width:1px}.w-\\[240px\\]{width:240px}.w-\\[2px\\]{width:2px}.w-\\[300px\\]{width:300px}.w-\\[310px\\]{width:310px}.w-\\[54px\\]{width:54px}.w-\\[60px\\]{width:60px}.w-\\[69px\\]{width:69px}.w-\\[720px\\]{width:720px}.w-\\[72px\\]{width:72px}.w-\\[75px\\]{width:75px}.w-\\[820px\\]{width:820px}.w-\\[960px\\]{width:960px}.w-full{width:100%}.min-w-0{min-width:0}.flex-1{flex:1 1 0%}.flex-shrink{flex-shrink:1}.flex-shrink-0{flex-shrink:0}.shrink{flex-shrink:1}.shrink-0{flex-shrink:0}.flex-grow,.grow{flex-grow:1}.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.resize{resize:both}.auto-cols-\\[225px\\]{grid-auto-columns:225px}.grid-flow-col{grid-auto-flow:column}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-rows-\\[repeat\\(2\\2c 60px\\)\\]{grid-template-rows:repeat(2,60px)}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.items-baseline{align-items:baseline}.items-stretch{align-items:stretch}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0{gap:0}.gap-\\[10px\\]{gap:10px}.gap-\\[12px\\]{gap:12px}.gap-\\[14px\\]{gap:14px}.gap-\\[15px\\]{gap:15px}.gap-\\[16px\\]{gap:16px}.gap-\\[18px\\]{gap:18px}.gap-\\[20px\\]{gap:20px}.gap-\\[22px\\]{gap:22px}.gap-\\[24px\\]{gap:24px}.gap-\\[27px\\]{gap:27px}.gap-\\[28px\\]{gap:28px}.gap-\\[30px\\]{gap:30px}.gap-\\[45px\\]{gap:45px}.gap-\\[48px\\]{gap:48px}.gap-\\[60px\\]{gap:60px}.gap-\\[8px\\]{gap:8px}.gap-\\[90px\\]{gap:90px}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded-\\[12px\\]{border-radius:12px}.rounded-\\[15px\\]{border-radius:15px}.rounded-\\[23px\\]{border-radius:23px}.rounded-\\[68px\\]{border-radius:68px}.rounded-\\[8px\\]{border-radius:8px}.rounded-\\[9999px\\]{border-radius:9999px}.border{border-width:1px}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\\[var\\(--mimoja-blue\\)\\]{border-color:var(--mimoja-blue)}.border-\\[var\\(--profile-button-outline-color\\)\\]{border-color:var(--profile-button-outline-color)}.bg-\\[var\\(--bgmain-color\\)\\]{background-color:var(--bgmain-color)}.bg-\\[var\\(--box-color\\)\\]{background-color:var(--box-color)}.bg-\\[var\\(--button-grey\\)\\]{background-color:var(--button-grey)}.bg-\\[var\\(--card-bg\\)\\]{background-color:var(--card-bg)}.bg-\\[var\\(--mimoja-blue\\)\\]{background-color:var(--mimoja-blue)}.bg-\\[var\\(--profile-button-outline-color\\)\\]{background-color:var(--profile-button-outline-color)}.bg-transparent{background-color:transparent}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.p-\\[30px\\]{padding:30px}.px-\\[14px\\]{padding-left:14px;padding-right:14px}.px-\\[16px\\]{padding-left:16px;padding-right:16px}.px-\\[20px\\]{padding-left:20px;padding-right:20px}.px-\\[24px\\]{padding-left:24px;padding-right:24px}.px-\\[30px\\]{padding-left:30px;padding-right:30px}.px-\\[37px\\]{padding-left:37px;padding-right:37px}.px-\\[38px\\]{padding-left:38px;padding-right:38px}.px-\\[40px\\]{padding-left:40px;padding-right:40px}.px-\\[48px\\]{padding-left:48px;padding-right:48px}.py-\\[12px\\]{padding-top:12px;padding-bottom:12px}.py-\\[1px\\]{padding-top:1px;padding-bottom:1px}.py-\\[27px\\]{padding-top:27px;padding-bottom:27px}.py-\\[28px\\]{padding-top:28px;padding-bottom:28px}.py-\\[32px\\]{padding-top:32px;padding-bottom:32px}.py-\\[36px\\]{padding-top:36px;padding-bottom:36px}.py-\\[40px\\]{padding-top:40px;padding-bottom:40px}.pb-\\[28px\\]{padding-bottom:28px}.pb-\\[40px\\]{padding-bottom:40px}.pl-\\[37px\\]{padding-left:37px}.pr-\\[20px\\]{padding-right:20px}.pr-\\[30px\\]{padding-right:30px}.pt-\\[20px\\]{padding-top:20px}.pt-\\[23px\\]{padding-top:23px}.pt-\\[28px\\]{padding-top:28px}.pt-\\[30px\\]{padding-top:30px}.pt-\\[32px\\]{padding-top:32px}.text-center{text-align:center}.font-\\[\\'Inter\\'\\2c sans-serif\\]{font-family:Inter,sans-serif}.text-\\[16px\\]{font-size:16px}.text-\\[18px\\]{font-size:18px}.text-\\[20px\\]{font-size:20px}.text-\\[21px\\]{font-size:21px}.text-\\[22px\\]{font-size:22px}.text-\\[24px\\]{font-size:24px}.text-\\[26px\\]{font-size:26px}.text-\\[30px\\]{font-size:30px}.text-\\[36px\\]{font-size:36px}.text-\\[38px\\]{font-size:38px}.font-bold{font-weight:700}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.italic{font-style:italic}.leading-\\[1\\.2\\]{line-height:1.2}.text-\\[var\\(--danger-text\\)\\]{color:var(--danger-text)}.text-\\[var\\(--low-contrast-white\\)\\]{color:var(--low-contrast-white)}.text-\\[var\\(--mimoja-blue\\)\\]{color:var(--mimoja-blue)}.text-\\[var\\(--text-primary\\)\\]{color:var(--text-primary)}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.underline{text-decoration-line:underline}.opacity-40{opacity:.4}.opacity-50{opacity:.5}.opacity-60{opacity:.6}.shadow{--tw-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color),0 1px 2px -1px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.outline-none{outline:2px solid transparent;outline-offset:2px}.outline{outline-style:solid}.ring{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.blur{--tw-blur:blur(8px)}.blur,.invert{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.invert{--tw-invert:invert(100%)}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}";
+	var tailwind_generated_default = "*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:\"\"}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.\\!container{width:100%!important}.container{width:100%}@media (min-width:640px){.\\!container{max-width:640px!important}.container{max-width:640px}}@media (min-width:768px){.\\!container{max-width:768px!important}.container{max-width:768px}}@media (min-width:1024px){.\\!container{max-width:1024px!important}.container{max-width:1024px}}@media (min-width:1280px){.\\!container{max-width:1280px!important}.container{max-width:1280px}}@media (min-width:1536px){.\\!container{max-width:1536px!important}.container{max-width:1536px}}.visible{visibility:visible}.invisible{visibility:hidden}.collapse{visibility:collapse}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.left-\\[38px\\]{left:38px}.right-0{right:0}.right-\\[38px\\]{right:38px}.top-0{top:0}.top-\\[122px\\]{top:122px}.z-\\[45\\]{z-index:45}.mb-8{margin-bottom:2rem}.mb-\\[14px\\]{margin-bottom:14px}.mb-\\[6px\\]{margin-bottom:6px}.ml-\\[16px\\]{margin-left:16px}.ml-auto{margin-left:auto}.mr-\\[24px\\]{margin-right:24px}.mt-16{margin-top:4rem}.mt-8{margin-top:2rem}.mt-\\[16px\\]{margin-top:16px}.mt-\\[20px\\]{margin-top:20px}.mt-\\[4px\\]{margin-top:4px}.mt-\\[6px\\]{margin-top:6px}.mt-auto{margin-top:auto}.block{display:block}.inline{display:inline}.flex{display:flex}.table{display:table}.\\!grid{display:grid!important}.grid{display:grid}.hidden{display:none}.h-\\[110px\\]{height:110px}.h-\\[124px\\]{height:124px}.h-\\[12px\\]{height:12px}.h-\\[134px\\]{height:134px}.h-\\[150px\\]{height:150px}.h-\\[165px\\]{height:165px}.h-\\[2px\\]{height:2px}.h-\\[40px\\]{height:40px}.h-\\[54px\\]{height:54px}.h-\\[60px\\]{height:60px}.h-\\[62px\\]{height:62px}.h-\\[70px\\]{height:70px}.h-\\[72px\\]{height:72px}.h-\\[76px\\]{height:76px}.h-\\[82px\\]{height:82px}.h-\\[90px\\]{height:90px}.h-full{height:100%}.min-h-0{min-height:0}.min-h-\\[330px\\]{min-height:330px}.w-1\\/2{width:50%}.w-\\[1200px\\]{width:1200px}.w-\\[12px\\]{width:12px}.w-\\[180px\\]{width:180px}.w-\\[1px\\]{width:1px}.w-\\[240px\\]{width:240px}.w-\\[2px\\]{width:2px}.w-\\[300px\\]{width:300px}.w-\\[310px\\]{width:310px}.w-\\[54px\\]{width:54px}.w-\\[60px\\]{width:60px}.w-\\[69px\\]{width:69px}.w-\\[720px\\]{width:720px}.w-\\[72px\\]{width:72px}.w-\\[75px\\]{width:75px}.w-\\[820px\\]{width:820px}.w-\\[960px\\]{width:960px}.w-full{width:100%}.min-w-0{min-width:0}.flex-1{flex:1 1 0%}.flex-shrink{flex-shrink:1}.flex-shrink-0{flex-shrink:0}.shrink{flex-shrink:1}.shrink-0{flex-shrink:0}.flex-grow,.grow{flex-grow:1}.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.resize{resize:both}.auto-cols-\\[225px\\]{grid-auto-columns:225px}.grid-flow-col{grid-auto-flow:column}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-rows-\\[repeat\\(2\\2c 60px\\)\\]{grid-template-rows:repeat(2,60px)}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.items-baseline{align-items:baseline}.items-stretch{align-items:stretch}.justify-end{justify-content:flex-end}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0{gap:0}.gap-\\[10px\\]{gap:10px}.gap-\\[12px\\]{gap:12px}.gap-\\[14px\\]{gap:14px}.gap-\\[15px\\]{gap:15px}.gap-\\[16px\\]{gap:16px}.gap-\\[18px\\]{gap:18px}.gap-\\[20px\\]{gap:20px}.gap-\\[22px\\]{gap:22px}.gap-\\[24px\\]{gap:24px}.gap-\\[27px\\]{gap:27px}.gap-\\[28px\\]{gap:28px}.gap-\\[30px\\]{gap:30px}.gap-\\[45px\\]{gap:45px}.gap-\\[48px\\]{gap:48px}.gap-\\[60px\\]{gap:60px}.gap-\\[8px\\]{gap:8px}.gap-\\[90px\\]{gap:90px}.gap-x-\\[24px\\]{-moz-column-gap:24px;column-gap:24px}.gap-y-\\[18px\\]{row-gap:18px}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded-\\[12px\\]{border-radius:12px}.rounded-\\[15px\\]{border-radius:15px}.rounded-\\[16px\\]{border-radius:16px}.rounded-\\[23px\\]{border-radius:23px}.rounded-\\[68px\\]{border-radius:68px}.rounded-\\[8px\\]{border-radius:8px}.rounded-\\[9999px\\],.rounded-full{border-radius:9999px}.border{border-width:1px}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\\[var\\(--card-bg\\)\\]{border-color:var(--card-bg)}.border-\\[var\\(--mimoja-blue\\)\\]{border-color:var(--mimoja-blue)}.border-\\[var\\(--profile-button-outline-color\\)\\]{border-color:var(--profile-button-outline-color)}.bg-\\[var\\(--bgmain-color\\)\\]{background-color:var(--bgmain-color)}.bg-\\[var\\(--box-color\\)\\]{background-color:var(--box-color)}.bg-\\[var\\(--button-grey\\)\\]{background-color:var(--button-grey)}.bg-\\[var\\(--card-bg\\)\\]{background-color:var(--card-bg)}.bg-\\[var\\(--mimoja-blue\\)\\]{background-color:var(--mimoja-blue)}.bg-\\[var\\(--profile-button-outline-color\\)\\]{background-color:var(--profile-button-outline-color)}.bg-transparent{background-color:transparent}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.p-\\[30px\\]{padding:30px}.px-\\[14px\\]{padding-left:14px;padding-right:14px}.px-\\[16px\\]{padding-left:16px;padding-right:16px}.px-\\[20px\\]{padding-left:20px;padding-right:20px}.px-\\[24px\\]{padding-left:24px;padding-right:24px}.px-\\[30px\\]{padding-left:30px;padding-right:30px}.px-\\[37px\\]{padding-left:37px;padding-right:37px}.px-\\[38px\\]{padding-left:38px;padding-right:38px}.px-\\[40px\\]{padding-left:40px;padding-right:40px}.px-\\[48px\\]{padding-left:48px;padding-right:48px}.py-\\[12px\\]{padding-top:12px;padding-bottom:12px}.py-\\[1px\\]{padding-top:1px;padding-bottom:1px}.py-\\[20px\\]{padding-top:20px;padding-bottom:20px}.py-\\[27px\\]{padding-top:27px;padding-bottom:27px}.py-\\[28px\\]{padding-top:28px;padding-bottom:28px}.py-\\[32px\\]{padding-top:32px;padding-bottom:32px}.py-\\[36px\\]{padding-top:36px;padding-bottom:36px}.py-\\[40px\\]{padding-top:40px;padding-bottom:40px}.pb-\\[28px\\]{padding-bottom:28px}.pb-\\[40px\\]{padding-bottom:40px}.pl-\\[37px\\]{padding-left:37px}.pr-\\[20px\\]{padding-right:20px}.pr-\\[30px\\]{padding-right:30px}.pt-\\[20px\\]{padding-top:20px}.pt-\\[23px\\]{padding-top:23px}.pt-\\[28px\\]{padding-top:28px}.pt-\\[30px\\]{padding-top:30px}.pt-\\[32px\\]{padding-top:32px}.text-center{text-align:center}.font-\\[\\'Inter\\'\\2c sans-serif\\]{font-family:Inter,sans-serif}.text-\\[16px\\]{font-size:16px}.text-\\[18px\\]{font-size:18px}.text-\\[20px\\]{font-size:20px}.text-\\[21px\\]{font-size:21px}.text-\\[22px\\]{font-size:22px}.text-\\[24px\\]{font-size:24px}.text-\\[26px\\]{font-size:26px}.text-\\[30px\\]{font-size:30px}.text-\\[36px\\]{font-size:36px}.text-\\[38px\\]{font-size:38px}.font-bold{font-weight:700}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.italic{font-style:italic}.leading-\\[1\\.2\\]{line-height:1.2}.text-\\[var\\(--danger-text\\)\\]{color:var(--danger-text)}.text-\\[var\\(--low-contrast-white\\)\\]{color:var(--low-contrast-white)}.text-\\[var\\(--mimoja-blue\\)\\]{color:var(--mimoja-blue)}.text-\\[var\\(--text-primary\\)\\]{color:var(--text-primary)}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.underline{text-decoration-line:underline}.opacity-40{opacity:.4}.opacity-50{opacity:.5}.opacity-60{opacity:.6}.shadow{--tw-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color),0 1px 2px -1px var(--tw-shadow-color)}.shadow,.shadow-\\[0_8px_24px_rgba\\(0\\2c 0\\2c 0\\2c 0\\.12\\)\\]{box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\\[0_8px_24px_rgba\\(0\\2c 0\\2c 0\\2c 0\\.12\\)\\]{--tw-shadow:0 8px 24px rgba(0,0,0,.12);--tw-shadow-colored:0 8px 24px var(--tw-shadow-color)}.outline-none{outline:2px solid transparent;outline-offset:2px}.outline{outline-style:solid}.ring{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.blur{--tw-blur:blur(8px)}.blur,.invert{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.invert{--tw-invert:invert(100%)}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}";
 	/** Inline in <head>, before the stylesheet, so the attribute is set before first paint. */
 	var themeBootstrap = `
 (function () {
@@ -2325,7 +2325,8 @@ function attachCardLongPress(card, onLong) {
 		trash: "<path d=\"M3 6h18\"/><path d=\"M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6\"/><path d=\"M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2\"/>",
 		"arrow-up": "<path d=\"m5 12 7-7 7 7\"/><path d=\"M12 19V5\"/>",
 		"arrow-left": "<path d=\"m12 19-7-7 7-7\"/><path d=\"M19 12H5\"/>",
-		"arrow-right": "<path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/>"
+		"arrow-right": "<path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/>",
+		filter: "<polygon points=\"22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3\"/>"
 	};
 	function lucideIcon(name, size = 36, color = "currentColor", strokeWidth = 2, fill = "none") {
 		return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill}" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${PATHS[name] ?? "<circle cx=\"12\" cy=\"12\" r=\"10\"/>"}</svg>`;
@@ -6000,6 +6001,15 @@ function shotWeights(shot) {
   }
   .viz-logged-in-user { font-weight: 700; color: var(--mimoja-blue); }
 `;
+	function shotFilterFieldHtml(field, label) {
+		return `<div>
+    <div class="text-[var(--low-contrast-white)] text-[18px] mb-[6px]">${label}</div>
+    <div class="dye-name-combo">
+      <input id="dye-filter-${field}-input" class="dye-name-input" style="width:100%" readonly autocomplete="off" placeholder="Any ${label.toLowerCase()}">
+      <div id="dye-filter-${field}-drop" class="dye-name-drop"></div>
+    </div>
+  </div>`;
+	}
 	function buildContent$3() {
 		return `
 <div id="dye-dash-root" class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col relative font-['Inter',sans-serif]">
@@ -6007,7 +6017,7 @@ function shotWeights(shot) {
 
     <!-- LEFT PANEL: Last Shot Review -->
     <div class="flex flex-col w-1/2 shrink-0 bg-[var(--card-bg)] border-r border-[var(--profile-button-outline-color)] overflow-hidden">
-      <div class="flex flex-col gap-[27px] px-[38px] pt-[32px] pb-[40px] flex-1 overflow-hidden">
+      <div class="relative flex flex-col gap-[27px] px-[38px] pt-[32px] pb-[40px] flex-1 overflow-hidden">
 
         <!-- Header row -->
         <div class="flex items-center justify-between shrink-0 h-[90px]">
@@ -6023,6 +6033,11 @@ function shotWeights(shot) {
             <span id="dye-search-count" class="text-[var(--low-contrast-white)] text-[21px] whitespace-nowrap shrink-0"></span>
           </div>
           <div class="flex items-center gap-[30px]">
+            <button id="dye-filter-btn" class="relative text-[var(--mimoja-blue)] cursor-pointer">
+              <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              <!-- Dot shows when a filter from the drawer below is active. -->
+              <span id="dye-filter-badge-dot" class="hidden absolute top-0 right-0 w-[12px] h-[12px] rounded-full bg-[var(--mimoja-blue)] border-2 border-[var(--card-bg)]"></span>
+            </button>
             <button id="dye-search-btn" class="text-[var(--mimoja-blue)] cursor-pointer">
               <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </button>
@@ -6039,6 +6054,21 @@ function shotWeights(shot) {
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- Filter drawer: Bean / Roaster / Grinder / Profile. Absolute so it overlays the
+             shot review below rather than pushing it down, same idea as the dropdowns
+             elsewhere on this page -- its parent just needs 'relative' for the anchor. -->
+        <div id="dye-shot-filter-drawer" class="hidden absolute top-[122px] left-[38px] right-[38px] z-[45] bg-[var(--card-bg)] border border-[var(--profile-button-outline-color)] rounded-[16px] shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-[24px] py-[20px]">
+          <div class="grid grid-cols-2 gap-x-[24px] gap-y-[18px]">
+            ${shotFilterFieldHtml("bean", "Bean")}
+            ${shotFilterFieldHtml("roaster", "Roaster")}
+            ${shotFilterFieldHtml("grinder", "Grinder")}
+            ${shotFilterFieldHtml("profile", "Profile")}
+          </div>
+          <div class="flex justify-end mt-[16px]">
+            <button id="dye-shot-filter-clear" class="hidden text-[var(--mimoja-blue)] text-[20px] font-semibold cursor-pointer">Clear filters</button>
           </div>
         </div>
 
@@ -6699,6 +6729,13 @@ let shotRenderToken = 0;
 // prefetch the shot they are heading towards, so the next tap has its chart already.
 let shotStepDir = 0;
 
+// Shot filter drawer (Bean / Roaster / Grinder / Profile). field -> the picked {id, label,
+// param} option, or absent/null when that field is clear. Prefixed dsf*, not shotFilter*:
+// shot-paging.ts's own top-level shotFilter already owns that name in this shared scope.
+let dsfSelection = {};
+let dsfBeansCache = null;   // getBeans(), shared by the bean and roaster fields
+let dsfFieldHandles = {};   // field -> {clear()} from setupFilterCombo
+
 // Warm the next shot in the direction of travel. Fire and forget: it only fills in
 // measurements, never touches the DOM, and merges by id so a shifting window is harmless.
 // One shot ahead only -- each costs the bridge a blob decode, so this is not a crawl.
@@ -6855,10 +6892,12 @@ function setupStarRating() {
 // The magnifier searches the whole history through the bridge (coffee name, roaster,
 // profile, grinder and notes), not the loaded page — same reason Same Beans does.
 async function runShotSearch(query) {
-  // A search is its own view of history; Same Beans has no meaning inside one.
+  // A search is its own view of history; Same Beans and the filter drawer have no meaning
+  // inside one, so searching clears both rather than silently AND-ing with whatever they left set.
   sameBeanFilter = false;
   const sameBeansLabel = document.querySelector('#dye-same-beans-btn span');
   if (sameBeansLabel) sameBeansLabel.textContent = 'All Shots';
+  clearShotFilterPanel(false);
   await loadShots(query ? { search: query } : null);
   renderLastShot().catch(e => console.warn(e));
 }
@@ -6889,6 +6928,8 @@ function setupShotSearch() {
     if (wrap.classList.contains('hidden')) {
       if (headings) headings.classList.add('hidden');
       wrap.classList.remove('hidden');
+      const drawer = document.getElementById('dye-shot-filter-drawer');
+      if (drawer) drawer.classList.add('hidden');
       input.focus();
       return;
     }
@@ -6928,6 +6969,7 @@ function setupShotNavigation() {
 
   if (sameBeansBtn) sameBeansBtn.addEventListener('click', async () => {
     closeShotSearch();
+    clearShotFilterPanel(false);
     const shot = shots[currentShotIndex];
     const ctx = (shot && shot.workflow && shot.workflow.context) || {};
     // Can't filter "same beans" if the current shot has no bean — stay in All Shots.
@@ -6945,6 +6987,155 @@ function setupShotNavigation() {
     }
     renderLastShot().catch(e => console.warn(e));
   });
+}
+
+// Pick-only combobox for the shot filter drawer: readonly input (tap to browse the full
+// list, same reasoning as the Barista/Drinker fields' readonly -- no keyboard needed to pick
+// something that already exists), mousedown-select so the pick lands before blur closes the
+// drop (see AI_UI_NOTES.md's combo pattern). Returns a handle to reset the field from outside.
+function setupFilterCombo(inputId, dropId, loadOptions, onPick) {
+  const input = document.getElementById(inputId);
+  const drop = document.getElementById(dropId);
+  if (!input || !drop) return { clear() {} };
+  let cache = null;
+
+  async function openDrop() {
+    if (!cache) { try { cache = await loadOptions(); } catch (e) { console.warn('filter options failed for', inputId, e); cache = []; } }
+    drop.innerHTML = '';
+    if (!cache.length) {
+      drop.insertAdjacentHTML('beforeend', '<div class="dye-name-empty">No matches</div>');
+    } else {
+      cache.slice(0, 50).forEach(opt => {
+        const row = document.createElement('div');
+        row.className = 'dye-name-opt';
+        row.textContent = opt.label;
+        row.addEventListener('mousedown', (ev) => {
+          ev.preventDefault();
+          input.value = opt.label;
+          drop.classList.remove('open');
+          onPick(opt);
+        });
+        drop.appendChild(row);
+      });
+    }
+    drop.classList.add('open');
+  }
+
+  input.addEventListener('focus', openDrop);
+  input.addEventListener('blur', () => setTimeout(() => drop.classList.remove('open'), 150));
+
+  return {
+    clear() { input.value = ''; drop.classList.remove('open'); },
+    invalidate() { cache = null; },
+  };
+}
+
+async function dsfBeanRecords() {
+  if (!dsfBeansCache) dsfBeansCache = await getBeans().catch(() => []);
+  return Array.isArray(dsfBeansCache) ? dsfBeansCache : (dsfBeansCache.items || []);
+}
+
+// Filtering by beanId (not coffeeName) matches every batch ever linked to the bean, archived
+// included, so a later bean rename doesn't quietly break the filter -- same reasoning the
+// bridge docs give for beanId over coffeeName (rea_restapi.yml /api/v1/shots).
+async function dsfBeanOptions() {
+  const beans = await dsfBeanRecords();
+  return beans.filter(b => b && (b.name || b.roaster)).map(b => ({
+    label: [b.roaster, b.name].filter(Boolean).join(' ') || b.name || b.roaster,
+    param: { beanId: b.id },
+  }));
+}
+
+// No roaster entity exists (it's a plain string on Bean -- see pages/roasters.ts, which
+// derives its own list the same way), so this can only filter by the coffeeRoaster string.
+async function dsfRoasterOptions() {
+  const beans = await dsfBeanRecords();
+  const seen = new Set();
+  beans.forEach(b => { if (b && b.roaster) seen.add(b.roaster); });
+  return [...seen].map(r => ({ label: r, param: { coffeeRoaster: r } }));
+}
+
+async function dsfGrinderOptions() {
+  return (grinders || []).filter(g => g && (g.model || g.name)).map(g => ({
+    label: g.model || g.name,
+    param: { grinderId: g.id },
+  }));
+}
+
+// profiles is resolveFullProfile's own lazy cache (pages/dashboard.ts) -- reused here rather
+// than a second one, since both just want the library list and either caller can fill it
+// first. GET /api/v1/shots only filters profiles by title (no id), so that's what ships.
+async function dsfProfileOptions() {
+  if (!profiles.length) {
+    try {
+      const fresh = await getProfiles({ includeHidden: true });
+      profiles = Array.isArray(fresh) ? fresh : (fresh && fresh.items ? fresh.items : []);
+    } catch (e) { console.warn('Failed to load profiles for the shot filter:', e); }
+  }
+  return profiles.map(p => {
+    const title = p && ((p.profile && p.profile.title) || p.title || p.name);
+    return title ? { label: title, param: { profileTitle: title } } : null;
+  }).filter(Boolean);
+}
+
+const DSF_FIELDS = [
+  ['bean', dsfBeanOptions],
+  ['roaster', dsfRoasterOptions],
+  ['grinder', dsfGrinderOptions],
+  ['profile', dsfProfileOptions],
+];
+
+function dsfBuildFilter() {
+  const f = {};
+  DSF_FIELDS.forEach(([field]) => { if (dsfSelection[field]) Object.assign(f, dsfSelection[field].param); });
+  return Object.keys(f).length ? f : null;
+}
+
+function updateShotFilterBadge() {
+  const active = DSF_FIELDS.some(([field]) => dsfSelection[field]);
+  const dot = document.getElementById('dye-filter-badge-dot');
+  const clearBtn = document.getElementById('dye-shot-filter-clear');
+  if (dot) dot.classList.toggle('hidden', !active);
+  if (clearBtn) clearBtn.classList.toggle('hidden', !active);
+}
+
+async function applyShotFilterPanel() {
+  await loadShots(dsfBuildFilter());
+  renderLastShot().catch(e => console.warn(e));
+  updateShotFilterBadge();
+}
+
+// reapply=false: just reset the UI/state because another filter mechanism (search, Same
+// Beans) is about to replace the whole picture and will call loadShots itself.
+function clearShotFilterPanel(reapply) {
+  DSF_FIELDS.forEach(([field]) => {
+    dsfSelection[field] = null;
+    const h = dsfFieldHandles[field];
+    if (h) h.clear();
+  });
+  updateShotFilterBadge();
+  if (reapply) applyShotFilterPanel().catch(e => console.warn(e));
+}
+
+function setupShotFilterPanel() {
+  const filterBtn = document.getElementById('dye-filter-btn');
+  const drawer = document.getElementById('dye-shot-filter-drawer');
+  const clearBtn = document.getElementById('dye-shot-filter-clear');
+  if (!filterBtn || !drawer) return;
+
+  filterBtn.addEventListener('click', () => {
+    closeShotSearch();
+    drawer.classList.toggle('hidden');
+  });
+
+  DSF_FIELDS.forEach(([field, loadOptions]) => {
+    dsfFieldHandles[field] = setupFilterCombo(
+      'dye-filter-' + field + '-input', 'dye-filter-' + field + '-drop', loadOptions,
+      (opt) => { dsfSelection[field] = opt; applyShotFilterPanel().catch(e => console.warn(e)); },
+    );
+  });
+
+  if (clearBtn) clearBtn.addEventListener('click', () => clearShotFilterPanel(true));
 }
 
 function setupDropdownToggle(btnId, dropdownId) {
@@ -7793,6 +7984,7 @@ function setupBottomButtons() {
 function wireDashboardControls() {
   setupShotNavigation();
   setupShotSearch();
+  setupShotFilterPanel();
   setupStarRating();
   setupDropdownToggle('dye-edit-shot-chevron', 'dye-edit-shot-dropdown');
   document.getElementById('dye-edit-shot-go')?.addEventListener('click', () => {

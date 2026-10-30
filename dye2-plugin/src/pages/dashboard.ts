@@ -189,13 +189,26 @@ const styles = `
   .viz-logged-in-user { font-weight: 700; color: var(--mimoja-blue); }
 `;
 
+// One combo field in the shot filter drawer. Reuses the Barista/Drinker combo (dye-name-*)
+// styling already on this page rather than inventing a new one -- readonly so tapping to
+// browse the list doesn't pop the keyboard, same reasoning as that field.
+function shotFilterFieldHtml(field: string, label: string): string {
+  return `<div>
+    <div class="text-[var(--low-contrast-white)] text-[18px] mb-[6px]">${label}</div>
+    <div class="dye-name-combo">
+      <input id="dye-filter-${field}-input" class="dye-name-input" style="width:100%" readonly autocomplete="off" placeholder="Any ${label.toLowerCase()}">
+      <div id="dye-filter-${field}-drop" class="dye-name-drop"></div>
+    </div>
+  </div>`;
+}
+
 function buildContent(): string { return `
 <div id="dye-dash-root" class="bg-[var(--bgmain-color)] overflow-hidden flex-grow flex flex-col relative font-['Inter',sans-serif]">
   <div class="flex flex-1 overflow-hidden">
 
     <!-- LEFT PANEL: Last Shot Review -->
     <div class="flex flex-col w-1/2 shrink-0 bg-[var(--card-bg)] border-r border-[var(--profile-button-outline-color)] overflow-hidden">
-      <div class="flex flex-col gap-[27px] px-[38px] pt-[32px] pb-[40px] flex-1 overflow-hidden">
+      <div class="relative flex flex-col gap-[27px] px-[38px] pt-[32px] pb-[40px] flex-1 overflow-hidden">
 
         <!-- Header row -->
         <div class="flex items-center justify-between shrink-0 h-[90px]">
@@ -211,6 +224,11 @@ function buildContent(): string { return `
             <span id="dye-search-count" class="text-[var(--low-contrast-white)] text-[21px] whitespace-nowrap shrink-0"></span>
           </div>
           <div class="flex items-center gap-[30px]">
+            <button id="dye-filter-btn" class="relative text-[var(--mimoja-blue)] cursor-pointer">
+              <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              <!-- Dot shows when a filter from the drawer below is active. -->
+              <span id="dye-filter-badge-dot" class="hidden absolute top-0 right-0 w-[12px] h-[12px] rounded-full bg-[var(--mimoja-blue)] border-2 border-[var(--card-bg)]"></span>
+            </button>
             <button id="dye-search-btn" class="text-[var(--mimoja-blue)] cursor-pointer">
               <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </button>
@@ -227,6 +245,21 @@ function buildContent(): string { return `
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- Filter drawer: Bean / Roaster / Grinder / Profile. Absolute so it overlays the
+             shot review below rather than pushing it down, same idea as the dropdowns
+             elsewhere on this page -- its parent just needs 'relative' for the anchor. -->
+        <div id="dye-shot-filter-drawer" class="hidden absolute top-[122px] left-[38px] right-[38px] z-[45] bg-[var(--card-bg)] border border-[var(--profile-button-outline-color)] rounded-[16px] shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-[24px] py-[20px]">
+          <div class="grid grid-cols-2 gap-x-[24px] gap-y-[18px]">
+            ${shotFilterFieldHtml("bean", "Bean")}
+            ${shotFilterFieldHtml("roaster", "Roaster")}
+            ${shotFilterFieldHtml("grinder", "Grinder")}
+            ${shotFilterFieldHtml("profile", "Profile")}
+          </div>
+          <div class="flex justify-end mt-[16px]">
+            <button id="dye-shot-filter-clear" class="hidden text-[var(--mimoja-blue)] text-[20px] font-semibold cursor-pointer">Clear filters</button>
           </div>
         </div>
 
@@ -887,6 +920,13 @@ let shotRenderToken = 0;
 // prefetch the shot they are heading towards, so the next tap has its chart already.
 let shotStepDir = 0;
 
+// Shot filter drawer (Bean / Roaster / Grinder / Profile). field -> the picked {id, label,
+// param} option, or absent/null when that field is clear. Prefixed dsf*, not shotFilter*:
+// shot-paging.ts's own top-level shotFilter already owns that name in this shared scope.
+let dsfSelection = {};
+let dsfBeansCache = null;   // getBeans(), shared by the bean and roaster fields
+let dsfFieldHandles = {};   // field -> {clear()} from setupFilterCombo
+
 // Warm the next shot in the direction of travel. Fire and forget: it only fills in
 // measurements, never touches the DOM, and merges by id so a shifting window is harmless.
 // One shot ahead only -- each costs the bridge a blob decode, so this is not a crawl.
@@ -1043,10 +1083,12 @@ function setupStarRating() {
 // The magnifier searches the whole history through the bridge (coffee name, roaster,
 // profile, grinder and notes), not the loaded page — same reason Same Beans does.
 async function runShotSearch(query) {
-  // A search is its own view of history; Same Beans has no meaning inside one.
+  // A search is its own view of history; Same Beans and the filter drawer have no meaning
+  // inside one, so searching clears both rather than silently AND-ing with whatever they left set.
   sameBeanFilter = false;
   const sameBeansLabel = document.querySelector('#dye-same-beans-btn span');
   if (sameBeansLabel) sameBeansLabel.textContent = 'All Shots';
+  clearShotFilterPanel(false);
   await loadShots(query ? { search: query } : null);
   renderLastShot().catch(e => console.warn(e));
 }
@@ -1077,6 +1119,8 @@ function setupShotSearch() {
     if (wrap.classList.contains('hidden')) {
       if (headings) headings.classList.add('hidden');
       wrap.classList.remove('hidden');
+      const drawer = document.getElementById('dye-shot-filter-drawer');
+      if (drawer) drawer.classList.add('hidden');
       input.focus();
       return;
     }
@@ -1116,6 +1160,7 @@ function setupShotNavigation() {
 
   if (sameBeansBtn) sameBeansBtn.addEventListener('click', async () => {
     closeShotSearch();
+    clearShotFilterPanel(false);
     const shot = shots[currentShotIndex];
     const ctx = (shot && shot.workflow && shot.workflow.context) || {};
     // Can't filter "same beans" if the current shot has no bean — stay in All Shots.
@@ -1133,6 +1178,155 @@ function setupShotNavigation() {
     }
     renderLastShot().catch(e => console.warn(e));
   });
+}
+
+// Pick-only combobox for the shot filter drawer: readonly input (tap to browse the full
+// list, same reasoning as the Barista/Drinker fields' readonly -- no keyboard needed to pick
+// something that already exists), mousedown-select so the pick lands before blur closes the
+// drop (see AI_UI_NOTES.md's combo pattern). Returns a handle to reset the field from outside.
+function setupFilterCombo(inputId, dropId, loadOptions, onPick) {
+  const input = document.getElementById(inputId);
+  const drop = document.getElementById(dropId);
+  if (!input || !drop) return { clear() {} };
+  let cache = null;
+
+  async function openDrop() {
+    if (!cache) { try { cache = await loadOptions(); } catch (e) { console.warn('filter options failed for', inputId, e); cache = []; } }
+    drop.innerHTML = '';
+    if (!cache.length) {
+      drop.insertAdjacentHTML('beforeend', '<div class="dye-name-empty">No matches</div>');
+    } else {
+      cache.slice(0, 50).forEach(opt => {
+        const row = document.createElement('div');
+        row.className = 'dye-name-opt';
+        row.textContent = opt.label;
+        row.addEventListener('mousedown', (ev) => {
+          ev.preventDefault();
+          input.value = opt.label;
+          drop.classList.remove('open');
+          onPick(opt);
+        });
+        drop.appendChild(row);
+      });
+    }
+    drop.classList.add('open');
+  }
+
+  input.addEventListener('focus', openDrop);
+  input.addEventListener('blur', () => setTimeout(() => drop.classList.remove('open'), 150));
+
+  return {
+    clear() { input.value = ''; drop.classList.remove('open'); },
+    invalidate() { cache = null; },
+  };
+}
+
+async function dsfBeanRecords() {
+  if (!dsfBeansCache) dsfBeansCache = await getBeans().catch(() => []);
+  return Array.isArray(dsfBeansCache) ? dsfBeansCache : (dsfBeansCache.items || []);
+}
+
+// Filtering by beanId (not coffeeName) matches every batch ever linked to the bean, archived
+// included, so a later bean rename doesn't quietly break the filter -- same reasoning the
+// bridge docs give for beanId over coffeeName (rea_restapi.yml /api/v1/shots).
+async function dsfBeanOptions() {
+  const beans = await dsfBeanRecords();
+  return beans.filter(b => b && (b.name || b.roaster)).map(b => ({
+    label: [b.roaster, b.name].filter(Boolean).join(' ') || b.name || b.roaster,
+    param: { beanId: b.id },
+  }));
+}
+
+// No roaster entity exists (it's a plain string on Bean -- see pages/roasters.ts, which
+// derives its own list the same way), so this can only filter by the coffeeRoaster string.
+async function dsfRoasterOptions() {
+  const beans = await dsfBeanRecords();
+  const seen = new Set();
+  beans.forEach(b => { if (b && b.roaster) seen.add(b.roaster); });
+  return [...seen].map(r => ({ label: r, param: { coffeeRoaster: r } }));
+}
+
+async function dsfGrinderOptions() {
+  return (grinders || []).filter(g => g && (g.model || g.name)).map(g => ({
+    label: g.model || g.name,
+    param: { grinderId: g.id },
+  }));
+}
+
+// profiles is resolveFullProfile's own lazy cache (pages/dashboard.ts) -- reused here rather
+// than a second one, since both just want the library list and either caller can fill it
+// first. GET /api/v1/shots only filters profiles by title (no id), so that's what ships.
+async function dsfProfileOptions() {
+  if (!profiles.length) {
+    try {
+      const fresh = await getProfiles({ includeHidden: true });
+      profiles = Array.isArray(fresh) ? fresh : (fresh && fresh.items ? fresh.items : []);
+    } catch (e) { console.warn('Failed to load profiles for the shot filter:', e); }
+  }
+  return profiles.map(p => {
+    const title = p && ((p.profile && p.profile.title) || p.title || p.name);
+    return title ? { label: title, param: { profileTitle: title } } : null;
+  }).filter(Boolean);
+}
+
+const DSF_FIELDS = [
+  ['bean', dsfBeanOptions],
+  ['roaster', dsfRoasterOptions],
+  ['grinder', dsfGrinderOptions],
+  ['profile', dsfProfileOptions],
+];
+
+function dsfBuildFilter() {
+  const f = {};
+  DSF_FIELDS.forEach(([field]) => { if (dsfSelection[field]) Object.assign(f, dsfSelection[field].param); });
+  return Object.keys(f).length ? f : null;
+}
+
+function updateShotFilterBadge() {
+  const active = DSF_FIELDS.some(([field]) => dsfSelection[field]);
+  const dot = document.getElementById('dye-filter-badge-dot');
+  const clearBtn = document.getElementById('dye-shot-filter-clear');
+  if (dot) dot.classList.toggle('hidden', !active);
+  if (clearBtn) clearBtn.classList.toggle('hidden', !active);
+}
+
+async function applyShotFilterPanel() {
+  await loadShots(dsfBuildFilter());
+  renderLastShot().catch(e => console.warn(e));
+  updateShotFilterBadge();
+}
+
+// reapply=false: just reset the UI/state because another filter mechanism (search, Same
+// Beans) is about to replace the whole picture and will call loadShots itself.
+function clearShotFilterPanel(reapply) {
+  DSF_FIELDS.forEach(([field]) => {
+    dsfSelection[field] = null;
+    const h = dsfFieldHandles[field];
+    if (h) h.clear();
+  });
+  updateShotFilterBadge();
+  if (reapply) applyShotFilterPanel().catch(e => console.warn(e));
+}
+
+function setupShotFilterPanel() {
+  const filterBtn = document.getElementById('dye-filter-btn');
+  const drawer = document.getElementById('dye-shot-filter-drawer');
+  const clearBtn = document.getElementById('dye-shot-filter-clear');
+  if (!filterBtn || !drawer) return;
+
+  filterBtn.addEventListener('click', () => {
+    closeShotSearch();
+    drawer.classList.toggle('hidden');
+  });
+
+  DSF_FIELDS.forEach(([field, loadOptions]) => {
+    dsfFieldHandles[field] = setupFilterCombo(
+      'dye-filter-' + field + '-input', 'dye-filter-' + field + '-drop', loadOptions,
+      (opt) => { dsfSelection[field] = opt; applyShotFilterPanel().catch(e => console.warn(e)); },
+    );
+  });
+
+  if (clearBtn) clearBtn.addEventListener('click', () => clearShotFilterPanel(true));
 }
 
 function setupDropdownToggle(btnId, dropdownId) {
@@ -1981,6 +2175,7 @@ function setupBottomButtons() {
 function wireDashboardControls() {
   setupShotNavigation();
   setupShotSearch();
+  setupShotFilterPanel();
   setupStarRating();
   setupDropdownToggle('dye-edit-shot-chevron', 'dye-edit-shot-dropdown');
   document.getElementById('dye-edit-shot-go')?.addEventListener('click', () => {
