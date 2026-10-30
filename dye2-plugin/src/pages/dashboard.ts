@@ -1233,7 +1233,13 @@ function setupFilterCombo(inputId, dropId, loadOptions, onPick, onClear) {
     drop.classList.add('open');
   }
 
+  // click as well as focus: once a pick lands, mousedown's preventDefault (needed so the
+  // pick registers before blur tears the drop down) keeps the input focused, so a second tap
+  // on an already-focused field fires no new focus event and would otherwise never reopen
+  // the drop -- the same reason dashboard.ts's own Barista/Drinker field and auto-fav-edit's
+  // combo both wire their open trigger to click rather than relying on focus alone.
   input.addEventListener('focus', openDrop);
+  input.addEventListener('click', openDrop);
   input.addEventListener('blur', () => setTimeout(() => drop.classList.remove('open'), 150));
   // Clears just this field, independent of the popup's own "Clear filters" (everything).
   if (xBtn) xBtn.addEventListener('click', () => {
