@@ -118,6 +118,14 @@ assert.equal(urls[1], '/api/v1/shots?limit=50&order=desc&coffeeName=Red+Brick&co
 await realGetShots({ limit: 50, offset: 0, order: 'desc', search: 'yirgacheffe & co' });
 assert.equal(urls[2], '/api/v1/shots?limit=50&order=desc&search=yirgacheffe+%26+co', 'search is passed through and escaped');
 
+// Every field the search popup can send must actually reach the bridge -- getShots builds
+// its query string from a fixed allowlist, so a field added to the popup (dashboard.ts's
+// DSF_FIELDS) without a matching line here is silently dropped from every request, not just
+// slow to arrive. This caught exactly that for profileTitle and minEnjoyment.
+await realGetShots({ limit: 20, offset: 0, order: 'desc', grinderId: 'g1', beanId: 'b1', profileTitle: 'I got your back', minEnjoyment: 8 });
+assert.equal(urls[3], '/api/v1/shots?limit=20&order=desc&grinderId=g1&beanId=b1&profileTitle=I+got+your+back&minEnjoyment=8',
+  'grinderId, beanId, profileTitle and minEnjoyment all reach the bridge together');
+
 console.log('ok   getShots query serialization');
 
 
@@ -232,6 +240,21 @@ console.log('ok   getShots query serialization');
   assert.equal(st.shotsTotal, 60, 'the total is the filtered total, not the unfiltered 120');
   assert.ok(st.shots.every(s => s.coffeeName === 'Red Brick'),
     'and every row in the window matches the filter');
+
+  // loadShots racing ITSELF: the search popup fires a fresh loadShots per field tapped, no
+  // debounce, so composing two filters quickly (or reselecting the same field before the
+  // first reply lands -- the common case over a tablet's slower round trip) leaves two calls
+  // in flight. The newer request must win even if its response arrives first.
+  env = makeEnv();
+  delayNextGetShots = 50;                                    // the first filter's page is the slow one
+  const firstFilter = env.loadShots({ coffeeName: 'Red Brick' });   // in flight, slow
+  await env.loadShots({ coffeeName: 'Nightshift' });                // started after, resolves first
+  await firstFilter;                                          // the stale slow reply lands on top, late
+  const raced = env.state();
+  assert.deepEqual(raced.shotFilter, { coffeeName: 'Nightshift' }, 'the newer filter is still active');
+  assert.equal(raced.shotsTotal, 60, 'the total is the newer filter\'s, not overwritten by the stale one');
+  assert.ok(raced.shots.every(s => s.coffeeName === 'Nightshift'),
+    'and the window reflects the newer filter, not the one that happened to resolve last');
 
   // BUG 4: a failed page must not fall through to paging from offset 1 on top of the seed.
   env = makeEnv();

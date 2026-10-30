@@ -41,7 +41,17 @@ async function fetchShotPage(offset) {
 async function loadShots(filter) {
   shotFilter = filter || null;
   const prevShots = shots;
+  // Claimed up front, not after the fetch: the search popup fires a fresh loadShots on every
+  // field tapped, with no debounce, so two picked in quick succession (or the same field
+  // reselected before the first reply lands -- the common case on a tablet's slower round
+  // trip) are both in flight at once. Whichever response arrives LAST would otherwise win
+  // regardless of which request was newest. Bumping shotsGen synchronously here, then
+  // checking it after the await, makes only the most-recently-*started* call able to apply
+  // its result -- same generation-guard idea ensureShotsPage already uses against loadShots,
+  // just needed here too, against loadShots racing itself.
+  const gen = ++shotsGen;
   const page = await fetchShotPage(0);
+  if (gen !== shotsGen) return;
   // Carry forward measurements already fetched for any shot that reappears in the new page
   // (search/Same-Beans still lists the same underlying shots) -- same reasoning as the single
   // seeded shot in ensureShotsPage, just over however many of these already had the blob.
@@ -54,7 +64,6 @@ async function loadShots(filter) {
   // A filtered view is always a real page: GET /shots/latest takes no filter parameters.
   shotsPageLoaded = true;
   shotsPagePromise = null;
-  shotsGen++;
 }
 
 // Seed the newest shot from GET /shots/latest, whose response is the same shape as a list row
