@@ -196,7 +196,9 @@ function shotFilterFieldHtml(field: string, label: string): string {
   return `<div>
     <div class="text-[var(--low-contrast-white)] text-[18px] mb-[6px]">${label}</div>
     <div class="dye-name-combo">
-      <input id="dye-filter-${field}-input" class="dye-name-input" style="width:100%" readonly autocomplete="off" placeholder="Any ${label.toLowerCase()}">
+      <input id="dye-filter-${field}-input" class="dye-name-input" style="width:100%;padding-right:34px" readonly autocomplete="off" placeholder="Any ${label.toLowerCase()}">
+      <!-- Clears just this field -- shown only once it holds a pick, see setupFilterCombo. -->
+      <button id="dye-filter-${field}-x" class="hidden" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--low-contrast-white);font-size:22px;line-height:1;cursor:pointer">×</button>
       <div id="dye-filter-${field}-drop" class="dye-name-drop"></div>
     </div>
   </div>`;
@@ -247,9 +249,13 @@ function buildContent(): string { return `
              below rather than pushing it down; its parent just needs 'relative' for the anchor. -->
         <div id="dye-search-popup" class="hidden absolute top-[122px] left-[38px] right-[38px] z-[45] bg-[var(--card-bg)] border border-[var(--profile-button-outline-color)] rounded-[16px] shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-[24px] py-[20px] flex flex-col gap-[18px]">
           <div class="flex items-center gap-[16px]">
-            <input id="dye-search-input" type="text" autocomplete="off" spellcheck="false"
-              placeholder="Coffee, roaster, profile, grinder, notes…"
-              class="flex-1 min-w-0 h-[54px] px-[24px] rounded-[23px] border-2 border-[var(--mimoja-blue)] bg-transparent text-[var(--text-primary)] text-[24px] outline-none">
+            <div class="relative flex-1 min-w-0">
+              <input id="dye-search-input" type="text" autocomplete="off" spellcheck="false"
+                placeholder="Coffee, roaster, profile, grinder, notes…"
+                class="w-full h-[54px] pl-[24px] pr-[44px] rounded-[23px] border-2 border-[var(--mimoja-blue)] bg-transparent text-[var(--text-primary)] text-[24px] outline-none">
+              <!-- Clears just the free-text search -- shown only once something is typed. -->
+              <button id="dye-search-input-x" class="hidden" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);color:var(--low-contrast-white);font-size:24px;line-height:1;cursor:pointer">×</button>
+            </div>
             <span id="dye-search-count" class="text-[var(--low-contrast-white)] text-[21px] whitespace-nowrap shrink-0"></span>
           </div>
           <div class="grid grid-cols-2 gap-x-[24px] gap-y-[18px]">
@@ -982,8 +988,10 @@ async function renderLastShot() {
   }
 
   const { label, full } = formatShotDate(shot.timestamp);
-  // Show position so a single-shot "Same Beans" view is obviously why prev/next don't move.
-  const pos = shotsTotal > 1 ? ' (' + (currentShotIndex + 1) + '/' + shotsTotal + ')' : '';
+  // Show position so a single-shot filtered/"Same Beans" view is obviously why prev/next
+  // don't move, and so a filter that narrows to exactly one match (a real, working filter)
+  // doesn't look indistinguishable from an unfiltered single-shot history.
+  const pos = shotsTotal > 0 ? ' (' + (currentShotIndex + 1) + '/' + shotsTotal + ')' : '';
   if (labelEl) labelEl.textContent = 'Last Shot: ' + label + pos;
   if (dateEl) dateEl.textContent = full;
 
@@ -1109,6 +1117,7 @@ function setupShotSearch() {
   const btn = document.getElementById('dye-search-btn');
   const popup = document.getElementById('dye-search-popup');
   const input = document.getElementById('dye-search-input');
+  const xBtn = document.getElementById('dye-search-input-x');
   if (!btn || !popup || !input) return;
   let timer = null;
 
@@ -1118,11 +1127,21 @@ function setupShotSearch() {
   });
 
   input.addEventListener('input', () => {
+    if (xBtn) xBtn.classList.toggle('hidden', !input.value);
     clearTimeout(timer);
     timer = setTimeout(() => {
       dsfSearchText = input.value.trim();
       applyShotFilters().catch(e => console.warn(e));
     }, 350);
+  });
+
+  // Clears just the free text, independent of the popup's own "Clear filters" (everything).
+  if (xBtn) xBtn.addEventListener('click', () => {
+    clearTimeout(timer);
+    input.value = '';
+    xBtn.classList.add('hidden');
+    dsfSearchText = '';
+    applyShotFilters().catch(e => console.warn(e));
   });
 
   input.addEventListener('keydown', (e) => {
@@ -1180,11 +1199,17 @@ function setupShotNavigation() {
 // list, same reasoning as the Barista/Drinker fields' readonly -- no keyboard needed to pick
 // something that already exists), mousedown-select so the pick lands before blur closes the
 // drop (see AI_UI_NOTES.md's combo pattern). Returns a handle to reset the field from outside.
-function setupFilterCombo(inputId, dropId, loadOptions, onPick) {
+function setupFilterCombo(inputId, dropId, loadOptions, onPick, onClear) {
   const input = document.getElementById(inputId);
   const drop = document.getElementById(dropId);
+  const xBtn = document.getElementById(inputId.replace(/-input$/, '-x'));
   if (!input || !drop) return { clear() {} };
   let cache = null;
+
+  function setValue(value) {
+    input.value = value;
+    if (xBtn) xBtn.classList.toggle('hidden', !value);
+  }
 
   async function openDrop() {
     if (!cache) { try { cache = await loadOptions(); } catch (e) { console.warn('filter options failed for', inputId, e); cache = []; } }
@@ -1198,7 +1223,7 @@ function setupFilterCombo(inputId, dropId, loadOptions, onPick) {
         row.textContent = opt.label;
         row.addEventListener('mousedown', (ev) => {
           ev.preventDefault();
-          input.value = opt.label;
+          setValue(opt.label);
           drop.classList.remove('open');
           onPick(opt);
         });
@@ -1210,9 +1235,15 @@ function setupFilterCombo(inputId, dropId, loadOptions, onPick) {
 
   input.addEventListener('focus', openDrop);
   input.addEventListener('blur', () => setTimeout(() => drop.classList.remove('open'), 150));
+  // Clears just this field, independent of the popup's own "Clear filters" (everything).
+  if (xBtn) xBtn.addEventListener('click', () => {
+    setValue('');
+    drop.classList.remove('open');
+    if (onClear) onClear();
+  });
 
   return {
-    clear() { input.value = ''; drop.classList.remove('open'); },
+    clear() { setValue(''); drop.classList.remove('open'); },
     invalidate() { cache = null; },
   };
 }
@@ -1305,6 +1336,8 @@ function clearShotFilters(reapply) {
   dsfSearchText = '';
   const input = document.getElementById('dye-search-input');
   if (input) input.value = '';
+  const xBtn = document.getElementById('dye-search-input-x');
+  if (xBtn) xBtn.classList.add('hidden');
   const countEl = document.getElementById('dye-search-count');
   if (countEl) countEl.textContent = '';
   DSF_FIELDS.forEach(([field]) => {
@@ -1356,6 +1389,7 @@ function setupShotFilterFields() {
     dsfFieldHandles[field] = setupFilterCombo(
       'dye-filter-' + field + '-input', 'dye-filter-' + field + '-drop', loadOptions,
       (opt) => { dsfSelection[field] = opt; applyShotFilters().catch(e => console.warn(e)); },
+      () => { dsfSelection[field] = null; applyShotFilters().catch(e => console.warn(e)); },
     );
   });
 
