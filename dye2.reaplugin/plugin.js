@@ -7084,31 +7084,68 @@ async function dsfBeanRecords() {
   return Array.isArray(dsfBeansCache) ? dsfBeansCache : (dsfBeansCache.items || []);
 }
 
+// Same shape as dsfBuildFilter, minus one field -- so that field's own dropdown (and the
+// facet lookup below) sees what the *other* active picks allow, not its own current value.
+function dsfBuildFilterExcluding(excludeField) {
+  const f = {};
+  if (dsfSearchText) f.search = dsfSearchText;
+  DSF_FIELDS.forEach(([field]) => {
+    if (field === excludeField || !dsfSelection[field]) return;
+    Object.assign(f, dsfSelection[field].param);
+  });
+  return f;
+}
+
+// null while no other filter is active -- the four option lists below then stay the full
+// library, same as before this existed. Once something else is picked, this is what makes
+// them shrink to combinations shots actually have. Capped at the bridge's own limit clamp
+// (shots_handler.dart: limit.clamp(1, 100)) rather than paged to the real total -- a dropdown
+// doesn't need to be exact past a hundred matches.
+async function dsfMatchingFacets(excludeField) {
+  const filter = dsfBuildFilterExcluding(excludeField);
+  if (!Object.keys(filter).length) return null;
+  const opts = Object.assign({ limit: 100, order: 'desc' }, filter);
+  const res = await getShots(opts).catch(() => null);
+  const items = (res && res.items) ? res.items : (Array.isArray(res) ? res : []);
+  return items.map(s => {
+    const ctx = (s && s.workflow && s.workflow.context) || {};
+    const profile = (s && s.workflow && s.workflow.profile) || {};
+    return { coffeeName: ctx.coffeeName, coffeeRoaster: ctx.coffeeRoaster, grinderId: ctx.grinderId, profileTitle: profile.title };
+  });
+}
+
 // Filtering by beanId (not coffeeName) matches every batch ever linked to the bean, archived
 // included, so a later bean rename doesn't quietly break the filter -- same reasoning the
 // bridge docs give for beanId over coffeeName (rea_restapi.yml /api/v1/shots).
 async function dsfBeanOptions() {
   const beans = await dsfBeanRecords();
-  return beans.filter(b => b && (b.name || b.roaster)).map(b => ({
-    label: [b.roaster, b.name].filter(Boolean).join(' ') || b.name || b.roaster,
-    param: { beanId: b.id },
-  }));
+  const facets = await dsfMatchingFacets('bean');
+  const seen = facets && new Set(facets.map(f => (f.coffeeRoaster || '') + '\u0000' + (f.coffeeName || '')));
+  return beans.filter(b => b && (b.name || b.roaster))
+    .filter(b => !seen || seen.has((b.roaster || '') + '\u0000' + (b.name || '')))
+    .map(b => ({
+      label: [b.roaster, b.name].filter(Boolean).join(' ') || b.name || b.roaster,
+      param: { beanId: b.id },
+    }));
 }
 
 // No roaster entity exists (it's a plain string on Bean -- see pages/roasters.ts, which
 // derives its own list the same way), so this can only filter by the coffeeRoaster string.
 async function dsfRoasterOptions() {
   const beans = await dsfBeanRecords();
-  const seen = new Set();
-  beans.forEach(b => { if (b && b.roaster) seen.add(b.roaster); });
-  return [...seen].map(r => ({ label: r, param: { coffeeRoaster: r } }));
+  const facets = await dsfMatchingFacets('roaster');
+  const seen = facets && new Set(facets.map(f => f.coffeeRoaster).filter(Boolean));
+  const roasters = new Set();
+  beans.forEach(b => { if (b && b.roaster && (!seen || seen.has(b.roaster))) roasters.add(b.roaster); });
+  return [...roasters].map(r => ({ label: r, param: { coffeeRoaster: r } }));
 }
 
 async function dsfGrinderOptions() {
-  return (grinders || []).filter(g => g && (g.model || g.name)).map(g => ({
-    label: g.model || g.name,
-    param: { grinderId: g.id },
-  }));
+  const facets = await dsfMatchingFacets('grinder');
+  const seen = facets && new Set(facets.map(f => f.grinderId).filter(Boolean));
+  return (grinders || []).filter(g => g && (g.model || g.name))
+    .filter(g => !seen || seen.has(g.id))
+    .map(g => ({ label: g.model || g.name, param: { grinderId: g.id } }));
 }
 
 // profiles is resolveFullProfile's own lazy cache (pages/dashboard.ts) -- reused here rather
@@ -7121,9 +7158,11 @@ async function dsfProfileOptions() {
       profiles = Array.isArray(fresh) ? fresh : (fresh && fresh.items ? fresh.items : []);
     } catch (e) { console.warn('Failed to load profiles for the shot filter:', e); }
   }
+  const facets = await dsfMatchingFacets('profile');
+  const seen = facets && new Set(facets.map(f => f.profileTitle).filter(Boolean));
   return profiles.map(p => {
     const title = p && ((p.profile && p.profile.title) || p.title || p.name);
-    return title ? { label: title, param: { profileTitle: title } } : null;
+    return title && (!seen || seen.has(title)) ? { label: title, param: { profileTitle: title } } : null;
   }).filter(Boolean);
 }
 
@@ -7156,6 +7195,9 @@ function updateShotFilterBadge() {
 }
 
 async function applyShotFilters() {
+  // The pick that just landed changes what every OTHER dropdown's facet query returns, so
+  // their cached option lists (set in setupFilterCombo) are stale the moment this runs.
+  DSF_FIELDS.forEach(([field]) => { const h = dsfFieldHandles[field]; if (h && h.invalidate) h.invalidate(); });
   await loadShots(dsfBuildFilter(dsfSearchText));
   renderLastShot().catch(e => console.warn(e));
   updateShotFilterBadge();
@@ -7174,7 +7216,7 @@ function clearShotFilters(reapply) {
   DSF_FIELDS.forEach(([field]) => {
     dsfSelection[field] = null;
     const h = dsfFieldHandles[field];
-    if (h) h.clear();
+    if (h) { h.clear(); if (h.invalidate) h.invalidate(); }
   });
   updateShotFilterBadge();
   if (reapply) applyShotFilters().catch(e => console.warn(e));
