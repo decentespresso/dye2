@@ -8488,8 +8488,10 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
       <div class="edit-divider"></div>
 
       <!-- Setting / RPM -->
+      <!-- Setting's label is 120px, matching expandFieldHtml's fixed label width above it
+           (Grinder), so the minus button lines up under the white field's left edge. -->
       <div class="flex items-center gap-[60px]">
-        ${stepperHtml("es-setting", "Setting", "100px")}
+        ${stepperHtml("es-setting", "Setting", "120px")}
         ${stepperHtml("es-rpm", "RPM", "100px")}
       </div>
       <div class="edit-divider"></div>
