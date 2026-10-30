@@ -216,21 +216,14 @@ function buildContent(): string { return `
             <div id="dye-last-shot-label" class="text-[var(--mimoja-blue)] font-semibold text-[30px] leading-[1.2]">Last Shot: —</div>
             <div id="dye-last-shot-date" class="text-[var(--text-primary)] font-normal text-[24px] leading-[1.2]">—</div>
           </div>
-          <div id="dye-search-wrap" class="hidden flex-1 mr-[24px] min-w-0 flex items-center gap-[16px]">
-            <input id="dye-search-input" type="text" autocomplete="off" spellcheck="false"
-              placeholder="Coffee, roaster, profile, grinder, notes…"
-              class="flex-1 min-w-0 h-[54px] px-[24px] rounded-[23px] border-2 border-[var(--mimoja-blue)] bg-transparent text-[var(--text-primary)] text-[24px] outline-none">
-            <!-- The "Last Shot (3/12)" heading is hidden while searching, so the count lives here. -->
-            <span id="dye-search-count" class="text-[var(--low-contrast-white)] text-[21px] whitespace-nowrap shrink-0"></span>
-          </div>
+          <!-- The count moves into the search popup below; the heading stays up regardless of
+               whether a search/filter is active, since the popup is now an overlay rather than
+               something that swaps places with this row. -->
           <div class="flex items-center gap-[30px]">
-            <button id="dye-filter-btn" class="relative text-[var(--mimoja-blue)] cursor-pointer">
-              <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-              <!-- Dot shows when a filter from the drawer below is active. -->
-              <span id="dye-filter-badge-dot" class="hidden absolute top-0 right-0 w-[12px] h-[12px] rounded-full bg-[var(--mimoja-blue)] border-2 border-[var(--card-bg)]"></span>
-            </button>
-            <button id="dye-search-btn" class="text-[var(--mimoja-blue)] cursor-pointer">
+            <button id="dye-search-btn" class="relative text-[var(--mimoja-blue)] cursor-pointer">
               <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <!-- Dot shows when free text or any filter field in the popup below is active. -->
+              <span id="dye-search-badge-dot" class="hidden absolute top-0 right-0 w-[12px] h-[12px] rounded-full bg-[var(--mimoja-blue)] border-2 border-[var(--card-bg)]"></span>
             </button>
             <div class="flex items-center border-2 border-[var(--mimoja-blue)] rounded-[23px] overflow-hidden">
               <button id="dye-prev-shot-btn" class="flex items-center justify-center w-[60px] h-[54px] shrink-0 cursor-pointer">
@@ -248,17 +241,24 @@ function buildContent(): string { return `
           </div>
         </div>
 
-        <!-- Filter drawer: Bean / Roaster / Grinder / Profile. Absolute so it overlays the
-             shot review below rather than pushing it down, same idea as the dropdowns
-             elsewhere on this page -- its parent just needs 'relative' for the anchor. -->
-        <div id="dye-shot-filter-drawer" class="hidden absolute top-[122px] left-[38px] right-[38px] z-[45] bg-[var(--card-bg)] border border-[var(--profile-button-outline-color)] rounded-[16px] shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-[24px] py-[20px]">
+        <!-- Search popup: free text plus Bean / Roaster / Grinder / Profile, all composing
+             together (the bridge ANDs every GET /api/v1/shots param, search included -- see
+             reaprime shot_dao.dart getShotsPaginated). Absolute so it overlays the shot review
+             below rather than pushing it down; its parent just needs 'relative' for the anchor. -->
+        <div id="dye-search-popup" class="hidden absolute top-[122px] left-[38px] right-[38px] z-[45] bg-[var(--card-bg)] border border-[var(--profile-button-outline-color)] rounded-[16px] shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-[24px] py-[20px] flex flex-col gap-[18px]">
+          <div class="flex items-center gap-[16px]">
+            <input id="dye-search-input" type="text" autocomplete="off" spellcheck="false"
+              placeholder="Coffee, roaster, profile, grinder, notes…"
+              class="flex-1 min-w-0 h-[54px] px-[24px] rounded-[23px] border-2 border-[var(--mimoja-blue)] bg-transparent text-[var(--text-primary)] text-[24px] outline-none">
+            <span id="dye-search-count" class="text-[var(--low-contrast-white)] text-[21px] whitespace-nowrap shrink-0"></span>
+          </div>
           <div class="grid grid-cols-2 gap-x-[24px] gap-y-[18px]">
             ${shotFilterFieldHtml("bean", "Bean")}
             ${shotFilterFieldHtml("roaster", "Roaster")}
             ${shotFilterFieldHtml("grinder", "Grinder")}
             ${shotFilterFieldHtml("profile", "Profile")}
           </div>
-          <div class="flex justify-end mt-[16px]">
+          <div class="flex justify-end">
             <button id="dye-shot-filter-clear" class="hidden text-[var(--mimoja-blue)] text-[20px] font-semibold cursor-pointer">Clear filters</button>
           </div>
         </div>
@@ -920,9 +920,11 @@ let shotRenderToken = 0;
 // prefetch the shot they are heading towards, so the next tap has its chart already.
 let shotStepDir = 0;
 
-// Shot filter drawer (Bean / Roaster / Grinder / Profile). field -> the picked {id, label,
-// param} option, or absent/null when that field is clear. Prefixed dsf*, not shotFilter*:
-// shot-paging.ts's own top-level shotFilter already owns that name in this shared scope.
+// Search popup: free text plus Bean / Roaster / Grinder / Profile. field -> the picked
+// {id, label, param} option, or absent/null when that field is clear. Prefixed dsf*, not
+// shotFilter*: shot-paging.ts's own top-level shotFilter already owns that name in this
+// shared scope.
+let dsfSearchText = '';
 let dsfSelection = {};
 let dsfBeansCache = null;   // getBeans(), shared by the bean and roaster fields
 let dsfFieldHandles = {};   // field -> {clear()} from setupFilterCombo
@@ -1080,62 +1082,42 @@ function setupStarRating() {
   });
 }
 
-// The magnifier searches the whole history through the bridge (coffee name, roaster,
-// profile, grinder and notes), not the loaded page — same reason Same Beans does.
-async function runShotSearch(query) {
-  // A search is its own view of history; Same Beans and the filter drawer have no meaning
-  // inside one, so searching clears both rather than silently AND-ing with whatever they left set.
-  sameBeanFilter = false;
-  const sameBeansLabel = document.querySelector('#dye-same-beans-btn span');
-  if (sameBeansLabel) sameBeansLabel.textContent = 'All Shots';
-  clearShotFilterPanel(false);
-  await loadShots(query ? { search: query } : null);
-  renderLastShot().catch(e => console.warn(e));
-}
-
-function closeShotSearch() {
-  const wrap = document.getElementById('dye-search-wrap');
-  const input = document.getElementById('dye-search-input');
-  const headings = document.getElementById('dye-last-shot-headings');
-  if (!wrap || wrap.classList.contains('hidden')) return false;
-  wrap.classList.add('hidden');
-  if (headings) headings.classList.remove('hidden');
-  const had = !!(input && input.value.trim());
-  if (input) input.value = '';
-  const countEl = document.getElementById('dye-search-count');
-  if (countEl) countEl.textContent = '';
-  return had;
+// Free text and the picker fields below all compose into one bridge query (the handler ANDs
+// every GET /api/v1/shots param, search included), so typing a name and picking a grinder
+// together narrows further rather than one replacing the other. Same Beans stays a separate
+// one-tap shortcut outside the popup -- see setupShotNavigation -- and still resets this.
+function closeShotSearchPopup() {
+  const popup = document.getElementById('dye-search-popup');
+  if (popup) popup.classList.add('hidden');
 }
 
 function setupShotSearch() {
   const btn = document.getElementById('dye-search-btn');
-  const wrap = document.getElementById('dye-search-wrap');
+  const popup = document.getElementById('dye-search-popup');
   const input = document.getElementById('dye-search-input');
-  const headings = document.getElementById('dye-last-shot-headings');
-  if (!btn || !wrap || !input) return;
+  if (!btn || !popup || !input) return;
   let timer = null;
 
   btn.addEventListener('click', () => {
-    if (wrap.classList.contains('hidden')) {
-      if (headings) headings.classList.add('hidden');
-      wrap.classList.remove('hidden');
-      const drawer = document.getElementById('dye-shot-filter-drawer');
-      if (drawer) drawer.classList.add('hidden');
-      input.focus();
-      return;
-    }
-    // Closing on a live search puts the full history back.
-    if (closeShotSearch()) runShotSearch('');
+    popup.classList.toggle('hidden');
+    if (!popup.classList.contains('hidden')) input.focus();
   });
 
   input.addEventListener('input', () => {
     clearTimeout(timer);
-    timer = setTimeout(() => runShotSearch(input.value.trim()), 350);
+    timer = setTimeout(() => {
+      dsfSearchText = input.value.trim();
+      applyShotFilters().catch(e => console.warn(e));
+    }, 350);
   });
 
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { clearTimeout(timer); runShotSearch(input.value.trim()); }
-    if (e.key === 'Escape') { clearTimeout(timer); if (closeShotSearch()) runShotSearch(''); }
+    if (e.key === 'Enter') {
+      clearTimeout(timer);
+      dsfSearchText = input.value.trim();
+      applyShotFilters().catch(e => console.warn(e));
+    }
+    if (e.key === 'Escape') { clearTimeout(timer); closeShotSearchPopup(); }
   });
 }
 
@@ -1159,8 +1141,8 @@ function setupShotNavigation() {
   });
 
   if (sameBeansBtn) sameBeansBtn.addEventListener('click', async () => {
-    closeShotSearch();
-    clearShotFilterPanel(false);
+    closeShotSearchPopup();
+    clearShotFilters(false);
     const shot = shots[currentShotIndex];
     const ctx = (shot && shot.workflow && shot.workflow.context) || {};
     // Can't filter "same beans" if the current shot has no bean — stay in All Shots.
@@ -1276,57 +1258,57 @@ const DSF_FIELDS = [
   ['profile', dsfProfileOptions],
 ];
 
-function dsfBuildFilter() {
+// Pure on purpose (searchText passed in, not read off dsfSearchText) -- see
+// test/dashboard-shot-filter.test.mjs, which extracts and runs this function on its own.
+function dsfBuildFilter(searchText) {
   const f = {};
+  if (searchText) f.search = searchText;
   DSF_FIELDS.forEach(([field]) => { if (dsfSelection[field]) Object.assign(f, dsfSelection[field].param); });
   return Object.keys(f).length ? f : null;
 }
 
 function updateShotFilterBadge() {
-  const active = DSF_FIELDS.some(([field]) => dsfSelection[field]);
-  const dot = document.getElementById('dye-filter-badge-dot');
+  const active = !!dsfSearchText || DSF_FIELDS.some(([field]) => dsfSelection[field]);
+  const dot = document.getElementById('dye-search-badge-dot');
   const clearBtn = document.getElementById('dye-shot-filter-clear');
   if (dot) dot.classList.toggle('hidden', !active);
   if (clearBtn) clearBtn.classList.toggle('hidden', !active);
 }
 
-async function applyShotFilterPanel() {
-  await loadShots(dsfBuildFilter());
+async function applyShotFilters() {
+  await loadShots(dsfBuildFilter(dsfSearchText));
   renderLastShot().catch(e => console.warn(e));
   updateShotFilterBadge();
 }
 
-// reapply=false: just reset the UI/state because another filter mechanism (search, Same
-// Beans) is about to replace the whole picture and will call loadShots itself.
-function clearShotFilterPanel(reapply) {
+// reapply=false: just reset the UI/state because another filter mechanism (Same Beans) is
+// about to replace the whole picture and will call loadShots itself.
+function clearShotFilters(reapply) {
+  dsfSearchText = '';
+  const input = document.getElementById('dye-search-input');
+  if (input) input.value = '';
+  const countEl = document.getElementById('dye-search-count');
+  if (countEl) countEl.textContent = '';
   DSF_FIELDS.forEach(([field]) => {
     dsfSelection[field] = null;
     const h = dsfFieldHandles[field];
     if (h) h.clear();
   });
   updateShotFilterBadge();
-  if (reapply) applyShotFilterPanel().catch(e => console.warn(e));
+  if (reapply) applyShotFilters().catch(e => console.warn(e));
 }
 
-function setupShotFilterPanel() {
-  const filterBtn = document.getElementById('dye-filter-btn');
-  const drawer = document.getElementById('dye-shot-filter-drawer');
+function setupShotFilterFields() {
   const clearBtn = document.getElementById('dye-shot-filter-clear');
-  if (!filterBtn || !drawer) return;
-
-  filterBtn.addEventListener('click', () => {
-    closeShotSearch();
-    drawer.classList.toggle('hidden');
-  });
 
   DSF_FIELDS.forEach(([field, loadOptions]) => {
     dsfFieldHandles[field] = setupFilterCombo(
       'dye-filter-' + field + '-input', 'dye-filter-' + field + '-drop', loadOptions,
-      (opt) => { dsfSelection[field] = opt; applyShotFilterPanel().catch(e => console.warn(e)); },
+      (opt) => { dsfSelection[field] = opt; applyShotFilters().catch(e => console.warn(e)); },
     );
   });
 
-  if (clearBtn) clearBtn.addEventListener('click', () => clearShotFilterPanel(true));
+  if (clearBtn) clearBtn.addEventListener('click', () => clearShotFilters(true));
 }
 
 function setupDropdownToggle(btnId, dropdownId) {
@@ -2175,7 +2157,7 @@ function setupBottomButtons() {
 function wireDashboardControls() {
   setupShotNavigation();
   setupShotSearch();
-  setupShotFilterPanel();
+  setupShotFilterFields();
   setupStarRating();
   setupDropdownToggle('dye-edit-shot-chevron', 'dye-edit-shot-dropdown');
   document.getElementById('dye-edit-shot-go')?.addEventListener('click', () => {
