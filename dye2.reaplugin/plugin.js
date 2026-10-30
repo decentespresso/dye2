@@ -13917,6 +13917,14 @@ bcInit();
 			field: "snapshot"
 		}
 	};
+	function sortKeysReplacer(_key, value) {
+		if (value && typeof value === "object" && !Array.isArray(value)) {
+			const sorted = {};
+			for (const k of Object.keys(value).sort()) sorted[k] = value[k];
+			return sorted;
+		}
+		return value;
+	}
 	function profileFingerprint(profile) {
 		if (!profile) return null;
 		const steps = Array.isArray(profile.steps) ? profile.steps.map(({ temperature, limiter, ...rest }) => ({
@@ -13927,7 +13935,7 @@ bcInit();
 			title: profile.title,
 			tank_temperature: profile.tank_temperature,
 			steps
-		});
+		}, sortKeysReplacer);
 	}
 	function num(v) {
 		if (v == null || v === "") return void 0;

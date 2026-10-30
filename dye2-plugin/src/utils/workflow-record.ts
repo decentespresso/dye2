@@ -70,6 +70,19 @@ const TARGETS = {
 // target_weight/target_volume are left out for the same reason: they are the yield, and
 // Streamline's yield writes send the profile back with only those changed. Streamline's
 // own identity() in wake-profile.js excludes them too.
+// JSON.stringify calls the replacer again on whatever object IT returns, not the original,
+// so returning a key-sorted copy at every level makes the whole tree order-independent --
+// two profiles equal in content but not in key order (dye2#43: Decent Sync's jsonb storage
+// vs. Decaid's own toJson order) now fingerprint the same.
+function sortKeysReplacer(_key: string, value: unknown) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const sorted: AnyRecord = {};
+    for (const k of Object.keys(value as AnyRecord).sort()) sorted[k] = (value as AnyRecord)[k];
+    return sorted;
+  }
+  return value;
+}
+
 export function profileFingerprint(profile: AnyRecord | null | undefined): string | null {
   if (!profile) return null;
   const steps = Array.isArray(profile.steps)
@@ -86,7 +99,7 @@ export function profileFingerprint(profile: AnyRecord | null | undefined): strin
     title: profile.title,
     tank_temperature: profile.tank_temperature,
     steps,
-  });
+  }, sortKeysReplacer);
 }
 
 // ── field mappers ───────────────────────────────────────────────────────────

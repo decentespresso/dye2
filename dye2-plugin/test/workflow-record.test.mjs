@@ -186,6 +186,15 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   const lim = (l) => ({ title: 'P', tank_temperature: 0, steps: [{ name: 's', temperature: 93, limiter: l }] });
   assert.equal(profileFingerprint(lim({ value: 0, range: 0.6 })), profileFingerprint(lim(null)), 'a 0 limiter is no limiter');
   assert.notEqual(profileFingerprint(lim({ value: 2, range: 0.6 })), profileFingerprint(lim(null)), 'a real limiter still counts');
+
+  // dye2#43: Decent Sync stores a recipe's profile via PostgreSQL jsonb, which reorders an
+  // object's keys (shorter keys first); Decaid's own toJson order is whatever the Workflow
+  // class wrote. Same content, different key order, must still fingerprint the same.
+  const step = { name: 's', pump: 1, transition: 0, exit: null, volume: 1, seconds: 1, weight: 1, sensor: 'coffee', flow: 1, limiter: null };
+  const reorderedStep = Object.fromEntries(Object.entries(step).sort(([a], [b]) => a.length - b.length || a.localeCompare(b)));
+  const decaidOrder = { title: 'P', tank_temperature: 93, steps: [step] };
+  const jsonbOrder = { steps: [reorderedStep], title: 'P', tank_temperature: 93 };
+  assert.equal(profileFingerprint(decaidOrder), profileFingerprint(jsonbOrder), 'key order must not affect identity');
 }
 
 // --- recipe editor: a mode switch shows that mode's own value (dye2#23) ---------------
