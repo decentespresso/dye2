@@ -22,7 +22,7 @@ const src = dash.slice(start, end);
 // DSF_FIELDS only needs the field-name slot here; dsfBuildFilter ignores the loader function.
 const env = new Function(
   'let dsfSelection = {};\n' +
-  'const DSF_FIELDS = [["bean"], ["roaster"], ["grinder"], ["profile"]];\n' +
+  'const DSF_FIELDS = [["bean"], ["roaster"], ["grinder"], ["profile"], ["rating"]];\n' +
   src +
   '\nreturn { build: dsfBuildFilter, set: (s) => { dsfSelection = s; } };'
 )();
@@ -54,5 +54,13 @@ assert.deepEqual(env.build('decaf'), { search: 'decaf', profileTitle: 'Classic I
 
 env.set({});
 assert.deepEqual(env.build('decaf'), { search: 'decaf' }, 'free text alone, no fields picked');
+
+// Rating rides the same dsfSelection/DSF_FIELDS slots as the combo fields (it's wired by
+// setupShotRatingFilter, not setupFilterCombo, but dsfBuildFilter doesn't care which).
+env.set({
+  rating: { label: '4★ & up', param: { minEnjoyment: 8 } },
+  grinder: { label: 'Niche Zero', param: { grinderId: 'g1' } },
+});
+assert.deepEqual(env.build(''), { grinderId: 'g1', minEnjoyment: 8 }, 'rating composes with the other fields too');
 
 console.log('ok   search popup: dsfBuildFilter composes free text and picked fields');

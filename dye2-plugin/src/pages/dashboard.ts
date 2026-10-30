@@ -258,6 +258,16 @@ function buildContent(): string { return `
             ${shotFilterFieldHtml("grinder", "Grinder")}
             ${shotFilterFieldHtml("profile", "Profile")}
           </div>
+          <div class="flex items-center gap-[16px]">
+            <span class="text-[var(--low-contrast-white)] text-[18px]">Rating</span>
+            <!-- "N stars & up". A distinct id/class from the Last Shot rating widget's
+                 #dye-star-rating .dye-star -- sharing either would also wire this up to save
+                 a rating onto the displayed shot, which is not what picking a filter means. -->
+            <div id="dye-filter-rating" class="flex items-center gap-[4px]">
+              ${[1, 2, 3, 4, 5].map(i => `<svg class="dye-filter-star cursor-pointer" data-index="${i}" xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--profile-button-outline-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`).join('')}
+            </div>
+            <span id="dye-filter-rating-label" class="text-[var(--low-contrast-white)] text-[16px]"></span>
+          </div>
           <div class="flex justify-end">
             <button id="dye-shot-filter-clear" class="hidden text-[var(--mimoja-blue)] text-[20px] font-semibold cursor-pointer">Clear filters</button>
           </div>
@@ -1059,8 +1069,12 @@ async function renderLastShot() {
   }
 }
 
+// Scoped to the Last Shot rating widget's own container: the search popup has a second,
+// unrelated row of stars (the rating filter) that must not be swept up by a bare
+// document-wide '.dye-star' query, or picking a filter threshold would also save a rating
+// onto whatever shot happens to be on screen.
 function updateStarDisplay(rating) {
-  document.querySelectorAll('.dye-star').forEach(star => {
+  document.querySelectorAll('#dye-star-rating .dye-star').forEach(star => {
     const idx = parseInt(star.getAttribute('data-index'));
     if (idx <= rating) { star.setAttribute('fill', 'var(--mimoja-blue)'); star.setAttribute('stroke', 'var(--mimoja-blue)'); }
     else { star.setAttribute('fill', 'none'); star.setAttribute('stroke', 'var(--profile-button-outline-color)'); }
@@ -1068,7 +1082,7 @@ function updateStarDisplay(rating) {
 }
 
 function setupStarRating() {
-  document.querySelectorAll('.dye-star').forEach(star => {
+  document.querySelectorAll('#dye-star-rating .dye-star').forEach(star => {
     star.addEventListener('click', async () => {
       const idx = parseInt(star.getAttribute('data-index'));
       currentStarRating = idx;
@@ -1251,11 +1265,15 @@ async function dsfProfileOptions() {
   }).filter(Boolean);
 }
 
+// 'rating' has no loadOptions -- it's wired by setupShotRatingFilter below, not
+// setupFilterCombo, but still rides the same dsfSelection/dsfFieldHandles slots so
+// dsfBuildFilter/updateShotFilterBadge/clearShotFilters pick it up for free.
 const DSF_FIELDS = [
   ['bean', dsfBeanOptions],
   ['roaster', dsfRoasterOptions],
   ['grinder', dsfGrinderOptions],
   ['profile', dsfProfileOptions],
+  ['rating', null],
 ];
 
 // Pure on purpose (searchText passed in, not read off dsfSearchText) -- see
@@ -1298,10 +1316,43 @@ function clearShotFilters(reapply) {
   if (reapply) applyShotFilters().catch(e => console.warn(e));
 }
 
+// "N stars & up": clicking the already-active star count clears back to "any rating",
+// same toggle-off feel as Same Beans. minEnjoyment is inclusive on the bridge
+// (enjoyment >= value), so starsToEnjoyment(n) is exactly the threshold "n stars & up" means.
+function setupShotRatingFilter() {
+  const container = document.getElementById('dye-filter-rating');
+  const label = document.getElementById('dye-filter-rating-label');
+  if (!container) return { clear() {} };
+  let active = 0;
+
+  function paint() {
+    container.querySelectorAll('.dye-filter-star').forEach(star => {
+      const idx = parseInt(star.getAttribute('data-index'));
+      if (idx <= active) { star.setAttribute('fill', 'var(--mimoja-blue)'); star.setAttribute('stroke', 'var(--mimoja-blue)'); }
+      else { star.setAttribute('fill', 'none'); star.setAttribute('stroke', 'var(--profile-button-outline-color)'); }
+    });
+    if (label) label.textContent = active ? (active + '★ & up') : '';
+  }
+
+  container.querySelectorAll('.dye-filter-star').forEach(star => {
+    star.addEventListener('click', () => {
+      const idx = parseInt(star.getAttribute('data-index'));
+      active = active === idx ? 0 : idx;
+      paint();
+      dsfSelection.rating = active ? { label: active + '★ & up', param: { minEnjoyment: starsToEnjoyment(active) } } : null;
+      applyShotFilters().catch(e => console.warn(e));
+    });
+  });
+
+  return { clear() { active = 0; paint(); } };
+}
+
 function setupShotFilterFields() {
   const clearBtn = document.getElementById('dye-shot-filter-clear');
+  dsfFieldHandles.rating = setupShotRatingFilter();
 
   DSF_FIELDS.forEach(([field, loadOptions]) => {
+    if (!loadOptions) return;
     dsfFieldHandles[field] = setupFilterCombo(
       'dye-filter-' + field + '-input', 'dye-filter-' + field + '-drop', loadOptions,
       (opt) => { dsfSelection[field] = opt; applyShotFilters().catch(e => console.warn(e)); },
