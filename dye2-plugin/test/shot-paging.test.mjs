@@ -81,6 +81,26 @@ assert.equal(env.state().shotsTotal, 120, 'switching back to All Shots drops the
 
 console.log('ok   shot paging + same-beans filter');
 
+// --- cached measurements survive a reload (search / Same Beans toggle) -------
+// dashboard.ts stamps shots[i].measurements onto the loaded array once a shot's full data is
+// fetched. loadShots() used to replace that array wholesale, silently throwing every one of
+// those blobs away the moment the user searched or flipped Same Beans, even for shots that
+// reappear unchanged in the new page.
+env = makeEnv();
+await env.loadShots(null);
+const seenId = env.state().shots[0].id; // 'shot-0': Red Brick, Square Mile -- survives the filter below
+env.state().shots[0].measurements = [{ t: 0 }];
+
+await env.loadShots({ coffeeName: 'Red Brick', coffeeRoaster: 'Square Mile' });
+assert.deepEqual(env.state().shots.find(s => s.id === seenId).measurements, [{ t: 0 }],
+  'measurements survive a reload for a shot that reappears under the new filter');
+
+await env.loadShots(null);
+assert.deepEqual(env.state().shots.find(s => s.id === seenId).measurements, [{ t: 0 }],
+  'and survive switching back to All Shots');
+
+console.log('ok   loadShots carries cached measurements across a reload');
+
 // --- the query the bridge actually receives ----------------------------------
 // The paging tests stub getShots, so serialization is checked here against the real one.
 const { devApiScript } = await import('../src/utils/dev-api.ts');

@@ -40,8 +40,15 @@ async function fetchShotPage(offset) {
 
 async function loadShots(filter) {
   shotFilter = filter || null;
+  const prevShots = shots;
   const page = await fetchShotPage(0);
-  shots = page.items;
+  // Carry forward measurements already fetched for any shot that reappears in the new page
+  // (search/Same-Beans still lists the same underlying shots) -- same reasoning as the single
+  // seeded shot in ensureShotsPage, just over however many of these already had the blob.
+  const cached = new Map(prevShots.filter(s => s && s.measurements).map(s => [s.id, s.measurements]));
+  shots = cached.size
+    ? page.items.map(s => cached.has(s.id) ? Object.assign({}, s, { measurements: cached.get(s.id) }) : s)
+    : page.items;
   shotsTotal = page.total;
   currentShotIndex = 0;
   // A filtered view is always a real page: GET /shots/latest takes no filter parameters.
