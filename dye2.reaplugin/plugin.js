@@ -14250,7 +14250,7 @@ bcInit();
 		const stored = recipe.dashboardVariables || {};
 		const owned = ownedRecipeFields(wf);
 		const held = heldFields(owned, stored);
-		if (owned.basketId !== void 0 && movedSinceArming("basketId", owned.basketId, armed)) held.basketId = owned.basketId;
+		for (const k of [...Object.keys(MACHINE_MAP), "basketId"]) if (owned[k] !== void 0 && movedSinceArming(k, owned[k], armed)) held[k] = owned[k];
 		if (!profileOf(recipe)) delete held.brewC;
 		return Object.keys(changedFields(held, stored)).length > 0;
 	}

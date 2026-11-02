@@ -583,6 +583,22 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(recipeModified(steamy, wf({ steamSettings: { targetTemperature: 0, duration: 30 } })), false, 'held steam, machine steam off');
   assert.equal(recipeModified(steamy, wf({ steamSettings: { targetTemperature: 160, duration: 30 } })), true, 'held steam, changed');
 
+  // dye2 steam/flush star: unheld, these star the same way basket already does -- itemPatch
+  // (Save) already adopts them since arming (dye2#23); the star must warn before the save, not
+  // only reflect it after.
+  assert.equal(
+    recipeModified(r1(), wf({ steamSettings: { targetTemperature: 160, duration: 30 } }), { steamTempC: 140 }),
+    true, 'unheld steam, moved since arming: starred'
+  );
+  assert.equal(
+    recipeModified(r1(), wf({ steamSettings: { targetTemperature: 140, duration: 30 } }), { steamTempC: 140 }),
+    false, 'unheld steam, unchanged since arming: no star'
+  );
+  assert.equal(
+    recipeModified(r1(), wf({ rinseData: { duration: 5, targetTemperature: 85 } }), { flushTempC: 80 }),
+    true, 'unheld flush, moved since arming: starred'
+  );
+
   // AC2: a favourite deselects on any drift of a field it owns
   assert.deepEqual(deriveSelection(wf(), rows({ recipes: [] })), { kind: 'favourite', id: 'af1', modified: false });
   assert.equal(deriveSelection(wf({ context: { targetDoseWeight: 18, targetYield: 36, grinderSetting: '5' } }), rows({ recipes: [] })), null, 'favourite + grind change: nothing');

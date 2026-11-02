@@ -469,9 +469,12 @@ export function recipeModified(recipe: AnyRecord, wf: AnyRecord, armed: AnyRecor
   const stored = recipe.dashboardVariables || {};
   const owned = ownedRecipeFields(wf);
   const held = heldFields(owned, stored);
-  // The one non-held field compared: a basket picked since apply is adopted on Save (itemPatch),
-  // so it stars too. An absent live basket (Clear) is not drift: put() drops null. ponytail: basket only; other adoptables (steam/flush) still never star.
-  if (owned.basketId !== undefined && movedSinceArming("basketId", owned.basketId, armed)) held.basketId = owned.basketId;
+  // Fields not yet held are adopted on Save (itemPatch) once moved off the apply-time baseline
+  // (dye2#23) -- star on the same rule, or the barista hits Save on a change the star never
+  // warned about. An absent live basket (Clear) is not drift: put() drops null.
+  for (const k of [...Object.keys(MACHINE_MAP), "basketId"]) {
+    if (owned[k] !== undefined && movedSinceArming(k, owned[k], armed)) held[k] = owned[k];
+  }
   // brewC means nothing for a recipe that names no profile (apply cannot set it): it must
   // not asterisk the cell for good.
   if (!profileOf(recipe)) delete held.brewC;
