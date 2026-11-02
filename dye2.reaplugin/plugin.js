@@ -6392,6 +6392,11 @@ let recipes = [];
 let autoFavs = [];   // auto: true entries from autoFavourites — recent shot combos, see recent-favs.ts
 let currentWorkflow = null;
 let baseWorkflow = null;   // the Workflow as last read / successfully sent (dye2#31)
+// Resolves once initializeDyeDashboard's own load -- including a pending picker-return
+// auto-apply (Auto Favs / Select Recipe) -- is done. Cancel/Done await it before navigating:
+// leaveDashboard's location.href abandons any fetch still in flight, so a DONE tapped before
+// the applied favourite's PUT lands would leave the live workflow on whatever it replaced.
+let dashboardReady = Promise.resolve();
 let currentStarRating = 0;
 let currentShotNote = '';
 let vizLoggedIn = false;
@@ -7437,8 +7442,9 @@ function renderRecipePills(workflow) {
       await refreshWorkflow();   // apply over the live Workflow, not the page-open copy (dye2#31)
       if (isRecent) {
         await applyAutoFavourite(item);
-        noteApplied('favourite', item);
-        pushWorkflow().catch(e => console.warn(e));
+        // noteApplied only after the PUT actually lands -- Streamline reads lastApplied as "this
+        // visit applied X" (leaveDashboard), and a failed push must not claim a success it never had.
+        try { await pushWorkflow(); noteApplied('favourite', item); } catch (e) { console.warn(e); }
       } else {
         // The list was read at page load; dial-in recording may have changed this recipe since,
         // so apply the stored record. Fall back to the loaded one if the re-read fails or the
@@ -7446,8 +7452,7 @@ function renderRecipePills(workflow) {
         let fresh = item;
         try { fresh = (await getRecipe(item.id)) || item; } catch (e) { console.warn('recipe re-read failed', e); }
         await applyRecipe(fresh);
-        noteApplied('recipe', fresh);
-        pushWorkflow().catch(e => console.warn(e));
+        try { await pushWorkflow(); noteApplied('recipe', fresh); } catch (e) { console.warn(e); }
       }
     });
     container.appendChild(pill);
@@ -8076,8 +8081,9 @@ function setupBottomButtons() {
   const cancelBtn = document.getElementById('dye-cancel-btn');
   const doneBtn = document.getElementById('dye-done-btn');
   const clearBtn = document.getElementById('dye-clear-btn');
-  if (cancelBtn) cancelBtn.addEventListener('click', () => leaveDashboard());
+  if (cancelBtn) cancelBtn.addEventListener('click', async () => { await dashboardReady; leaveDashboard(); });
   if (doneBtn) doneBtn.addEventListener('click', async () => {
+    await dashboardReady;
     if (currentWorkflow) { try { await pushWorkflow(); } catch (e) { console.warn(e); } }
     leaveDashboard();
   });
@@ -8208,8 +8214,9 @@ async function initializeDyeDashboard() {
       const fav = allFavs.find(f => f && f.id === selFavId) || null;
       if (fav) {
         await applyAutoFavourite(fav);
+        // noteApplied only after the push actually lands -- see the pill-click handler above.
+        await pushWorkflow();
         noteApplied('favourite', fav);
-        await pushWorkflow().catch(e => console.warn(e));
       } else if (selFavId.indexOf('recent:') === 0) {
         // A recent's id is not stable — it changes as soon as a newer shot takes over
         // its group — so the one the picker sent back can already be gone by the time
@@ -8227,8 +8234,8 @@ async function initializeDyeDashboard() {
       const picked = recipes.find(r => r && r.id === selRecipeId) || null;
       if (picked) {
         await applyRecipe(picked);
+        await pushWorkflow();
         noteApplied('recipe', picked);
-        await pushWorkflow().catch(e => console.warn(e));
       }
     } catch (e) { console.warn('Could not apply selected recipe:', e); }
   }
@@ -8276,7 +8283,7 @@ function showTransientMessage(text) {
   setTimeout(() => el.remove(), 3000);
 }
 
-initializeDyeDashboard().catch(e => console.error('initializeDyeDashboard failed:', e));
+dashboardReady = initializeDyeDashboard().catch(e => console.error('initializeDyeDashboard failed:', e));
 
 // Returning here via history.back() can restore the page frozen from bfcache, so init
 // (and the apply-selected-auto-favourite step) never re-runs — reload to re-fetch + apply.

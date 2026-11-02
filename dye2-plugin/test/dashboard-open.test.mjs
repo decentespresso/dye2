@@ -69,6 +69,29 @@ function stripComments(src) {
   assert.ok(!body.includes("getProfiles("), "no /profiles fetch on open");
 }
 
+// 3. Cancel/Done wait for the open's own load before navigating. leaveDashboard() is a hard
+// location.href, which aborts any fetch still in flight on the unloading document -- a DONE
+// tapped before a picker-return auto-apply's PUT lands would leave the live workflow on
+// whatever favourite/recipe it was meant to replace (the Auto Favs "confirm, then Done before
+// it's finished applying" bug).
+{
+  const start = dash.indexOf("function setupBottomButtons(");
+  const end = dash.indexOf("\n}\n", start);
+  assert.ok(start > 0 && end > start, "setupBottomButtons found");
+  const body = stripComments(dash.slice(start, end));
+  const cancelAt = body.indexOf("cancelBtn.addEventListener");
+  const doneAt = body.indexOf("doneBtn.addEventListener");
+  assert.ok(cancelAt > 0 && doneAt > 0, "both handlers found");
+  const cancelBody = body.slice(cancelAt, doneAt);
+  const doneBody = body.slice(doneAt);
+  assert.ok(cancelBody.includes("await dashboardReady") && cancelBody.indexOf("await dashboardReady") < cancelBody.indexOf("leaveDashboard("),
+    "cancel awaits the open before leaving");
+  const doneWait = doneBody.indexOf("await dashboardReady");
+  assert.ok(doneWait >= 0 && doneWait < doneBody.indexOf("leaveDashboard("), "done awaits the open before leaving");
+  assert.ok(doneWait < doneBody.indexOf("pushWorkflow()"), "done awaits the open before its own push");
+  assert.ok(dash.includes("dashboardReady = initializeDyeDashboard()"), "the open's promise is captured for the buttons to await");
+}
+
 // 4. The profiles fallback memoises, so only the first apply fetches.
 {
   const start = dash.indexOf("async function resolveFullProfile(");
