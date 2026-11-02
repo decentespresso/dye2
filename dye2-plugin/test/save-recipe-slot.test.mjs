@@ -54,12 +54,17 @@ const held = [1, 2, 3, 4, 5].map((n) => ({ id: 'r' + n, name: 'R' + n, stripSlot
 }
 console.log('ok   save-recipe: no slot -> library, explicit slot honoured, holder demoted');
 
-// auto-fav-edit: the picker starts with no slot selected and SAVE passes null through.
+// auto-fav-edit: the "Assign Fav Number" picker (1..4, the F strip's own range) starts with no
+// slot selected, and SAVE writes the favourite itself -- not a recipe -- so a saved favSlot
+// sticks instead of being discarded on the next recent-favs recompute (dye2 F-strip pin bug).
 {
   const page = readFileSync(new URL('../src/pages/auto-fav-edit.ts', import.meta.url), 'utf8');
   assert.ok(!/afe-fav-num\$\{n === 1/.test(page), 'no button is rendered active');
-  assert.ok(!/lowest free recipe slot/.test(page) && !/getAssignedSlot\(\) \|\| 1/.test(page), 'no default slot');
-  assert.ok(/const slot = getAssignedSlot\(\);/.test(page), 'SAVE uses the picked slot or null');
-  assert.ok(/REPLACE RECIPE ' \+ slot/.test(page), 'replace confirm kept for an occupied pick');
+  assert.ok(page.includes('Assign Fav Number'), 'label describes a favourite slot, not a recipe one');
+  assert.ok(!/\[1, 2, 3, 4, 5\]\s*\n\s*\.map\(n => `<button class="afe-fav-num"/.test(page), 'only 4 slots -- the F strip has no 5th cell');
+  assert.ok(/favSlot: getAssignedSlot\(\)/.test(page), 'collectFavData carries the picked slot as favSlot');
+  assert.ok(/currentFav && currentFav\.id\) await updateAutoFavourite\(currentFav\.id, data\)/.test(page)
+    && /else await createAutoFavourite\(data\)/.test(page), 'SAVE writes the favourite, not a recipe');
+  assert.ok(!page.includes('REPLACE RECIPE'), 'no recipe-replace confirm left on this page');
 }
-console.log('ok   auto-fav-edit: recipe slot picker defaults to unassigned');
+console.log('ok   auto-fav-edit: fav-number picker saves onto the favourite itself');

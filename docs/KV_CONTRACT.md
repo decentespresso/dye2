@@ -408,8 +408,11 @@ plugins should not read it.
                                 // `save-recipe` without a (valid 1..5) `slot` saves to the library with
                                 // stripSlot null; with one it takes that slot and the previous holder stays in
                                 // the library. There is no 409. This is deliberately unlike `favSlot`, where
-                                // recents are auto-placed. A slot is only ever set by the barista (recipe-edit
-                                // tabs, the auto-fav-edit slot picker, an explicit `slot`).
+                                // recents are auto-placed unless a row is promoted to a saved favourite (see
+                                // the autoFavourites slot rule) -- that promotion, via auto-fav-edit's "Assign
+                                // Fav Number" picker, sets favSlot, not stripSlot; it never touches recipes[].
+                                // A recipe's own slot is only ever set by the barista (recipe-edit tabs, an
+                                // explicit `slot`).
                                 // Assigned in recipe-edit by its five header tabs (one per slot, named for the
                                 // holder); SAVE writes the targeted slot through updateRecipe.
                                 // Migration (plugin load, idempotent): a row whose id is '1'..'5' and that has

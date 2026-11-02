@@ -10894,7 +10894,7 @@ function initEquipmentField(field) {
     </div>
     <div class="flex items-center gap-[16px]">
       <button id="afe-cancel-btn" class="flex justify-center items-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)]">CANCEL</button>
-      <button id="afe-save-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[310px] h-[82px] rounded-[68px] font-bold text-[24px]">SAVE TO RECIPE</button>
+      <button id="afe-save-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[310px] h-[82px] rounded-[68px] font-bold text-[24px]">SAVE</button>
     </div>
   </div>
 
@@ -10920,14 +10920,13 @@ function initEquipmentField(field) {
       </div>
 
       <div>
-        <div class="afe-label">Recipe slot (optional)</div>
+        <div class="afe-label">Assign Fav Number</div>
         <div class="flex gap-[18px] mt-[4px]">
           ${[
 			1,
 			2,
 			3,
-			4,
-			5
+			4
 		].map((n) => `<button class="afe-fav-num" data-num="${n}">${n}</button>`).join("")}
         </div>
       </div>
@@ -11360,42 +11359,19 @@ function setupControls() {
 
   el('afe-cancel-btn')?.addEventListener('click', () => window.history.back());
 
-  // SAVE TO RECIPE: adds a new row to recipes[]; stripSlot is the picked slot, or null (library only).
-  // Nothing picks a recipe slot automatically.
-  // A slot that already holds a real recipe needs a second tap on the relabelled button; that
-  // recipe stays in the library and just loses the slot (updateRecipe frees it).
-  let overwriteArmed = null;
-  document.querySelectorAll('.afe-fav-num').forEach(btn => btn.addEventListener('click', () => {
-    overwriteArmed = null;
-    el('afe-save-btn').textContent = 'SAVE TO RECIPE';
-  }));
+  // SAVE writes the favourite itself (autoFavourites[]), favSlot included. A recent (auto:
+  // true) has no id at this point (initAutoFavEdit stripped it), so this always creates a
+  // real saved row for one -- exactly the promotion the F strip needs to stop re-placing it
+  // on the next recent-favs recompute. updateAutoFavourite/createAutoFavourite's own
+  // takeSlot() clears the slot off whoever held it, same as stripSlot for recipes.
   el('afe-save-btn')?.addEventListener('click', async () => {
     const data = collectFavData();
-    const slot = getAssignedSlot();   // null: saved to the library only, never an automatic slot
-    const s = data.snapshot;
     try {
-      const existing = slot == null ? null : (await getRecipes()).find(r => r && r.stripSlot === slot);
-      const overwrite = !!existing;
-      if (overwrite && overwriteArmed !== slot) {
-        overwriteArmed = slot;
-        el('afe-save-btn').textContent = 'REPLACE RECIPE ' + slot + '?';
-        return;
-      }
-      await updateRecipe(newId('recipe'), {
-        stripSlot: slot,
-        name: data.title || s.coffeeName || (slot ? 'Recipe ' + slot : 'Recipe'), beverage: data.beverage || '',
-        beanName: s.coffeeName, beanRoaster: s.coffeeRoaster, beanBatchId: s.beanBatchId,
-        profileId: s.profileId, profileTitle: s.profileTitle, profileSnapshot: s.profileSnapshot,
-        barista: s.barista, drinker: s.drinker,
-        dashboardVariables: {
-          dose: s.dose, drink: s.drink, grind: s.grindSetting, rpm: s.rpm,
-          grinderId: s.grinderId, grinderModel: s.grinderModel, basketId: s.basketId, basketName: s.basketName,
-          equipmentIds: s.equipmentIds, equipmentNames: s.equipmentNames, equipmentCustom: s.equipmentCustom,
-        },
-      });
+      if (currentFav && currentFav.id) await updateAutoFavourite(currentFav.id, data);
+      else await createAutoFavourite(data);
       fetch('/api/v1/plugins/dye2.reaplugin/recent-favs', { method: 'POST' }).catch(() => {});
       window.history.back();
-    } catch (e) { console.error('Failed to save recipe:', e); }
+    } catch (e) { console.error('Failed to save favourite:', e); }
   });
 }
 
