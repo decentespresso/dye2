@@ -542,7 +542,7 @@ async function getWorkflow() {
    one was not written and is left alone. The plugin runtime never writes these fields, so it
    has no copy of this. */
 const DYE_TOP_KEYS = ['beanBatchId', 'coffeeName', 'coffeeRoaster', 'grinderId', 'grinderModel', 'baristaName', 'drinkerName'];
-const DYE_EXTRAS_KEYS = ['basketId', 'basketName', 'rpm', 'note'];
+const DYE_EXTRAS_KEYS = ['basketId', 'basketName', 'rpm', 'feedRate', 'note'];
 function markDye(ctx, keys) {
   const ex = ctx.extras || {};
   const flags = {};
@@ -782,6 +782,7 @@ async function buildFavouriteWorkflow(fav) {
   if (on('grindSetting')) {
     if (snp.grindSetting != null) ctx.grinderSetting = String(snp.grindSetting);
     if (snp.rpm != null) ctx.extras = { ...(ctx.extras || {}), rpm: snp.rpm };
+    if (snp.feedRate != null) ctx.extras = { ...(ctx.extras || {}), feedRate: snp.feedRate };
   }
   if (on('grinder')) {
     if (snp.grinderId) ctx.grinderId = snp.grinderId;
@@ -855,6 +856,7 @@ async function buildRecipeWorkflow(recipe) {
   else if (dv.ratio != null && dv.dose != null) ctx.targetYield = Math.round(dv.dose * dv.ratio * 10) / 10;
   if (dv.grind != null) ctx.grinderSetting = String(dv.grind);
   if (dv.rpm != null)   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm };
+  if (dv.feedRate != null) ctx.extras = { ...(ctx.extras || {}), feedRate: dv.feedRate };
   if (dv.grinderId) ctx.grinderId = dv.grinderId;
   // PUT /workflow deep-merges, so omitting grinderModel would leave the previous grinder's name.
   if (dv.grinderModel) ctx.grinderModel = dv.grinderModel;
@@ -5755,6 +5757,11 @@ function chartSettle(el) {
 	*
 	* Basket and RPM have no schema field (annotations.extras; legacy grinderData.rpm last).
 	* Basket id and name are taken as a pair from one source, never mixed.
+	*
+	* Feed rate (free text: FF/MF/SF or a feeder RPM) follows RPM's own rule — no schema field,
+	* annotations.extras wins over the pre-shot workflow — but has no legacy grinderData fallback
+	* (it is a new field) and is kept out of shotBasketRpm's return shape so existing callers and
+	* test/recorded-shot.test.mjs's deepEqual checks are unaffected.
 	*/
 	var recordedShotScript = `
 function shotBasketRpm(shot) {
@@ -5771,16 +5778,26 @@ function shotBasketRpm(shot) {
   };
 }
 
-// The shot's context.extras with the resolved basket and RPM folded in, for copying the shot
-// back into the live workflow. undefined when the shot has nothing to copy.
+function shotFeedRate(shot) {
+  const wf = (shot && shot.workflow) || {};
+  const cx = (wf.context && wf.context.extras) || {};
+  const ax = (shot && shot.annotations && shot.annotations.extras) || {};
+  const fr = ax.feedRate != null ? ax.feedRate : cx.feedRate;
+  return fr != null ? fr : null;
+}
+
+// The shot's context.extras with the resolved basket, RPM and feed rate folded in, for copying
+// the shot back into the live workflow. undefined when the shot has nothing to copy.
 function shotWorkflowExtras(shot) {
   const wf = (shot && shot.workflow) || {};
   const src = wf.context && wf.context.extras;
   const r = shotBasketRpm(shot);
+  const fr = shotFeedRate(shot);
   const hasBasket = r.basketId != null || r.basketName != null;
-  if (!src && r.rpm == null && !hasBasket) return undefined;
+  if (!src && r.rpm == null && fr == null && !hasBasket) return undefined;
   const out = { ...(src || {}) };
   if (r.rpm != null) out.rpm = r.rpm;
+  if (fr != null) out.feedRate = fr;
   if (hasBasket) { out.basketId = r.basketId; out.basketName = r.basketName; }
   return out;
 }
@@ -7555,6 +7572,7 @@ async function applyRecipe(recipe) {
   else if (dv.ratio != null && dv.dose != null) ctx.targetYield = Math.round(dv.dose * dv.ratio * 10) / 10;
   if (dv.grind != null) ctx.grinderSetting = dv.grind;
   if (dv.rpm != null)   { ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm }; wrote.push('rpm'); }
+  if (dv.feedRate != null) { ctx.extras = { ...(ctx.extras || {}), feedRate: dv.feedRate }; wrote.push('feedRate'); }
   const grinder = dv.grinderId ? grinders.find(g => g.id === dv.grinderId) : null;
   // Write id and name together: tabs match by id, shots record the name.
   if (grinder) { ctx.grinderId = grinder.id; ctx.grinderModel = grinder.model || grinder.name; wrote.push('grinderId', 'grinderModel'); }
@@ -7621,6 +7639,7 @@ async function applyAutoFavourite(fav) {
   if (on('grindSetting')) {
     if (snp.grindSetting != null) ctx.grinderSetting = String(snp.grindSetting);
     if (snp.rpm != null) { ctx.extras = { ...(ctx.extras || {}), rpm: snp.rpm }; wrote.push('rpm'); }
+    if (snp.feedRate != null) { ctx.extras = { ...(ctx.extras || {}), feedRate: snp.feedRate }; wrote.push('feedRate'); }
   }
   if (on('grinder')) {
     if (snp.grinderId) { ctx.grinderId = snp.grinderId; wrote.push('grinderId'); }
@@ -8107,7 +8126,7 @@ function setupBottomButtons() {
       beanBatchId: null, coffeeName: null, coffeeRoaster: null,
       grinderId: null, grinderModel: null, grinderSetting: null,
       baristaName: null, drinkerName: null,
-      extras: { basketId: null, basketName: null, rpm: null, note: null },
+      extras: { basketId: null, basketName: null, rpm: null, feedRate: null, note: null },
     };
     markDye(currentWorkflow.context);   // all null here, so every flag clears with its value
     renderNextShot();
@@ -8500,6 +8519,14 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
       <div class="flex items-center gap-[60px]">
         ${stepperHtml("es-setting", "Setting", "120px")}
         ${stepperHtml("es-rpm", "RPM", "100px")}
+      </div>
+      <div class="edit-divider"></div>
+
+      <!-- Feed Rate (free text: FF / MF / SF, or a feeder RPM — no schema field, same home as RPM) -->
+      <div class="flex items-center gap-[18px]">
+        <span class="dye-stepper-label" style="width:120px;flex-shrink:0">Feed Rate</span>
+        <input id="es-feedrate-input" type="text" autocomplete="off" placeholder="FF / MF / SF or RPM"
+          class="flex-1 border border-[var(--profile-button-outline-color)] rounded-[12px] px-[20px] h-[72px] bg-[var(--box-color)] text-[24px] font-normal text-[var(--text-primary)]" />
       </div>
       <div class="edit-divider"></div>
 
@@ -9054,6 +9081,8 @@ function renderShot(shot) {
   // what the dashboard set before the shot (the shot's workflow.context.extras).
   const basketRpm = shotBasketRpm(shot);
   set('es-rpm-value', basketRpm.rpm != null ? basketRpm.rpm : '—');
+  const feedRateEl = document.getElementById('es-feedrate-input');
+  if (feedRateEl) feedRateEl.value = shotFeedRate(shot) || '';
   const basketEl = document.getElementById('es-basket-text');
   if (basketEl) basketEl.textContent = basketRpm.basketName || '—';
 
@@ -9134,6 +9163,7 @@ function shotDialing(shot) {
     yield: weights.doseOut,
     grind: ctx.grinderSetting   != null ? ctx.grinderSetting   : gd.setting,
     rpm:   basketRpm.rpm,
+    feedRate: shotFeedRate(shot),
     basketId:   basketRpm.basketId,
     basketName: basketRpm.basketName,
     equipmentIds:   equip.ids,
@@ -9154,6 +9184,7 @@ async function workflowDialing() {
     yield: ctx.targetYield,
     grind: ctx.grinderSetting,
     rpm:   ctx.extras && ctx.extras.rpm,
+    feedRate: ctx.extras && ctx.extras.feedRate,
     basketId:   ctx.extras && ctx.extras.basketId,
     basketName: ctx.extras && ctx.extras.basketName,
     equipmentIds:   equip.ids,
@@ -9174,6 +9205,7 @@ function applyDialing(d) {
   if (d.yield != null) ann.actualYield = d.yield;
   if (d.grind != null) ctx.grinderSetting = String(d.grind);
   if (d.rpm   != null) { ann.extras = ann.extras || {}; ann.extras.rpm = d.rpm; }
+  if (d.feedRate != null) { ann.extras = ann.extras || {}; ann.extras.feedRate = d.feedRate; }
   if (d.basketId != null) { ann.extras = ann.extras || {}; ann.extras.basketId = d.basketId; ann.extras.basketName = d.basketName; }
   if (d.equipmentNames && d.equipmentNames.length) {
     ann.extras = ann.extras || {};
@@ -9217,6 +9249,10 @@ function setupControls() {
   wireAdjuster('es-rpm-minus','es-rpm-plus','es-rpm-value', 1, 1, null, v => String(v), v => {
     // RPM has no schema field — store in annotations.extras (see README: annotations.extras for DYE2 per-shot extras).
     if (currentShot) { ann().extras = ann().extras || {}; ann().extras.rpm = v; }
+  });
+  document.getElementById('es-feedrate-input')?.addEventListener('input', (e) => {
+    // Same home as RPM — no schema field, free text (FF/MF/SF or a feeder RPM).
+    if (currentShot) { ann().extras = ann().extras || {}; ann().extras.feedRate = e.target.value; }
   });
 
   // Stars
@@ -9557,7 +9593,7 @@ function resolveRoastDate(id, batches) {
 		if ("workflow" in p) return true;
 		if (p.annotations && "enjoyment" in p.annotations) return true;
 		const extras = p.annotations && p.annotations.extras;
-		return !!extras && typeof extras === "object" && "rpm" in extras;
+		return !!extras && typeof extras === "object" && ("rpm" in extras || "feedRate" in extras);
 	}
 	/** The index row for a shot, or null if it never counts (no group, aborted, no usable time). */
 	function tailEntry(shot) {
@@ -9851,6 +9887,14 @@ function resolveRoastDate(id, batches) {
 		const rpm = ax.rpm != null ? ax.rpm : extras.rpm != null ? extras.rpm : gd.rpm;
 		return rpm != null ? rpm : null;
 	}
+	/** Same rule as resolveRpm, but feed rate has no legacy grinderData fallback (a new field). */
+	function resolveFeedRate(shot) {
+		const wf = shot.workflow || {};
+		const extras = wf.context && wf.context.extras || {};
+		const ax = shot.annotations && shot.annotations.extras || {};
+		const feedRate = ax.feedRate != null ? ax.feedRate : extras.feedRate;
+		return feedRate != null ? feedRate : null;
+	}
 	/** Builds one auto-favourite from a representative shot. No title de-duplication yet
 	*  — that depends on the other recents in the batch, see applyTitleDisambiguation. */
 	function toRecentFavourite(shot, rank) {
@@ -9859,6 +9903,7 @@ function resolveRoastDate(id, batches) {
 		const profile = wf.profile || {};
 		const grinderModel = ctx.grinderModel != null ? ctx.grinderModel : null;
 		const rpm = resolveRpm(shot);
+		const feedRate = resolveFeedRate(shot);
 		const context = {
 			beanBatchId: ctx.beanBatchId != null ? ctx.beanBatchId : null,
 			coffeeName: ctx.coffeeName != null ? ctx.coffeeName : null,
@@ -9869,7 +9914,10 @@ function resolveRoastDate(id, batches) {
 		if (ctx.grinderSetting != null) context.grinderSetting = ctx.grinderSetting;
 		if (ctx.targetDoseWeight != null) context.targetDoseWeight = ctx.targetDoseWeight;
 		if (ctx.targetYield != null) context.targetYield = ctx.targetYield;
-		if (rpm != null) context.extras = { rpm };
+		if (rpm != null || feedRate != null) context.extras = {
+			...rpm != null ? { rpm } : {},
+			...feedRate != null ? { feedRate } : {}
+		};
 		return {
 			id: "recent:" + shot.id,
 			auto: true,
@@ -9908,6 +9956,7 @@ function resolveRoastDate(id, batches) {
 				grinderModel,
 				grindSetting: ctx.grinderSetting != null ? ctx.grinderSetting : null,
 				rpm,
+				feedRate,
 				dose: ctx.targetDoseWeight != null ? ctx.targetDoseWeight : null,
 				drink: ctx.targetYield != null ? ctx.targetYield : null
 			},
@@ -9972,12 +10021,17 @@ function resolveRoastDate(id, batches) {
 		if (shot && typeof shot === "object" && shot.id) pendingUpdates.push(shot);
 	}
 	var slim = (shot) => {
-		const rpm = shot.annotations && shot.annotations.extras && shot.annotations.extras.rpm;
+		const ax = shot.annotations && shot.annotations.extras;
+		const rpm = ax && ax.rpm;
+		const feedRate = ax && ax.feedRate;
 		return {
 			id: shot.id,
 			timestamp: shot.timestamp,
 			workflow: shot.workflow,
-			...rpm != null ? { annotations: { extras: { rpm } } } : {}
+			...rpm != null || feedRate != null ? { annotations: { extras: {
+				...rpm != null ? { rpm } : {},
+				...feedRate != null ? { feedRate } : {}
+			} } } : {}
 		};
 	};
 	async function runRefresh(fetchFn, base) {
@@ -11386,6 +11440,9 @@ function snapshotFromWorkflow(wf) {
     roastDate: ctx.roastDate || null, grinderId: ctx.grinderId || null, grinderModel: ctx.grinderModel || null,
     basketId: extras.basketId || null, basketName: extras.basketName || null,
     grindSetting: ctx.grinderSetting != null ? ctx.grinderSetting : null, rpm: extras.rpm != null ? extras.rpm : null,
+    // No dedicated UI field, same as rpm: captured passively here, preserved by collectFavData's
+    // snapshot spread on every later save.
+    feedRate: extras.feedRate != null ? extras.feedRate : null,
     dose: ctx.targetDoseWeight != null ? ctx.targetDoseWeight : null, drink: ctx.targetYield != null ? ctx.targetYield : null,
     barista: ctx.baristaName || null, drinker: ctx.drinkerName || null, note: extras.note || null,
   };
@@ -11860,6 +11917,13 @@ function assignQuery(slot, returnTo) {
         </div>
       </div>
 
+      <!-- Feed Rate (free text: FF / MF / SF, or a feeder RPM — no schema field, same home as RPM) -->
+      <div class="flex items-center gap-[18px]" style="margin-top:18px">
+        <span class="dye-stepper-label" style="width:120px;flex-shrink:0">Feed Rate</span>
+        <input id="re-feedrate-input" type="text" autocomplete="off" placeholder="FF / MF / SF or RPM"
+          class="flex-1 border border-[var(--profile-button-outline-color)] rounded-[12px] px-[20px] h-[72px] bg-[var(--box-color)] text-[24px] font-normal text-[var(--text-primary)]" />
+      </div>
+
       <!-- Basket names — same plain-text-tab style as Grinder above, no label -->
       <div class="re-grinder-chips" id="re-basket-chips">
         <!-- populated by JS -->
@@ -12191,6 +12255,8 @@ function renderRecipe(recipe) {
   }
   set('re-grind-value', dv.grind    != null ? String(dv.grind)       : '—');
   set('re-rpm-value',   dv.rpm      != null ? String(dv.rpm)         : '—');
+  const feedRateEl = document.getElementById('re-feedrate-input');
+  if (feedRateEl) feedRateEl.value = dv.feedRate != null ? String(dv.feedRate) : '';
 
   showOnStreamline = recipe.showOnStreamlineDashboard !== false;
   updateStreamlineBtn();
@@ -12245,6 +12311,10 @@ function workflowToRecipePatch(wf) {
       drink: ctx.targetYield,
       grind: ctx.grinderSetting,
       rpm:   extras.rpm,
+      // Omitted rather than an explicit undefined key, unlike rpm above: several fixed-shape
+      // test fixtures (recipe-profile-fill.test.mjs) deepStrictEqual this object and predate
+      // the field.
+      ...(extras.feedRate !== undefined ? { feedRate: extras.feedRate } : {}),
       grinderId: g ? g.id : undefined,
       basketId:   extras.basketId,
       basketName: extras.basketName,
@@ -12319,6 +12389,7 @@ function favouriteToRecipePatch(fav) {
       brewC,
       grind: grind != null ? parseFloat(grind) : undefined,
       rpm:   pick(s.rpm, wfExtras.rpm),
+      feedRate: pick(s.feedRate, wfExtras.feedRate),
       grinderId:    pick(s.grinderId, wfCtx.grinderId),
       grinderModel: pick(s.grinderModel, wfCtx.grinderModel),
       basketId:   pick(s.basketId, wfExtras.basketId),
@@ -12663,6 +12734,8 @@ function getCurrentRecipeData() {
       // Free text ("1.1.0", "15 clicks") is stored as typed; a numeric scale stays a number.
       grind:   text('re-grind-value'),
       rpm:     num('re-rpm-value'),
+      // Feed rate is a real <input>, not a stepper span: read .value, blank -> null like the rest.
+      feedRate: (() => { const v = (document.getElementById('re-feedrate-input')?.value || '').trim(); return v === '' ? null : v; })(),
       grinderId: selectedGrinderId,
       grinderModel: (grinders.find(g => g.id === selectedGrinderId) || {}).model,
       basketId:   selectedBasketId,
@@ -13984,6 +14057,7 @@ bcInit();
 		put(out, "grind", grindValue(ctx.grinderSetting));
 		const extras = ctx.extras || {};
 		put(out, "rpm", num(extras.rpm));
+		put(out, "feedRate", extras.feedRate);
 		put(out, "basketId", extras.basketId);
 		put(out, "basketName", extras.basketName);
 		const steps = wf && wf.profile && wf.profile.steps;
@@ -14055,6 +14129,7 @@ bcInit();
 		put(out, "drink", ctx.targetYield);
 		put(out, "grindSetting", grindValue(ctx.grinderSetting));
 		put(out, "rpm", num(ctx.extras && ctx.extras.rpm));
+		put(out, "feedRate", ctx.extras && ctx.extras.feedRate);
 		return out;
 	}
 	/** The entries of `patch` that differ from `stored`, compared numerically where both are numbers. */
@@ -14078,7 +14153,7 @@ bcInit();
 	* context.extras.basketId, the machine never drifts it, so a move off the armed value is a
 	* human act. An absent live basket (Clear) is not drift: ownedRecipeFields drops null, so
 	* nothing is adopted or starred. basketName is not listed: the pair rule in
-	* itemPatch writes it with the id. rpm stays out (not adoptable).
+	* itemPatch writes it with the id. rpm and feedRate stay out (not adoptable).
 	*/
 	function movedSinceArming(k, live, armed) {
 		if (!armed || !(k in MACHINE_MAP) && k !== "basketId") return false;
@@ -14174,6 +14249,7 @@ bcInit();
 			if (g !== void 0) c.grinderSetting = String(g);
 			for (const k of [
 				"rpm",
+				"feedRate",
 				"basketId",
 				"basketName"
 			]) if (k in patch) c.extras = {

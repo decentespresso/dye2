@@ -168,6 +168,14 @@ function buildContent(): string {
       </div>
       <div class="edit-divider"></div>
 
+      <!-- Feed Rate (free text: FF / MF / SF, or a feeder RPM — no schema field, same home as RPM) -->
+      <div class="flex items-center gap-[18px]">
+        <span class="dye-stepper-label" style="width:120px;flex-shrink:0">Feed Rate</span>
+        <input id="es-feedrate-input" type="text" autocomplete="off" placeholder="FF / MF / SF or RPM"
+          class="flex-1 border border-[var(--profile-button-outline-color)] rounded-[12px] px-[20px] h-[72px] bg-[var(--box-color)] text-[24px] font-normal text-[var(--text-primary)]" />
+      </div>
+      <div class="edit-divider"></div>
+
       <!-- Basket -->
       ${expandFieldHtml('es-basket', 'Basket')}
       <div class="edit-divider"></div>
@@ -724,6 +732,8 @@ function renderShot(shot) {
   // what the dashboard set before the shot (the shot's workflow.context.extras).
   const basketRpm = shotBasketRpm(shot);
   set('es-rpm-value', basketRpm.rpm != null ? basketRpm.rpm : '—');
+  const feedRateEl = document.getElementById('es-feedrate-input');
+  if (feedRateEl) feedRateEl.value = shotFeedRate(shot) || '';
   const basketEl = document.getElementById('es-basket-text');
   if (basketEl) basketEl.textContent = basketRpm.basketName || '—';
 
@@ -804,6 +814,7 @@ function shotDialing(shot) {
     yield: weights.doseOut,
     grind: ctx.grinderSetting   != null ? ctx.grinderSetting   : gd.setting,
     rpm:   basketRpm.rpm,
+    feedRate: shotFeedRate(shot),
     basketId:   basketRpm.basketId,
     basketName: basketRpm.basketName,
     equipmentIds:   equip.ids,
@@ -824,6 +835,7 @@ async function workflowDialing() {
     yield: ctx.targetYield,
     grind: ctx.grinderSetting,
     rpm:   ctx.extras && ctx.extras.rpm,
+    feedRate: ctx.extras && ctx.extras.feedRate,
     basketId:   ctx.extras && ctx.extras.basketId,
     basketName: ctx.extras && ctx.extras.basketName,
     equipmentIds:   equip.ids,
@@ -844,6 +856,7 @@ function applyDialing(d) {
   if (d.yield != null) ann.actualYield = d.yield;
   if (d.grind != null) ctx.grinderSetting = String(d.grind);
   if (d.rpm   != null) { ann.extras = ann.extras || {}; ann.extras.rpm = d.rpm; }
+  if (d.feedRate != null) { ann.extras = ann.extras || {}; ann.extras.feedRate = d.feedRate; }
   if (d.basketId != null) { ann.extras = ann.extras || {}; ann.extras.basketId = d.basketId; ann.extras.basketName = d.basketName; }
   if (d.equipmentNames && d.equipmentNames.length) {
     ann.extras = ann.extras || {};
@@ -887,6 +900,10 @@ function setupControls() {
   wireAdjuster('es-rpm-minus','es-rpm-plus','es-rpm-value', 1, 1, null, v => String(v), v => {
     // RPM has no schema field — store in annotations.extras (see README: annotations.extras for DYE2 per-shot extras).
     if (currentShot) { ann().extras = ann().extras || {}; ann().extras.rpm = v; }
+  });
+  document.getElementById('es-feedrate-input')?.addEventListener('input', (e) => {
+    // Same home as RPM — no schema field, free text (FF/MF/SF or a feeder RPM).
+    if (currentShot) { ann().extras = ann().extras || {}; ann().extras.feedRate = e.target.value; }
   });
 
   // Stars

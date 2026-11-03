@@ -672,6 +672,9 @@ function snapshotFromWorkflow(wf) {
     roastDate: ctx.roastDate || null, grinderId: ctx.grinderId || null, grinderModel: ctx.grinderModel || null,
     basketId: extras.basketId || null, basketName: extras.basketName || null,
     grindSetting: ctx.grinderSetting != null ? ctx.grinderSetting : null, rpm: extras.rpm != null ? extras.rpm : null,
+    // No dedicated UI field, same as rpm: captured passively here, preserved by collectFavData's
+    // snapshot spread on every later save.
+    feedRate: extras.feedRate != null ? extras.feedRate : null,
     dose: ctx.targetDoseWeight != null ? ctx.targetDoseWeight : null, drink: ctx.targetYield != null ? ctx.targetYield : null,
     barista: ctx.baristaName || null, drinker: ctx.drinkerName || null, note: extras.note || null,
   };

@@ -328,6 +328,13 @@ function buildContent(): string {
         </div>
       </div>
 
+      <!-- Feed Rate (free text: FF / MF / SF, or a feeder RPM — no schema field, same home as RPM) -->
+      <div class="flex items-center gap-[18px]" style="margin-top:18px">
+        <span class="dye-stepper-label" style="width:120px;flex-shrink:0">Feed Rate</span>
+        <input id="re-feedrate-input" type="text" autocomplete="off" placeholder="FF / MF / SF or RPM"
+          class="flex-1 border border-[var(--profile-button-outline-color)] rounded-[12px] px-[20px] h-[72px] bg-[var(--box-color)] text-[24px] font-normal text-[var(--text-primary)]" />
+      </div>
+
       <!-- Basket names — same plain-text-tab style as Grinder above, no label -->
       <div class="re-grinder-chips" id="re-basket-chips">
         <!-- populated by JS -->
@@ -630,6 +637,8 @@ function renderRecipe(recipe) {
   }
   set('re-grind-value', dv.grind    != null ? String(dv.grind)       : '—');
   set('re-rpm-value',   dv.rpm      != null ? String(dv.rpm)         : '—');
+  const feedRateEl = document.getElementById('re-feedrate-input');
+  if (feedRateEl) feedRateEl.value = dv.feedRate != null ? String(dv.feedRate) : '';
 
   showOnStreamline = recipe.showOnStreamlineDashboard !== false;
   updateStreamlineBtn();
@@ -684,6 +693,10 @@ function workflowToRecipePatch(wf) {
       drink: ctx.targetYield,
       grind: ctx.grinderSetting,
       rpm:   extras.rpm,
+      // Omitted rather than an explicit undefined key, unlike rpm above: several fixed-shape
+      // test fixtures (recipe-profile-fill.test.mjs) deepStrictEqual this object and predate
+      // the field.
+      ...(extras.feedRate !== undefined ? { feedRate: extras.feedRate } : {}),
       grinderId: g ? g.id : undefined,
       basketId:   extras.basketId,
       basketName: extras.basketName,
@@ -758,6 +771,7 @@ function favouriteToRecipePatch(fav) {
       brewC,
       grind: grind != null ? parseFloat(grind) : undefined,
       rpm:   pick(s.rpm, wfExtras.rpm),
+      feedRate: pick(s.feedRate, wfExtras.feedRate),
       grinderId:    pick(s.grinderId, wfCtx.grinderId),
       grinderModel: pick(s.grinderModel, wfCtx.grinderModel),
       basketId:   pick(s.basketId, wfExtras.basketId),
@@ -1102,6 +1116,8 @@ function getCurrentRecipeData() {
       // Free text ("1.1.0", "15 clicks") is stored as typed; a numeric scale stays a number.
       grind:   text('re-grind-value'),
       rpm:     num('re-rpm-value'),
+      // Feed rate is a real <input>, not a stepper span: read .value, blank -> null like the rest.
+      feedRate: (() => { const v = (document.getElementById('re-feedrate-input')?.value || '').trim(); return v === '' ? null : v; })(),
       grinderId: selectedGrinderId,
       grinderModel: (grinders.find(g => g.id === selectedGrinderId) || {}).model,
       basketId:   selectedBasketId,

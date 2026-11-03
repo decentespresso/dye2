@@ -110,11 +110,15 @@ favourite maps onto the workflow, both sides need the change.
 Auto-favourites gate each field through `copyMask`: `mask[k] !== false` means copy, so an
 absent mask copies everything.
 
-Fields with no schema slot ride in `context.extras` — `rpm`, `basketId`, `basketName`,
-`note`. Note that `extras` is rebuilt by spread on each branch, so it merges rather than
-clobbers within a single build.
+Fields with no schema slot ride in `context.extras` — `rpm`, `feedRate`, `basketId`,
+`basketName`, `note`. Note that `extras` is rebuilt by spread on each branch, so it merges
+rather than clobbers within a single build. `feedRate` (grinder feed — manual "FF"/"MF"/"SF" or
+a feeder RPM) is always free text, gated by the same `grindSetting` copy-mask key as `rpm`, and
+follows `rpm` everywhere: `recorded-shot.ts`, `workflow-record.ts` (not adoptable into dial-in
+recording), `recent-favs.ts`'s recents. It has no legacy fallback — unlike `rpm`'s
+`workflow.grinderData.rpm` — since it is a new field.
 
-Every DYE2 write of a bean, grinder, barista/drinker, basket, rpm or note field also flags it in
+Every DYE2 write of a bean, grinder, barista/drinker, basket, rpm, feed rate or note field also flags it in
 `context.extras.dye = { v: 1, <field>: true }` through `markDye()` (`dev-api.ts`). Streamline's
 post-shot clear (`dye-context.js`) wipes only flagged fields, so an unflagged write is cleared
 along with everything else, or an unrelated plugin's value is. Flag exactly what a write sets;

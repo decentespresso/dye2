@@ -168,6 +168,8 @@ export function recipeFields(wf: AnyRecord): AnyRecord {
   // apply writes these into context.extras (dev-api.ts buildFavouriteWorkflow / applyRecipe).
   const extras = ctx.extras || {};
   put(out, "rpm", num(extras.rpm));
+  // Feed rate is free text (FF/MF/SF or a feeder RPM) — no num() coercion, same reason as grind.
+  put(out, "feedRate", extras.feedRate);
   put(out, "basketId", extras.basketId);
   put(out, "basketName", extras.basketName);
   const steps = wf && wf.profile && wf.profile.steps;
@@ -243,6 +245,7 @@ export function favouriteFields(wf: AnyRecord): AnyRecord {
   put(out, "drink", ctx.targetYield);
   put(out, "grindSetting", grindValue(ctx.grinderSetting));
   put(out, "rpm", num(ctx.extras && ctx.extras.rpm));
+  put(out, "feedRate", ctx.extras && ctx.extras.feedRate);
   return out;
 }
 
@@ -280,7 +283,7 @@ export function changedFields(patch: AnyRecord, stored: AnyRecord | undefined): 
  * context.extras.basketId, the machine never drifts it, so a move off the armed value is a
  * human act. An absent live basket (Clear) is not drift: ownedRecipeFields drops null, so
  * nothing is adopted or starred. basketName is not listed: the pair rule in
- * itemPatch writes it with the id. rpm stays out (not adoptable).
+ * itemPatch writes it with the id. rpm and feedRate stay out (not adoptable).
  */
 function movedSinceArming(k: string, live: unknown, armed: AnyRecord | null): boolean {
   if (!armed || (!(k in MACHINE_MAP) && k !== "basketId")) return false;
@@ -408,7 +411,7 @@ export async function recordWorkflow(
     if ("drink" in patch) c.targetYield = patch.drink;
     const g = "grind" in patch ? patch.grind : patch.grindSetting;
     if (g !== undefined) c.grinderSetting = String(g);
-    for (const k of ["rpm", "basketId", "basketName"]) {
+    for (const k of ["rpm", "feedRate", "basketId", "basketName"]) {
       if (k in patch) c.extras = { ...(c.extras || {}), [k]: patch[k] };
     }
     next.workflow = { ...item.workflow, context: c };

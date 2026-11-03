@@ -96,7 +96,7 @@ workflow; a highlight means "the live workflow is this item":
 | Family | Selected when |
 | --- | --- |
 | recipe | `workflow.context.extras.dye.recipeId` names it |
-| favourite | the live workflow equals its `snapshot` on the fields the snapshot holds (dose, drink, grindSetting, rpm) |
+| favourite | the live workflow equals its `snapshot` on the fields the snapshot holds (dose, drink, grindSetting, rpm, feedRate) |
 | recent (`auto: true`) | reported as `kind: 'favourite'` + `auto: true` (the only shape the current skin renders); same comparison against that row's own `workflow` |
 
 A recipe keeps its highlight when fields drift and reports `modified: true` (the `*`): the live
@@ -326,7 +326,7 @@ by `POST …/record` once it differs from the basket live at apply time (even if
                                 // profile could be resolved at all. An empty `steps` array does NOT
                                 // count as a profile.
     beanBatchId, coffeeName, coffeeRoaster,
-    roastDate, grinderId, grinderModel, basketId, basketName, grindSetting, rpm,
+    roastDate, grinderId, grinderModel, basketId, basketName, grindSetting, rpm, feedRate,
     dose, drink, barista, drinker, note,
     equipmentIds, equipmentNames,   // arrays in lockstep — see equipment[] below
     equipmentCustom,                // { [equipmentId]: [{key,value}, ...] } — per-value overrides, optional
@@ -382,7 +382,7 @@ group whose newest shot is older is dropped from the strip) and `UNRATED_SCORES_
 
 ```
 { v: 2, builtAt, newestShotId, newestTs, total, etag,
-  reps: { <groupKey>: { id, timestamp, workflow, annotations?: { extras: { rpm } } } },  // newest shot per group
+  reps: { <groupKey>: { id, timestamp, workflow, annotations?: { extras: { rpm, feedRate } } } },  // newest shot per group
   tail: [ { id, ts, rating /* 0..1 | null */, key, rid /* recipeId | null */ } ],         // last TAIL_DAYS, bounded
   uses: { <recipeId>: n }       // shots per recipe id in the tail
 }
@@ -451,7 +451,7 @@ plugins should not read it.
   showOnStreamlineDashboard,
   dashboardVariables: {
     dose, drink, brewC, steamMode, steamTimeS, steamFlowMls,
-    flushS, hotWaterMode, hotWaterMl, hotWaterTempC, grind, rpm, grinderId,
+    flushS, hotWaterMode, hotWaterMl, hotWaterTempC, grind, rpm, feedRate, grinderId,
     steamTempC, steamStopAtTempC, hotWaterTimeS, hotWaterFlowMls,   // optional machine settings,
     flushTempC, flushFlowMls,                                       // see "Recipes: steam / hot-water / flush"
     grinderModel, basketId, basketName,
@@ -465,6 +465,11 @@ plugins should not read it.
   // the value is plainly numeric and otherwise the string as typed ("1.1.0", "15 clicks").
   // The same holds for `snapshot.grindSetting` on a favourite. The host agrees —
   // WorkflowContext.grinderSetting is a String? — so a reader must not assume a number.
+  // `feedRate` is always free text (manual feed — "FF"/"MF"/"SF" — or a feeder RPM like the
+  // MT80/EG1's, typed as a plain number): never coerced, unlike `rpm`. Same home as `rpm` —
+  // no host schema field, lives in `context.extras.feedRate` — and the same precedence rule
+  // (an Edit Shot annotation wins over the pre-shot workflow value), but no legacy fallback;
+  // it is a new field. Not adoptable into dial-in recording (workflow-record.ts), same as rpm.
 
   // added by this version (optional for consumers):
   title,                       // name || 'Recipe'

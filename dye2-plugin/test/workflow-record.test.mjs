@@ -115,6 +115,28 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.deepEqual(s.store.recipes[0].workflow.context.extras, { note: 'n', rpm: 700, basketId: 'bk2', basketName: 'IMS' });
 }
 
+// --- feed rate (context.extras, free text) — same "not adoptable" rule as rpm -----------
+{
+  const ex = (e) => wf({ context: { targetDoseWeight: 18, targetYield: 36, grinderSetting: '4.2', extras: e } });
+  const withFeedRate = () => {
+    const r = recipe();
+    Object.assign(r.dashboardVariables, { feedRate: 'MF' });
+    return r;
+  };
+  assert.deepEqual(itemPatch('recipe', withFeedRate(), ex({ feedRate: 'MF' })), {}, 'unchanged feed rate patches nothing');
+  assert.deepEqual(itemPatch('recipe', withFeedRate(), ex({ feedRate: 'FF' })), { feedRate: 'FF' }, 'a changed feed rate is recorded');
+  assert.deepEqual(itemPatch('recipe', recipe(), ex({ feedRate: 'FF' })), {}, 'recipe not holding a feed rate is left alone (not adoptable)');
+
+  const f = fav();
+  f.snapshot.feedRate = 'SF';
+  assert.deepEqual(itemPatch('favourite', f, ex({ feedRate: 'MF' })), { feedRate: 'MF' }, 'favourite records feed rate');
+  assert.deepEqual(itemPatch('favourite', fav(), ex({ feedRate: 'MF' })), {}, 'favourite not holding a feed rate is left alone');
+
+  const s = fakeStore({ recipes: [{ ...withFeedRate(), workflow: { context: { extras: { note: 'n' } } } }] });
+  await recordWorkflow(ex({ feedRate: 'FF' }), s.fetchFn, { kind: 'recipe', id: '1', profileFingerprint: null });
+  assert.deepEqual(s.store.recipes[0].workflow.context.extras, { note: 'n', feedRate: 'FF' });
+}
+
 // --- recipe editor: a blank stepper saves as absent, not 0 ------------------------------
 {
   // getCurrentRecipeData lives in a browser-side template string (no type check), so run it
@@ -127,7 +149,7 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   const run = (texts, batch = null, roaster = null, held = null, modes = {}) => new Function('document', 'recipe', 'stripSlot', 'selectedBeanId', 'selectedBeanName', 'selectedBeanBatchId', 'selectedBeanRoaster', 'selectedProfileId', 'selectedProfileTitle',
     'selectedProfileSnapshot', 'showOnStreamline', 'grinders', 'selectedGrinderId', 'baskets', 'selectedBasketId',
     'equipmentSelIds', 'equipmentSelNames', 'equipmentCustomOverrides', 'machineValues', body + '; return getCurrentRecipeData();')(
-    { getElementById: (id) => ({ textContent: texts[id], dataset: id === 're-drink-value' ? { ratio: '2' } : {}, value: '' }),
+    { getElementById: (id) => ({ textContent: texts[id], dataset: id === 're-drink-value' ? { ratio: '2' } : {}, value: texts[id] !== undefined ? texts[id] : '' }),
       querySelector: (sel) => { const m = Object.keys(modes).find((c) => sel.startsWith('.' + c)); return m ? { dataset: { mode: modes[m] } } : null; } },
     held ? { dashboardVariables: held } : {}, 3,
     null, null, batch, roaster, null, null, null, false, [], null, [], null, [], [], {},
@@ -135,11 +157,13 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   const blank = run({ 're-dose-value': '—', 're-drink-value': '—', 're-brew-c-value': '—', 're-steam-value': '—',
     're-flush-value': '—', 're-hotwater-value': '—', 're-grind-value': '—', 're-rpm-value': '—' }).dashboardVariables;
   for (const k of ['dose', 'drink', 'brewC', 'flushS', 'grind', 'rpm']) assert.equal(blank[k], null, k + ' blank is null, not 0');
+  assert.equal(blank.feedRate, null, 'an empty feed rate input is null too');
   assert.equal(blank.ratio, undefined);
-  const filled = run({ 're-dose-value': '18g', 're-drink-value': '36g', 're-brew-c-value': '0°c', 're-grind-value': '4.2' }).dashboardVariables;
+  const filled = run({ 're-dose-value': '18g', 're-drink-value': '36g', 're-brew-c-value': '0°c', 're-grind-value': '4.2', 're-feedrate-input': 'FF' }).dashboardVariables;
   assert.equal(filled.dose, 18);
   assert.equal(filled.brewC, 0, 'a real 0 is kept, not replaced by 93');
   assert.equal(filled.ratio, 2, 'ratio still derived');
+  assert.equal(filled.feedRate, 'FF', 'feed rate is read from its own <input>.value, not a stepper span');
   // the mode only picks which value shows: saving keeps the other one the recipe holds (dye2#23)
   const kept = run({ 're-steam-value': '1.2ml/s', 're-hotwater-value': '85°C' },
     null, null, { steamTimeS: 30, steamFlowMls: 2, hotWaterMl: 120, hotWaterTempC: 80, steamTempC: 150 },

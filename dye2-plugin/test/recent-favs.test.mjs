@@ -163,6 +163,44 @@ console.log('ok   toRecentFavourite: target values, explicit nulls, omitted-when
 
 console.log('ok   toRecentFavourite: RPM prefers an Edit Shot correction over the pre-shot value (issue #15)');
 
+// --- toRecentFavourite feed rate: same precedence as RPM, no legacy fallback -------------
+
+{
+  const shot = makeShot('fr-1', 't1');
+  shot.workflow.context.extras = { feedRate: 'MF' };
+  shot.annotations = { extras: { feedRate: 'FF' } };
+  const fav = toRecentFavourite(shot, 0);
+  assert.equal(fav.workflow.context.extras.feedRate, 'FF', 'corrected feed rate wins in the workflow to apply');
+  assert.equal(fav.snapshot.feedRate, 'FF', 'corrected feed rate wins in the snapshot too');
+}
+
+{
+  const shot = makeShot('fr-2', 't1');
+  shot.workflow.context.extras = { feedRate: 'MF' };
+  const fav = toRecentFavourite(shot, 0);
+  assert.equal(fav.workflow.context.extras.feedRate, 'MF');
+  assert.equal(fav.snapshot.feedRate, 'MF');
+}
+
+{
+  // No feed rate anywhere: omitted from the workflow to apply, null in the snapshot (no
+  // legacy grinderData fallback — unlike RPM, this is a new field).
+  const shot = makeShot('fr-3', 't1');
+  const fav = toRecentFavourite(shot, 0);
+  assert.equal('extras' in fav.workflow.context, false);
+  assert.equal(fav.snapshot.feedRate, null);
+}
+
+{
+  // RPM and feed rate can be corrected independently, both landing in the same extras object.
+  const shot = makeShot('fr-4', 't1');
+  shot.annotations = { extras: { rpm: 900, feedRate: 'SF' } };
+  const fav = toRecentFavourite(shot, 0);
+  assert.deepEqual(fav.workflow.context.extras, { rpm: 900, feedRate: 'SF' });
+}
+
+console.log('ok   toRecentFavourite: feed rate follows RPM precedence, no legacy fallback');
+
 // --- isExecutableRecordedProfile / toRecentFavourite profile omission -------------------------------------------------------------
 
 {

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { recordedShotScript } from '../src/utils/recorded-shot.ts';
 
-const { shotBasketRpm, shotWorkflowExtras, shotNote, noteToSave } =
-  new Function(recordedShotScript + '\nreturn { shotBasketRpm, shotWorkflowExtras, shotNote, noteToSave };')();
+const { shotBasketRpm, shotFeedRate, shotWorkflowExtras, shotNote, noteToSave } =
+  new Function(recordedShotScript + '\nreturn { shotBasketRpm, shotFeedRate, shotWorkflowExtras, shotNote, noteToSave };')();
 
 // The reported shot: basket picked on the dashboard, so it lives only in the saved workflow.
 const workflow = {
@@ -32,6 +32,16 @@ assert.equal(shotBasketRpm({ workflow, annotations: { extras: { rpm: 0 } } }).rp
 assert.deepEqual(shotBasketRpm({}), { basketId: null, basketName: null, rpm: null }, 'old shot with no extras');
 assert.deepEqual(shotBasketRpm(null), { basketId: null, basketName: null, rpm: null }, 'no shot');
 
+// Feed rate: same precedence rule as RPM (annotations.extras wins over the pre-shot workflow),
+// but no legacy grinderData fallback -- it is a new field.
+assert.equal(shotFeedRate({ workflow: { context: { extras: { feedRate: 'MF' } } } }), 'MF',
+  'workflow feed rate shows when annotations carry none');
+assert.equal(
+  shotFeedRate({ workflow: { context: { extras: { feedRate: 'MF' } } }, annotations: { extras: { feedRate: 'FF' } } }),
+  'FF', 'a feed rate edited after the shot wins over the workflow');
+assert.equal(shotFeedRate({}), null, 'old shot with no extras');
+assert.equal(shotFeedRate(null), null, 'no shot');
+
 // Clipboard paste copies a shot back into the live workflow: the rest of the shot's
 // context.extras rides along, with basket and RPM resolved the same way edit-shot shows them.
 assert.deepEqual(shotWorkflowExtras({ workflow, annotations }),
@@ -47,6 +57,13 @@ assert.deepEqual(
 assert.deepEqual(shotWorkflowExtras({ workflow: { grinderData: { rpm: 400 } } }), { rpm: 400 },
   'paste: legacy grinderData RPM');
 assert.equal(shotWorkflowExtras({ workflow: { context: {} } }), undefined, 'paste: nothing to copy');
+assert.deepEqual(
+  shotWorkflowExtras({
+    workflow: { context: { extras: { feedRate: 'MF', note: 'n' } } },
+    annotations: { extras: { feedRate: 'FF' } },
+  }),
+  { feedRate: 'FF', note: 'n' },
+  'paste: feed rate edited after the shot wins, same as RPM');
 
 // The drinker note: an annotation wins, a missing or null one falls back to the pre-shot
 // note, and an empty one is a clear that stays cleared (including after a save round trip).
@@ -74,4 +91,4 @@ for (const text of ['', '   ', null, undefined]) {
 }
 assert.equal(shotNote({}), '', 'old shot with no note');
 assert.equal(shotNote(null), '', 'no shot');
-console.log('ok   recorded-shot: edits after the shot win over its workflow (basket/RPM, then legacy grinderData); a cleared note stays cleared, including when saved from the editor');
+console.log('ok   recorded-shot: edits after the shot win over its workflow (basket/RPM/feed rate, then legacy grinderData for RPM); a cleared note stays cleared, including when saved from the editor');

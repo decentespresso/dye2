@@ -104,7 +104,7 @@ export function shotPatchAffectsRecents(patch: unknown): boolean {
   if ("workflow" in p) return true;
   if (p.annotations && "enjoyment" in p.annotations) return true;
   const extras = p.annotations && p.annotations.extras;
-  return !!extras && typeof extras === "object" && "rpm" in extras;
+  return !!extras && typeof extras === "object" && ("rpm" in extras || "feedRate" in extras);
 }
 
 // --- Shot index + ranking ------------------------------------------------------------------
@@ -398,6 +398,15 @@ function resolveRpm(shot: AnyRecord): number | null {
   return rpm != null ? rpm : null;
 }
 
+/** Same rule as resolveRpm, but feed rate has no legacy grinderData fallback (a new field). */
+function resolveFeedRate(shot: AnyRecord): string | number | null {
+  const wf = shot.workflow || {};
+  const extras = (wf.context && wf.context.extras) || {};
+  const ax = (shot.annotations && shot.annotations.extras) || {};
+  const feedRate = ax.feedRate != null ? ax.feedRate : extras.feedRate;
+  return feedRate != null ? feedRate : null;
+}
+
 /** Builds one auto-favourite from a representative shot. No title de-duplication yet
  *  — that depends on the other recents in the batch, see applyTitleDisambiguation. */
 export function toRecentFavourite(shot: AnyRecord, rank: number): AnyRecord {
@@ -406,6 +415,7 @@ export function toRecentFavourite(shot: AnyRecord, rank: number): AnyRecord {
   const profile = wf.profile || {};
   const grinderModel = ctx.grinderModel != null ? ctx.grinderModel : null;
   const rpm = resolveRpm(shot);
+  const feedRate = resolveFeedRate(shot);
 
   // Always-present keys carry the shot's value or an explicit null (so an edit that
   // clears the field on save still clears it — PUT /workflow deep-merges). Optional
@@ -421,7 +431,7 @@ export function toRecentFavourite(shot: AnyRecord, rank: number): AnyRecord {
   if (ctx.grinderSetting != null) context.grinderSetting = ctx.grinderSetting;
   if (ctx.targetDoseWeight != null) context.targetDoseWeight = ctx.targetDoseWeight;
   if (ctx.targetYield != null) context.targetYield = ctx.targetYield;
-  if (rpm != null) context.extras = { rpm };
+  if (rpm != null || feedRate != null) context.extras = { ...(rpm != null ? { rpm } : {}), ...(feedRate != null ? { feedRate } : {}) };
 
   return {
     id: "recent:" + shot.id,
@@ -450,6 +460,7 @@ export function toRecentFavourite(shot: AnyRecord, rank: number): AnyRecord {
       grinderModel: grinderModel,
       grindSetting: ctx.grinderSetting != null ? ctx.grinderSetting : null,
       rpm: rpm,
+      feedRate: feedRate,
       dose: ctx.targetDoseWeight != null ? ctx.targetDoseWeight : null,
       drink: ctx.targetYield != null ? ctx.targetYield : null,
     },
@@ -519,9 +530,13 @@ export function noteShotUpdated(shot: unknown): void {
 }
 
 const slim = (shot: AnyRecord): AnyRecord => {
-  const rpm = shot.annotations && shot.annotations.extras && shot.annotations.extras.rpm;
+  const ax = shot.annotations && shot.annotations.extras;
+  const rpm = ax && ax.rpm;
+  const feedRate = ax && ax.feedRate;
   return { id: shot.id, timestamp: shot.timestamp, workflow: shot.workflow,
-    ...(rpm != null ? { annotations: { extras: { rpm } } } : {}) };
+    ...((rpm != null || feedRate != null)
+      ? { annotations: { extras: { ...(rpm != null ? { rpm } : {}), ...(feedRate != null ? { feedRate } : {}) } } }
+      : {}) };
 };
 
 async function runRefresh(fetchFn: FetchLike, base: string): Promise<AnyRecord[]> {

@@ -10,6 +10,11 @@
  *
  * Basket and RPM have no schema field (annotations.extras; legacy grinderData.rpm last).
  * Basket id and name are taken as a pair from one source, never mixed.
+ *
+ * Feed rate (free text: FF/MF/SF or a feeder RPM) follows RPM's own rule — no schema field,
+ * annotations.extras wins over the pre-shot workflow — but has no legacy grinderData fallback
+ * (it is a new field) and is kept out of shotBasketRpm's return shape so existing callers and
+ * test/recorded-shot.test.mjs's deepEqual checks are unaffected.
  */
 export const recordedShotScript = `
 function shotBasketRpm(shot) {
@@ -26,16 +31,26 @@ function shotBasketRpm(shot) {
   };
 }
 
-// The shot's context.extras with the resolved basket and RPM folded in, for copying the shot
-// back into the live workflow. undefined when the shot has nothing to copy.
+function shotFeedRate(shot) {
+  const wf = (shot && shot.workflow) || {};
+  const cx = (wf.context && wf.context.extras) || {};
+  const ax = (shot && shot.annotations && shot.annotations.extras) || {};
+  const fr = ax.feedRate != null ? ax.feedRate : cx.feedRate;
+  return fr != null ? fr : null;
+}
+
+// The shot's context.extras with the resolved basket, RPM and feed rate folded in, for copying
+// the shot back into the live workflow. undefined when the shot has nothing to copy.
 function shotWorkflowExtras(shot) {
   const wf = (shot && shot.workflow) || {};
   const src = wf.context && wf.context.extras;
   const r = shotBasketRpm(shot);
+  const fr = shotFeedRate(shot);
   const hasBasket = r.basketId != null || r.basketName != null;
-  if (!src && r.rpm == null && !hasBasket) return undefined;
+  if (!src && r.rpm == null && fr == null && !hasBasket) return undefined;
   const out = { ...(src || {}) };
   if (r.rpm != null) out.rpm = r.rpm;
+  if (fr != null) out.feedRate = fr;
   if (hasBasket) { out.basketId = r.basketId; out.basketName = r.basketName; }
   return out;
 }

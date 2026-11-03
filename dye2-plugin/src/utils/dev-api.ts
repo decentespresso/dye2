@@ -117,7 +117,7 @@ async function getWorkflow() {
    one was not written and is left alone. The plugin runtime never writes these fields, so it
    has no copy of this. */
 const DYE_TOP_KEYS = ['beanBatchId', 'coffeeName', 'coffeeRoaster', 'grinderId', 'grinderModel', 'baristaName', 'drinkerName'];
-const DYE_EXTRAS_KEYS = ['basketId', 'basketName', 'rpm', 'note'];
+const DYE_EXTRAS_KEYS = ['basketId', 'basketName', 'rpm', 'feedRate', 'note'];
 function markDye(ctx, keys) {
   const ex = ctx.extras || {};
   const flags = {};
@@ -357,6 +357,7 @@ async function buildFavouriteWorkflow(fav) {
   if (on('grindSetting')) {
     if (snp.grindSetting != null) ctx.grinderSetting = String(snp.grindSetting);
     if (snp.rpm != null) ctx.extras = { ...(ctx.extras || {}), rpm: snp.rpm };
+    if (snp.feedRate != null) ctx.extras = { ...(ctx.extras || {}), feedRate: snp.feedRate };
   }
   if (on('grinder')) {
     if (snp.grinderId) ctx.grinderId = snp.grinderId;
@@ -430,6 +431,7 @@ async function buildRecipeWorkflow(recipe) {
   else if (dv.ratio != null && dv.dose != null) ctx.targetYield = Math.round(dv.dose * dv.ratio * 10) / 10;
   if (dv.grind != null) ctx.grinderSetting = String(dv.grind);
   if (dv.rpm != null)   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm };
+  if (dv.feedRate != null) ctx.extras = { ...(ctx.extras || {}), feedRate: dv.feedRate };
   if (dv.grinderId) ctx.grinderId = dv.grinderId;
   // PUT /workflow deep-merges, so omitting grinderModel would leave the previous grinder's name.
   if (dv.grinderModel) ctx.grinderModel = dv.grinderModel;

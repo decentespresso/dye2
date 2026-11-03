@@ -1730,6 +1730,7 @@ async function applyRecipe(recipe) {
   else if (dv.ratio != null && dv.dose != null) ctx.targetYield = Math.round(dv.dose * dv.ratio * 10) / 10;
   if (dv.grind != null) ctx.grinderSetting = dv.grind;
   if (dv.rpm != null)   { ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm }; wrote.push('rpm'); }
+  if (dv.feedRate != null) { ctx.extras = { ...(ctx.extras || {}), feedRate: dv.feedRate }; wrote.push('feedRate'); }
   const grinder = dv.grinderId ? grinders.find(g => g.id === dv.grinderId) : null;
   // Write id and name together: tabs match by id, shots record the name.
   if (grinder) { ctx.grinderId = grinder.id; ctx.grinderModel = grinder.model || grinder.name; wrote.push('grinderId', 'grinderModel'); }
@@ -1796,6 +1797,7 @@ async function applyAutoFavourite(fav) {
   if (on('grindSetting')) {
     if (snp.grindSetting != null) ctx.grinderSetting = String(snp.grindSetting);
     if (snp.rpm != null) { ctx.extras = { ...(ctx.extras || {}), rpm: snp.rpm }; wrote.push('rpm'); }
+    if (snp.feedRate != null) { ctx.extras = { ...(ctx.extras || {}), feedRate: snp.feedRate }; wrote.push('feedRate'); }
   }
   if (on('grinder')) {
     if (snp.grinderId) { ctx.grinderId = snp.grinderId; wrote.push('grinderId'); }
@@ -2282,7 +2284,7 @@ function setupBottomButtons() {
       beanBatchId: null, coffeeName: null, coffeeRoaster: null,
       grinderId: null, grinderModel: null, grinderSetting: null,
       baristaName: null, drinkerName: null,
-      extras: { basketId: null, basketName: null, rpm: null, note: null },
+      extras: { basketId: null, basketName: null, rpm: null, feedRate: null, note: null },
     };
     markDye(currentWorkflow.context);   // all null here, so every flag clears with its value
     renderNextShot();
