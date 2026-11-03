@@ -326,6 +326,54 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   console.log('ok   the Machine Settings section: steppers, Off, and the held summary');
 }
 
+// --- recipe editor: an assigned bean/profile not in the loaded list still shows selected ---
+{
+  // A recipe's selectedBeanId/selectedProfileId can point at a row the page's own `beans`/
+  // `profiles` fetch doesn't (yet) contain -- right after the "See All Beans"/"See All Profiles"
+  // picker round trip, or a record deleted from the library since the recipe was saved. Each
+  // chip renderer must synthesize a virtual chip in that case, or the just-picked item flips
+  // back to looking unselected on the very next repaint (the bean-vs-profile asymmetry this
+  // locks in: profile already had the fallback, bean did not).
+  const src = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
+  const orderedChipsSrc = (() => {
+    const i = src.indexOf('function orderedChips(list, selectedId, limit)');
+    return src.slice(i, src.indexOf('\n}\n', i) + 2);
+  })();
+
+  const beanListStart = src.indexOf('let list = beans;');
+  const beanListFragment = src.slice(beanListStart, src.indexOf('\n  renderChipGrid(', beanListStart));
+  const beanList = (beans, selectedBeanId, selectedBeanName) => new Function(
+    'beans', 'selectedBeanId', 'selectedBeanName', beanListFragment + '\n  return list;'
+  )(beans, selectedBeanId, selectedBeanName);
+
+  const profileListStart = src.indexOf('let list = profiles;');
+  const profileListFragment = src.slice(profileListStart, src.indexOf('\n  renderChipGrid(', profileListStart));
+  const profileList = (profiles, selectedProfileId, selectedProfileTitle, profileReadFirst) => new Function(
+    'profiles', 'selectedProfileId', 'selectedProfileTitle', 'profileReadFirst', profileListFragment + '\n  return list;'
+  )(profiles, selectedProfileId, selectedProfileTitle, profileReadFirst);
+
+  const orderedChips = new Function(orderedChipsSrc + '; return orderedChips;')();
+
+  const beans = [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }];
+  // The assigned bean ('x') is missing from the loaded list -- the exact shape of the bug report.
+  const beanListOut = beanList(beans, 'x', 'Chosen Bean');
+  assert.deepEqual(beanListOut[0], { id: 'x', name: 'Chosen Bean' }, 'a missing bean gets a virtual chip');
+  const beanChips = orderedChips(beanListOut, 'x', 5);
+  assert.ok(beanChips.some(c => String(c.id) === String('x')), 'the virtual chip survives into the visible row, so it renders active');
+
+  // The common case -- the assigned bean IS in the loaded list -- must be untouched (no
+  // synthetic chip, no behaviour change for the vast majority of recipes).
+  assert.equal(beanList(beans, 'a', 'A'), beans, 'an assigned bean already in the list is not rewrapped');
+
+  const profiles = [{ id: 1, title: 'P1' }, { id: 2, title: 'P2' }];
+  // Same missing-id shape, through the profile path that already worked -- locks the two in sync.
+  const profileListOut = profileList(profiles, 'y', 'Chosen Profile', false);
+  assert.deepEqual(profileListOut[0], { id: 'y', title: 'Chosen Profile' }, 'a missing profile gets a virtual chip, same shape as the bean fix');
+  assert.ok(orderedChips(profileListOut, 'y', 5).some(c => String(c.id) === String('y')), 'the profile virtual chip is likewise visible');
+
+  console.log('ok   recipe editor: a bean or profile missing from the loaded list still renders as selected');
+}
+
 // --- recipe editor: the variables pane never scrolls sideways -----------------------
 {
   // #re-right is overflow-y-auto, so a row wider than the pane scrolls it sideways instead of

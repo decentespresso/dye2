@@ -12544,9 +12544,18 @@ function renderChipGrid(containerId, items, isActive, labelOf, onPick, seeAllRou
 }
 
 function renderBeanChips() {
+  // selectedBeanId can point at a bean this page's loaded beans list doesn't (yet) contain --
+  // e.g. right after the "See All Beans" picker round trip, or a bean deleted from the library
+  // since the recipe was saved. Mirror renderProfileChips()'s fallback: synthesize a virtual
+  // chip so the assignment still shows selected instead of silently dropping to "none" (the
+  // chip the user just picked flipping back to unselected on the next repaint).
+  let list = beans;
+  if (selectedBeanId != null && !beans.some(b => String(b.id) === String(selectedBeanId))) {
+    list = [{ id: selectedBeanId, name: selectedBeanName || 'Bean' }, ...beans];
+  }
   renderChipGrid(
     're-bean-chips',
-    orderedChips(beans, selectedBeanId, 5),
+    orderedChips(list, selectedBeanId, 5),
     b => String(b.id) === String(selectedBeanId),
     b => b.name || 'Unnamed bean',
     b => {
