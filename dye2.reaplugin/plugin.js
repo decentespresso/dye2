@@ -6503,8 +6503,24 @@ function pushWorkflow() {
 // strip slot has no cell on the Streamline strip, so this is the only place it is visible.
 let derivedSel = null;
 let derivedSelKey = '';
+// A pill tap applies, then PUTs, then waits ~700ms (pushWorkflow's own refreshDerivedSelection
+// delay) before the server's derivedSel reflects the new pick. In between, applyRecipe/
+// applyAutoFavourite call renderNextShot (-> renderRecipePills) on the still-live workflow, and
+// that re-render would otherwise recompute isActive from the stale derivedSel and stomp the
+// highlight the click just set -- the pill flashes active, then snaps back to the old one until
+// the delayed refresh corrects it. Tracked here so renderRecipePills can keep showing the tapped
+// pill active through that window; cleared once the apply chain settles (success or failure).
+let pendingSelection = null;
 function refreshDerivedSelection() {
   fetch('/api/v1/plugins/dye2.reaplugin/selection').then(r => (r.ok ? r.json() : null)).then(s => {
+    // Confirmed: the server now agrees with the pill the user tapped, so the optimistic pin can
+    // step aside. A fetch that still shows the pre-click selection (the push hasn't landed on
+    // the server yet) leaves pendingSelection alone -- clearing on every fetch regardless would
+    // let a pre-push read (there is always at least one, fired by the apply chain's own
+    // renderNextShot before pushWorkflow has even sent the PUT) drop the pin before it is due.
+    if (pendingSelection && s && s.kind === pendingSelection.kind && String(s.id) === String(pendingSelection.id)) {
+      pendingSelection = null;
+    }
     const key = s && s.kind ? s.kind + ':' + s.id + ':' + s.modified : '';
     if (key === derivedSelKey) return;
     derivedSelKey = key;
@@ -7454,9 +7470,12 @@ function renderRecipePills(workflow) {
   const recipeItems = recipes.length
     ? recipes.filter(r => r && r.stripSlot != null && r.showOnStreamlineDashboard !== false).sort((a, b) => a.stripSlot - b.stripSlot)   // the strip holds the slotted ones; the rest live in Select Recipe
     : (workflow.favorites || workflow.recipes || []);
-  const selRecipeId = derivedSel && derivedSel.kind === 'recipe' ? String(derivedSel.id) : null;
-  const selFavId = derivedSel && derivedSel.kind === 'favourite' ? String(derivedSel.id) : null;
-  const selMark = derivedSel && derivedSel.modified ? ' *' : '';
+  // A pending tap (see pendingSelection above) overrides the server-derived selection until it
+  // catches up, so the pill the user just tapped stays highlighted instead of flashing back.
+  const sel = pendingSelection || derivedSel;
+  const selRecipeId = sel && sel.kind === 'recipe' ? String(sel.id) : null;
+  const selFavId = sel && sel.kind === 'favourite' ? String(sel.id) : null;
+  const selMark = !pendingSelection && derivedSel && derivedSel.modified ? ' *' : '';
   // The selected recipe may hold no strip slot (so recipeItems omits it): show it as a pill, first.
   const slotless = selRecipeId && recipes.length ? recipes.find(r => r && String(r.id) === selRecipeId && r.stripSlot == null) : null;
   const items = [...(slotless ? [slotless] : []), ...recentItems, ...recipeItems];
@@ -7490,6 +7509,12 @@ function renderRecipePills(workflow) {
       pill.classList.add('active');
       centreRailOn(pill);
       if (typeof item !== 'object') return;
+      // Held until refreshDerivedSelection() sees the server actually agree (it clears it then,
+      // not this handler): the apply+push chain below triggers renderNextShot/renderRecipePills
+      // more than once while the server's derivedSel is still the pre-click selection, and each
+      // of those would otherwise stomp the highlight this click just set, right back to the old
+      // pill, until the real selection eventually lands.
+      pendingSelection = { kind: isRecent ? 'favourite' : 'recipe', id: item.id };
       await refreshWorkflow();   // apply over the live Workflow, not the page-open copy (dye2#31)
       if (isRecent) {
         await applyAutoFavourite(item);

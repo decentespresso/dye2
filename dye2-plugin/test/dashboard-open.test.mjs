@@ -165,4 +165,80 @@ assert.equal(shotPatchAffectsRecents('{"annotations":{"espressoNotes":"x"}}'), f
   }
 }
 
+// 8. A recipe pill tap holds its highlight until the server actually confirms it. The apply+push
+// chain re-renders the pills (applyRecipe/applyAutoFavourite's own renderNextShot) before the
+// PUT has even been sent, and refreshDerivedSelection's own fetch can land mid-chain too -- both
+// would read the still-stale pre-click derivedSel and snap the highlight back to the old pill
+// without pendingSelection holding it. Exercise the real refreshDerivedSelection body: a fetch
+// that still reports the pre-click selection must leave the pin alone; a fetch that reports the
+// tapped item is what finally clears it.
+{
+  const start = dash.indexOf("function refreshDerivedSelection()");
+  const body = dash.slice(start, dash.indexOf("\n}\n", start) + 2);
+  assert.ok(start > 0, "refreshDerivedSelection found");
+
+  const renderRecipePills = () => {};
+  const currentWorkflow = {};
+  const flush = () => new Promise(r => setTimeout(r, 0));
+  const run = (pendingIn, derivedSelIn, derivedSelKeyIn, fetchImpl) => new Function(
+    "fetch", "renderRecipePills", "currentWorkflow",
+    `let pendingSelection = ${JSON.stringify(pendingIn)};
+     let derivedSel = ${JSON.stringify(derivedSelIn)};
+     let derivedSelKey = ${JSON.stringify(derivedSelKeyIn)};
+     ${body}
+     return { refreshDerivedSelection, state: () => ({ pendingSelection, derivedSel, derivedSelKey }) };`
+  )(fetchImpl, renderRecipePills, currentWorkflow);
+
+  // Pre-push read: the server still has the pre-click recipe. The user just tapped "NEW".
+  {
+    const fetchImpl = async () => ({ ok: true, json: async () => ({ kind: "recipe", id: "OLD", modified: false }) });
+    const api = run({ kind: "recipe", id: "NEW" }, { kind: "recipe", id: "OLD", modified: false }, "recipe:OLD:false", fetchImpl);
+    api.refreshDerivedSelection();
+    await flush();
+    assert.deepEqual(api.state().pendingSelection, { kind: "recipe", id: "NEW" },
+      "a fetch that still shows the pre-click selection leaves the pending pin alone");
+  }
+
+  // Confirmed: pushWorkflow's delayed refresh now sees the tapped recipe.
+  {
+    const fetchImpl = async () => ({ ok: true, json: async () => ({ kind: "recipe", id: "NEW", modified: false }) });
+    const api = run({ kind: "recipe", id: "NEW" }, { kind: "recipe", id: "OLD", modified: false }, "recipe:OLD:false", fetchImpl);
+    api.refreshDerivedSelection();
+    await flush();
+    const st = api.state();
+    assert.equal(st.pendingSelection, null, "a fetch that matches the pending pick clears it");
+    assert.deepEqual(st.derivedSel, { kind: "recipe", id: "NEW", modified: false }, "and becomes the confirmed selection");
+  }
+
+  // A favourite pick is not confused with a same-id recipe (kind must match too).
+  {
+    const fetchImpl = async () => ({ ok: true, json: async () => ({ kind: "recipe", id: "X", modified: false }) });
+    const api = run({ kind: "favourite", id: "X" }, null, "", fetchImpl);
+    api.refreshDerivedSelection();
+    await flush();
+    assert.deepEqual(api.state().pendingSelection, { kind: "favourite", id: "X" }, "same id, different kind, does not confirm");
+  }
+}
+
+// 9. renderRecipePills' own selection derivation prefers the pending pick over derivedSel, so
+// the pill just tapped stays active through the window 8. covers, not just refreshDerivedSelection
+// in isolation.
+{
+  const start = dash.indexOf("const sel = pendingSelection || derivedSel;");
+  assert.ok(start > 0, "the override line is present in renderRecipePills");
+  const end = dash.indexOf("\n", dash.indexOf("const selMark =", start));
+  const body = dash.slice(start, end);
+  const derive = (pendingSelection, derivedSel) => new Function(
+    "pendingSelection", "derivedSel", body + "\nreturn { selRecipeId, selFavId, selMark };"
+  )(pendingSelection, derivedSel);
+
+  const pending = derive({ kind: "recipe", id: "NEW" }, { kind: "recipe", id: "OLD", modified: true });
+  assert.equal(pending.selRecipeId, "NEW", "the pending pick wins over a conflicting derivedSel");
+  assert.equal(pending.selMark, "", "no dirty-star while pending -- that state is not known yet");
+
+  const confirmed = derive(null, { kind: "recipe", id: "OLD", modified: true });
+  assert.equal(confirmed.selRecipeId, "OLD", "falls back to derivedSel once nothing is pending");
+  assert.equal(confirmed.selMark, " *", "and the dirty-star comes back with it");
+}
+
 console.log("dashboard-open tests passed");
