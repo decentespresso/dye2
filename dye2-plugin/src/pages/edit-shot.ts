@@ -296,6 +296,11 @@ function set(id, val) {
   const el = document.getElementById(id);
   if (el) el.textContent = val ?? '—';
 }
+// Steppers (stepperHtml) are a real <input>, not a <span> -- set its value, not its textContent.
+function setVal(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val ?? '—';
+}
 
 // A grind setting is free text on the host (WorkflowContext.grinderSetting is a String?):
 // "1.1.0" on a three-dial grinder, "15 clicks" on a stepped one. parseFloat keeps "1.1" and
@@ -315,15 +320,15 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
       if (!el) return;
       // Free text has no step to move by, and stepping would coerce it to a number.
       // Leave it alone — typing is the way to change it.
-      if (allowText && !isNumericText(el.textContent)) return;
-      const raw = parseFloat(el.textContent);
+      if (allowText && !isNumericText(el.value)) return;
+      const raw = parseFloat(el.value);
       // Empty field shows "—" → start from min (or 0) so + / − begin working.
       const base = isNaN(raw) ? (min != null ? min : 0) : raw;
       const delta = btnId === minusId ? -step : step;
       let val = parseFloat((base + delta).toFixed(3));
       if (min != null) val = Math.max(min, val);
       if (max != null) val = Math.min(max, val);
-      el.textContent = formatter(val);
+      el.value = formatter(val);
       clearTimeout(t);
       t = setTimeout(() => onChange(val), 500);
     });
@@ -332,54 +337,55 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
 }
 
 // Tap the number to type a value directly (tablet-friendly).
+//
+// valueId names a real, always-present <input> (stepperHtml), not a <span> that grows an
+// <input> child on tap. A WebView reliably pops the keyboard for an element it already knew
+// about when it focuses it synchronously inside the tap handler, but is unreliable about doing
+// so for a node that handler just created and inserted -- the first tap then only shows the
+// focus ring, and the keyboard needs a second, separate tap on the now-real input. One
+// persistent input sidesteps that: native tap-to-focus already shows the keyboard with no JS
+// in the way, and this just adds the select-on-entry/commit-on-exit rules around it.
 function makeValueEditable(valueId, min, max, formatter, onChange, allowText) {
-  const valEl = document.getElementById(valueId);
-  if (!valEl || valEl.dataset.editable) return;
-  valEl.dataset.editable = '1';
-  valEl.style.cursor = 'text';
-  valEl.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (valEl.querySelector('input')) return;
-    const cur = parseFloat(valEl.textContent);
-    const prev = valEl.textContent;
+  const input = document.getElementById(valueId);
+  if (!input || input.dataset.editable) return;
+  input.dataset.editable = '1';
+  input.addEventListener('click', (e) => e.stopPropagation());
+  let prev = input.value;
+  let done = true;
+  input.addEventListener('focus', () => {
+    prev = input.value;
+    done = false;
+    const cur = parseFloat(input.value);
     // A free-text field keeps what is shown, so opening the editor on "1.1.0" and tapping
     // away cannot quietly rewrite it to 1.1.
-    const curText = allowText && prev !== '—' ? prev.trim() : (isNaN(cur) ? '' : String(cur));
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.inputMode = 'decimal';
-    input.value = curText;
-    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:var(--input-bg);color:inherit;outline:none;padding:2px 4px';
-    valEl.textContent = '';
-    valEl.appendChild(input);
-    input.focus(); input.select();
-    let done = false;
-    const commit = (apply) => {
-      if (done) return; done = true;
-      const raw = input.value.trim();
-      // Not plainly a number and the field allows text: store it as typed. parseFloat
-      // would read "1.1.0" as 1.1 and "15 clicks" as 15.
-      if (apply && allowText && raw !== '' && !isNumericText(raw)) {
-        valEl.textContent = raw;
-        onChange(raw);
-        return;
-      }
-      let v = parseFloat(raw);
-      if (apply && !isNaN(v)) {
-        if (min != null) v = Math.max(min, v);
-        if (max != null) v = Math.min(max, v);
-        valEl.textContent = formatter(v);
-        onChange(v);
-      } else {
-        valEl.textContent = prev;
-      }
-    };
-    input.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') { ev.preventDefault(); commit(true); }
-      else if (ev.key === 'Escape') { ev.preventDefault(); commit(false); }
-    });
-    input.addEventListener('blur', () => commit(true));
+    input.value = allowText && prev !== '—' ? prev.trim() : (isNaN(cur) ? '' : String(cur));
+    input.select();
   });
+  const commit = (apply) => {
+    if (done) return; done = true;
+    const raw = input.value.trim();
+    // Not plainly a number and the field allows text: store it as typed. parseFloat
+    // would read "1.1.0" as 1.1 and "15 clicks" as 15.
+    if (apply && allowText && raw !== '' && !isNumericText(raw)) {
+      input.value = raw;
+      onChange(raw);
+      return;
+    }
+    let v = parseFloat(raw);
+    if (apply && !isNaN(v)) {
+      if (min != null) v = Math.max(min, v);
+      if (max != null) v = Math.min(max, v);
+      input.value = formatter(v);
+      onChange(v);
+    } else {
+      input.value = prev;
+    }
+  };
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(true); input.blur(); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); commit(false); input.blur(); }
+  });
+  input.addEventListener('blur', () => commit(true));
 }
 
 function wfctx() {
@@ -714,24 +720,24 @@ function renderShot(shot) {
   // screens cannot disagree. A saved annotation wins; otherwise drink out comes from the last
   // scale sample, which only the full shot record carries (see loadFullShotAt).
   const { doseIn, doseOut } = shotWeights(shot);
-  set('es-dose-value',  doseIn  != null ? doseIn  + 'g' : '—');
-  set('es-drink-value', doseOut != null ? doseOut + 'g' : '—');
+  setVal('es-dose-value',  doseIn  != null ? doseIn  + 'g' : '—');
+  setVal('es-drink-value', doseOut != null ? doseOut + 'g' : '—');
   set('es-drink-sub', calcRatio(doseIn, doseOut));
 
   const ann = shot.annotations || {};
 
-  set('es-tds-value', ann.drinkTds != null ? ann.drinkTds + '%' : '—');
-  set('es-ey-value',  ann.drinkEy  != null ? ann.drinkEy  + '%' : '—');
+  setVal('es-tds-value', ann.drinkTds != null ? ann.drinkTds + '%' : '—');
+  setVal('es-ey-value',  ann.drinkEy  != null ? ann.drinkEy  + '%' : '—');
 
   const grinderName = ctx.grinderModel || gd.model || gd.name || '';
   const grinderEl = document.getElementById('es-grinder-text');
   if (grinderEl) grinderEl.textContent = grinderName || '—';
 
-  set('es-setting-value', ctx.grinderSetting != null ? ctx.grinderSetting : (gd.setting != null ? gd.setting : '—'));
+  setVal('es-setting-value', ctx.grinderSetting != null ? ctx.grinderSetting : (gd.setting != null ? gd.setting : '—'));
   // RPM and basket have no schema field: an edit made here (annotations.extras) wins over
   // what the dashboard set before the shot (the shot's workflow.context.extras).
   const basketRpm = shotBasketRpm(shot);
-  set('es-rpm-value', basketRpm.rpm != null ? basketRpm.rpm : '—');
+  setVal('es-rpm-value', basketRpm.rpm != null ? basketRpm.rpm : '—');
   const feedRateEl = document.getElementById('es-feedrate-input');
   if (feedRateEl) feedRateEl.value = shotFeedRate(shot) || '';
   const basketEl = document.getElementById('es-basket-text');
@@ -882,7 +888,7 @@ function setupControls() {
   // Steppers
   function ann() { currentShot.annotations = currentShot.annotations || {}; return currentShot.annotations; }
   wireAdjuster('es-dose-minus','es-dose-plus','es-dose-value', 0.5, 0, null, v => v + 'g', v => {
-    if (currentShot) { ann().actualDoseWeight = v; set('es-drink-sub', calcRatio(v, parseFloat(document.getElementById('es-drink-value')?.textContent))); }
+    if (currentShot) { ann().actualDoseWeight = v; set('es-drink-sub', calcRatio(v, parseFloat(document.getElementById('es-drink-value')?.value))); }
   });
   wireAdjuster('es-drink-minus','es-drink-plus','es-drink-value', 1, 0, null, v => v + 'g', v => {
     if (currentShot) { ann().actualYield = v; }

@@ -236,7 +236,9 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   ].join('\n');
 
   let active = 'time';
-  const el = { textContent: '30s' };
+  // re-steam-value is a real <input> (stepperHtml), not a <span>: applyMode/stashModeValue
+  // read and write .value.
+  const el = { value: '30s' };
   const doc = {
     getElementById: (id) => (id === 're-steam-value' ? el : null),
     querySelector: () => ({ dataset: { mode: active } }),
@@ -248,20 +250,20 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   api.stashModeValue('re-steam-mode');          // what is on screen belongs to `time`
   active = 'flow';
   api.applyMode('re-steam-mode');
-  assert.equal(el.textContent, '1.2ml/s', "the flow mode shows the recipe's flow, not 30 relabelled");
+  assert.equal(el.value, '1.2ml/s', "the flow mode shows the recipe's flow, not 30 relabelled");
   assert.equal(slot.dashboardVariables.steamTimeS, 30, 'the time value is parked, not lost');
 
-  el.textContent = '1.5ml/s';                   // edit in flow, then switch back
+  el.value = '1.5ml/s';                   // edit in flow, then switch back
   api.stashModeValue('re-steam-mode');
   active = 'time';
   api.applyMode('re-steam-mode');
-  assert.equal(el.textContent, '30s');
+  assert.equal(el.value, '30s');
   assert.equal(slot.dashboardVariables.steamFlowMls, 1.5, 'the unsaved flow edit survives the switch');
 
   delete slot.dashboardVariables.steamFlowMls;  // a mode the recipe holds nothing for is blank
   active = 'flow';
   api.applyMode('re-steam-mode');
-  assert.equal(el.textContent, '—');
+  assert.equal(el.value, '—');
   console.log('ok   a mode switch shows that mode\'s own value');
 }
 
@@ -276,9 +278,11 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   // Reading the steppers back. The wipe to avoid: a value the section does not render must keep
   // what the recipe holds, since recipeChanges writes a null as a cleared field.
   const shown = {};
+  // A Machine Settings stepper is a real <input> (stepperHtml), not a <span>: machineValues
+  // reads .value.
   const vals = new Function('document', 'num',
     table + fn('function machineValues(held)') + '; return machineValues;')(
-    { getElementById: (id) => (id in shown ? { textContent: shown[id] } : null) },
+    { getElementById: (id) => (id in shown ? { value: shown[id] } : null) },
     (id) => { const n = parseFloat(shown[id]); return isNaN(n) ? null : n; });
 
   shown['re-steam-temp-value'] = 'Off';
@@ -292,7 +296,7 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   // Stepping. Off sits one step below the range: minus walks down to it, plus comes back at the
   // minimum rather than at a number the DE1 would reject.
   const handlers = {};
-  const value = { textContent: '—', dataset: {}, style: {} };
+  const value = { value: '—', dataset: {}, style: {} };
   const stepDoc = {
     getElementById: (id) => (id === 're-steam-temp-value' ? value
       : id === 're-steam-temp-plus' || id === 're-steam-temp-minus'
@@ -305,20 +309,20 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   const minus = () => handlers['re-steam-temp-minus']();
 
   plus();
-  assert.equal(value.textContent, '135°c', 'plus on a blank field arms it at the minimum');
+  assert.equal(value.value, '135°c', 'plus on a blank field arms it at the minimum');
   plus();
-  assert.equal(value.textContent, '140°c');
+  assert.equal(value.value, '140°c');
   minus();
-  assert.equal(value.textContent, '135°c');
+  assert.equal(value.value, '135°c');
   minus();
-  assert.equal(value.textContent, 'Off', 'a step below the minimum switches it off');
+  assert.equal(value.value, 'Off', 'a step below the minimum switches it off');
   minus();
-  assert.equal(value.textContent, 'Off', 'and Off is the bottom');
+  assert.equal(value.value, 'Off', 'and Off is the bottom');
   plus();
-  assert.equal(value.textContent, '135°c', 'plus comes back at the minimum');
-  value.textContent = '170°c';
+  assert.equal(value.value, '135°c', 'plus comes back at the minimum');
+  value.value = '170°c';
   plus();
-  assert.equal(value.textContent, '170°c', 'the maximum holds');
+  assert.equal(value.value, '170°c', 'the maximum holds');
   console.log('ok   the Machine Settings section: steppers, Off, and the held summary');
 }
 

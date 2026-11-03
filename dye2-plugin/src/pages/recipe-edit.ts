@@ -483,9 +483,13 @@ const reEquipmentField = {
   },
 };
 
+// A stepper's value (stepperHtml) is a real <input>, not a <span>: set .value, not
+// .textContent, or the browser shows nothing -- an input has no text children to hold it.
 function set(id, val) {
   const el = document.getElementById(id);
-  if (el) el.textContent = val ?? '—';
+  if (!el) return;
+  const text = val ?? '—';
+  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = text; else el.textContent = text;
 }
 function setInput(id, val) {
   const el = document.getElementById(id);
@@ -510,15 +514,15 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, allow
       if (!el) return;
       // Free text has no step to move by, and stepping would coerce it to a number.
       // Leave it alone — typing is the way to change it.
-      if (allowText && !isNumericText(el.textContent)) return;
-      const raw = parseFloat(el.textContent);
+      if (allowText && !isNumericText(el.value)) return;
+      const raw = parseFloat(el.value);
       // Empty field shows "—" → start from min (or 0) so + / − begin working.
       const base = isNaN(raw) ? (min != null ? min : 0) : raw;
       const delta = btnId === minusId ? -step : step;
       let val = parseFloat((base + delta).toFixed(3));
       if (min != null) val = Math.max(min, val);
       if (max != null) val = Math.min(max, val);
-      el.textContent = formatter(val);
+      el.value = formatter(val);
       syncPresetActive(valueId.replace('-value', ''), formatter(val));
     });
   });
@@ -532,7 +536,7 @@ function wireOffAdjuster(prefix, step, min, max, unit) {
   const valueId = prefix + '-value';
   const fmt = machineFmt(unit, true);
   const read = () => {
-    const txt = (document.getElementById(valueId)?.textContent || '').trim();
+    const txt = (document.getElementById(valueId)?.value || '').trim();
     if (/^off$/i.test(txt)) return 0;
     const n = parseFloat(txt);
     return isNaN(n) ? null : n;
@@ -549,7 +553,7 @@ function wireOffAdjuster(prefix, step, min, max, unit) {
       const v = cur == null || cur === 0
         ? (up ? min : 0)
         : (up ? Math.min(max, cur + step) : (cur - step < min ? 0 : cur - step));
-      el.textContent = fmt(v);
+      el.value = fmt(v);
       syncPresetActive(prefix, fmt(v));
     });
   });
@@ -557,54 +561,55 @@ function wireOffAdjuster(prefix, step, min, max, unit) {
 }
 
 // Tap the number to type a value directly (tablet-friendly).
+//
+// valueId names a real, always-present <input> (stepperHtml), not a <span> that grows an
+// <input> child on tap. A WebView reliably pops the keyboard for an element it already knew
+// about when it focuses it synchronously inside the tap handler, but is unreliable about doing
+// so for a node that handler just created and inserted -- the first tap then only shows the
+// focus ring, and the keyboard needs a second, separate tap on the now-real input. One
+// persistent input sidesteps that: native tap-to-focus already shows the keyboard with no JS
+// in the way, and this just adds the select-on-entry/commit-on-exit rules around it.
 function makeValueEditable(valueId, min, max, formatter, allowText) {
-  const valEl = document.getElementById(valueId);
-  if (!valEl || valEl.dataset.editable) return;
-  valEl.dataset.editable = '1';
-  valEl.style.cursor = 'text';
-  valEl.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (valEl.querySelector('input')) return;
-    const cur = parseFloat(valEl.textContent);
-    const prev = valEl.textContent;
+  const input = document.getElementById(valueId);
+  if (!input || input.dataset.editable) return;
+  input.dataset.editable = '1';
+  input.addEventListener('click', (e) => e.stopPropagation());
+  let prev = input.value;
+  let done = true;
+  input.addEventListener('focus', () => {
+    prev = input.value;
+    done = false;
+    const cur = parseFloat(input.value);
     // A free-text field keeps what is shown, so opening the editor on "1.1.0" and tapping
     // away cannot quietly rewrite it to 1.1.
-    const curText = allowText && prev !== '—' ? prev.trim() : (isNaN(cur) ? '' : String(cur));
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.inputMode = 'decimal';
-    input.value = curText;
-    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:var(--input-bg);color:inherit;outline:none;padding:2px 4px';
-    valEl.textContent = '';
-    valEl.appendChild(input);
-    input.focus(); input.select();
-    let done = false;
-    const commit = (apply) => {
-      if (done) return; done = true;
-      const raw = input.value.trim();
-      // Not plainly a number and the field allows text: store it as typed. parseFloat
-      // would read "1.1.0" as 1.1 and "15 clicks" as 15.
-      if (apply && allowText && raw !== '' && !isNumericText(raw)) {
-        valEl.textContent = raw;
-        syncPresetActive(valueId.replace('-value', ''), raw);
-        return;
-      }
-      let v = parseFloat(raw);
-      if (apply && !isNaN(v)) {
-        if (min != null) v = Math.max(min, v);
-        if (max != null) v = Math.min(max, v);
-        valEl.textContent = formatter(v);
-        syncPresetActive(valueId.replace('-value', ''), formatter(v));
-      } else {
-        valEl.textContent = prev;
-      }
-    };
-    input.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') { ev.preventDefault(); commit(true); }
-      else if (ev.key === 'Escape') { ev.preventDefault(); commit(false); }
-    });
-    input.addEventListener('blur', () => commit(true));
+    input.value = allowText && prev !== '—' ? prev.trim() : (isNaN(cur) ? '' : String(cur));
+    input.select();
   });
+  const commit = (apply) => {
+    if (done) return; done = true;
+    const raw = input.value.trim();
+    // Not plainly a number and the field allows text: store it as typed. parseFloat
+    // would read "1.1.0" as 1.1 and "15 clicks" as 15.
+    if (apply && allowText && raw !== '' && !isNumericText(raw)) {
+      input.value = raw;
+      syncPresetActive(valueId.replace('-value', ''), raw);
+      return;
+    }
+    let v = parseFloat(raw);
+    if (apply && !isNaN(v)) {
+      if (min != null) v = Math.max(min, v);
+      if (max != null) v = Math.min(max, v);
+      input.value = formatter(v);
+      syncPresetActive(valueId.replace('-value', ''), formatter(v));
+    } else {
+      input.value = prev;
+    }
+  };
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(true); input.blur(); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); commit(false); input.blur(); }
+  });
+  input.addEventListener('blur', () => commit(true));
 }
 
 function renderRecipe(recipe) {
@@ -1061,12 +1066,12 @@ function updateStreamlineBtn() {
 function getCurrentRecipeData() {
   // A stepper showing '—' is blank: null, not 0. Apply and dial-in recording both skip a
   // null field, but would apply / treat a stored 0 as a real value.
-  const num = id => { const n = parseFloat(document.getElementById(id)?.textContent); return isNaN(n) ? null : n; };
+  const num = id => { const n = parseFloat(document.getElementById(id)?.value); return isNaN(n) ? null : n; };
   // Number when the text is plainly one, else as typed: a grinder scale need not be numeric.
   // Spelled out rather than calling isNumericText, because the recipe-save test evaluates this
   // function's body on its own (test/workflow-record.test.mjs).
   const text = id => {
-    const t = (document.getElementById(id)?.textContent || '').trim();
+    const t = (document.getElementById(id)?.value || '').trim();
     if (t === '' || t === '—') return null;
     const n = Number(t);
     return Number.isFinite(n) ? n : t;
@@ -1136,7 +1141,7 @@ function machineValues(held) {
   for (const [prefix, key, , , , , , off] of MACHINE_FIELDS) {
     const el = document.getElementById(prefix + '-value');
     if (!el) { out[key] = held[key] ?? null; continue; }
-    const txt = (el.textContent || '').trim();
+    const txt = (el.value || '').trim();
     const n = parseFloat(txt);
     // Own parse: getCurrentRecipeData's num() is local to it.
     out[key] = off && /^off$/i.test(txt) ? 0 : (isNaN(n) ? null : n);
@@ -1273,10 +1278,10 @@ function applyMode(cls) {
     // A recipe holds both values of a pair (dye2#23), so each mode shows ITS field, blank when
     // it has none. Relabelling the other mode's number would save 30s as 30 ml/s.
     const held = recipe.dashboardVariables || {};
-    const v = cfg.field ? held[cfg.field[mode]] : parseFloat(valEl.textContent);
+    const v = cfg.field ? held[cfg.field[mode]] : parseFloat(valEl.value);
     const n = v == null ? NaN : parseFloat(v);
-    valEl.textContent = isNaN(n) ? '—' : n + (cfg.unit[mode] || '');
-    syncPresetActive(idPrefix, valEl.textContent);
+    valEl.value = isNaN(n) ? '—' : n + (cfg.unit[mode] || '');
+    syncPresetActive(idPrefix, valEl.value);
     renderPairSub(cls);
   }
 }
@@ -1293,7 +1298,7 @@ function stashModeValue(cls) {
   const valEl = cfg && document.getElementById(cfg.valueId);
   const key = cfg && cfg.field && cfg.field[activeMode(cls)];
   if (!key || !slot || !valEl) return;
-  const n = parseFloat(valEl.textContent);
+  const n = parseFloat(valEl.value);
   slot.dashboardVariables = slot.dashboardVariables || {};
   slot.dashboardVariables[key] = isNaN(n) ? null : n;
 }

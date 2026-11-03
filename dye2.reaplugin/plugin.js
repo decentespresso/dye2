@@ -13,7 +13,7 @@ var createPlugin = (function() {
 	}
 	//#endregion
 	//#region src/styles/tailwind.generated.css?inline
-	var tailwind_generated_default = "*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:\"\"}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.\\!container{width:100%!important}.container{width:100%}@media (min-width:640px){.\\!container{max-width:640px!important}.container{max-width:640px}}@media (min-width:768px){.\\!container{max-width:768px!important}.container{max-width:768px}}@media (min-width:1024px){.\\!container{max-width:1024px!important}.container{max-width:1024px}}@media (min-width:1280px){.\\!container{max-width:1280px!important}.container{max-width:1280px}}@media (min-width:1536px){.\\!container{max-width:1536px!important}.container{max-width:1536px}}.visible{visibility:visible}.invisible{visibility:hidden}.collapse{visibility:collapse}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.left-\\[38px\\]{left:38px}.right-0{right:0}.right-\\[38px\\]{right:38px}.top-0{top:0}.top-\\[122px\\]{top:122px}.z-\\[45\\]{z-index:45}.mb-8{margin-bottom:2rem}.mb-\\[14px\\]{margin-bottom:14px}.mb-\\[6px\\]{margin-bottom:6px}.ml-\\[16px\\]{margin-left:16px}.ml-auto{margin-left:auto}.mt-16{margin-top:4rem}.mt-8{margin-top:2rem}.mt-\\[20px\\]{margin-top:20px}.mt-\\[4px\\]{margin-top:4px}.mt-\\[6px\\]{margin-top:6px}.mt-auto{margin-top:auto}.block{display:block}.inline{display:inline}.flex{display:flex}.table{display:table}.\\!grid{display:grid!important}.grid{display:grid}.hidden{display:none}.h-\\[110px\\]{height:110px}.h-\\[124px\\]{height:124px}.h-\\[12px\\]{height:12px}.h-\\[134px\\]{height:134px}.h-\\[150px\\]{height:150px}.h-\\[165px\\]{height:165px}.h-\\[2px\\]{height:2px}.h-\\[40px\\]{height:40px}.h-\\[54px\\]{height:54px}.h-\\[60px\\]{height:60px}.h-\\[62px\\]{height:62px}.h-\\[70px\\]{height:70px}.h-\\[72px\\]{height:72px}.h-\\[76px\\]{height:76px}.h-\\[82px\\]{height:82px}.h-\\[90px\\]{height:90px}.h-full{height:100%}.min-h-0{min-height:0}.min-h-\\[330px\\]{min-height:330px}.w-1\\/2{width:50%}.w-\\[1200px\\]{width:1200px}.w-\\[12px\\]{width:12px}.w-\\[180px\\]{width:180px}.w-\\[1px\\]{width:1px}.w-\\[240px\\]{width:240px}.w-\\[2px\\]{width:2px}.w-\\[300px\\]{width:300px}.w-\\[310px\\]{width:310px}.w-\\[54px\\]{width:54px}.w-\\[60px\\]{width:60px}.w-\\[69px\\]{width:69px}.w-\\[720px\\]{width:720px}.w-\\[72px\\]{width:72px}.w-\\[75px\\]{width:75px}.w-\\[820px\\]{width:820px}.w-\\[960px\\]{width:960px}.w-full{width:100%}.min-w-0{min-width:0}.flex-1{flex:1 1 0%}.flex-shrink{flex-shrink:1}.flex-shrink-0{flex-shrink:0}.shrink{flex-shrink:1}.shrink-0{flex-shrink:0}.flex-grow,.grow{flex-grow:1}.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.resize{resize:both}.auto-cols-\\[225px\\]{grid-auto-columns:225px}.grid-flow-col{grid-auto-flow:column}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-rows-\\[repeat\\(2\\2c 60px\\)\\]{grid-template-rows:repeat(2,60px)}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.items-baseline{align-items:baseline}.items-stretch{align-items:stretch}.justify-end{justify-content:flex-end}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0{gap:0}.gap-\\[10px\\]{gap:10px}.gap-\\[12px\\]{gap:12px}.gap-\\[14px\\]{gap:14px}.gap-\\[15px\\]{gap:15px}.gap-\\[16px\\]{gap:16px}.gap-\\[18px\\]{gap:18px}.gap-\\[20px\\]{gap:20px}.gap-\\[22px\\]{gap:22px}.gap-\\[24px\\]{gap:24px}.gap-\\[27px\\]{gap:27px}.gap-\\[28px\\]{gap:28px}.gap-\\[30px\\]{gap:30px}.gap-\\[45px\\]{gap:45px}.gap-\\[48px\\]{gap:48px}.gap-\\[4px\\]{gap:4px}.gap-\\[60px\\]{gap:60px}.gap-\\[8px\\]{gap:8px}.gap-\\[90px\\]{gap:90px}.gap-x-\\[24px\\]{-moz-column-gap:24px;column-gap:24px}.gap-y-\\[18px\\]{row-gap:18px}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded-\\[12px\\]{border-radius:12px}.rounded-\\[15px\\]{border-radius:15px}.rounded-\\[16px\\]{border-radius:16px}.rounded-\\[23px\\]{border-radius:23px}.rounded-\\[68px\\]{border-radius:68px}.rounded-\\[8px\\]{border-radius:8px}.rounded-\\[9999px\\],.rounded-full{border-radius:9999px}.border{border-width:1px}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\\[var\\(--card-bg\\)\\]{border-color:var(--card-bg)}.border-\\[var\\(--mimoja-blue\\)\\]{border-color:var(--mimoja-blue)}.border-\\[var\\(--profile-button-outline-color\\)\\]{border-color:var(--profile-button-outline-color)}.bg-\\[var\\(--bgmain-color\\)\\]{background-color:var(--bgmain-color)}.bg-\\[var\\(--box-color\\)\\]{background-color:var(--box-color)}.bg-\\[var\\(--button-grey\\)\\]{background-color:var(--button-grey)}.bg-\\[var\\(--card-bg\\)\\]{background-color:var(--card-bg)}.bg-\\[var\\(--mimoja-blue\\)\\]{background-color:var(--mimoja-blue)}.bg-\\[var\\(--profile-button-outline-color\\)\\]{background-color:var(--profile-button-outline-color)}.bg-transparent{background-color:transparent}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.p-\\[30px\\]{padding:30px}.px-\\[14px\\]{padding-left:14px;padding-right:14px}.px-\\[16px\\]{padding-left:16px;padding-right:16px}.px-\\[20px\\]{padding-left:20px;padding-right:20px}.px-\\[24px\\]{padding-left:24px;padding-right:24px}.px-\\[30px\\]{padding-left:30px;padding-right:30px}.px-\\[37px\\]{padding-left:37px;padding-right:37px}.px-\\[38px\\]{padding-left:38px;padding-right:38px}.px-\\[40px\\]{padding-left:40px;padding-right:40px}.px-\\[48px\\]{padding-left:48px;padding-right:48px}.py-\\[12px\\]{padding-top:12px;padding-bottom:12px}.py-\\[1px\\]{padding-top:1px;padding-bottom:1px}.py-\\[20px\\]{padding-top:20px;padding-bottom:20px}.py-\\[27px\\]{padding-top:27px;padding-bottom:27px}.py-\\[28px\\]{padding-top:28px;padding-bottom:28px}.py-\\[32px\\]{padding-top:32px;padding-bottom:32px}.py-\\[36px\\]{padding-top:36px;padding-bottom:36px}.py-\\[40px\\]{padding-top:40px;padding-bottom:40px}.pb-\\[28px\\]{padding-bottom:28px}.pb-\\[40px\\]{padding-bottom:40px}.pl-\\[24px\\]{padding-left:24px}.pl-\\[37px\\]{padding-left:37px}.pr-\\[20px\\]{padding-right:20px}.pr-\\[30px\\]{padding-right:30px}.pr-\\[44px\\]{padding-right:44px}.pt-\\[20px\\]{padding-top:20px}.pt-\\[23px\\]{padding-top:23px}.pt-\\[28px\\]{padding-top:28px}.pt-\\[30px\\]{padding-top:30px}.pt-\\[32px\\]{padding-top:32px}.text-center{text-align:center}.font-\\[\\'Inter\\'\\2c sans-serif\\]{font-family:Inter,sans-serif}.text-\\[16px\\]{font-size:16px}.text-\\[18px\\]{font-size:18px}.text-\\[20px\\]{font-size:20px}.text-\\[21px\\]{font-size:21px}.text-\\[22px\\]{font-size:22px}.text-\\[24px\\]{font-size:24px}.text-\\[26px\\]{font-size:26px}.text-\\[30px\\]{font-size:30px}.text-\\[36px\\]{font-size:36px}.text-\\[38px\\]{font-size:38px}.font-bold{font-weight:700}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.italic{font-style:italic}.leading-\\[1\\.2\\]{line-height:1.2}.text-\\[var\\(--danger-text\\)\\]{color:var(--danger-text)}.text-\\[var\\(--low-contrast-white\\)\\]{color:var(--low-contrast-white)}.text-\\[var\\(--mimoja-blue\\)\\]{color:var(--mimoja-blue)}.text-\\[var\\(--text-primary\\)\\]{color:var(--text-primary)}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.underline{text-decoration-line:underline}.opacity-40{opacity:.4}.opacity-50{opacity:.5}.opacity-60{opacity:.6}.shadow{--tw-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color),0 1px 2px -1px var(--tw-shadow-color)}.shadow,.shadow-\\[0_8px_24px_rgba\\(0\\2c 0\\2c 0\\2c 0\\.12\\)\\]{box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\\[0_8px_24px_rgba\\(0\\2c 0\\2c 0\\2c 0\\.12\\)\\]{--tw-shadow:0 8px 24px rgba(0,0,0,.12);--tw-shadow-colored:0 8px 24px var(--tw-shadow-color)}.outline-none{outline:2px solid transparent;outline-offset:2px}.outline{outline-style:solid}.ring{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.blur{--tw-blur:blur(8px)}.blur,.invert{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.invert{--tw-invert:invert(100%)}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}";
+	var tailwind_generated_default = "*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:\"\"}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.\\!container{width:100%!important}.container{width:100%}@media (min-width:640px){.\\!container{max-width:640px!important}.container{max-width:640px}}@media (min-width:768px){.\\!container{max-width:768px!important}.container{max-width:768px}}@media (min-width:1024px){.\\!container{max-width:1024px!important}.container{max-width:1024px}}@media (min-width:1280px){.\\!container{max-width:1280px!important}.container{max-width:1280px}}@media (min-width:1536px){.\\!container{max-width:1536px!important}.container{max-width:1536px}}.visible{visibility:visible}.invisible{visibility:hidden}.collapse{visibility:collapse}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.left-\\[38px\\]{left:38px}.right-0{right:0}.right-\\[38px\\]{right:38px}.top-0{top:0}.top-\\[122px\\]{top:122px}.z-\\[45\\]{z-index:45}.mb-8{margin-bottom:2rem}.mb-\\[14px\\]{margin-bottom:14px}.mb-\\[6px\\]{margin-bottom:6px}.ml-\\[16px\\]{margin-left:16px}.ml-auto{margin-left:auto}.mt-16{margin-top:4rem}.mt-8{margin-top:2rem}.mt-\\[20px\\]{margin-top:20px}.mt-\\[4px\\]{margin-top:4px}.mt-\\[6px\\]{margin-top:6px}.mt-auto{margin-top:auto}.block{display:block}.inline{display:inline}.flex{display:flex}.table{display:table}.\\!grid{display:grid!important}.grid{display:grid}.hidden{display:none}.h-\\[110px\\]{height:110px}.h-\\[124px\\]{height:124px}.h-\\[12px\\]{height:12px}.h-\\[134px\\]{height:134px}.h-\\[150px\\]{height:150px}.h-\\[165px\\]{height:165px}.h-\\[2px\\]{height:2px}.h-\\[40px\\]{height:40px}.h-\\[54px\\]{height:54px}.h-\\[60px\\]{height:60px}.h-\\[62px\\]{height:62px}.h-\\[70px\\]{height:70px}.h-\\[72px\\]{height:72px}.h-\\[76px\\]{height:76px}.h-\\[82px\\]{height:82px}.h-\\[90px\\]{height:90px}.h-full{height:100%}.min-h-0{min-height:0}.min-h-\\[330px\\]{min-height:330px}.w-1\\/2{width:50%}.w-\\[1200px\\]{width:1200px}.w-\\[12px\\]{width:12px}.w-\\[180px\\]{width:180px}.w-\\[1px\\]{width:1px}.w-\\[240px\\]{width:240px}.w-\\[2px\\]{width:2px}.w-\\[300px\\]{width:300px}.w-\\[310px\\]{width:310px}.w-\\[54px\\]{width:54px}.w-\\[60px\\]{width:60px}.w-\\[69px\\]{width:69px}.w-\\[720px\\]{width:720px}.w-\\[72px\\]{width:72px}.w-\\[75px\\]{width:75px}.w-\\[820px\\]{width:820px}.w-\\[960px\\]{width:960px}.w-full{width:100%}.min-w-0{min-width:0}.flex-1{flex:1 1 0%}.flex-shrink{flex-shrink:1}.flex-shrink-0{flex-shrink:0}.shrink{flex-shrink:1}.shrink-0{flex-shrink:0}.flex-grow,.grow{flex-grow:1}.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.cursor-text{cursor:text}.resize{resize:both}.auto-cols-\\[225px\\]{grid-auto-columns:225px}.grid-flow-col{grid-auto-flow:column}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-rows-\\[repeat\\(2\\2c 60px\\)\\]{grid-template-rows:repeat(2,60px)}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.items-baseline{align-items:baseline}.items-stretch{align-items:stretch}.justify-end{justify-content:flex-end}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0{gap:0}.gap-\\[10px\\]{gap:10px}.gap-\\[12px\\]{gap:12px}.gap-\\[14px\\]{gap:14px}.gap-\\[15px\\]{gap:15px}.gap-\\[16px\\]{gap:16px}.gap-\\[18px\\]{gap:18px}.gap-\\[20px\\]{gap:20px}.gap-\\[22px\\]{gap:22px}.gap-\\[24px\\]{gap:24px}.gap-\\[27px\\]{gap:27px}.gap-\\[28px\\]{gap:28px}.gap-\\[30px\\]{gap:30px}.gap-\\[45px\\]{gap:45px}.gap-\\[48px\\]{gap:48px}.gap-\\[4px\\]{gap:4px}.gap-\\[60px\\]{gap:60px}.gap-\\[8px\\]{gap:8px}.gap-\\[90px\\]{gap:90px}.gap-x-\\[24px\\]{-moz-column-gap:24px;column-gap:24px}.gap-y-\\[18px\\]{row-gap:18px}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded-\\[12px\\]{border-radius:12px}.rounded-\\[15px\\]{border-radius:15px}.rounded-\\[16px\\]{border-radius:16px}.rounded-\\[23px\\]{border-radius:23px}.rounded-\\[68px\\]{border-radius:68px}.rounded-\\[8px\\]{border-radius:8px}.rounded-\\[9999px\\],.rounded-full{border-radius:9999px}.border{border-width:1px}.border-0{border-width:0}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\\[var\\(--card-bg\\)\\]{border-color:var(--card-bg)}.border-\\[var\\(--mimoja-blue\\)\\]{border-color:var(--mimoja-blue)}.border-\\[var\\(--profile-button-outline-color\\)\\]{border-color:var(--profile-button-outline-color)}.bg-\\[var\\(--bgmain-color\\)\\]{background-color:var(--bgmain-color)}.bg-\\[var\\(--box-color\\)\\]{background-color:var(--box-color)}.bg-\\[var\\(--button-grey\\)\\]{background-color:var(--button-grey)}.bg-\\[var\\(--card-bg\\)\\]{background-color:var(--card-bg)}.bg-\\[var\\(--mimoja-blue\\)\\]{background-color:var(--mimoja-blue)}.bg-\\[var\\(--profile-button-outline-color\\)\\]{background-color:var(--profile-button-outline-color)}.bg-transparent{background-color:transparent}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.p-0{padding:0}.p-\\[30px\\]{padding:30px}.px-\\[14px\\]{padding-left:14px;padding-right:14px}.px-\\[16px\\]{padding-left:16px;padding-right:16px}.px-\\[20px\\]{padding-left:20px;padding-right:20px}.px-\\[24px\\]{padding-left:24px;padding-right:24px}.px-\\[30px\\]{padding-left:30px;padding-right:30px}.px-\\[37px\\]{padding-left:37px;padding-right:37px}.px-\\[38px\\]{padding-left:38px;padding-right:38px}.px-\\[40px\\]{padding-left:40px;padding-right:40px}.px-\\[48px\\]{padding-left:48px;padding-right:48px}.py-\\[12px\\]{padding-top:12px;padding-bottom:12px}.py-\\[1px\\]{padding-top:1px;padding-bottom:1px}.py-\\[20px\\]{padding-top:20px;padding-bottom:20px}.py-\\[27px\\]{padding-top:27px;padding-bottom:27px}.py-\\[28px\\]{padding-top:28px;padding-bottom:28px}.py-\\[32px\\]{padding-top:32px;padding-bottom:32px}.py-\\[36px\\]{padding-top:36px;padding-bottom:36px}.py-\\[40px\\]{padding-top:40px;padding-bottom:40px}.pb-\\[28px\\]{padding-bottom:28px}.pb-\\[40px\\]{padding-bottom:40px}.pl-\\[24px\\]{padding-left:24px}.pl-\\[37px\\]{padding-left:37px}.pr-\\[20px\\]{padding-right:20px}.pr-\\[30px\\]{padding-right:30px}.pr-\\[44px\\]{padding-right:44px}.pt-\\[20px\\]{padding-top:20px}.pt-\\[23px\\]{padding-top:23px}.pt-\\[28px\\]{padding-top:28px}.pt-\\[30px\\]{padding-top:30px}.pt-\\[32px\\]{padding-top:32px}.text-center{text-align:center}.font-\\[\\'Inter\\'\\2c sans-serif\\]{font-family:Inter,sans-serif}.text-\\[16px\\]{font-size:16px}.text-\\[18px\\]{font-size:18px}.text-\\[20px\\]{font-size:20px}.text-\\[21px\\]{font-size:21px}.text-\\[22px\\]{font-size:22px}.text-\\[24px\\]{font-size:24px}.text-\\[26px\\]{font-size:26px}.text-\\[30px\\]{font-size:30px}.text-\\[36px\\]{font-size:36px}.text-\\[38px\\]{font-size:38px}.font-bold{font-weight:700}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.italic{font-style:italic}.leading-\\[1\\.2\\]{line-height:1.2}.text-\\[var\\(--danger-text\\)\\]{color:var(--danger-text)}.text-\\[var\\(--low-contrast-white\\)\\]{color:var(--low-contrast-white)}.text-\\[var\\(--mimoja-blue\\)\\]{color:var(--mimoja-blue)}.text-\\[var\\(--text-primary\\)\\]{color:var(--text-primary)}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.underline{text-decoration-line:underline}.opacity-40{opacity:.4}.opacity-50{opacity:.5}.opacity-60{opacity:.6}.shadow{--tw-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color),0 1px 2px -1px var(--tw-shadow-color)}.shadow,.shadow-\\[0_8px_24px_rgba\\(0\\2c 0\\2c 0\\2c 0\\.12\\)\\]{box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\\[0_8px_24px_rgba\\(0\\2c 0\\2c 0\\2c 0\\.12\\)\\]{--tw-shadow:0 8px 24px rgba(0,0,0,.12);--tw-shadow-colored:0 8px 24px var(--tw-shadow-color)}.outline-none{outline:2px solid transparent;outline-offset:2px}.outline{outline-style:solid}.ring{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.blur{--tw-blur:blur(8px)}.blur,.invert{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.invert{--tw-invert:invert(100%)}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}";
 	/** Inline in <head>, before the stylesheet, so the attribute is set before first paint. */
 	var themeBootstrap = `
 (function () {
@@ -2459,7 +2459,8 @@ function attachCardLongPress(card, onLong) {
   }
   .dye-stepper-val {
     font-weight: 700; font-size: 26px; color: var(--text-primary);
-    text-align: center; min-width: 72px;
+    text-align: center; width: 72px;
+    border: none; background: transparent; outline: none; padding: 0;
   }
   .dye-stepper-sub {
     font-size: 18px; font-weight: 600; color: var(--text-primary); text-align: center;
@@ -2478,7 +2479,7 @@ function attachCardLongPress(card, onLong) {
     <div class="flex items-center gap-[15px]">
       <button id="${idPrefix}-minus" class="dye-stepper-btn">${minusSvg}</button>
       <div class="flex flex-col items-center" style="min-width:72px">
-        <span id="${idPrefix}-value" class="dye-stepper-val">—</span>
+        <input id="${idPrefix}-value" type="text" inputmode="decimal" autocomplete="off" class="dye-stepper-val" value="—" />
         ${showSub ? `<span id="${idPrefix}-sub" class="dye-stepper-sub"></span>` : ""}
       </div>
       <button id="${idPrefix}-plus" class="dye-stepper-btn">${plusSvg}</button>
@@ -6267,7 +6268,7 @@ function shotWeights(shot) {
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">Dose</span>
                 <div class="flex items-center gap-[24px]">
                   <button id="dye-dose-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-                  <span id="dye-dose-value" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center">—</span>
+                  <input id="dye-dose-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center border-0 bg-transparent outline-none p-0 cursor-text" value="—" />
                   <button id="dye-dose-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
@@ -6276,7 +6277,7 @@ function shotWeights(shot) {
                 <div class="flex items-center gap-[24px]">
                   <button id="dye-drink-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                   <div class="flex flex-col items-center w-[72px]">
-                    <span id="dye-drink-value" class="font-bold text-[26px] text-[var(--text-primary)] text-center">—</span>
+                    <input id="dye-drink-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] text-center border-0 bg-transparent outline-none p-0 cursor-text w-full" value="—" />
                     <span id="dye-drink-ratio" class="font-semibold text-[18px] text-[var(--text-primary)] text-center"></span>
                   </div>
                   <button id="dye-drink-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
@@ -6299,7 +6300,7 @@ function shotWeights(shot) {
                 <span id="dye-grind-label" class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px] cursor-pointer">Grind</span>
                 <div class="flex items-center gap-[24px]">
                   <button id="dye-grind-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-                  <span id="dye-grind-value" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center">—</span>
+                  <input id="dye-grind-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center border-0 bg-transparent outline-none p-0 cursor-text" value="—" />
                   <button id="dye-grind-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
@@ -6307,7 +6308,7 @@ function shotWeights(shot) {
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">RPM</span>
                 <div class="flex items-center gap-[24px]">
                   <button id="dye-rpm-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-                  <span id="dye-rpm-value" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center">—</span>
+                  <input id="dye-rpm-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center border-0 bg-transparent outline-none p-0 cursor-text" value="—" />
                   <button id="dye-rpm-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
@@ -7361,14 +7362,14 @@ function renderNextShot() {
   const doseVal = document.getElementById('dye-dose-value');
   const drinkVal = document.getElementById('dye-drink-value');
   const ratioVal = document.getElementById('dye-drink-ratio');
-  if (doseVal) doseVal.textContent = ctx.targetDoseWeight != null ? ctx.targetDoseWeight + 'g' : '—';
-  if (drinkVal) drinkVal.textContent = ctx.targetYield != null ? ctx.targetYield + 'g' : '—';
+  if (doseVal) doseVal.value = ctx.targetDoseWeight != null ? ctx.targetDoseWeight + 'g' : '—';
+  if (drinkVal) drinkVal.value = ctx.targetYield != null ? ctx.targetYield + 'g' : '—';
   if (ratioVal) { const r = calcRatio(ctx.targetDoseWeight, ctx.targetYield); ratioVal.textContent = r !== '—' ? '(' + r + ')' : ''; }
 
   const grindVal = document.getElementById('dye-grind-value');
   const rpmVal = document.getElementById('dye-rpm-value');
-  if (grindVal) grindVal.textContent = ctx.grinderSetting != null ? ctx.grinderSetting : '—';
-  if (rpmVal) rpmVal.textContent = (ctx.extras && ctx.extras.rpm != null) ? ctx.extras.rpm : '—';
+  if (grindVal) grindVal.value = ctx.grinderSetting != null ? ctx.grinderSetting : '—';
+  if (rpmVal) rpmVal.value = (ctx.extras && ctx.extras.rpm != null) ? ctx.extras.rpm : '—';
 
   renderGrinderTabs();
 
@@ -7751,13 +7752,13 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
     if (!valueEl) return;
     // Free text has no step to move by, and stepping would coerce it to a number.
     // Leave it alone — typing is the way to change it.
-    if (allowText && !isNumericText(valueEl.textContent)) return;
-    const raw = parseFloat(valueEl.textContent);
+    if (allowText && !isNumericText(valueEl.value)) return;
+    const raw = parseFloat(valueEl.value);
     // Empty field shows "—" → start from min so − begins working.
     const base = isNaN(raw) ? min : raw;
-    if (base <= min) { valueEl.textContent = formatter(min); clearTimeout(debounceTimer); debounceTimer = setTimeout(() => onChange(min), 500); return; }
+    if (base <= min) { valueEl.value = formatter(min); clearTimeout(debounceTimer); debounceTimer = setTimeout(() => onChange(min), 500); return; }
     const val = Math.max(min, parseFloat((base - step).toFixed(2)));
-    valueEl.textContent = formatter(val);
+    valueEl.value = formatter(val);
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => onChange(val), 500);
   });
@@ -7766,11 +7767,11 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
     if (!valueEl) return;
     // Free text has no step to move by, and stepping would coerce it to a number.
     // Leave it alone — typing is the way to change it.
-    if (allowText && !isNumericText(valueEl.textContent)) return;
-    const raw = parseFloat(valueEl.textContent);
+    if (allowText && !isNumericText(valueEl.value)) return;
+    const raw = parseFloat(valueEl.value);
     const base = isNaN(raw) ? min : raw;
     const val = max !== null ? Math.min(max, parseFloat((base + step).toFixed(2))) : parseFloat((base + step).toFixed(2));
-    valueEl.textContent = formatter(val);
+    valueEl.value = formatter(val);
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => onChange(val), 500);
   });
@@ -7778,54 +7779,58 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
 }
 
 // Tap the number to type a value directly (tablet-friendly).
+//
+// This field is a real, always-present <input> (set in the page markup), not a <span> that
+// grows an <input> child on tap. A WebView will reliably pop the keyboard for an element it
+// already knew about when it focuses it synchronously inside the tap handler, but is not
+// reliable about doing so for a node that handler just created and inserted -- that is a
+// second, separate DOM event the WebView's input layer hasn't bound to yet, so the first tap
+// only shows the focus ring and the keyboard needs a second tap on the now-real input. Keeping
+// one persistent input sidesteps that: the browser's native tap-to-focus already shows the
+// keyboard with no JS in the way, and this just adds the select-on-entry/commit-on-exit rules.
 function makeValueEditable(valueId, min, max, formatter, onChange, allowText) {
-  const valEl = document.getElementById(valueId);
-  if (!valEl || valEl.dataset.editable) return;
-  valEl.dataset.editable = '1';
-  valEl.style.cursor = 'text';
-  valEl.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (valEl.querySelector('input')) return;
-    const cur = parseFloat(valEl.textContent);
-    const prev = valEl.textContent;
+  const input = document.getElementById(valueId);
+  if (!input || input.dataset.editable) return;
+  input.dataset.editable = '1';
+  // Clicking the field shouldn't also close whatever dropdown elsewhere on the page the
+  // document-level "click outside" listener would otherwise dismiss.
+  input.addEventListener('click', (e) => e.stopPropagation());
+  let prev = input.value;
+  let done = true;
+  input.addEventListener('focus', () => {
+    prev = input.value;
+    done = false;
+    const cur = parseFloat(input.value);
     // A free-text field keeps what is shown, so opening the editor on "1.1.0" and tapping
     // away cannot quietly rewrite it to 1.1.
-    const curText = allowText && prev !== '—' ? prev.trim() : (isNaN(cur) ? '' : String(cur));
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.inputMode = 'decimal';
-    input.value = curText;
-    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:var(--input-bg);color:inherit;outline:none;padding:2px 4px';
-    valEl.textContent = '';
-    valEl.appendChild(input);
-    input.focus(); input.select();
-    let done = false;
-    const commit = (apply) => {
-      if (done) return; done = true;
-      const raw = input.value.trim();
-      // Not plainly a number and the field allows text: store it as typed. parseFloat
-      // would read "1.1.0" as 1.1 and "15 clicks" as 15.
-      if (apply && allowText && raw !== '' && !isNumericText(raw)) {
-        valEl.textContent = raw;
-        onChange(raw);
-        return;
-      }
-      let v = parseFloat(raw);
-      if (apply && !isNaN(v)) {
-        if (min != null) v = Math.max(min, v);
-        if (max != null) v = Math.min(max, v);
-        valEl.textContent = formatter(v);
-        onChange(v);
-      } else {
-        valEl.textContent = prev;
-      }
-    };
-    input.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') { ev.preventDefault(); commit(true); }
-      else if (ev.key === 'Escape') { ev.preventDefault(); commit(false); }
-    });
-    input.addEventListener('blur', () => commit(true));
+    input.value = allowText && prev !== '—' ? prev.trim() : (isNaN(cur) ? '' : String(cur));
+    input.select();
   });
+  const commit = (apply) => {
+    if (done) return; done = true;
+    const raw = input.value.trim();
+    // Not plainly a number and the field allows text: store it as typed. parseFloat
+    // would read "1.1.0" as 1.1 and "15 clicks" as 15.
+    if (apply && allowText && raw !== '' && !isNumericText(raw)) {
+      input.value = raw;
+      onChange(raw);
+      return;
+    }
+    let v = parseFloat(raw);
+    if (apply && !isNaN(v)) {
+      if (min != null) v = Math.max(min, v);
+      if (max != null) v = Math.min(max, v);
+      input.value = formatter(v);
+      onChange(v);
+    } else {
+      input.value = prev;
+    }
+  };
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(true); input.blur(); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); commit(false); input.blur(); }
+  });
+  input.addEventListener('blur', () => commit(true));
 }
 
 function setupDoseControls() {
@@ -8679,6 +8684,11 @@ function set(id, val) {
   const el = document.getElementById(id);
   if (el) el.textContent = val ?? '—';
 }
+// Steppers (stepperHtml) are a real <input>, not a <span> -- set its value, not its textContent.
+function setVal(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val ?? '—';
+}
 
 // A grind setting is free text on the host (WorkflowContext.grinderSetting is a String?):
 // "1.1.0" on a three-dial grinder, "15 clicks" on a stepped one. parseFloat keeps "1.1" and
@@ -8698,15 +8708,15 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
       if (!el) return;
       // Free text has no step to move by, and stepping would coerce it to a number.
       // Leave it alone — typing is the way to change it.
-      if (allowText && !isNumericText(el.textContent)) return;
-      const raw = parseFloat(el.textContent);
+      if (allowText && !isNumericText(el.value)) return;
+      const raw = parseFloat(el.value);
       // Empty field shows "—" → start from min (or 0) so + / − begin working.
       const base = isNaN(raw) ? (min != null ? min : 0) : raw;
       const delta = btnId === minusId ? -step : step;
       let val = parseFloat((base + delta).toFixed(3));
       if (min != null) val = Math.max(min, val);
       if (max != null) val = Math.min(max, val);
-      el.textContent = formatter(val);
+      el.value = formatter(val);
       clearTimeout(t);
       t = setTimeout(() => onChange(val), 500);
     });
@@ -8715,54 +8725,55 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
 }
 
 // Tap the number to type a value directly (tablet-friendly).
+//
+// valueId names a real, always-present <input> (stepperHtml), not a <span> that grows an
+// <input> child on tap. A WebView reliably pops the keyboard for an element it already knew
+// about when it focuses it synchronously inside the tap handler, but is unreliable about doing
+// so for a node that handler just created and inserted -- the first tap then only shows the
+// focus ring, and the keyboard needs a second, separate tap on the now-real input. One
+// persistent input sidesteps that: native tap-to-focus already shows the keyboard with no JS
+// in the way, and this just adds the select-on-entry/commit-on-exit rules around it.
 function makeValueEditable(valueId, min, max, formatter, onChange, allowText) {
-  const valEl = document.getElementById(valueId);
-  if (!valEl || valEl.dataset.editable) return;
-  valEl.dataset.editable = '1';
-  valEl.style.cursor = 'text';
-  valEl.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (valEl.querySelector('input')) return;
-    const cur = parseFloat(valEl.textContent);
-    const prev = valEl.textContent;
+  const input = document.getElementById(valueId);
+  if (!input || input.dataset.editable) return;
+  input.dataset.editable = '1';
+  input.addEventListener('click', (e) => e.stopPropagation());
+  let prev = input.value;
+  let done = true;
+  input.addEventListener('focus', () => {
+    prev = input.value;
+    done = false;
+    const cur = parseFloat(input.value);
     // A free-text field keeps what is shown, so opening the editor on "1.1.0" and tapping
     // away cannot quietly rewrite it to 1.1.
-    const curText = allowText && prev !== '—' ? prev.trim() : (isNaN(cur) ? '' : String(cur));
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.inputMode = 'decimal';
-    input.value = curText;
-    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:var(--input-bg);color:inherit;outline:none;padding:2px 4px';
-    valEl.textContent = '';
-    valEl.appendChild(input);
-    input.focus(); input.select();
-    let done = false;
-    const commit = (apply) => {
-      if (done) return; done = true;
-      const raw = input.value.trim();
-      // Not plainly a number and the field allows text: store it as typed. parseFloat
-      // would read "1.1.0" as 1.1 and "15 clicks" as 15.
-      if (apply && allowText && raw !== '' && !isNumericText(raw)) {
-        valEl.textContent = raw;
-        onChange(raw);
-        return;
-      }
-      let v = parseFloat(raw);
-      if (apply && !isNaN(v)) {
-        if (min != null) v = Math.max(min, v);
-        if (max != null) v = Math.min(max, v);
-        valEl.textContent = formatter(v);
-        onChange(v);
-      } else {
-        valEl.textContent = prev;
-      }
-    };
-    input.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') { ev.preventDefault(); commit(true); }
-      else if (ev.key === 'Escape') { ev.preventDefault(); commit(false); }
-    });
-    input.addEventListener('blur', () => commit(true));
+    input.value = allowText && prev !== '—' ? prev.trim() : (isNaN(cur) ? '' : String(cur));
+    input.select();
   });
+  const commit = (apply) => {
+    if (done) return; done = true;
+    const raw = input.value.trim();
+    // Not plainly a number and the field allows text: store it as typed. parseFloat
+    // would read "1.1.0" as 1.1 and "15 clicks" as 15.
+    if (apply && allowText && raw !== '' && !isNumericText(raw)) {
+      input.value = raw;
+      onChange(raw);
+      return;
+    }
+    let v = parseFloat(raw);
+    if (apply && !isNaN(v)) {
+      if (min != null) v = Math.max(min, v);
+      if (max != null) v = Math.min(max, v);
+      input.value = formatter(v);
+      onChange(v);
+    } else {
+      input.value = prev;
+    }
+  };
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(true); input.blur(); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); commit(false); input.blur(); }
+  });
+  input.addEventListener('blur', () => commit(true));
 }
 
 function wfctx() {
@@ -9097,24 +9108,24 @@ function renderShot(shot) {
   // screens cannot disagree. A saved annotation wins; otherwise drink out comes from the last
   // scale sample, which only the full shot record carries (see loadFullShotAt).
   const { doseIn, doseOut } = shotWeights(shot);
-  set('es-dose-value',  doseIn  != null ? doseIn  + 'g' : '—');
-  set('es-drink-value', doseOut != null ? doseOut + 'g' : '—');
+  setVal('es-dose-value',  doseIn  != null ? doseIn  + 'g' : '—');
+  setVal('es-drink-value', doseOut != null ? doseOut + 'g' : '—');
   set('es-drink-sub', calcRatio(doseIn, doseOut));
 
   const ann = shot.annotations || {};
 
-  set('es-tds-value', ann.drinkTds != null ? ann.drinkTds + '%' : '—');
-  set('es-ey-value',  ann.drinkEy  != null ? ann.drinkEy  + '%' : '—');
+  setVal('es-tds-value', ann.drinkTds != null ? ann.drinkTds + '%' : '—');
+  setVal('es-ey-value',  ann.drinkEy  != null ? ann.drinkEy  + '%' : '—');
 
   const grinderName = ctx.grinderModel || gd.model || gd.name || '';
   const grinderEl = document.getElementById('es-grinder-text');
   if (grinderEl) grinderEl.textContent = grinderName || '—';
 
-  set('es-setting-value', ctx.grinderSetting != null ? ctx.grinderSetting : (gd.setting != null ? gd.setting : '—'));
+  setVal('es-setting-value', ctx.grinderSetting != null ? ctx.grinderSetting : (gd.setting != null ? gd.setting : '—'));
   // RPM and basket have no schema field: an edit made here (annotations.extras) wins over
   // what the dashboard set before the shot (the shot's workflow.context.extras).
   const basketRpm = shotBasketRpm(shot);
-  set('es-rpm-value', basketRpm.rpm != null ? basketRpm.rpm : '—');
+  setVal('es-rpm-value', basketRpm.rpm != null ? basketRpm.rpm : '—');
   const feedRateEl = document.getElementById('es-feedrate-input');
   if (feedRateEl) feedRateEl.value = shotFeedRate(shot) || '';
   const basketEl = document.getElementById('es-basket-text');
@@ -9265,7 +9276,7 @@ function setupControls() {
   // Steppers
   function ann() { currentShot.annotations = currentShot.annotations || {}; return currentShot.annotations; }
   wireAdjuster('es-dose-minus','es-dose-plus','es-dose-value', 0.5, 0, null, v => v + 'g', v => {
-    if (currentShot) { ann().actualDoseWeight = v; set('es-drink-sub', calcRatio(v, parseFloat(document.getElementById('es-drink-value')?.textContent))); }
+    if (currentShot) { ann().actualDoseWeight = v; set('es-drink-sub', calcRatio(v, parseFloat(document.getElementById('es-drink-value')?.value))); }
   });
   wireAdjuster('es-drink-minus','es-drink-plus','es-drink-value', 1, 0, null, v => v + 'g', v => {
     if (currentShot) { ann().actualYield = v; }
@@ -12135,9 +12146,13 @@ const reEquipmentField = {
   },
 };
 
+// A stepper's value (stepperHtml) is a real <input>, not a <span>: set .value, not
+// .textContent, or the browser shows nothing -- an input has no text children to hold it.
 function set(id, val) {
   const el = document.getElementById(id);
-  if (el) el.textContent = val ?? '—';
+  if (!el) return;
+  const text = val ?? '—';
+  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = text; else el.textContent = text;
 }
 function setInput(id, val) {
   const el = document.getElementById(id);
@@ -12162,15 +12177,15 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, allow
       if (!el) return;
       // Free text has no step to move by, and stepping would coerce it to a number.
       // Leave it alone — typing is the way to change it.
-      if (allowText && !isNumericText(el.textContent)) return;
-      const raw = parseFloat(el.textContent);
+      if (allowText && !isNumericText(el.value)) return;
+      const raw = parseFloat(el.value);
       // Empty field shows "—" → start from min (or 0) so + / − begin working.
       const base = isNaN(raw) ? (min != null ? min : 0) : raw;
       const delta = btnId === minusId ? -step : step;
       let val = parseFloat((base + delta).toFixed(3));
       if (min != null) val = Math.max(min, val);
       if (max != null) val = Math.min(max, val);
-      el.textContent = formatter(val);
+      el.value = formatter(val);
       syncPresetActive(valueId.replace('-value', ''), formatter(val));
     });
   });
@@ -12184,7 +12199,7 @@ function wireOffAdjuster(prefix, step, min, max, unit) {
   const valueId = prefix + '-value';
   const fmt = machineFmt(unit, true);
   const read = () => {
-    const txt = (document.getElementById(valueId)?.textContent || '').trim();
+    const txt = (document.getElementById(valueId)?.value || '').trim();
     if (/^off$/i.test(txt)) return 0;
     const n = parseFloat(txt);
     return isNaN(n) ? null : n;
@@ -12201,7 +12216,7 @@ function wireOffAdjuster(prefix, step, min, max, unit) {
       const v = cur == null || cur === 0
         ? (up ? min : 0)
         : (up ? Math.min(max, cur + step) : (cur - step < min ? 0 : cur - step));
-      el.textContent = fmt(v);
+      el.value = fmt(v);
       syncPresetActive(prefix, fmt(v));
     });
   });
@@ -12209,54 +12224,55 @@ function wireOffAdjuster(prefix, step, min, max, unit) {
 }
 
 // Tap the number to type a value directly (tablet-friendly).
+//
+// valueId names a real, always-present <input> (stepperHtml), not a <span> that grows an
+// <input> child on tap. A WebView reliably pops the keyboard for an element it already knew
+// about when it focuses it synchronously inside the tap handler, but is unreliable about doing
+// so for a node that handler just created and inserted -- the first tap then only shows the
+// focus ring, and the keyboard needs a second, separate tap on the now-real input. One
+// persistent input sidesteps that: native tap-to-focus already shows the keyboard with no JS
+// in the way, and this just adds the select-on-entry/commit-on-exit rules around it.
 function makeValueEditable(valueId, min, max, formatter, allowText) {
-  const valEl = document.getElementById(valueId);
-  if (!valEl || valEl.dataset.editable) return;
-  valEl.dataset.editable = '1';
-  valEl.style.cursor = 'text';
-  valEl.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (valEl.querySelector('input')) return;
-    const cur = parseFloat(valEl.textContent);
-    const prev = valEl.textContent;
+  const input = document.getElementById(valueId);
+  if (!input || input.dataset.editable) return;
+  input.dataset.editable = '1';
+  input.addEventListener('click', (e) => e.stopPropagation());
+  let prev = input.value;
+  let done = true;
+  input.addEventListener('focus', () => {
+    prev = input.value;
+    done = false;
+    const cur = parseFloat(input.value);
     // A free-text field keeps what is shown, so opening the editor on "1.1.0" and tapping
     // away cannot quietly rewrite it to 1.1.
-    const curText = allowText && prev !== '—' ? prev.trim() : (isNaN(cur) ? '' : String(cur));
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.inputMode = 'decimal';
-    input.value = curText;
-    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:var(--input-bg);color:inherit;outline:none;padding:2px 4px';
-    valEl.textContent = '';
-    valEl.appendChild(input);
-    input.focus(); input.select();
-    let done = false;
-    const commit = (apply) => {
-      if (done) return; done = true;
-      const raw = input.value.trim();
-      // Not plainly a number and the field allows text: store it as typed. parseFloat
-      // would read "1.1.0" as 1.1 and "15 clicks" as 15.
-      if (apply && allowText && raw !== '' && !isNumericText(raw)) {
-        valEl.textContent = raw;
-        syncPresetActive(valueId.replace('-value', ''), raw);
-        return;
-      }
-      let v = parseFloat(raw);
-      if (apply && !isNaN(v)) {
-        if (min != null) v = Math.max(min, v);
-        if (max != null) v = Math.min(max, v);
-        valEl.textContent = formatter(v);
-        syncPresetActive(valueId.replace('-value', ''), formatter(v));
-      } else {
-        valEl.textContent = prev;
-      }
-    };
-    input.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') { ev.preventDefault(); commit(true); }
-      else if (ev.key === 'Escape') { ev.preventDefault(); commit(false); }
-    });
-    input.addEventListener('blur', () => commit(true));
+    input.value = allowText && prev !== '—' ? prev.trim() : (isNaN(cur) ? '' : String(cur));
+    input.select();
   });
+  const commit = (apply) => {
+    if (done) return; done = true;
+    const raw = input.value.trim();
+    // Not plainly a number and the field allows text: store it as typed. parseFloat
+    // would read "1.1.0" as 1.1 and "15 clicks" as 15.
+    if (apply && allowText && raw !== '' && !isNumericText(raw)) {
+      input.value = raw;
+      syncPresetActive(valueId.replace('-value', ''), raw);
+      return;
+    }
+    let v = parseFloat(raw);
+    if (apply && !isNaN(v)) {
+      if (min != null) v = Math.max(min, v);
+      if (max != null) v = Math.min(max, v);
+      input.value = formatter(v);
+      syncPresetActive(valueId.replace('-value', ''), formatter(v));
+    } else {
+      input.value = prev;
+    }
+  };
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(true); input.blur(); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); commit(false); input.blur(); }
+  });
+  input.addEventListener('blur', () => commit(true));
 }
 
 function renderRecipe(recipe) {
@@ -12713,12 +12729,12 @@ function updateStreamlineBtn() {
 function getCurrentRecipeData() {
   // A stepper showing '—' is blank: null, not 0. Apply and dial-in recording both skip a
   // null field, but would apply / treat a stored 0 as a real value.
-  const num = id => { const n = parseFloat(document.getElementById(id)?.textContent); return isNaN(n) ? null : n; };
+  const num = id => { const n = parseFloat(document.getElementById(id)?.value); return isNaN(n) ? null : n; };
   // Number when the text is plainly one, else as typed: a grinder scale need not be numeric.
   // Spelled out rather than calling isNumericText, because the recipe-save test evaluates this
   // function's body on its own (test/workflow-record.test.mjs).
   const text = id => {
-    const t = (document.getElementById(id)?.textContent || '').trim();
+    const t = (document.getElementById(id)?.value || '').trim();
     if (t === '' || t === '—') return null;
     const n = Number(t);
     return Number.isFinite(n) ? n : t;
@@ -12788,7 +12804,7 @@ function machineValues(held) {
   for (const [prefix, key, , , , , , off] of MACHINE_FIELDS) {
     const el = document.getElementById(prefix + '-value');
     if (!el) { out[key] = held[key] ?? null; continue; }
-    const txt = (el.textContent || '').trim();
+    const txt = (el.value || '').trim();
     const n = parseFloat(txt);
     // Own parse: getCurrentRecipeData's num() is local to it.
     out[key] = off && /^off$/i.test(txt) ? 0 : (isNaN(n) ? null : n);
@@ -12925,10 +12941,10 @@ function applyMode(cls) {
     // A recipe holds both values of a pair (dye2#23), so each mode shows ITS field, blank when
     // it has none. Relabelling the other mode's number would save 30s as 30 ml/s.
     const held = recipe.dashboardVariables || {};
-    const v = cfg.field ? held[cfg.field[mode]] : parseFloat(valEl.textContent);
+    const v = cfg.field ? held[cfg.field[mode]] : parseFloat(valEl.value);
     const n = v == null ? NaN : parseFloat(v);
-    valEl.textContent = isNaN(n) ? '—' : n + (cfg.unit[mode] || '');
-    syncPresetActive(idPrefix, valEl.textContent);
+    valEl.value = isNaN(n) ? '—' : n + (cfg.unit[mode] || '');
+    syncPresetActive(idPrefix, valEl.value);
     renderPairSub(cls);
   }
 }
@@ -12945,7 +12961,7 @@ function stashModeValue(cls) {
   const valEl = cfg && document.getElementById(cfg.valueId);
   const key = cfg && cfg.field && cfg.field[activeMode(cls)];
   if (!key || !slot || !valEl) return;
-  const n = parseFloat(valEl.textContent);
+  const n = parseFloat(valEl.value);
   slot.dashboardVariables = slot.dashboardVariables || {};
   slot.dashboardVariables[key] = isNaN(n) ? null : n;
 }

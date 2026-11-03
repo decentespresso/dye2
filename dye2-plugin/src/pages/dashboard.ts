@@ -394,7 +394,7 @@ function buildContent(): string { return `
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">Dose</span>
                 <div class="flex items-center gap-[24px]">
                   <button id="dye-dose-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-                  <span id="dye-dose-value" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center">—</span>
+                  <input id="dye-dose-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center border-0 bg-transparent outline-none p-0 cursor-text" value="—" />
                   <button id="dye-dose-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
@@ -403,7 +403,7 @@ function buildContent(): string { return `
                 <div class="flex items-center gap-[24px]">
                   <button id="dye-drink-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                   <div class="flex flex-col items-center w-[72px]">
-                    <span id="dye-drink-value" class="font-bold text-[26px] text-[var(--text-primary)] text-center">—</span>
+                    <input id="dye-drink-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] text-center border-0 bg-transparent outline-none p-0 cursor-text w-full" value="—" />
                     <span id="dye-drink-ratio" class="font-semibold text-[18px] text-[var(--text-primary)] text-center"></span>
                   </div>
                   <button id="dye-drink-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
@@ -426,7 +426,7 @@ function buildContent(): string { return `
                 <span id="dye-grind-label" class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px] cursor-pointer">Grind</span>
                 <div class="flex items-center gap-[24px]">
                   <button id="dye-grind-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-                  <span id="dye-grind-value" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center">—</span>
+                  <input id="dye-grind-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center border-0 bg-transparent outline-none p-0 cursor-text" value="—" />
                   <button id="dye-grind-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
@@ -434,7 +434,7 @@ function buildContent(): string { return `
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">RPM</span>
                 <div class="flex items-center gap-[24px]">
                   <button id="dye-rpm-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-                  <span id="dye-rpm-value" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center">—</span>
+                  <input id="dye-rpm-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center border-0 bg-transparent outline-none p-0 cursor-text" value="—" />
                   <button id="dye-rpm-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
@@ -1488,14 +1488,14 @@ function renderNextShot() {
   const doseVal = document.getElementById('dye-dose-value');
   const drinkVal = document.getElementById('dye-drink-value');
   const ratioVal = document.getElementById('dye-drink-ratio');
-  if (doseVal) doseVal.textContent = ctx.targetDoseWeight != null ? ctx.targetDoseWeight + 'g' : '—';
-  if (drinkVal) drinkVal.textContent = ctx.targetYield != null ? ctx.targetYield + 'g' : '—';
+  if (doseVal) doseVal.value = ctx.targetDoseWeight != null ? ctx.targetDoseWeight + 'g' : '—';
+  if (drinkVal) drinkVal.value = ctx.targetYield != null ? ctx.targetYield + 'g' : '—';
   if (ratioVal) { const r = calcRatio(ctx.targetDoseWeight, ctx.targetYield); ratioVal.textContent = r !== '—' ? '(' + r + ')' : ''; }
 
   const grindVal = document.getElementById('dye-grind-value');
   const rpmVal = document.getElementById('dye-rpm-value');
-  if (grindVal) grindVal.textContent = ctx.grinderSetting != null ? ctx.grinderSetting : '—';
-  if (rpmVal) rpmVal.textContent = (ctx.extras && ctx.extras.rpm != null) ? ctx.extras.rpm : '—';
+  if (grindVal) grindVal.value = ctx.grinderSetting != null ? ctx.grinderSetting : '—';
+  if (rpmVal) rpmVal.value = (ctx.extras && ctx.extras.rpm != null) ? ctx.extras.rpm : '—';
 
   renderGrinderTabs();
 
@@ -1878,13 +1878,13 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
     if (!valueEl) return;
     // Free text has no step to move by, and stepping would coerce it to a number.
     // Leave it alone — typing is the way to change it.
-    if (allowText && !isNumericText(valueEl.textContent)) return;
-    const raw = parseFloat(valueEl.textContent);
+    if (allowText && !isNumericText(valueEl.value)) return;
+    const raw = parseFloat(valueEl.value);
     // Empty field shows "—" → start from min so − begins working.
     const base = isNaN(raw) ? min : raw;
-    if (base <= min) { valueEl.textContent = formatter(min); clearTimeout(debounceTimer); debounceTimer = setTimeout(() => onChange(min), 500); return; }
+    if (base <= min) { valueEl.value = formatter(min); clearTimeout(debounceTimer); debounceTimer = setTimeout(() => onChange(min), 500); return; }
     const val = Math.max(min, parseFloat((base - step).toFixed(2)));
-    valueEl.textContent = formatter(val);
+    valueEl.value = formatter(val);
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => onChange(val), 500);
   });
@@ -1893,11 +1893,11 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
     if (!valueEl) return;
     // Free text has no step to move by, and stepping would coerce it to a number.
     // Leave it alone — typing is the way to change it.
-    if (allowText && !isNumericText(valueEl.textContent)) return;
-    const raw = parseFloat(valueEl.textContent);
+    if (allowText && !isNumericText(valueEl.value)) return;
+    const raw = parseFloat(valueEl.value);
     const base = isNaN(raw) ? min : raw;
     const val = max !== null ? Math.min(max, parseFloat((base + step).toFixed(2))) : parseFloat((base + step).toFixed(2));
-    valueEl.textContent = formatter(val);
+    valueEl.value = formatter(val);
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => onChange(val), 500);
   });
@@ -1905,54 +1905,58 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
 }
 
 // Tap the number to type a value directly (tablet-friendly).
+//
+// This field is a real, always-present <input> (set in the page markup), not a <span> that
+// grows an <input> child on tap. A WebView will reliably pop the keyboard for an element it
+// already knew about when it focuses it synchronously inside the tap handler, but is not
+// reliable about doing so for a node that handler just created and inserted -- that is a
+// second, separate DOM event the WebView's input layer hasn't bound to yet, so the first tap
+// only shows the focus ring and the keyboard needs a second tap on the now-real input. Keeping
+// one persistent input sidesteps that: the browser's native tap-to-focus already shows the
+// keyboard with no JS in the way, and this just adds the select-on-entry/commit-on-exit rules.
 function makeValueEditable(valueId, min, max, formatter, onChange, allowText) {
-  const valEl = document.getElementById(valueId);
-  if (!valEl || valEl.dataset.editable) return;
-  valEl.dataset.editable = '1';
-  valEl.style.cursor = 'text';
-  valEl.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (valEl.querySelector('input')) return;
-    const cur = parseFloat(valEl.textContent);
-    const prev = valEl.textContent;
+  const input = document.getElementById(valueId);
+  if (!input || input.dataset.editable) return;
+  input.dataset.editable = '1';
+  // Clicking the field shouldn't also close whatever dropdown elsewhere on the page the
+  // document-level "click outside" listener would otherwise dismiss.
+  input.addEventListener('click', (e) => e.stopPropagation());
+  let prev = input.value;
+  let done = true;
+  input.addEventListener('focus', () => {
+    prev = input.value;
+    done = false;
+    const cur = parseFloat(input.value);
     // A free-text field keeps what is shown, so opening the editor on "1.1.0" and tapping
     // away cannot quietly rewrite it to 1.1.
-    const curText = allowText && prev !== '—' ? prev.trim() : (isNaN(cur) ? '' : String(cur));
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.inputMode = 'decimal';
-    input.value = curText;
-    input.style.cssText = 'width:90px;font:inherit;text-align:center;border:1px solid var(--mimoja-blue);border-radius:8px;background:var(--input-bg);color:inherit;outline:none;padding:2px 4px';
-    valEl.textContent = '';
-    valEl.appendChild(input);
-    input.focus(); input.select();
-    let done = false;
-    const commit = (apply) => {
-      if (done) return; done = true;
-      const raw = input.value.trim();
-      // Not plainly a number and the field allows text: store it as typed. parseFloat
-      // would read "1.1.0" as 1.1 and "15 clicks" as 15.
-      if (apply && allowText && raw !== '' && !isNumericText(raw)) {
-        valEl.textContent = raw;
-        onChange(raw);
-        return;
-      }
-      let v = parseFloat(raw);
-      if (apply && !isNaN(v)) {
-        if (min != null) v = Math.max(min, v);
-        if (max != null) v = Math.min(max, v);
-        valEl.textContent = formatter(v);
-        onChange(v);
-      } else {
-        valEl.textContent = prev;
-      }
-    };
-    input.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') { ev.preventDefault(); commit(true); }
-      else if (ev.key === 'Escape') { ev.preventDefault(); commit(false); }
-    });
-    input.addEventListener('blur', () => commit(true));
+    input.value = allowText && prev !== '—' ? prev.trim() : (isNaN(cur) ? '' : String(cur));
+    input.select();
   });
+  const commit = (apply) => {
+    if (done) return; done = true;
+    const raw = input.value.trim();
+    // Not plainly a number and the field allows text: store it as typed. parseFloat
+    // would read "1.1.0" as 1.1 and "15 clicks" as 15.
+    if (apply && allowText && raw !== '' && !isNumericText(raw)) {
+      input.value = raw;
+      onChange(raw);
+      return;
+    }
+    let v = parseFloat(raw);
+    if (apply && !isNaN(v)) {
+      if (min != null) v = Math.max(min, v);
+      if (max != null) v = Math.min(max, v);
+      input.value = formatter(v);
+      onChange(v);
+    } else {
+      input.value = prev;
+    }
+  };
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(true); input.blur(); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); commit(false); input.blur(); }
+  });
+  input.addEventListener('blur', () => commit(true));
 }
 
 function setupDoseControls() {

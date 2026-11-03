@@ -117,7 +117,8 @@ export function stepperCss(): string {
   }
   .dye-stepper-val {
     font-weight: 700; font-size: 26px; color: var(--text-primary);
-    text-align: center; min-width: 72px;
+    text-align: center; width: 72px;
+    border: none; background: transparent; outline: none; padding: 0;
   }
   .dye-stepper-sub {
     font-size: 18px; font-weight: 600; color: var(--text-primary); text-align: center;
@@ -147,7 +148,7 @@ export function stepperHtml(
     <div class="flex items-center gap-[15px]">
       <button id="${idPrefix}-minus" class="dye-stepper-btn">${minusSvg}</button>
       <div class="flex flex-col items-center" style="min-width:72px">
-        <span id="${idPrefix}-value" class="dye-stepper-val">—</span>
+        <input id="${idPrefix}-value" type="text" inputmode="decimal" autocomplete="off" class="dye-stepper-val" value="—" />
         ${showSub ? `<span id="${idPrefix}-sub" class="dye-stepper-sub"></span>` : ''}
       </div>
       <button id="${idPrefix}-plus" class="dye-stepper-btn">${plusSvg}</button>

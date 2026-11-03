@@ -123,7 +123,7 @@ test('drink out uses the same derivation as the dashboard', () => {
   const start = code.indexOf('function renderShot(');
   const body = code.slice(start, code.indexOf('\nfunction updateStars(', start));
   assert.ok(body.includes('shotWeights(shot)'), 'shared helper, not doseData.doseOut');
-  assert.ok(body.includes("set('es-drink-value'"), 'and the value is painted');
+  assert.ok(body.includes("setVal('es-drink-value'"), 'and the value is painted');
   assert.ok(!body.includes('dd.doseOut'), 'the field that does not carry the yield is gone');
   assert.ok(code.includes('${shotWeightsScript}'), 'the helper is inlined into the page script');
 });
