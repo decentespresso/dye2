@@ -13,9 +13,23 @@
  * the old value silently survives the "save" (issue #9 — clearing Burrs reverted to the
  * old burr name). Creating a grinder has no old value to preserve, so empty fields are
  * simply left out of that request instead.
+ *
+ * `feedRate` here is a free-text note on the grinder record itself (e.g. "manual
+ * FF/MF/SF" or "feeder RPM 0-3000") — a capability description, not a value. The
+ * live per-shot feed rate is a separate field: `context.extras.feedRate` on the
+ * workflow (see recorded-shot.ts / workflow-record.ts).
+ *
+ * The grinder record has no top-level slot for it — confirmed live against
+ * localhost:8080: a `feedRate` key alongside `model`/`burrs` is silently dropped.
+ * The only place custom data survives is `extras` (already used for `bcUuid` on
+ * Beanconqueror imports), but `_updateGrinder`'s merge is a shallow
+ * `{...existing.toJson(), ...json}` — sending `extras` replaces it wholesale, not
+ * per-key, so a feedRate-only extras body wipes `bcUuid`. `buildGrinderBody` takes
+ * the grinder's current `extras` and spreads it under the new one so other keys ride
+ * along; the caller (grinders.ts) must pass the grinder being edited's `extras`.
  */
 export const buildGrinderBodyScript = `
-function buildGrinderBody(fields, isEdit) {
+function buildGrinderBody(fields, isEdit, existingExtras) {
   const body = { model: fields.model || '' };
   ['burrs','burrType','notes'].forEach(k => { const v = fields[k]; if (v) body[k] = v; else if (isEdit) body[k] = null; });
   ['burrSize','rpmSmallStep','rpmBigStep'].forEach(k => { const v = fields[k]; if (v !== '' && v != null) body[k] = parseFloat(v); else if (isEdit) body[k] = null; });
@@ -27,6 +41,11 @@ function buildGrinderBody(fields, isEdit) {
     const sv = fields.settingValues;
     if (sv) body.settingValues = sv.split(',').map(s => s.trim()).filter(Boolean);
     else if (isEdit) body.settingValues = null;
+  }
+  const fr = fields.feedRate;
+  if (fr || isEdit) {
+    body.extras = { ...(existingExtras || {}) };
+    body.extras.feedRate = fr || null;
   }
   return body;
 }

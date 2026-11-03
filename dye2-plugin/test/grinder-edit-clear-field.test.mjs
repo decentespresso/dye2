@@ -28,6 +28,20 @@ body = buildGrinderBody({ model: 'P64', burrType: '', notes: '', settingType: 'n
 assert.equal(body.burrType, null, 'clearing burrType on an edit sends explicit null');
 assert.equal(body.notes, null, 'clearing notes on an edit sends explicit null');
 
+// feedRate has no top-level slot on the grinder record -- it rides in `extras`, which the
+// host replaces wholesale on PUT (reaprime's grinders_handler.dart `_updateGrinder` does a
+// shallow {...existing.toJson(), ...json} merge). So the caller must pass the grinder's
+// current extras through, or an unrelated key there (e.g. a Beanconqueror `bcUuid`) is wiped.
+
+body = buildGrinderBody({ model: 'P64', feedRate: '', settingType: 'numeric' }, true, { bcUuid: 'abc' });
+assert.deepEqual(body.extras, { bcUuid: 'abc', feedRate: null }, 'clearing feedRate on an edit sends explicit null, preserving other extras keys');
+
+body = buildGrinderBody({ model: 'P64', feedRate: 'FF/MF/SF', settingType: 'numeric' }, true, { bcUuid: 'abc' });
+assert.deepEqual(body.extras, { bcUuid: 'abc', feedRate: 'FF/MF/SF' }, 'a non-empty feedRate value is sent as-is, preserving other extras keys');
+
+body = buildGrinderBody({ model: 'P64', settingType: 'numeric' }, true);
+assert.deepEqual(body.extras, { feedRate: null }, 'an edit with no feedRate and no prior extras still clears it explicitly');
+
 body = buildGrinderBody({ model: 'P64', burrSize: '', rpmSmallStep: '', rpmBigStep: '', settingType: 'numeric' }, true);
 assert.equal(body.burrSize, null, 'clearing a numeric field on an edit sends explicit null');
 assert.equal(body.rpmSmallStep, null, 'clearing rpmSmallStep on an edit sends explicit null');
@@ -43,12 +57,16 @@ assert.equal(body.settingValues, null, 'clearing settingValues on an edit sends 
 // --- creating a new grinder (isEdit = false): there's nothing to preserve, so ---
 // --- empty optional fields are simply left out of the body, as before.       ---
 
-body = buildGrinderBody({ model: 'Niche Zero', burrs: '', burrType: '', notes: '', settingType: 'numeric' }, false);
+body = buildGrinderBody({ model: 'Niche Zero', burrs: '', burrType: '', feedRate: '', notes: '', settingType: 'numeric' }, false);
 assert.ok(!('burrs' in body), 'creating with an empty burrs field omits the key entirely');
 assert.ok(!('burrType' in body), 'creating with an empty burrType field omits the key entirely');
+assert.ok(!('extras' in body), 'creating with an empty feedRate field omits extras entirely');
 assert.ok(!('notes' in body), 'creating with an empty notes field omits the key entirely');
 
 body = buildGrinderBody({ model: 'Niche Zero', burrs: 'Stock 63mm', settingType: 'numeric' }, false);
 assert.equal(body.burrs, 'Stock 63mm', 'creating with a filled-in burrs field sends it');
+
+body = buildGrinderBody({ model: 'Niche Zero', feedRate: 'FF', settingType: 'numeric' }, false);
+assert.deepEqual(body.extras, { feedRate: 'FF' }, 'creating with a filled-in feedRate field sends it under extras');
 
 console.log('ok   grinders.ts: clearing a field on an existing grinder saves null, not the old value');

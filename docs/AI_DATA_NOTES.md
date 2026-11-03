@@ -118,6 +118,18 @@ follows `rpm` everywhere: `recorded-shot.ts`, `workflow-record.ts` (not adoptabl
 recording), `recent-favs.ts`'s recents. It has no legacy fallback — unlike `rpm`'s
 `workflow.grinderData.rpm` — since it is a new field.
 
+The grinder *record* (`/api/v1/grinders`, `grinders.ts`, `grinder-form.ts`) has its own,
+separate `feedRate` — a free-text capability note (e.g. "manual FF/MF/SF" or "feeder RPM
+0-3000"), not the same field as `context.extras.feedRate` above: one describes what the grinder
+supports, the other is what a shot actually used. Unlike `burrs`/`notes`, it has no top-level
+slot on the grinder schema — confirmed live, a top-level `feedRate` is silently dropped — so it
+rides in the grinder's own `extras` map (already used for a Beanconqueror `bcUuid`). That map is
+**not** deep-merged: reaprime's `grinders_handler.dart` `_updateGrinder` does a shallow
+`{...existing.toJson(), ...json}`, so sending `extras` replaces the whole thing. `buildGrinderBody`
+takes the grinder's current `extras` as a third argument and spreads it under the new value so an
+unrelated key (like `bcUuid`) survives; `grinders.ts` must pass the grinder being edited's
+`extras`, not just the feed-rate field.
+
 Every DYE2 write of a bean, grinder, barista/drinker, basket, rpm, feed rate or note field also flags it in
 `context.extras.dye = { v: 1, <field>: true }` through `markDye()` (`dev-api.ts`). Streamline's
 post-shot clear (`dye-context.js`) wipes only flagged fields, so an unflagged write is cleared

@@ -1118,9 +1118,23 @@ async function uploadShotToVisualizer(shotId) {
 	* the old value silently survives the "save" (issue #9 — clearing Burrs reverted to the
 	* old burr name). Creating a grinder has no old value to preserve, so empty fields are
 	* simply left out of that request instead.
+	*
+	* `feedRate` here is a free-text note on the grinder record itself (e.g. "manual
+	* FF/MF/SF" or "feeder RPM 0-3000") — a capability description, not a value. The
+	* live per-shot feed rate is a separate field: `context.extras.feedRate` on the
+	* workflow (see recorded-shot.ts / workflow-record.ts).
+	*
+	* The grinder record has no top-level slot for it — confirmed live against
+	* localhost:8080: a `feedRate` key alongside `model`/`burrs` is silently dropped.
+	* The only place custom data survives is `extras` (already used for `bcUuid` on
+	* Beanconqueror imports), but `_updateGrinder`'s merge is a shallow
+	* `{...existing.toJson(), ...json}` — sending `extras` replaces it wholesale, not
+	* per-key, so a feedRate-only extras body wipes `bcUuid`. `buildGrinderBody` takes
+	* the grinder's current `extras` and spreads it under the new one so other keys ride
+	* along; the caller (grinders.ts) must pass the grinder being edited's `extras`.
 	*/
 	var buildGrinderBodyScript = `
-function buildGrinderBody(fields, isEdit) {
+function buildGrinderBody(fields, isEdit, existingExtras) {
   const body = { model: fields.model || '' };
   ['burrs','burrType','notes'].forEach(k => { const v = fields[k]; if (v) body[k] = v; else if (isEdit) body[k] = null; });
   ['burrSize','rpmSmallStep','rpmBigStep'].forEach(k => { const v = fields[k]; if (v !== '' && v != null) body[k] = parseFloat(v); else if (isEdit) body[k] = null; });
@@ -1132,6 +1146,11 @@ function buildGrinderBody(fields, isEdit) {
     const sv = fields.settingValues;
     if (sv) body.settingValues = sv.split(',').map(s => s.trim()).filter(Boolean);
     else if (isEdit) body.settingValues = null;
+  }
+  const fr = fields.feedRate;
+  if (fr || isEdit) {
+    body.extras = { ...(existingExtras || {}) };
+    body.extras.feedRate = fr || null;
   }
   return body;
 }
@@ -1346,6 +1365,10 @@ function buildGrinderBody(fields, isEdit) {
           </div>
         </div>
         <div class="dye-field">
+          <label>Feed Rate</label>
+          <input name="feedRate" placeholder="e.g. FF/MF/SF or feeder RPM range" />
+        </div>
+        <div class="dye-field">
           <label>Notes</label>
           <textarea name="notes" rows="3" placeholder="Notes about this grinder..."></textarea>
         </div>
@@ -1364,6 +1387,7 @@ function buildGrinderBody(fields, isEdit) {
 let grindersCache = [];
 let searchQuery = '';
 let editingId = null;
+let editingExtras = {};
 let currentSort = 'recent';
 
 function esc(s) {
@@ -1450,11 +1474,13 @@ function toggleSettingSections() {
 
 function openModal(g) {
   editingId = g ? g.id : null;
+  editingExtras = (g && g.extras) || {};
   document.getElementById('dye-modal-title').textContent = g ? 'Edit Grinder' : 'New Grinder';
   document.getElementById('dye-modal-error').classList.add('dye-hidden');
   form().reset();
   if (g) {
     ['model','burrs','burrType','burrSize','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','notes'].forEach(k => setField(k, g[k]));
+    setField('feedRate', editingExtras.feedRate);
     setField('settingValues', Array.isArray(g.settingValues) ? g.settingValues.join(', ') : (g.settingValues || ''));
     if (!g.settingType) setField('settingType', 'numeric');
   } else {
@@ -1473,9 +1499,9 @@ function closeModal() {
 async function submitForm() {
   const fd = new FormData(form());
   const fields = {};
-  ['model','burrs','burrType','burrSize','notes','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','settingValues']
+  ['model','burrs','burrType','burrSize','feedRate','notes','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','settingValues']
     .forEach(k => { fields[k] = fd.get(k); });
-  const body = buildGrinderBody(fields, !!editingId);
+  const body = buildGrinderBody(fields, !!editingId, editingExtras);
 
   try {
     const url = editingId ? '/api/v1/grinders/' + editingId : '/api/v1/grinders';
@@ -1526,6 +1552,12 @@ async function initializeDyeGrinders() {
 
   await reload();
   setupSortButtons((sort) => { currentSort = sort; renderGrinderCards(grid); });
+
+  const editId = new URLSearchParams(window.location.search).get('edit');
+  if (editId) {
+    const g = grindersCache.find(x => x.id === editId);
+    if (g) openModal(g);
+  }
 
   const searchInput = document.getElementById('dye-search-input');
   if (searchInput) {
@@ -7405,6 +7437,7 @@ function renderGrinderTabs() {
       renderGrinderTabs();
       pushWorkflow().catch(e => console.warn(e));
     });
+    attachCardLongPress(tab, () => { window.location.href = 'grinders?edit=' + encodeURIComponent(g.id); });
     container.appendChild(tab);
   });
 }
@@ -8317,6 +8350,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 				devApiScript,
 				shotPagingScript,
 				chartScript,
+				cardLongPressScript,
 				pageScript$6
 			], { echarts: true })
 		};

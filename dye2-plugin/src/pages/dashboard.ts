@@ -6,6 +6,7 @@ import { iconHistory, iconClipboard } from "../utils/icons";
 import { enjoymentScaleScript } from "../utils/shared-components";
 import { recordedShotScript } from "../utils/recorded-shot";
 import { shotWeightsScript } from "../utils/shot-weights";
+import { cardLongPressScript } from "../utils/fav-card-tap";
 
 const styles = `
   /* The Undo and Clipboard buttons are the two legacy base64 PNGs from utils/icons.ts, so
@@ -1563,6 +1564,7 @@ function renderGrinderTabs() {
       renderGrinderTabs();
       pushWorkflow().catch(e => console.warn(e));
     });
+    attachCardLongPress(tab, () => { window.location.href = 'grinders?edit=' + encodeURIComponent(g.id); });
     container.appendChild(tab);
   });
 }
@@ -2472,6 +2474,6 @@ export function renderDashboardPage(request: HttpRequest): HttpResponse {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Dashboard", buildContent(), styles, [devApiScript, shotPagingScript, chartScript, pageScript], { echarts: true }),
+    body: devPageShell("Dashboard", buildContent(), styles, [devApiScript, shotPagingScript, chartScript, cardLongPressScript, pageScript], { echarts: true }),
   };
 }

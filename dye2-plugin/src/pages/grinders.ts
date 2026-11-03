@@ -211,6 +211,10 @@ const content = `
           </div>
         </div>
         <div class="dye-field">
+          <label>Feed Rate</label>
+          <input name="feedRate" placeholder="e.g. FF/MF/SF or feeder RPM range" />
+        </div>
+        <div class="dye-field">
           <label>Notes</label>
           <textarea name="notes" rows="3" placeholder="Notes about this grinder..."></textarea>
         </div>
@@ -230,6 +234,7 @@ const pageScript = `
 let grindersCache = [];
 let searchQuery = '';
 let editingId = null;
+let editingExtras = {};
 let currentSort = 'recent';
 
 function esc(s) {
@@ -316,11 +321,13 @@ function toggleSettingSections() {
 
 function openModal(g) {
   editingId = g ? g.id : null;
+  editingExtras = (g && g.extras) || {};
   document.getElementById('dye-modal-title').textContent = g ? 'Edit Grinder' : 'New Grinder';
   document.getElementById('dye-modal-error').classList.add('dye-hidden');
   form().reset();
   if (g) {
     ['model','burrs','burrType','burrSize','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','notes'].forEach(k => setField(k, g[k]));
+    setField('feedRate', editingExtras.feedRate);
     setField('settingValues', Array.isArray(g.settingValues) ? g.settingValues.join(', ') : (g.settingValues || ''));
     if (!g.settingType) setField('settingType', 'numeric');
   } else {
@@ -339,9 +346,9 @@ function closeModal() {
 async function submitForm() {
   const fd = new FormData(form());
   const fields = {};
-  ['model','burrs','burrType','burrSize','notes','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','settingValues']
+  ['model','burrs','burrType','burrSize','feedRate','notes','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','settingValues']
     .forEach(k => { fields[k] = fd.get(k); });
-  const body = buildGrinderBody(fields, !!editingId);
+  const body = buildGrinderBody(fields, !!editingId, editingExtras);
 
   try {
     const url = editingId ? '/api/v1/grinders/' + editingId : '/api/v1/grinders';
@@ -392,6 +399,12 @@ async function initializeDyeGrinders() {
 
   await reload();
   setupSortButtons((sort) => { currentSort = sort; renderGrinderCards(grid); });
+
+  const editId = new URLSearchParams(window.location.search).get('edit');
+  if (editId) {
+    const g = grindersCache.find(x => x.id === editId);
+    if (g) openModal(g);
+  }
 
   const searchInput = document.getElementById('dye-search-input');
   if (searchInput) {
