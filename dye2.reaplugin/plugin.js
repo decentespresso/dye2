@@ -14090,13 +14090,19 @@ bcInit();
 		flushS: ["rinseData", "duration"],
 		flushFlowMls: ["rinseData", "flow"]
 	};
-	/** The steam settings as a group: all four are withheld while steam is off (dye2#30). */
-	var STEAM_KEYS = [
-		"steamTempC",
-		"steamTimeS",
-		"steamFlowMls",
-		"steamStopAtTempC"
-	];
+	/**
+	* Withheld while steam is off (dye2#30): the two fields that ENCODE the off state, so
+	* recording them would turn steam off on every later apply of the item.
+	*
+	* Not the whole steam group. Off is `targetTemperature` below 135 (de1_controller.dart
+	* `steamEnabled: targetTemperature >= 135`), and Streamline's off writes exactly
+	* `{ targetTemperature: 0, duration: 0 }` (steam-mode.js steamOffPatch). Flow and the milk
+	* stop are untouched by that transition and keep the values the barista set — Decaid passes
+	* `targetFlow` straight through and never zeroes it. Holding those two back as well meant a
+	* flow edit made while steam was off was neither starred nor saveable, which Streamline's
+	* "steam time 0 = heater off" made an everyday state rather than a rare one.
+	*/
+	var STEAM_OFF_KEYS = ["steamTempC", "steamTimeS"];
 	/** Decaid reads a steam target below 135 as off (de1_controller.dart updateWorkflowSettings). */
 	function steamOff(wf) {
 		const t = Number((wf && wf.steamSettings || {}).targetTemperature);
@@ -14225,7 +14231,7 @@ bcInit();
 		const off = steamOff(wf);
 		const known = {};
 		for (const k of Object.keys(all)) {
-			if (off && STEAM_KEYS.indexOf(k) !== -1) continue;
+			if (off && STEAM_OFF_KEYS.indexOf(k) !== -1) continue;
 			if (stored[k] == null && !movedSinceArming(k, all[k], armedMachine)) continue;
 			if (k === "brewC" && (armedBrewC == null || all.brewC === armedBrewC)) continue;
 			known[k] = all[k];
@@ -14352,10 +14358,10 @@ bcInit();
 		for (const [k, v] of Object.entries(fields || {})) if (stored && stored[k] != null) out[k] = v;
 		return out;
 	}
-	/** recipeFields minus the steam group while steam is off: a machine state, not a recipe's. */
+	/** recipeFields minus the off-state fields while steam is off: a machine state, not a recipe's. */
 	function ownedRecipeFields(wf) {
 		const out = recipeFields(wf);
-		if (steamOff(wf)) for (const k of STEAM_KEYS) delete out[k];
+		if (steamOff(wf)) for (const k of STEAM_OFF_KEYS) delete out[k];
 		return out;
 	}
 	/** Has the live workflow drifted off the recipe's own fields? (the `*`) */

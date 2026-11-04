@@ -509,6 +509,17 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.deepEqual(itemPatch('recipe', r, live({ targetTemperature: 140 })), { steamTempC: 140 }, 'above the off threshold is still dial-in');
   assert.deepEqual(itemPatch('recipe', r, wf({ steamSettings: { targetTemperature: 0, duration: 0, flow: 2, stopAtTemperature: 0 }, rinseData: { duration: 7 } })),
     { flushS: 7 }, 'only steam is held back');
+  // Only the two fields that ENCODE off are held back. Flow and the milk stop survive the
+  // transition with the barista's own values (Decaid passes targetFlow through untouched),
+  // and Streamline's "steam time 0 = heater off" makes steam-off an everyday state -- holding
+  // those two back as well lost every flow edit made in it.
+  assert.deepEqual(itemPatch('recipe', r, live({ targetTemperature: 0, duration: 0, flow: 1.4 })),
+    { steamFlowMls: 1.4 }, 'a flow edit while steam is off is still dial-in');
+  assert.deepEqual(itemPatch('recipe', r, live({ targetTemperature: 0, duration: 0, stopAtTemperature: 62 })),
+    { steamStopAtTempC: 62 }, 'and so is a milk stop');
+  assert.deepEqual(
+    itemPatch('recipe', r, live({ targetTemperature: 0, duration: 0, flow: 1.4, stopAtTemperature: 62 })),
+    { steamFlowMls: 1.4, steamStopAtTempC: 62 }, 'both, and still no temp or time');
   console.log('ok   steam off on the machine is not recorded onto the item');
 }
 

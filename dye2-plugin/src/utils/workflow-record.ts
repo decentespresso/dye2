@@ -149,8 +149,19 @@ const MACHINE_MAP: Record<string, [string, string]> = {
   flushFlowMls: ["rinseData", "flow"],
 };
 
-/** The steam settings as a group: all four are withheld while steam is off (dye2#30). */
-const STEAM_KEYS = ["steamTempC", "steamTimeS", "steamFlowMls", "steamStopAtTempC"];
+/**
+ * Withheld while steam is off (dye2#30): the two fields that ENCODE the off state, so
+ * recording them would turn steam off on every later apply of the item.
+ *
+ * Not the whole steam group. Off is `targetTemperature` below 135 (de1_controller.dart
+ * `steamEnabled: targetTemperature >= 135`), and Streamline's off writes exactly
+ * `{ targetTemperature: 0, duration: 0 }` (steam-mode.js steamOffPatch). Flow and the milk
+ * stop are untouched by that transition and keep the values the barista set — Decaid passes
+ * `targetFlow` straight through and never zeroes it. Holding those two back as well meant a
+ * flow edit made while steam was off was neither starred nor saveable, which Streamline's
+ * "steam time 0 = heater off" made an everyday state rather than a rare one.
+ */
+const STEAM_OFF_KEYS = ["steamTempC", "steamTimeS"];
 
 /** Decaid reads a steam target below 135 as off (de1_controller.dart updateWorkflowSettings). */
 function steamOff(wf: AnyRecord | null | undefined): boolean {
@@ -308,14 +319,15 @@ export function itemPatch(
   // Steam off is a machine state, not a recipe's: Decaid reads a target below 135 as off
   // (de1_controller.dart updateWorkflowSettings), and Streamline's steam-time 0 sends
   // targetTemperature 0 alongside duration 0. Recording either would turn steam off on every
-  // later apply of this item (dye2#30). A recipe set to "Off" in the editor is unaffected —
-  // that is a save, not a recording.
+  // later apply of this item (dye2#30) — so those two are held back, and only those two
+  // (STEAM_OFF_KEYS). A recipe set to "Off" in the editor is unaffected — that is a save,
+  // not a recording.
   const off = steamOff(wf);
   // apply writes every machine setting the item holds (the mode fields only choose what the
   // editor shows, and are never written), so a held field's live value is the user's.
   const known: AnyRecord = {};
   for (const k of Object.keys(all)) {
-    if (off && STEAM_KEYS.indexOf(k) !== -1) continue;
+    if (off && STEAM_OFF_KEYS.indexOf(k) !== -1) continue;
     if (stored[k] == null && !movedSinceArming(k, all[k], armedMachine)) continue;
     if (k === "brewC" && (armedBrewC == null || all.brewC === armedBrewC)) continue;
     known[k] = all[k];
@@ -460,10 +472,10 @@ export function heldFields(fields: AnyRecord, stored: AnyRecord | undefined): An
   return out;
 }
 
-/** recipeFields minus the steam group while steam is off: a machine state, not a recipe's. */
+/** recipeFields minus the off-state fields while steam is off: a machine state, not a recipe's. */
 export function ownedRecipeFields(wf: AnyRecord): AnyRecord {
   const out = recipeFields(wf);
-  if (steamOff(wf)) for (const k of STEAM_KEYS) delete out[k];
+  if (steamOff(wf)) for (const k of STEAM_OFF_KEYS) delete out[k];
   return out;
 }
 
