@@ -17,7 +17,6 @@ type FetchLike = (
   init?: AnyRecord
 ) => Promise<{ ok: boolean; status: number; json: () => Promise<any>; headers?: { get(k: string): string | null } }>;
 
-const RECENT_MAX = 5;
 const SHOT_PAGE_LIMIT = 100;
 // stopReason is an open set. Decaid writes ShotDecisionReason.name (reaprime
 // lib/src/models/data/shot_state_event.dart:8): noScale, targetWeight, targetVolume, apiStop,
@@ -633,8 +632,13 @@ async function runRefresh(fetchFn: FetchLike, base: string): Promise<AnyRecord[]
     await kvWrite(INDEX_KEY, idx);
   }
 
+  // Every ranked group becomes a recent, not a top-N slice: the auto-favs page lists them all.
+  // ponytail: the array grows with the number of distinct combinations, and each row carries its
+  // source shot's whole recorded profile, so the KV write grows with it. TAIL_DAYS/STALE_DAYS
+  // bound the group count in practice; if the write gets heavy, drop profileSnapshot from rows
+  // that hold no favSlot and fatten them on apply instead.
   const all = rankGroups(idx.tail, now);
-  const recents = applyTitleDisambiguation(all.slice(0, RECENT_MAX).map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
+  const recents = applyTitleDisambiguation(all.map((r, i) => toRecentFavourite(idx.reps[r.key], i + 1)));
 
   const storeVal = await kvRead("autoFavourites");
   // dedupeFavSlots here as well: this write rewrites the saved rows from a read of its own, so

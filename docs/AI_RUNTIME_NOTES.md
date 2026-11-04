@@ -34,8 +34,9 @@ Consequences that bite:
   `/api/v1/plugins/<id>/<endpoint>` — are gated by the same permission separately, at
   `:3134`.) Most bridge access is still browser-side by convention (`AI_DATA_NOTES.md`),
   but plugin-runtime code that needs the bridge itself — `recent-favs.ts` is the first
-  example — can call `fetch` directly. The dev-server's vm sandbox does not provide it
-  (`dev-server.mjs`'s `loadPlugin()`), so guard with `typeof fetch === 'function'`.
+  example — can call `fetch` directly. Still guard with `typeof fetch === 'function'`:
+  the permission can be absent. The dev-server's vm does pass Node's `fetch` in
+  (`dev-server.mjs`'s `loadPlugin()`), so those paths really run locally.
 - `onEvent` receives `shotStored` / `shotUpdated` only with the `events.shots` permission
   (`plugin_manager.dart:2478`); the dev server never dispatches either, so anything gated on
   them needs another trigger for local dev (a page's own explicit call, for instance).
@@ -169,9 +170,13 @@ the plugin runtime gives you. It serves the routes and proxies `/api/v1/*` to th
 
 - Defaults: `PORT=4444`, `BRIDGE_URL=http://localhost:8080` (the file's own usage comment
   says 3000 — stale, the code says 4444).
-- It serves the **build output**, not `src/`. Run `npm run dev` (vite watch) alongside
-  `npm run serve`, or you will be looking at a stale page and wondering why your edit did
-  nothing.
+- It serves the **build output**, not `src/` — but `npm run serve` now starts the vite watch
+  alongside the server (and `node --watch` restarts the server when `dev-server.mjs` itself
+  changes), so a source edit rebuilds, reloads and serves on its own. One terminal.
+  `npm run serve:only` is the bare server, for when something else owns the build.
+- The vm the plugin runs in is given Node's `fetch` (`dev-server.mjs` `loadPlugin`), so the
+  `recent-favs` recompute really runs here and really writes to the bridge's KV store.
+  Without it that route 503s and silently re-serves whatever the store already held.
 - It watches the *directory*, not the file, because vite and git replace `plugin.js` rather
   than editing in place.
 
@@ -188,7 +193,7 @@ assumption for any value reaching HTML should be "needs escaping".
 | --- | --- |
 | New page 404s in dev but works on tablet | `PLUGIN_ROUTES` in `dev-server.mjs:147` |
 | New page works in dev but not on tablet | Missing `api[]` entry in `manifest.src.json` |
-| Edit to a page does nothing | `npm run dev` not running; server serves built `plugin.js` |
+| Edit to a page does nothing | The watch died; `npm run serve` starts it, `serve:only` does not |
 | Page renders ~15% wide on desktop | Expected. `MAX_STRETCH`, `dev-shell.ts:23` — not a bug |
 | Colour wrong in dark mode | A hex in markup instead of a token from `cssVarFallbacks()` |
 | Script silently does nothing on tablet | Typo in a browser-code string — no build check covers it |
@@ -202,9 +207,7 @@ assumption for any value reaching HTML should be "needs escaping".
 
 ```sh
 cd dye2-plugin
-npm run build
-npm run serve          # terminal 1
-npm run dev            # terminal 2 — watch build
+npm run serve          # server + watch build, one terminal
 ```
 
 Then visit `http://localhost:4444/` for the route index. For any shell or scaling change,

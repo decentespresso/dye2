@@ -169,7 +169,7 @@ at all. Details in `AI_RUNTIME_NOTES.md`.
 | Symptom | First place to inspect |
 | --- | --- |
 | Dropdown closes without registering the pick | `click` used instead of `mousedown` + `preventDefault` |
-| Tailwind class does nothing | Purged — name assembled dynamically, or `build:css` not re-run |
+| Tailwind class does nothing | Purged — name assembled dynamically (vite regenerates the CSS every build) |
 | Colours right in dev, wrong on tablet | Styled against fallback hex instead of the CSS variable |
 | Bordered buttons lost their borders | A blanket `button { border: none }` beating `border-2` |
 | Control looks slightly off vs Figma | Forgot the ×0.75 scale factor |
@@ -180,7 +180,7 @@ at all. Details in `AI_RUNTIME_NOTES.md`.
 ## Focused Checks
 
 ```sh
-cd dye2-plugin && npm run build && npm run serve
+cd dye2-plugin && npm run serve
 ```
 
 Compare against the existing combo at `/auto-fav-edit` and `/recipe-edit` before shipping a

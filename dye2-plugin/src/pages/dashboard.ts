@@ -107,14 +107,6 @@ const styles = `
      fit and make this test flip back and forth. */
   .dye-rail-arrow-hide { visibility: hidden; pointer-events: none; }
   .dye-recipe-pill.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
-  /* Recent labels lead with the profile and may wrap to two lines: several recents share a
-     bean, and one-line truncation made them identical ("Colombia El Par..."). There is no
-     hover on the tablet, so the distinguishing part has to be visible in the pill itself. */
-  .dye-recipe-pill.dye-pill-recent .dye-recipe-pill-label {
-    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
-    white-space: normal; text-overflow: clip; line-height: 1.15; font-size: 19px;
-    word-break: break-word;
-  }
   .dye-recipe-pill-label {
     min-width: 0;
     max-width: 100%;
@@ -565,7 +557,6 @@ ${shotWeightsScript}
 let grinders = [];
 let profiles = [];
 let recipes = [];
-let autoFavs = [];   // auto: true entries from autoFavourites — recent shot combos, see recent-favs.ts
 let currentWorkflow = null;
 let baseWorkflow = null;   // the Workflow as last read / successfully sent (dye2#31)
 // Resolves once initializeDyeDashboard's own load -- including a pending picker-return
@@ -1592,7 +1583,8 @@ function renderRecipePills(workflow) {
   // recipe-edit's "Show on Streamline Dashboard" toggle writes showOnStreamlineDashboard,
   // so honour it here too — absent means shown. The workflow-string fallback carries no
   // flag, so it is never filtered.
-  const recentItems = autoFavs.slice().sort((a, b) => (a.recentRank || 0) - (b.recentRank || 0));
+  // Recipes only. Recents (auto favourites) are not pills: they live on the F strip and the
+  // auto-favs page, which lists every one of them, and there is no useful cap to put on a rail.
   const recipeItems = recipes.length
     ? recipes.filter(r => r && r.stripSlot != null && r.showOnStreamlineDashboard !== false).sort((a, b) => a.stripSlot - b.stripSlot)   // the strip holds the slotted ones; the rest live in Select Recipe
     : (workflow.favorites || workflow.recipes || []);
@@ -1600,35 +1592,26 @@ function renderRecipePills(workflow) {
   // catches up, so the pill the user just tapped stays highlighted instead of flashing back.
   const sel = pendingSelection || derivedSel;
   const selRecipeId = sel && sel.kind === 'recipe' ? String(sel.id) : null;
-  const selFavId = sel && sel.kind === 'favourite' ? String(sel.id) : null;
   const selMark = !pendingSelection && derivedSel && derivedSel.modified ? ' *' : '';
   // The selected recipe may hold no strip slot (so recipeItems omits it): show it as a pill, first.
   const slotless = selRecipeId && recipes.length ? recipes.find(r => r && String(r.id) === selRecipeId && r.stripSlot == null) : null;
-  const items = [...(slotless ? [slotless] : []), ...recentItems, ...recipeItems];
+  const items = [...(slotless ? [slotless] : []), ...recipeItems];
   container.innerHTML = '';
   if (items.length === 0) { container.innerHTML = '<span style="color:var(--low-contrast-white);font-size:21px;">No recipes yet</span>'; updateRailArrows(); return; }
   const activeTitle = workflow.profile && workflow.profile.title;
   items.forEach((item, i) => {
-    const isRecent = typeof item === 'object' && item && item.auto === true;
     const title = typeof item === 'string' ? item : (item.name || item.title || ('Recipe ' + (i + 1)));
-    // Pill label only (fav.title is stored and read by the Streamline skin): profile first.
-    const snap = (isRecent && item.snapshot) || {};
-    const pillLabel = isRecent ? ([snap.profileTitle, snap.coffeeName].filter(Boolean).join(' · ') || title) : title;
-    const isSel = !isRecent && typeof item === 'object' && selRecipeId && String(item.id) === selRecipeId;
+    const isSel = typeof item === 'object' && selRecipeId && String(item.id) === selRecipeId;
     // Highlight the item the plugin says is selected, by id. Matching the item's name against
-    // the live profile title instead (as this did) highlighted nothing after applying a recent
-    // -- its name is the favourite's, never the profile's -- and lit up every recipe that
-    // happened to share a profile title. A label-only workflow string has no id, so it keeps
-    // the title match.
-    const isActive = typeof item === 'object'
-      ? (isRecent ? !!selFavId && String(item.id) === selFavId : !!isSel)
-      : title === activeTitle;
+    // the live profile title instead (as this did) lit up every recipe that happened to share a
+    // profile title. A label-only workflow string has no id, so it keeps the title match.
+    const isActive = typeof item === 'object' ? !!isSel : title === activeTitle;
     const pill = document.createElement('button');
-    pill.className = 'dye-recipe-pill' + (isRecent ? ' dye-pill-recent' : '') + (isActive ? ' active' : '');
+    pill.className = 'dye-recipe-pill' + (isActive ? ' active' : '');
     pill.title = title;
     const label = document.createElement('span');
     label.className = 'dye-recipe-pill-label';
-    label.textContent = pillLabel + (isSel ? selMark : '');
+    label.textContent = title + (isSel ? selMark : '');
     pill.appendChild(label);
     pill.addEventListener('click', async () => {
       document.querySelectorAll('.dye-recipe-pill').forEach(p => p.classList.remove('active'));
@@ -1640,22 +1623,17 @@ function renderRecipePills(workflow) {
       // more than once while the server's derivedSel is still the pre-click selection, and each
       // of those would otherwise stomp the highlight this click just set, right back to the old
       // pill, until the real selection eventually lands.
-      pendingSelection = { kind: isRecent ? 'favourite' : 'recipe', id: item.id };
+      pendingSelection = { kind: 'recipe', id: item.id };
       await refreshWorkflow();   // apply over the live Workflow, not the page-open copy (dye2#31)
-      if (isRecent) {
-        await applyAutoFavourite(item);
-        // noteApplied only after the PUT actually lands -- Streamline reads lastApplied as "this
-        // visit applied X" (leaveDashboard), and a failed push must not claim a success it never had.
-        try { await pushWorkflow(); noteApplied('favourite', item); } catch (e) { console.warn(e); }
-      } else {
-        // The list was read at page load; dial-in recording may have changed this recipe since,
-        // so apply the stored record. Fall back to the loaded one if the re-read fails or the
-        // recipe is gone, rather than applying nothing (dye2#28).
-        let fresh = item;
-        try { fresh = (await getRecipe(item.id)) || item; } catch (e) { console.warn('recipe re-read failed', e); }
-        await applyRecipe(fresh);
-        try { await pushWorkflow(); noteApplied('recipe', fresh); } catch (e) { console.warn(e); }
-      }
+      // The list was read at page load; dial-in recording may have changed this recipe since,
+      // so apply the stored record. Fall back to the loaded one if the re-read fails or the
+      // recipe is gone, rather than applying nothing (dye2#28).
+      let fresh = item;
+      try { fresh = (await getRecipe(item.id)) || item; } catch (e) { console.warn('recipe re-read failed', e); }
+      await applyRecipe(fresh);
+      // noteApplied only after the PUT actually lands -- Streamline reads lastApplied as "this
+      // visit applied X" (leaveDashboard), and a failed push must not claim a success it never had.
+      try { await pushWorkflow(); noteApplied('recipe', fresh); } catch (e) { console.warn(e); }
     });
     container.appendChild(pill);
   });
@@ -2012,15 +1990,10 @@ function updateRatioDisplay() {
   ratioEl.textContent = r !== '—' ? '(' + r + ')' : '';
 }
 
-// Ask the plugin runtime to recompute the recents, then re-read them for the pill row.
+// Ask the plugin runtime to recompute the recents. Nothing on this page shows them (the pill
+// rail is recipes only) — it is the F strip and the auto-favs page that read what this writes.
 function refreshRecentsFromHistory() {
   fetch('/api/v1/plugins/dye2.reaplugin/recent-favs', { method: 'POST' })
-    .then(() => getAutoFavourites())
-    .then(result => {
-      const allFavs = Array.isArray(result) ? result : (result && result.items ? result.items : []);
-      autoFavs = allFavs.filter(f => f && f.auto);
-      if (currentWorkflow) renderRecipePills(currentWorkflow);
-    })
     .catch(e => console.warn('Could not refresh recent auto-favourites:', e));
 }
 
@@ -2447,8 +2420,6 @@ async function initializeDyeDashboard() {
       }
     } catch (e) { console.warn('Could not apply selected recipe:', e); }
   }
-
-  autoFavs = allFavs.filter(f => f && f.auto);
 
   await renderLastShot();
 

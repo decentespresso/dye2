@@ -476,7 +476,12 @@ const scans = (calls) => calls.filter((c) => c.indexOf('/shots?limit=100') >= 0)
   const kv = {};
   const { fetchFn, calls } = makeBridge(shots, kv);
   await refreshRecentFavourites(fetchFn, BASE);
-  assert.equal(kv.autoFavourites.filter((a) => a.auto).length, 5, 'the F strip still fills');
+  const autos = kv.autoFavourites.filter((a) => a.auto);
+  assert.equal(autos.length, 7, 'every qualifying group becomes a recent, no top-N cap');
+  assert.deepEqual(autos.map((a) => a.recentRank), [1, 2, 3, 4, 5, 6, 7], 'ranked, best first');
+  // The F strip is still 4 cells: the rest are readable from the KV array and off the strip.
+  assert.deepEqual(autos.map((a) => a.favSlot), [1, 2, 3, 4, null, null, null]);
+  assert.deepEqual(autos.map((a) => a.alwaysOnDashboard), [true, true, true, true, false, false, false]);
   assert.equal(kv.recipes, undefined, 'recipes key not created');
   assert.equal(calls.some((c) => c.indexOf('/store/dye2.reaplugin/recipes') >= 0 && c.startsWith('POST')), false);
 }

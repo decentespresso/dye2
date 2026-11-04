@@ -351,7 +351,8 @@ written before the rule are patched by a one-time pass on plugin load
 barista/drinker still follow the capture-only rule below.
 
 **Auto (recent) entries.** Entries with `auto: true` are computed by DYE2 from shot
-history (up to 5 bean-batch + profile + grinder groups, best first by `recentRank`) and are
+history (one per bean-batch + profile + grinder group in the scored window, **uncapped**, best
+first by `recentRank`) and are
 rewritten wholesale by DYE2's plugin runtime after every stored or edited shot and on DYE2 page
 loads. They fill the dashboard slots (1–4) that saved favourites don't claim; entries that don't
 fit have `alwaysOnDashboard: false`. Their `workflow.profile` is the full recorded profile of

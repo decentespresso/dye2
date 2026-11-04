@@ -7,11 +7,12 @@
  * and proxies /api/v1/* requests to a running Streamline Bridge instance.
  *
  * Usage:
- *   npm run serve                          # defaults: port 3000, bridge at localhost:8080
+ *   npm run serve                          # defaults: port 4444, bridge at localhost:8080
  *   PORT=4000 BRIDGE_URL=http://192.168.1.5:8080 npm run serve
  *
- * Pair with `npm run dev` in another terminal for watch builds — the server
- * auto-reloads plugin.js when it changes on disk.
+ * `npm run serve` starts the vite watch build alongside this server, so a source
+ * edit rebuilds plugin.js and the watch below reloads it. `npm run serve:only`
+ * runs this file alone, for when something else owns the build.
  */
 
 import { createServer, request as httpRequest } from "node:http";
@@ -36,7 +37,12 @@ let plugin = null;
 
 function loadPlugin() {
   const src = readFileSync(PLUGIN_PATH, "utf-8");
-  const context = vm.createContext({ console, setTimeout, clearTimeout });
+  // Node's global fetch, so the plugin's own recent-favs recompute actually runs here
+  // instead of 503ing and falling back to whatever the store already holds. The tablet
+  // runtime gets a permission-gated fetch the same way (see CLAUDE.md, "Two runtimes").
+  // ponytail: the plugin defaults to http://localhost:8080/api/v1, so a BRIDGE_URL
+  // pointing elsewhere is ignored by this path only — fine until someone runs two bridges.
+  const context = vm.createContext({ console, setTimeout, clearTimeout, fetch });
   const script = new vm.Script(src, { filename: "plugin.js" });
   script.runInContext(context);
 
@@ -172,9 +178,9 @@ async function handleRecentFavs(req, res) {
     }
   }
 
-  // The plugin can't run this itself here — the vm context has no fetch (see
-  // loadPlugin()), so refreshRecentFavourites always 503s in dev. Rather than fail
-  // the request outright, hand back whatever auto entries are already in the store.
+  // The plugin's own recompute failed or isn't loaded. Rather than fail the request
+  // outright, hand back whatever auto entries are already in the store — stale, but
+  // the page renders. A 503 here used to be the normal path (no fetch in the vm).
   try {
     const storeRes = await fetch(`${BRIDGE_URL}/api/v1/store/dye2.reaplugin/autoFavourites`);
     const val = storeRes.ok ? await storeRes.json() : null;

@@ -25,9 +25,9 @@ get **no type checking and no build error** — a typo there fails at runtime on
 
 ```bash
 cd dye2-plugin
-npm run build    # build:css + vite → ../dye2.reaplugin/plugin.js
-npm run dev      # vite watch (run alongside serve)
-npm run serve    # dev server on :4444, proxies /api/v1/* to localhost:8080
+npm run build    # vite (runs Tailwind itself) → ../dye2.reaplugin/plugin.js
+npm run serve    # dev server on :4444 + watch build; proxies /api/v1/* to localhost:8080
+npm run dev      # the watch build alone
 npm test         # 24 suites under test/ (the list lives in package.json)
 ```
 

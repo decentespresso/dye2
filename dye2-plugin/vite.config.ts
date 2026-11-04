@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import { resolve } from "path";
 import { mkdirSync, copyFileSync } from "fs";
+import { execFileSync } from "child_process";
 
 export default defineConfig({
   build: {
@@ -22,6 +23,17 @@ export default defineConfig({
     },
   },
   plugins: [
+    {
+      // Tailwind runs here, not as its own watcher: `tailwindcss --watch` exits as soon as
+      // stdin closes, so a backgrounded one dies silently and `vite build --watch` then
+      // bundles a stale tailwind.generated.css — a new arbitrary class (pb-[20px]) has no
+      // rule until someone remembers to run the full build. Generating it before each
+      // bundle keeps one watcher and no ordering to get wrong. ~200ms a rebuild.
+      name: "tailwind-css",
+      buildStart() {
+        execFileSync("npm", ["run", "build:css"], { cwd: __dirname, stdio: "inherit" });
+      },
+    },
     {
       name: "copy-manifest",
       closeBundle() {

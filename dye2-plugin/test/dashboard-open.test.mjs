@@ -229,7 +229,7 @@ assert.equal(shotPatchAffectsRecents('{"annotations":{"espressoNotes":"x"}}'), f
   const end = dash.indexOf("\n", dash.indexOf("const selMark =", start));
   const body = dash.slice(start, end);
   const derive = (pendingSelection, derivedSel) => new Function(
-    "pendingSelection", "derivedSel", body + "\nreturn { selRecipeId, selFavId, selMark };"
+    "pendingSelection", "derivedSel", body + "\nreturn { selRecipeId, selMark };"
   )(pendingSelection, derivedSel);
 
   const pending = derive({ kind: "recipe", id: "NEW" }, { kind: "recipe", id: "OLD", modified: true });

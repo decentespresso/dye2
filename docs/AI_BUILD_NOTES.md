@@ -7,9 +7,10 @@ a release or bumping a version.
 
 ```sh
 cd dye2-plugin
-npm run build    # build:css (Tailwind) then vite build
+npm run build    # vite build (the Tailwind step runs inside it)
 npm run dev      # vite build --watch
-npm run serve    # dev server, PORT=4444, BRIDGE_URL=http://localhost:8080
+npm run serve    # dev server + watch build, PORT=4444, BRIDGE_URL=http://localhost:8080
+npm run serve:only  # the server alone, no watcher
 npm test         # 24 suites under test/, in series
 ```
 
@@ -41,9 +42,11 @@ A class that only ever appears in a dynamically-assembled string (concatenated f
 or built at runtime browser-side) will **not** be seen by the scanner and gets purged. Write
 complete class names in the source strings.
 
-`npm run dev` runs vite watch **only** — it does not re-run `build:css`. Add a Tailwind
-class during a watch session and it will not appear until you run `npm run build` (or
-`npm run build:css`).
+`build:css` runs **inside** vite, from the `tailwind-css` plugin's `buildStart`
+(`vite.config.ts`), so every build and every watch rebuild regenerates the CSS first and a
+Tailwind class added mid-session works straight away. It is not a standalone watcher on
+purpose: `tailwindcss --watch` exits the moment stdin closes, so a backgrounded one dies
+silently and leaves vite bundling a stale `tailwind.generated.css`.
 
 ## Committed Build Output
 
@@ -142,8 +145,8 @@ will not fail a release.
 
 | Symptom | First place to inspect |
 | --- | --- |
-| Tailwind class has no effect | Purged — class name assembled dynamically, or `build:css` not re-run |
-| Class works after `npm run build`, not during watch | `npm run dev` skips `build:css` |
+| Tailwind class has no effect | Purged — class name assembled dynamically (vite regenerates the CSS on every build) |
+| Page serves an edit but the CSS for it is missing | `tailwind-css` plugin in `vite.config.ts` — did `buildStart` run? |
 | Decaid refuses to install from branch | A second `manifest.json` in the tree |
 | Release failed on a version mismatch | The four committed versions, then the tag; bump on `main` and re-tag |
 | Decaid will not update from `main` | Committed manifest version sits below the latest tag |

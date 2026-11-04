@@ -109,7 +109,7 @@ const content = `
           ${TAB_KEYS.map((k, i) => `<button class="dye-tab-btn${i === 0 ? ' active' : ''}" data-tab="${k}">${TAB_LABELS[i]}</button>`).join('')}
         </div>
       </div>
-      <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[20px] pr-[20px]">
+      <div id="dye-cards-container" class="flex-1 overflow-y-auto pt-[20px] pr-[20px] pb-[20px]">
         <div id="dye-cards-grid" class="grid grid-cols-3 gap-[30px]"></div>
       </div>
       <!-- Our own scroll indicator; the native bar is hidden in CSS. See updateCardsThumb. -->

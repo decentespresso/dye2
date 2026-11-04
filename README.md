@@ -88,9 +88,9 @@ dye2/
 cd dye2-plugin
 npm install
 
-npm run build    # build:css (tailwind) then vite → ../dye2.reaplugin/{plugin.js,manifest.json}
-npm run dev      # vite watch mode — does NOT re-run the tailwind step
-npm run serve    # dev server on :4444, proxies /api/v1/* to a real machine
+npm run build    # vite → ../dye2.reaplugin/{plugin.js,manifest.json}; runs tailwind itself
+npm run serve    # dev server on :4444 + watch build; proxies /api/v1/* to a real machine
+npm run dev      # the watch build alone
 npm test         # 24 suites under test/, run in series (see package.json)
 ```
 
