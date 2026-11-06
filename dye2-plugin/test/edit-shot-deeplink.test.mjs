@@ -74,7 +74,16 @@ test('the stored id is what initEditShot looks up, before the return-index overr
   const urlAt = body.indexOf('qs.get(\'shotId\')');
   const lookupAt = body.indexOf("sessionStorage.getItem('dye_editShotId')");
   assert.ok(urlAt > 0 && lookupAt > urlAt, 'the handoff is read before the list lookup');
-  assert.ok(body.includes('if (idx >= 0) shotIndex = idx;'), 'and selects that row');
+  assert.ok(body.includes('if (idx >= 0) {\n        shotIndex = idx;'), 'and selects that row');
+});
+
+test('a requested shot older than the loaded page is fetched directly, not silently dropped (dye2#45)', () => {
+  const fn = code.indexOf('async function initEditShot()');
+  const body = code.slice(fn, code.indexOf('\n}\n', fn));
+  assert.ok(body.includes("getShot(storedId)"), 'falls back to a direct fetch by id');
+  assert.ok(body.includes('allShots.unshift(full)') && body.includes('shotIndex = 0'),
+    'and places it where the editor will open it');
+  assert.ok(body.includes('fetchedDirect'), 'skipping the redundant full-shot refetch that follows');
 });
 
 test('cancel/save still return to the skin URL, carrying the live shot', () => {

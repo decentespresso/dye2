@@ -7393,8 +7393,13 @@ function renderNextShot() {
       let info = coffeeRoaster ? 'Roasted by ' + coffeeRoaster : '';
       if (roastDate) {
         const rd = new Date(roastDate);
-        const diffDays = Math.floor((new Date() - rd) / (1000 * 60 * 60 * 24));
-        const dateStr = rd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        // roastDate is always a date-only input round-tripped through toISOString(), a
+        // UTC-midnight instant, so its calendar day is read in UTC, not shifted by the
+        // viewer's own zone (dye2#44).
+        const now = new Date();
+        const diffDays = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) -
+          Date.UTC(rd.getUTCFullYear(), rd.getUTCMonth(), rd.getUTCDate())) / 86400000);
+        const dateStr = rd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
         info += info ? ' on ' + dateStr + ' (' + diffDays + ' days off-roast)' : dateStr + ' (' + diffDays + ' days off-roast)';
       }
       roastInfoEl.textContent = info;
@@ -9464,9 +9469,22 @@ async function initEditShot() {
     const result = await getShots({ limit: 50, order: 'desc' }).catch(() => ({ items: [] }));
     allShots = (result && result.items) ? result.items : (Array.isArray(result) ? result : []);
     const storedId = sessionStorage.getItem('dye_editShotId');
+    let fetchedDirect = false;
+    let requestedShotMissing = false;
     if (storedId) {
       const idx = allShots.findIndex(s => s.id === storedId);
-      if (idx >= 0) shotIndex = idx;
+      if (idx >= 0) {
+        shotIndex = idx;
+      } else if (!returning) {
+        // Older than the 50 newest (dye2#45): the id won't be in this page, so fetch it
+        // directly rather than silently falling back to allShots[0], the newest shot.
+        try {
+          const full = await getShot(storedId);
+          allShots.unshift(full);
+          shotIndex = 0;
+          fetchedDirect = true;
+        } catch (e) { console.warn('Could not fetch requested shot:', e); requestedShotMissing = true; }
+      }
     }
     if (returning) {
       const savedIdx = parseInt(sessionStorage.getItem('dye_editShotIdx') || '');
@@ -9488,12 +9506,18 @@ async function initEditShot() {
       clearReturnKeys();
     } else {
       clearReturnKeys(); // drop any stale draft from an abandoned round-trip
-      try {
-        const full = await getShot(allShots[shotIndex].id);
-        allShots[shotIndex] = { ...allShots[shotIndex], ...full };
-      } catch (e) { console.warn('Could not fetch full shot:', e); }
+      if (!fetchedDirect) {
+        try {
+          const full = await getShot(allShots[shotIndex].id);
+          allShots[shotIndex] = { ...allShots[shotIndex], ...full };
+        } catch (e) { console.warn('Could not fetch full shot:', e); }
+      }
     }
     renderShot(allShots[shotIndex]);
+    if (requestedShotMissing) {
+      const sub = document.getElementById('es-shot-subtitle');
+      if (sub) sub.textContent = (sub.textContent || '') + '  •  requested shot not found, showing newest';
+    }
   } catch (e) {
     console.error('initEditShot failed:', e);
   }
@@ -9525,6 +9549,13 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 	* first-gen DYE does for past shots. Otherwise (no roast date, unparseable, or after the
 	* shown date) it is "21 Aug 2025, 2:30pm". roastDate is a BeanBatch field, so the caller
 	* resolves it (see auto-favs.ts).
+	*
+	* roastDate always comes from a `<input type=date>` round-tripped through
+	* `new Date(value).toISOString()` (add-bean.ts, auto-fav-edit.ts), which parses a date-only
+	* string as UTC midnight — so the stored instant's UTC calendar day is the one the user
+	* picked, not its local one. Reading it back with local getters shifts it a day on any
+	* tablet west of UTC (dye2#44). Its calendar day is read in UTC below; the shown date's
+	* stays local, since that one is a real timestamp meant to read as the viewer's wall clock.
 	*/
 	var favDateScript = `
 // en-GB prints "Sept" for September in current engines; the design uses three letters.
@@ -9542,7 +9573,7 @@ function formatFavDate(capturedAt, roastDate) {
     const rd = new Date(roastDate);
     if (!isNaN(rd.getTime())) {
       const days = Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) -
-        Date.UTC(rd.getFullYear(), rd.getMonth(), rd.getDate())) / 86400000);
+        Date.UTC(rd.getUTCFullYear(), rd.getUTCMonth(), rd.getUTCDate())) / 86400000);
       if (days >= 0) return dateStr + ' (' + days + (days === 1 ? ' day' : ' days') + ' off-roast)';
     }
   }
@@ -9599,9 +9630,15 @@ function resolveRoastDate(id, batches) {
 		return (typeof profile.title === "string" ? profile.title.trim() : "").length > 0 && Array.isArray(profile.steps) && profile.steps.length > 0 && profile.tank_temperature != null && profile.target_volume_count_start != null;
 	}
 	/**
-	* The grouping key for a shot: bean (batch id, else roaster+name) + profile title +
+	* The grouping key for a shot: bean (roaster+name, never the batch id) + profile title +
 	* grinder (id, else model). Returns null for a shot that should never form its own
 	* recent group — a cleaning/calibrate run, or one with no bean identity at all.
+	*
+	* Deliberately NOT keyed by beanBatchId (dye2#44): a fresh bag of the same coffee gets a
+	* new batch id every time, so keying on it gave every bag its own "recent" — dozens of
+	* near-identical rows differing only by date. Grouping by name instead means reopening a
+	* bag of a coffee already in the strip updates that one row (newest shot wins the
+	* representative, see runRefresh) rather than adding another.
 	*/
 	function recentGroupKey(shot) {
 		const skipped = ["cleaning", "calibrate"];
@@ -9612,7 +9649,7 @@ function resolveRoastDate(id, batches) {
 		if (skipped.indexOf(profile.beverage_type) >= 0) return null;
 		if (!ctx.beanBatchId && !ctx.coffeeName) return null;
 		return [
-			ctx.beanBatchId ? "batch:" + norm(ctx.beanBatchId) : "name:" + norm(ctx.coffeeRoaster) + "::" + norm(ctx.coffeeName),
+			"name:" + norm(ctx.coffeeRoaster) + "::" + norm(ctx.coffeeName),
 			"profile:" + norm(profile.title),
 			ctx.grinderId ? "gid:" + norm(ctx.grinderId) : "gmodel:" + norm(ctx.grinderModel)
 		].join("|");

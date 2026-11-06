@@ -1080,9 +1080,22 @@ async function initEditShot() {
     const result = await getShots({ limit: 50, order: 'desc' }).catch(() => ({ items: [] }));
     allShots = (result && result.items) ? result.items : (Array.isArray(result) ? result : []);
     const storedId = sessionStorage.getItem('dye_editShotId');
+    let fetchedDirect = false;
+    let requestedShotMissing = false;
     if (storedId) {
       const idx = allShots.findIndex(s => s.id === storedId);
-      if (idx >= 0) shotIndex = idx;
+      if (idx >= 0) {
+        shotIndex = idx;
+      } else if (!returning) {
+        // Older than the 50 newest (dye2#45): the id won't be in this page, so fetch it
+        // directly rather than silently falling back to allShots[0], the newest shot.
+        try {
+          const full = await getShot(storedId);
+          allShots.unshift(full);
+          shotIndex = 0;
+          fetchedDirect = true;
+        } catch (e) { console.warn('Could not fetch requested shot:', e); requestedShotMissing = true; }
+      }
     }
     if (returning) {
       const savedIdx = parseInt(sessionStorage.getItem('dye_editShotIdx') || '');
@@ -1104,12 +1117,18 @@ async function initEditShot() {
       clearReturnKeys();
     } else {
       clearReturnKeys(); // drop any stale draft from an abandoned round-trip
-      try {
-        const full = await getShot(allShots[shotIndex].id);
-        allShots[shotIndex] = { ...allShots[shotIndex], ...full };
-      } catch (e) { console.warn('Could not fetch full shot:', e); }
+      if (!fetchedDirect) {
+        try {
+          const full = await getShot(allShots[shotIndex].id);
+          allShots[shotIndex] = { ...allShots[shotIndex], ...full };
+        } catch (e) { console.warn('Could not fetch full shot:', e); }
+      }
     }
     renderShot(allShots[shotIndex]);
+    if (requestedShotMissing) {
+      const sub = document.getElementById('es-shot-subtitle');
+      if (sub) sub.textContent = (sub.textContent || '') + '  •  requested shot not found, showing newest';
+    }
   } catch (e) {
     console.error('initEditShot failed:', e);
   }
