@@ -175,16 +175,19 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(kept.steamTempC, 150, 'the Machine Settings fields ride along too');
   assert.equal(run({}, null, null, null, { 're-steam-mode': 'flow' }).dashboardVariables.steamTimeS, undefined, 'nothing held, nothing invented');
 
-  // Steam off is one state, not two independent zeros (dye2#46). Either half going to its
-  // own Off takes the other with it, regardless of which mode is on screen.
-  const timeOff = run({ 're-steam-value': 'Off' }, null, null, { steamTempC: 150 }, { 're-steam-mode': 'time' }).dashboardVariables;
-  assert.equal(timeOff.steamTimeS, 0, "'Off' in time mode is 0, not null (num()'s parseFloat would lose it)");
-  assert.equal(timeOff.steamTempC, 0, 'and takes the Machine Settings temp off with it, even though it held 150');
-
+  // Steam off is one state, not two independent zeros (dye2#46). A temp below 135 is the
+  // heater off, so the time is zeroed to match it.
   const tempOff = run({ 're-steam-value': '1.2ml/s' }, null, null, { steamTimeS: 30, steamTempC: 0 }, { 're-steam-mode': 'flow' }).dashboardVariables;
   assert.equal(tempOff.steamTempC, 0, 'Machine Settings off, as held');
-  assert.equal(tempOff.steamTimeS, 0, 'takes the hidden time value off with it, even though it held 30');
+  assert.equal(tempOff.steamTimeS, 0, 'takes the time with it: with the heater off a steam time describes nothing');
   assert.equal(tempOff.steamFlowMls, 1.2, 'the shown flow value is untouched -- only time and temp pair');
+
+  // 'Off' on the steam time still saves as 0 rather than null, but does NOT reach over and
+  // switch off a temp the user can see -- a 0 left by the old editor would otherwise undo it
+  // on a save that touched neither field. Apply is what stops that pair (recipeMachineSettings).
+  const timeOff = run({ 're-steam-value': 'Off' }, null, null, { steamTempC: 150 }, { 're-steam-mode': 'time' }).dashboardVariables;
+  assert.equal(timeOff.steamTimeS, 0, "'Off' in time mode is 0, not null (num()'s parseFloat would lose it)");
+  assert.equal(timeOff.steamTempC, 150, 'and leaves the visible Machine Settings temp alone');
 
   const steamOn = run({ 're-steam-value': '30s' }, null, null, { steamTempC: 150 }, { 're-steam-mode': 'time' }).dashboardVariables;
   assert.equal(steamOn.steamTimeS, 30, 'an ordinary on value is not touched');

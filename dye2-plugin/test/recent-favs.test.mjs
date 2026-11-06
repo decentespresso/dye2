@@ -423,7 +423,9 @@ const scans = (calls) => calls.filter((c) => c.indexOf('/shots?limit=100') >= 0)
 
   assert.deepEqual(kv.recipes, recipesBefore, 'the refresh leaves recipes exactly as stored (not even the slot migration)');
   assert.equal(calls.some((c) => c.indexOf('POST /store/dye2.reaplugin/recipes') >= 0), false, 'the refresh never writes the recipes key');
-  assert.equal(kv.shotIndex.v, 2);
+  // 3 since dye2#44: a stored tail row keeps the key it was folded with, so the switch to
+  // name-keyed groups needs the version bump to force one full rebuild.
+  assert.equal(kv.shotIndex.v, 3);
   assert.equal(kv.shotIndex.total, 3);
 }
 

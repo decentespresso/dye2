@@ -2862,8 +2862,13 @@ function beanLine3(batch) {
   if (!batch || !batch.roastDate) return '';
   const rd = new Date(batch.roastDate);
   if (isNaN(rd.getTime())) return '';
-  const dateStr = rd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  const days = Math.floor((Date.now() - rd.getTime()) / 86400000);
+  // roastDate is a date-only input round-tripped through toISOString(), so its calendar day is
+  // read in UTC, and the count is whole calendar days to today -- not a raw ms division, which
+  // shifted both the shown date and the number west of UTC (dye2#44, same as dashboard.ts).
+  const dateStr = rd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const now = new Date();
+  const days = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) -
+    Date.UTC(rd.getUTCFullYear(), rd.getUTCMonth(), rd.getUTCDate())) / 86400000);
   return dateStr + ' (' + days + ' days off-roast)';
 }
 
@@ -9492,20 +9497,29 @@ async function initEditShot() {
       const idx = allShots.findIndex(s => s.id === storedId);
       if (idx >= 0) {
         shotIndex = idx;
-      } else if (!returning) {
+      } else {
         // Older than the 50 newest (dye2#45): the id won't be in this page, so fetch it
         // directly rather than silently falling back to allShots[0], the newest shot.
+        // Appended, not unshifted: this list is newest-first, and not being in the newest
+        // page makes this shot older than all of them. The order is load-bearing -- the
+        // arrows walk it, and "Read From > Previous shot" reads allShots[shotIndex + 1] as
+        // the older shot, which at index 0 would have handed over the NEWEST shot's dial-in.
+        // On a picker round trip too: dye_editShotIdx indexes THIS array, so skipping the
+        // fetch there would leave the stored index pointing past its end.
         try {
           const full = await getShot(storedId);
-          allShots.unshift(full);
-          shotIndex = 0;
+          allShots.push(full);
+          shotIndex = allShots.length - 1;
           fetchedDirect = true;
         } catch (e) { console.warn('Could not fetch requested shot:', e); requestedShotMissing = true; }
       }
     }
     if (returning) {
+      // Bounds-checked: the window can be smaller than when the index was stashed (a shot
+      // deleted meanwhile, or the deep-linked shot's fetch having failed), and an index past
+      // the end would throw on the draft check below rather than just miss.
       const savedIdx = parseInt(sessionStorage.getItem('dye_editShotIdx') || '');
-      if (!isNaN(savedIdx)) shotIndex = savedIdx;
+      if (!isNaN(savedIdx) && savedIdx >= 0 && savedIdx < allShots.length) shotIndex = savedIdx;
     }
     if (allShots.length === 0) {
       set('es-shot-label', 'No shots');
@@ -9638,7 +9652,7 @@ function resolveRoastDate(id, batches) {
 	var DAY_MS = 864e5;
 	var STALE_DAYS = 60;
 	var INDEX_KEY = "shotIndex";
-	var INDEX_VERSION = 2;
+	var INDEX_VERSION = 3;
 	function norm(v) {
 		return String(v == null ? "" : v).trim().toLowerCase();
 	}
@@ -12850,14 +12864,19 @@ function getCurrentRecipeData() {
     equipmentNames:  equipmentSelNames.slice(),
     equipmentCustom: { ...equipmentCustomOverrides },
   };
-  // Steam off is one state, not two independent zeros (dye2#46): Decaid reads a target below
-  // 135 as off regardless of duration (de1_controller.dart steamEnabled), and Streamline reads
-  // duration 0 as off regardless of target (steam-mode.js steamOffPatch writes both together).
-  // Either side going to its own Off takes the other with it, so a save can never hold the
-  // heater on behind a tile reading Off, or the reverse.
-  if (dv.steamTimeS === 0 || (dv.steamTempC != null && dv.steamTempC < 135)) {
-    dv.steamTimeS = 0;
+  // Steam off is one state, not two independent zeros (dye2#46). A steam temp below 135 is
+  // Decaid's own "the heater is off" (de1_controller.dart steamEnabled), and with the heater
+  // off a steam time describes nothing, so it is zeroed to match -- which is also what
+  // Streamline's tile reads off (steam-mode.js writes both together).
+  //
+  // Only this direction. The reverse (a time of 0 forcing the temp off) would let a 0 left in
+  // the recipe -- by the old editor, or by the other mode while this one is on screen -- undo
+  // a steam temp the user can see on the Machine Settings row, on a save that never touched
+  // either field. recipeMachineSettings (dev-api.ts) already stops such a pair reaching the
+  // machine, which is what dye2#46 actually reported.
+  if (dv.steamTempC != null && dv.steamTempC < 135) {
     dv.steamTempC = 0;
+    dv.steamTimeS = 0;
   }
   return {
     name:      document.getElementById('re-name-input')?.value || '',

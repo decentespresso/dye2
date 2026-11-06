@@ -1138,14 +1138,19 @@ function getCurrentRecipeData() {
     equipmentNames:  equipmentSelNames.slice(),
     equipmentCustom: { ...equipmentCustomOverrides },
   };
-  // Steam off is one state, not two independent zeros (dye2#46): Decaid reads a target below
-  // 135 as off regardless of duration (de1_controller.dart steamEnabled), and Streamline reads
-  // duration 0 as off regardless of target (steam-mode.js steamOffPatch writes both together).
-  // Either side going to its own Off takes the other with it, so a save can never hold the
-  // heater on behind a tile reading Off, or the reverse.
-  if (dv.steamTimeS === 0 || (dv.steamTempC != null && dv.steamTempC < 135)) {
-    dv.steamTimeS = 0;
+  // Steam off is one state, not two independent zeros (dye2#46). A steam temp below 135 is
+  // Decaid's own "the heater is off" (de1_controller.dart steamEnabled), and with the heater
+  // off a steam time describes nothing, so it is zeroed to match -- which is also what
+  // Streamline's tile reads off (steam-mode.js writes both together).
+  //
+  // Only this direction. The reverse (a time of 0 forcing the temp off) would let a 0 left in
+  // the recipe -- by the old editor, or by the other mode while this one is on screen -- undo
+  // a steam temp the user can see on the Machine Settings row, on a save that never touched
+  // either field. recipeMachineSettings (dev-api.ts) already stops such a pair reaching the
+  // machine, which is what dye2#46 actually reported.
+  if (dv.steamTempC != null && dv.steamTempC < 135) {
     dv.steamTempC = 0;
+    dv.steamTimeS = 0;
   }
   return {
     name:      document.getElementById('re-name-input')?.value || '',

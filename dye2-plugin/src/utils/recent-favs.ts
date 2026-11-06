@@ -37,7 +37,10 @@ const UNRATED_SCORES_AT_PRIOR = true;
 // NOT user-confirmed: a group whose newest shot is older than this is dropped from the strip.
 const STALE_DAYS = 60;
 const INDEX_KEY = "shotIndex";
-const INDEX_VERSION = 2;   // 2: tail rows carry `rid`, index carries `uses`
+// 2: tail rows carry `rid`, index carries `uses`. 3: tail `key` is name-keyed, not batch-keyed
+// (dye2#44) -- a stored row keeps the key it was folded with, and the delta sync only folds new
+// shots, so without this bump the old per-bag duplicates would outlive the fix by TAIL_DAYS.
+const INDEX_VERSION = 3;
 
 function norm(v: unknown): string {
   return String(v == null ? "" : v).trim().toLowerCase();

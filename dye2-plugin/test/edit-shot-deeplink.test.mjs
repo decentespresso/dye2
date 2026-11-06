@@ -81,9 +81,15 @@ test('a requested shot older than the loaded page is fetched directly, not silen
   const fn = code.indexOf('async function initEditShot()');
   const body = code.slice(fn, code.indexOf('\n}\n', fn));
   assert.ok(body.includes("getShot(storedId)"), 'falls back to a direct fetch by id');
-  assert.ok(body.includes('allShots.unshift(full)') && body.includes('shotIndex = 0'),
-    'and places it where the editor will open it');
+  // Appended, never unshifted: the list is newest-first and the arrows plus "Read From >
+  // Previous shot" (allShots[shotIndex + 1]) depend on that order holding.
+  assert.ok(body.includes('allShots.push(full)') && body.includes('shotIndex = allShots.length - 1'),
+    'and places it at the old end, where the editor will open it');
+  assert.ok(!body.includes('allShots.unshift'), 'an older shot never jumps the newest-first order');
   assert.ok(body.includes('fetchedDirect'), 'skipping the redundant full-shot refetch that follows');
+  // dye_editShotIdx indexes this same array, so a stashed index must be range-checked: the
+  // window can be shorter than when it was stored, and allShots[tooBig].id would throw.
+  assert.ok(/savedIdx < allShots\.length/.test(body), 'the restored picker index is bounds-checked');
 });
 
 test('cancel/save still return to the skin URL, carrying the live shot', () => {

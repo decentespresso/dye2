@@ -56,8 +56,13 @@ function beanLine3(batch) {
   if (!batch || !batch.roastDate) return '';
   const rd = new Date(batch.roastDate);
   if (isNaN(rd.getTime())) return '';
-  const dateStr = rd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  const days = Math.floor((Date.now() - rd.getTime()) / 86400000);
+  // roastDate is a date-only input round-tripped through toISOString(), so its calendar day is
+  // read in UTC, and the count is whole calendar days to today -- not a raw ms division, which
+  // shifted both the shown date and the number west of UTC (dye2#44, same as dashboard.ts).
+  const dateStr = rd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const now = new Date();
+  const days = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) -
+    Date.UTC(rd.getUTCFullYear(), rd.getUTCMonth(), rd.getUTCDate())) / 86400000);
   return dateStr + ' (' + days + ' days off-roast)';
 }
 

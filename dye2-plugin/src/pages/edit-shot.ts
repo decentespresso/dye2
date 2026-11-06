@@ -1092,20 +1092,29 @@ async function initEditShot() {
       const idx = allShots.findIndex(s => s.id === storedId);
       if (idx >= 0) {
         shotIndex = idx;
-      } else if (!returning) {
+      } else {
         // Older than the 50 newest (dye2#45): the id won't be in this page, so fetch it
         // directly rather than silently falling back to allShots[0], the newest shot.
+        // Appended, not unshifted: this list is newest-first, and not being in the newest
+        // page makes this shot older than all of them. The order is load-bearing -- the
+        // arrows walk it, and "Read From > Previous shot" reads allShots[shotIndex + 1] as
+        // the older shot, which at index 0 would have handed over the NEWEST shot's dial-in.
+        // On a picker round trip too: dye_editShotIdx indexes THIS array, so skipping the
+        // fetch there would leave the stored index pointing past its end.
         try {
           const full = await getShot(storedId);
-          allShots.unshift(full);
-          shotIndex = 0;
+          allShots.push(full);
+          shotIndex = allShots.length - 1;
           fetchedDirect = true;
         } catch (e) { console.warn('Could not fetch requested shot:', e); requestedShotMissing = true; }
       }
     }
     if (returning) {
+      // Bounds-checked: the window can be smaller than when the index was stashed (a shot
+      // deleted meanwhile, or the deep-linked shot's fetch having failed), and an index past
+      // the end would throw on the draft check below rather than just miss.
       const savedIdx = parseInt(sessionStorage.getItem('dye_editShotIdx') || '');
-      if (!isNaN(savedIdx)) shotIndex = savedIdx;
+      if (!isNaN(savedIdx) && savedIdx >= 0 && savedIdx < allShots.length) shotIndex = savedIdx;
     }
     if (allShots.length === 0) {
       set('es-shot-label', 'No shots');
