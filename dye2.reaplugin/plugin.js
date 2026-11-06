@@ -844,6 +844,17 @@ function recipeMachineSettings(dv) {
       if (dv && dv[name] != null) (out[sub] = out[sub] || {})[field] = dv[name];
     }
   }
+  // Steam off is one state, not two independent zeros (dye2#46): Decaid reads a target below
+  // 135 as off regardless of duration, and Streamline reads duration 0 as off regardless of
+  // target, and writes both together. The editor now keeps the two paired on save, but a
+  // recipe saved before that rule (or shared in from elsewhere) can still hold only one half
+  // -- apply must not turn the heater on under a tile reading Off, or leave it running under
+  // one that reads Off.
+  const ss = out.steamSettings;
+  if (ss && (ss.duration === 0 || (ss.targetTemperature != null && ss.targetTemperature < 135))) {
+    ss.targetTemperature = 0;
+    ss.duration = 0;
+  }
   return out;
 }
 
@@ -12205,6 +12216,11 @@ function isNumericText(t) {
   return s !== '' && Number.isFinite(Number(s));
 }
 
+// min/max may be a plain number/null, or a zero-arg function resolved on each use — the
+// steam stepper's ceiling depends on which mode (time/flow) is active right now (dye2#46),
+// which a value captured once at wiring time couldn't express.
+function resolveBound(b) { return typeof b === 'function' ? b() : b; }
+
 function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, allowText) {
   [minusId, plusId].forEach(btnId => {
     const btn = document.getElementById(btnId);
@@ -12216,13 +12232,14 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, allow
       // Free text has no step to move by, and stepping would coerce it to a number.
       // Leave it alone — typing is the way to change it.
       if (allowText && !isNumericText(el.value)) return;
+      const lo = resolveBound(min), hi = resolveBound(max);
       const raw = parseFloat(el.value);
       // Empty field shows "—" → start from min (or 0) so + / − begin working.
-      const base = isNaN(raw) ? (min != null ? min : 0) : raw;
+      const base = isNaN(raw) ? (lo != null ? lo : 0) : raw;
       const delta = btnId === minusId ? -step : step;
       let val = parseFloat((base + delta).toFixed(3));
-      if (min != null) val = Math.max(min, val);
-      if (max != null) val = Math.min(max, val);
+      if (lo != null) val = Math.max(lo, val);
+      if (hi != null) val = Math.min(hi, val);
       el.value = formatter(val);
       syncPresetActive(valueId.replace('-value', ''), formatter(val));
     });
@@ -12298,8 +12315,9 @@ function makeValueEditable(valueId, min, max, formatter, allowText) {
     }
     let v = parseFloat(raw);
     if (apply && !isNaN(v)) {
-      if (min != null) v = Math.max(min, v);
-      if (max != null) v = Math.min(max, v);
+      const lo = resolveBound(min), hi = resolveBound(max);
+      if (lo != null) v = Math.max(lo, v);
+      if (hi != null) v = Math.min(hi, v);
       input.value = formatter(v);
       syncPresetActive(valueId.replace('-value', ''), formatter(v));
     } else {
@@ -12330,7 +12348,10 @@ function renderRecipe(recipe) {
   // A recipe can hold both values of a pair, so the stored mode (or whichever is held) picks the one shown.
   const steamMode = dv.steamMode    || (dv.steamFlowMls != null ? 'flow' : dv.steamTimeS != null ? 'time' : 'flow');
   const hwMode    = dv.hotWaterMode || (dv.hotWaterTempC != null ? 'temp' : 'vol');
-  const steamShown = steamMode === 'time' ? (dv.steamTimeS != null ? dv.steamTimeS + 's' : null) : (dv.steamFlowMls != null ? dv.steamFlowMls + 'ml/s' : null);
+  // Time's 0 is Off (dye2#46); flow has no off state, so its 0 (if ever held) is just 0.
+  const steamShown = steamMode === 'time'
+    ? (dv.steamTimeS != null ? (dv.steamTimeS === 0 ? 'Off' : dv.steamTimeS + 's') : null)
+    : (dv.steamFlowMls != null ? dv.steamFlowMls + 'ml/s' : null);
   const hwShown    = hwMode === 'vol' ? (dv.hotWaterMl != null ? dv.hotWaterMl + 'ml' : null) : (dv.hotWaterTempC != null ? dv.hotWaterTempC + '°C' : null);
   set('re-steam-value', steamShown || '—');
   set('re-flush-value', dv.flushS   != null ? dv.flushS + 's'        : '—');
@@ -12787,7 +12808,9 @@ function getCurrentRecipeData() {
     return Number.isFinite(n) ? n : t;
   };
   const steamMode = document.querySelector('.re-steam-mode.active')?.dataset.mode || 'flow';
-  const steamVal  = num('re-steam-value');
+  // num()'s parseFloat would read Time mode's 'Off' text as null, losing the 0 (dye2#46).
+  const steamTxt  = (document.getElementById('re-steam-value')?.value || '').trim();
+  const steamVal  = steamMode === 'time' && /^off$/i.test(steamTxt) ? 0 : num('re-steam-value');
   const hwMode    = document.querySelector('.re-hotwater-mode.active')?.dataset.mode || 'vol';
   const hwVal     = num('re-hotwater-value');
   // The mode only picks which value this editor shows. The other one is not on screen, so keep
@@ -12799,6 +12822,43 @@ function getCurrentRecipeData() {
   const ratioNum = ratioAttr ? parseFloat(ratioAttr) : NaN;
   const ratio = (!isNaN(ratioNum) && doseVal && drinkVal != null && Math.abs(drinkVal - Math.round(doseVal * ratioNum * 10) / 10) < 0.05)
     ? ratioNum : undefined;
+  const dv = {
+    dose:    num('re-dose-value'),
+    drink:   num('re-drink-value'),
+    ratio,
+    brewC:   num('re-brew-c-value'),
+    steamMode,
+    steamTimeS:   steamMode === 'time' ? steamVal : held.steamTimeS,
+    steamFlowMls: steamMode === 'flow' ? steamVal : held.steamFlowMls,
+    flushS:  num('re-flush-value'),
+    hotWaterMode:  hwMode,
+    hotWaterMl:    hwMode === 'vol'  ? hwVal : held.hotWaterMl,
+    hotWaterTempC: hwMode === 'temp' ? hwVal : held.hotWaterTempC,
+    // The section may be shut, but its steppers are rendered either way, so these read the
+    // same as every other field. 'Off' is a stored 0, not a blank (which means not held).
+    ...machineValues(held),
+    // Free text ("1.1.0", "15 clicks") is stored as typed; a numeric scale stays a number.
+    grind:   text('re-grind-value'),
+    rpm:     num('re-rpm-value'),
+    // Feed rate is a real <input>, not a stepper span: read .value, blank -> null like the rest.
+    feedRate: (() => { const v = (document.getElementById('re-feedrate-input')?.value || '').trim(); return v === '' ? null : v; })(),
+    grinderId: selectedGrinderId,
+    grinderModel: (grinders.find(g => g.id === selectedGrinderId) || {}).model,
+    basketId:   selectedBasketId,
+    basketName: (baskets.find(b => b.id === selectedBasketId) || {}).name,
+    equipmentIds:    equipmentSelIds.slice(),
+    equipmentNames:  equipmentSelNames.slice(),
+    equipmentCustom: { ...equipmentCustomOverrides },
+  };
+  // Steam off is one state, not two independent zeros (dye2#46): Decaid reads a target below
+  // 135 as off regardless of duration (de1_controller.dart steamEnabled), and Streamline reads
+  // duration 0 as off regardless of target (steam-mode.js steamOffPatch writes both together).
+  // Either side going to its own Off takes the other with it, so a save can never hold the
+  // heater on behind a tile reading Off, or the reverse.
+  if (dv.steamTimeS === 0 || (dv.steamTempC != null && dv.steamTempC < 135)) {
+    dv.steamTimeS = 0;
+    dv.steamTempC = 0;
+  }
   return {
     name:      document.getElementById('re-name-input')?.value || '',
     beverage:  document.getElementById('re-beverage-input')?.value || '',
@@ -12813,34 +12873,7 @@ function getCurrentRecipeData() {
     profileSnapshot: selectedProfileSnapshot,
     showOnStreamlineDashboard: showOnStreamline,
     stripSlot,
-    dashboardVariables: {
-      dose:    num('re-dose-value'),
-      drink:   num('re-drink-value'),
-      ratio,
-      brewC:   num('re-brew-c-value'),
-      steamMode,
-      steamTimeS:   steamMode === 'time' ? steamVal : held.steamTimeS,
-      steamFlowMls: steamMode === 'flow' ? steamVal : held.steamFlowMls,
-      flushS:  num('re-flush-value'),
-      hotWaterMode:  hwMode,
-      hotWaterMl:    hwMode === 'vol'  ? hwVal : held.hotWaterMl,
-      hotWaterTempC: hwMode === 'temp' ? hwVal : held.hotWaterTempC,
-      // The section may be shut, but its steppers are rendered either way, so these read the
-      // same as every other field. 'Off' is a stored 0, not a blank (which means not held).
-      ...machineValues(held),
-      // Free text ("1.1.0", "15 clicks") is stored as typed; a numeric scale stays a number.
-      grind:   text('re-grind-value'),
-      rpm:     num('re-rpm-value'),
-      // Feed rate is a real <input>, not a stepper span: read .value, blank -> null like the rest.
-      feedRate: (() => { const v = (document.getElementById('re-feedrate-input')?.value || '').trim(); return v === '' ? null : v; })(),
-      grinderId: selectedGrinderId,
-      grinderModel: (grinders.find(g => g.id === selectedGrinderId) || {}).model,
-      basketId:   selectedBasketId,
-      basketName: (baskets.find(b => b.id === selectedBasketId) || {}).name,
-      equipmentIds:    equipmentSelIds.slice(),
-      equipmentNames:  equipmentSelNames.slice(),
-      equipmentCustom: { ...equipmentCustomOverrides },
-    },
+    dashboardVariables: dv,
   };
 }
 
@@ -12990,7 +13023,8 @@ function applyMode(cls) {
     const held = recipe.dashboardVariables || {};
     const v = cfg.field ? held[cfg.field[mode]] : parseFloat(valEl.value);
     const n = v == null ? NaN : parseFloat(v);
-    valEl.value = isNaN(n) ? '—' : n + (cfg.unit[mode] || '');
+    // Steam Time's 0 is Off (dye2#46); Hot Water has no off state to show this way.
+    valEl.value = isNaN(n) ? '—' : (cls === 're-steam-mode' && mode === 'time' && n === 0 ? 'Off' : n + (cfg.unit[mode] || ''));
     syncPresetActive(idPrefix, valEl.value);
     renderPairSub(cls);
   }
@@ -13218,7 +13252,13 @@ async function initRecipeEdit() {
   wireAdjuster('re-dose-minus',  're-dose-plus',  're-dose-value',  0.5, 0, null, v => v + 'g');
   wireAdjuster('re-drink-minus', 're-drink-plus', 're-drink-value', 1,   0, null, v => v + 'g');
   wireAdjuster('re-brew-c-minus','re-brew-c-plus','re-brew-c-value',1, 60, 100,  v => v + '°c');
-  wireAdjuster('re-steam-minus', 're-steam-plus', 're-steam-value', 1,   0, null, v => v + (MODE_CFG['re-steam-mode'].unit[activeMode('re-steam-mode')] || 's'));
+  // Time mode's 0 is Off, and 255 is the DE1's own ceiling (TargetSteamLength is a byte) —
+  // dye2#46. No dead zone between 1 and the ceiling, so a plain floor/ceiling at 0/255 gets
+  // Off for free on the way down, unlike steamTempC/milkStop's wireOffAdjuster. Flow mode
+  // keeps its old unlimited range: it has no off state of its own to express.
+  wireAdjuster('re-steam-minus', 're-steam-plus', 're-steam-value', 1, 0,
+    () => (activeMode('re-steam-mode') === 'time' ? 255 : null),
+    v => (activeMode('re-steam-mode') === 'time' && v === 0) ? 'Off' : v + (MODE_CFG['re-steam-mode'].unit[activeMode('re-steam-mode')] || 's'));
   wireAdjuster('re-flush-minus', 're-flush-plus', 're-flush-value', 1,   0, null, v => v + 's');
   wireAdjuster('re-hotwater-minus','re-hotwater-plus','re-hotwater-value', 5, 0, null, v => v + (MODE_CFG['re-hotwater-mode'].unit[activeMode('re-hotwater-mode')] || 'ml'));
   for (const [prefix, , , unit, step, min, max, off] of MACHINE_FIELDS) {

@@ -419,6 +419,17 @@ function recipeMachineSettings(dv) {
       if (dv && dv[name] != null) (out[sub] = out[sub] || {})[field] = dv[name];
     }
   }
+  // Steam off is one state, not two independent zeros (dye2#46): Decaid reads a target below
+  // 135 as off regardless of duration, and Streamline reads duration 0 as off regardless of
+  // target, and writes both together. The editor now keeps the two paired on save, but a
+  // recipe saved before that rule (or shared in from elsewhere) can still hold only one half
+  // -- apply must not turn the heater on under a tile reading Off, or leave it running under
+  // one that reads Off.
+  const ss = out.steamSettings;
+  if (ss && (ss.duration === 0 || (ss.targetTemperature != null && ss.targetTemperature < 135))) {
+    ss.targetTemperature = 0;
+    ss.duration = 0;
+  }
   return out;
 }
 

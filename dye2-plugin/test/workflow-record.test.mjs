@@ -174,6 +174,21 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   assert.equal(kept.hotWaterMl, 120, 'the hidden hot-water value survives the save');
   assert.equal(kept.steamTempC, 150, 'the Machine Settings fields ride along too');
   assert.equal(run({}, null, null, null, { 're-steam-mode': 'flow' }).dashboardVariables.steamTimeS, undefined, 'nothing held, nothing invented');
+
+  // Steam off is one state, not two independent zeros (dye2#46). Either half going to its
+  // own Off takes the other with it, regardless of which mode is on screen.
+  const timeOff = run({ 're-steam-value': 'Off' }, null, null, { steamTempC: 150 }, { 're-steam-mode': 'time' }).dashboardVariables;
+  assert.equal(timeOff.steamTimeS, 0, "'Off' in time mode is 0, not null (num()'s parseFloat would lose it)");
+  assert.equal(timeOff.steamTempC, 0, 'and takes the Machine Settings temp off with it, even though it held 150');
+
+  const tempOff = run({ 're-steam-value': '1.2ml/s' }, null, null, { steamTimeS: 30, steamTempC: 0 }, { 're-steam-mode': 'flow' }).dashboardVariables;
+  assert.equal(tempOff.steamTempC, 0, 'Machine Settings off, as held');
+  assert.equal(tempOff.steamTimeS, 0, 'takes the hidden time value off with it, even though it held 30');
+  assert.equal(tempOff.steamFlowMls, 1.2, 'the shown flow value is untouched -- only time and temp pair');
+
+  const steamOn = run({ 're-steam-value': '30s' }, null, null, { steamTempC: 150 }, { 're-steam-mode': 'time' }).dashboardVariables;
+  assert.equal(steamOn.steamTimeS, 30, 'an ordinary on value is not touched');
+  assert.equal(steamOn.steamTempC, 150, 'neither is the paired temp');
   // the batch and roaster picked with the bean ride along on the saved record (dye2#27)
   const picked = run({}, 'b-9', 'Onyx');
   assert.equal(picked.beanBatchId, 'b-9');
@@ -324,6 +339,62 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   plus();
   assert.equal(value.value, '170°c', 'the maximum holds');
   console.log('ok   the Machine Settings section: steppers, Off, and the held summary');
+}
+
+// --- recipe editor: the steam stepper's Off/255 ceiling is mode-aware (dye2#46) -----------
+{
+  // Time mode's 0 is Off, and 255 is the DE1's own ceiling; Flow mode is untouched (no off
+  // state of its own, same unlimited range as before). Real source, same call as the real
+  // wiring site (setupControls).
+  const src = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
+  const fn = (sig) => { const i = src.indexOf(sig); return src.slice(i, src.indexOf('\n}\n', i) + 2); };
+  const rbStart = src.indexOf('function resolveBound(b)');
+  const resolveBoundLine = src.slice(rbStart, src.indexOf('\n', rbStart));
+  const cfgStart = src.indexOf('const MODE_CFG = {');
+  const code = [
+    src.slice(cfgStart, src.indexOf('\n};\n', cfgStart) + 4),
+    fn('function activeMode(cls)'),
+    fn('function isNumericText(t)'),
+    resolveBoundLine,
+    fn('function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, allowText)'),
+  ].join('\n');
+
+  let mode = 'time';
+  const handlers = {};
+  const value = { value: '—' };
+  const doc = {
+    getElementById: (id) => (id === 're-steam-value' ? value
+      : id === 're-steam-minus' || id === 're-steam-plus'
+        ? { addEventListener: (_, h) => { handlers[id] = h; } } : null),
+    querySelector: (sel) => (sel === '.re-steam-mode.active' ? { dataset: { mode } } : null),
+  };
+  new Function('document', 'syncPresetActive', 'makeValueEditable',
+    code + `; wireAdjuster('re-steam-minus', 're-steam-plus', 're-steam-value', 1, 0,
+      () => (activeMode('re-steam-mode') === 'time' ? 255 : null),
+      v => (activeMode('re-steam-mode') === 'time' && v === 0) ? 'Off' : v + (MODE_CFG['re-steam-mode'].unit[activeMode('re-steam-mode')] || 's'));`)(
+    doc, () => {}, () => {});
+  const plus = () => handlers['re-steam-plus']();
+  const minus = () => handlers['re-steam-minus']();
+
+  value.value = '1s';
+  minus();
+  assert.equal(value.value, 'Off', 'time mode: a plain floor at 0 reaches Off, no dead zone to jump over');
+  minus();
+  assert.equal(value.value, 'Off', 'and Off is the bottom');
+  plus();
+  assert.equal(value.value, '1s', 'plus off Off arms it at 1s');
+  value.value = '255s';
+  plus();
+  assert.equal(value.value, '255s', "time mode is capped at 255 -- the DE1's own ceiling (TargetSteamLength is a byte)");
+
+  mode = 'flow';
+  value.value = '1.2ml/s';
+  plus();
+  assert.equal(value.value, '2.2ml/s', 'flow mode keeps its old unlimited range');
+  value.value = '0ml/s';
+  minus();
+  assert.equal(value.value, '0ml/s', 'flow has no off state: it floors at 0 same as before, no "Off" label');
+  console.log('ok   the steam stepper: Off and a 255s ceiling in Time mode, Flow unaffected');
 }
 
 // --- recipe editor: an assigned bean/profile not in the loaded list still shows selected ---
@@ -593,6 +664,29 @@ const fav = () => ({ id: 'af1', snapshot: { dose: 18, drink: 36, grindSetting: 4
   // replacing them: the workflow would claim a profile it is not running.
   assert.ok(!('profile' in (await build(null))), 'an unresolvable profile is left out entirely');
   console.log('ok   an unresolvable profile is omitted rather than stubbed');
+}
+
+// --- apply pairs steam Off across both halves, even for data saved before the rule (dye2#46) ---
+{
+  const src = readFileSync(new URL('../src/utils/dev-api.ts', import.meta.url), 'utf8');
+  const cfgStart = src.indexOf('const RECIPE_MACHINE_FIELDS = {');
+  const start = src.indexOf('function recipeMachineSettings(dv)');
+  const recipeMachineSettings = new Function(
+    src.slice(cfgStart, src.indexOf('\n};\n', cfgStart) + 4) +
+    src.slice(start, src.indexOf('\n}\n', start) + 2) +
+    '; return recipeMachineSettings;'
+  )();
+
+  assert.deepEqual(recipeMachineSettings({ steamTimeS: 0, steamTempC: 150 }).steamSettings,
+    { targetTemperature: 0, duration: 0 }, 'a half-off recipe (saved before this rule, or synced in) is forced fully off on apply');
+  assert.deepEqual(recipeMachineSettings({ steamTimeS: 0 }).steamSettings,
+    { targetTemperature: 0, duration: 0 }, 'time off with no held temp still turns the heater off, not leaves it as the machine has it');
+  assert.deepEqual(recipeMachineSettings({ steamTempC: 50 }).steamSettings,
+    { targetTemperature: 0, duration: 0 }, 'any target below 135 is off to Decaid, not just a stored 0');
+  assert.deepEqual(recipeMachineSettings({ steamTempC: 150, steamFlowMls: 1.4 }).steamSettings,
+    { targetTemperature: 150, flow: 1.4 }, 'on is untouched, flow rides along unpaired');
+  assert.equal(recipeMachineSettings({}).steamSettings, undefined, 'nothing held, nothing invented');
+  console.log('ok   recipeMachineSettings: steam Off pairs on apply even for data saved before the rule');
 }
 
 // --- Clear sends no null the bridge refuses -------------------------------------------
