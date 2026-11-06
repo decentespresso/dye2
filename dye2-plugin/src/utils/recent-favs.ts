@@ -62,9 +62,15 @@ export function isExecutableRecordedProfile(profile: AnyRecord): boolean {
 }
 
 /**
- * The grouping key for a shot: bean (batch id, else roaster+name) + profile title +
+ * The grouping key for a shot: bean (roaster+name, never the batch id) + profile title +
  * grinder (id, else model). Returns null for a shot that should never form its own
  * recent group — a cleaning/calibrate run, or one with no bean identity at all.
+ *
+ * Deliberately NOT keyed by beanBatchId (dye2#44): a fresh bag of the same coffee gets a
+ * new batch id every time, so keying on it gave every bag its own "recent" — dozens of
+ * near-identical rows differing only by date. Grouping by name instead means reopening a
+ * bag of a coffee already in the strip updates that one row (newest shot wins the
+ * representative, see runRefresh) rather than adding another.
  */
 export function recentGroupKey(shot: AnyRecord): string | null {
   // Self-contained on purpose: recipe-sort.ts embeds this function's source (.toString()) in the
@@ -78,9 +84,7 @@ export function recentGroupKey(shot: AnyRecord): string | null {
   if (skipped.indexOf(profile.beverage_type) >= 0) return null;
   if (!ctx.beanBatchId && !ctx.coffeeName) return null;
 
-  const beanPart = ctx.beanBatchId
-    ? "batch:" + norm(ctx.beanBatchId)
-    : "name:" + norm(ctx.coffeeRoaster) + "::" + norm(ctx.coffeeName);
+  const beanPart = "name:" + norm(ctx.coffeeRoaster) + "::" + norm(ctx.coffeeName);
   const profilePart = "profile:" + norm(profile.title);
   const grinderPart = ctx.grinderId
     ? "gid:" + norm(ctx.grinderId)

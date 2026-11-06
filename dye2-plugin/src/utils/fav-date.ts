@@ -8,6 +8,13 @@
  * first-gen DYE does for past shots. Otherwise (no roast date, unparseable, or after the
  * shown date) it is "21 Aug 2025, 2:30pm". roastDate is a BeanBatch field, so the caller
  * resolves it (see auto-favs.ts).
+ *
+ * roastDate always comes from a `<input type=date>` round-tripped through
+ * `new Date(value).toISOString()` (add-bean.ts, auto-fav-edit.ts), which parses a date-only
+ * string as UTC midnight — so the stored instant's UTC calendar day is the one the user
+ * picked, not its local one. Reading it back with local getters shifts it a day on any
+ * tablet west of UTC (dye2#44). Its calendar day is read in UTC below; the shown date's
+ * stays local, since that one is a real timestamp meant to read as the viewer's wall clock.
  */
 export const favDateScript = `
 // en-GB prints "Sept" for September in current engines; the design uses three letters.
@@ -25,7 +32,7 @@ function formatFavDate(capturedAt, roastDate) {
     const rd = new Date(roastDate);
     if (!isNaN(rd.getTime())) {
       const days = Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) -
-        Date.UTC(rd.getFullYear(), rd.getMonth(), rd.getDate())) / 86400000);
+        Date.UTC(rd.getUTCFullYear(), rd.getUTCMonth(), rd.getUTCDate())) / 86400000);
       if (days >= 0) return dateStr + ' (' + days + (days === 1 ? ' day' : ' days') + ' off-roast)';
     }
   }

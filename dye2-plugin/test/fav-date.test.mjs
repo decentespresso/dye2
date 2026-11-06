@@ -1,3 +1,9 @@
+// Forced west-of-UTC, regardless of the machine running this suite: roastDate is always a
+// `<input type=date>` value round-tripped through `new Date(value).toISOString()`, a true
+// UTC-midnight instant. A test host east of UTC (so was this one, originally) can't catch a
+// regression that only shows up reading that instant back with local getters (dye2#44).
+process.env.TZ = 'America/Los_Angeles';
+
 import assert from 'node:assert/strict';
 import { favDateScript } from '../src/utils/fav-date.ts';
 
@@ -6,13 +12,13 @@ const at = (y, m, d, h = 14, min = 30) => new Date(y, m - 1, d, h, min).toISOStr
 
 assert.equal(formatFavDate(at(2025, 8, 21), ''), '21 Aug 2025, 2:30pm', 'no roast date: date + 12h time');
 assert.equal(formatFavDate(at(2025, 8, 21, 0, 5), null), '21 Aug 2025, 12:05am');
-assert.equal(formatFavDate(at(2025, 8, 14), '2025-07-15T00:00:00'), '14 Aug 2025 (30 days off-roast)', 'date only + days roast -> shown date');
-assert.equal(formatFavDate(at(2025, 8, 21), '2025-08-20T00:00:00'), '21 Aug 2025 (1 day off-roast)', 'singular');
-assert.equal(formatFavDate(at(2025, 8, 21, 9, 0), '2025-08-21T23:00:00'), '21 Aug 2025 (0 days off-roast)', 'same calendar day is 0');
-assert.equal(formatFavDate(at(2025, 8, 21), '2025-08-22T00:00:00'), '21 Aug 2025, 2:30pm', 'roast after the shown date: plain');
+assert.equal(formatFavDate(at(2025, 8, 14), '2025-07-15T00:00:00Z'), '14 Aug 2025 (30 days off-roast)', 'date only + days roast -> shown date; UTC midnight read back as 30, not 31, west of UTC');
+assert.equal(formatFavDate(at(2025, 8, 21), '2025-08-20T00:00:00Z'), '21 Aug 2025 (1 day off-roast)', 'singular');
+assert.equal(formatFavDate(at(2025, 8, 21, 9, 0), '2025-08-21T23:00:00Z'), '21 Aug 2025 (0 days off-roast)', 'same calendar day is 0');
+assert.equal(formatFavDate(at(2025, 8, 21), '2025-08-22T00:00:00Z'), '21 Aug 2025, 2:30pm', 'roast after the shown date: plain');
 assert.equal(formatFavDate(at(2025, 8, 21), 'nope'), '21 Aug 2025, 2:30pm', 'unparseable roast date: plain');
 assert.equal(formatFavDate(at(2026, 9, 23), ''), '23 Sep 2026, 2:30pm', 'three-letter September, not en-GB "Sept"');
-assert.equal(formatFavDate(at(2026, 9, 23), '2026-09-01T00:00:00'), '23 Sep 2026 (22 days off-roast)');
+assert.equal(formatFavDate(at(2026, 9, 23), '2026-09-01T00:00:00Z'), '23 Sep 2026 (22 days off-roast)');
 assert.equal(formatFavDate('garbage', '2025-07-15'), '', 'bad capture date renders nothing');
 assert.equal(formatFavDate(null, ''), '');
 

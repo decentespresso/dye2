@@ -9155,8 +9155,14 @@ function renderShot(shot) {
   const roastDate = ctx.roastDate || batchRoastDate(ctx.beanBatchId, shot);
   if (roastDate) {
     const rd = new Date(roastDate);
-    const diff = Math.floor((new Date() - rd) / 86400000);
-    const ds = rd.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+    // Off-roast as of the shot's own date, not today's (dye2#44) -- a past shot's number
+    // shouldn't keep climbing every time someone reopens it. roastDate is always a
+    // date-only input round-tripped through toISOString(), a UTC-midnight instant, so its
+    // calendar day is read in UTC (see fav-date.ts) rather than shifted by the viewer's zone.
+    const shotDate = new Date(shot.timestamp || shot.createdAt || Date.now());
+    const diff = Math.round((Date.UTC(shotDate.getFullYear(), shotDate.getMonth(), shotDate.getDate()) -
+      Date.UTC(rd.getUTCFullYear(), rd.getUTCMonth(), rd.getUTCDate())) / 86400000);
+    const ds = rd.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric', timeZone: 'UTC' });
     set('es-bean-age', ds + ' (' + diff + ' days off-roast)');
   } else {
     set('es-bean-age', '');

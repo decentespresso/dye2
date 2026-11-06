@@ -1519,8 +1519,13 @@ function renderNextShot() {
       let info = coffeeRoaster ? 'Roasted by ' + coffeeRoaster : '';
       if (roastDate) {
         const rd = new Date(roastDate);
-        const diffDays = Math.floor((new Date() - rd) / (1000 * 60 * 60 * 24));
-        const dateStr = rd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        // roastDate is always a date-only input round-tripped through toISOString(), a
+        // UTC-midnight instant, so its calendar day is read in UTC, not shifted by the
+        // viewer's own zone (dye2#44).
+        const now = new Date();
+        const diffDays = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) -
+          Date.UTC(rd.getUTCFullYear(), rd.getUTCMonth(), rd.getUTCDate())) / 86400000);
+        const dateStr = rd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
         info += info ? ' on ' + dateStr + ' (' + diffDays + ' days off-roast)' : dateStr + ' (' + diffDays + ' days off-roast)';
       }
       roastInfoEl.textContent = info;

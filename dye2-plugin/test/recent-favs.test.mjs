@@ -46,11 +46,13 @@ function makeShot(id, timestamp, overrides) {
 // --- recentGroupKey ------------------------------------------------------------
 
 {
-  const a = makeShot('z', 't1');
-  const b = makeShot('b', 't2', { context: { beanBatchId: '  BATCH-A  ' } });
-  const c = makeShot('c', 't3', { context: { beanBatchId: 'batch-a' } });
-  assert.equal(recentGroupKey(b), recentGroupKey(c), 'trim + lowercase makes these the same batch');
-  assert.notEqual(recentGroupKey(a), recentGroupKey(b), 'a different batch id is a different group');
+  // dye2#44: grouping is by name, never the batch id — a fresh bag of the same coffee
+  // (a new beanBatchId every time) must still land in the one existing group.
+  const a = makeShot('a', 't1', { context: { beanBatchId: 'bag-1', coffeeName: 'Same Coffee' } });
+  const b = makeShot('b', 't2', { context: { beanBatchId: 'bag-2', coffeeName: '  Same Coffee ' } });
+  const c = makeShot('c', 't3', { context: { beanBatchId: 'bag-3', coffeeName: 'Other Coffee' } });
+  assert.equal(recentGroupKey(a), recentGroupKey(b), 'a new bag (different batch id) of the same coffee is the same group, trim/case-insensitive');
+  assert.notEqual(recentGroupKey(a), recentGroupKey(c), 'a different coffee name is a different group');
 }
 
 {
@@ -390,7 +392,10 @@ function makeBridge(shots, kv) {
   };
   return { fetchFn, calls };
 }
-const shotAt = (id, days, bean, extra) => makeShot(id, recent(days), { context: { beanBatchId: bean }, ...(extra || {}) });
+// `bean` stands in for "same bag" in these tests: a distinct batch id so a real run would
+// still tell the shots apart, but the same coffeeName so they group together (dye2#44 —
+// grouping is by name now, not batch id; see recentGroupKey).
+const shotAt = (id, days, bean, extra) => makeShot(id, recent(days), { context: { beanBatchId: bean + '-batch-' + id, coffeeName: bean }, ...(extra || {}) });
 const scans = (calls) => calls.filter((c) => c.indexOf('/shots?limit=100') >= 0).length;
 
 {
