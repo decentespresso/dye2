@@ -1167,6 +1167,40 @@ function buildGrinderBody(fields, isEdit, existingExtras) {
 }
 `;
 	//#endregion
+	//#region src/utils/fav-card-tap.ts
+	/**
+	* What a tap on a favourite card does, as a browser-side script string (no local imports,
+	* so test/fav-card-tap.test.mjs can eval it directly): the first tap selects, tapping the
+	* card that is already selected opens its edit page.
+	*/
+	var favCardTapScript = `
+function decideCardTap(selectedId, favId) {
+  return selectedId && favId && selectedId === favId ? 'edit' : 'select';
+}
+`;
+	/**
+	* The 500 ms card long-press, shared by auto-favs, select-recipe and bean-picker: calls
+	* onLong() after a held press, and swallows the click that ends it so the card's ordinary
+	* tap does not also fire. (shared-components' attachPresetLongPress is a different shape:
+	* it can decline to fire, so it keeps its own copy.)
+	*/
+	var cardLongPressScript = `
+function attachCardLongPress(card, onLong) {
+  let timer = null, longFired = false;
+  const clear = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  card.addEventListener('pointerdown', () => {
+    longFired = false;
+    clear();
+    timer = setTimeout(() => { timer = null; longFired = true; onLong(); }, 500);
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev => card.addEventListener(ev, clear));
+  // Capture phase: stop the trailing click from also firing the card's tap.
+  card.addEventListener('click', (e) => {
+    if (longFired) { e.stopImmediatePropagation(); e.preventDefault(); longFired = false; }
+  }, true);
+}
+`;
+	//#endregion
 	//#region src/pages/grinders.ts
 	var styles$13 = `
   .dye-sort-btn {
@@ -1209,6 +1243,14 @@ function buildGrinderBody(fields, isEdit, existingExtras) {
     gap: 8px;
   }
   .dye-card:hover { opacity: 0.85; }
+  /* Same selected treatment as grinder-picker, so the two grids read alike. */
+  .dye-card.dye-card-selected {
+    background: var(--mimoja-blue);
+    border-color: var(--mimoja-blue);
+    color: #fff;
+  }
+  .dye-card.dye-card-selected .dye-card-sub,
+  .dye-card.dye-card-selected .dye-card-date { opacity: 0.85; }
   .dye-card-add {
     border: 2px solid var(--mimoja-blue);
     color: var(--mimoja-blue);
@@ -1400,6 +1442,7 @@ let searchQuery = '';
 let editingId = null;
 let editingExtras = {};
 let currentSort = 'recent';
+let selectedGrinderId = null;
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -1469,7 +1512,20 @@ function renderGrinderCards(grid) {
       '<div class="dye-card-name">' + esc(grinderName(g)) + '</div>' +
       (sub ? '<div class="dye-card-sub">' + esc(sub) + '</div>' : '') +
       (meta ? '<div class="dye-card-date">' + esc(meta) + '</div>' : '');
-    card.addEventListener('click', () => openModal(g));
+    if (g.id === selectedGrinderId) card.classList.add('dye-card-selected');
+    // Tap picks the grinder for the next shot, a 500ms hold edits it -- the same split as
+    // bean-picker and the dashboard's grinder tabs. There is no CONFIRM on this page, so the
+    // tap writes straight through; PUT /workflow deep-merges, so this partial context is safe.
+    // attachCardLongPress swallows the click that ends the hold, so the hold does not also
+    // select. Verified in Chrome: it swallows regardless of which of the two is wired first.
+    attachCardLongPress(card, () => openModal(g));
+    card.addEventListener('click', () => {
+      grid.querySelectorAll('.dye-card').forEach(c => c.classList.remove('dye-card-selected'));
+      card.classList.add('dye-card-selected');
+      selectedGrinderId = g.id;
+      updateWorkflow({ context: markDye({ grinderId: g.id, grinderModel: grinderName(g) }) })
+        .catch(e => console.warn('workflow update failed:', e));
+    });
     grid.appendChild(card);
   });
 }
@@ -1557,11 +1613,25 @@ async function reload() {
   renderGrinderCards(document.getElementById('dye-cards-grid'));
 }
 
+/* The grid shows which grinder the next shot will use, so the live workflow is the source of
+   truth for the highlight -- not sessionStorage, which a Streamline-side change would not
+   touch. Match by id; older workflow state only ever carried the model string. */
+async function loadSelectedGrinder() {
+  try {
+    const ctx = ((await getWorkflow()) || {}).context || {};
+    selectedGrinderId = (ctx.grinderId && grindersCache.some(g => g.id === ctx.grinderId))
+      ? ctx.grinderId
+      : ((grindersCache.find(g => grinderName(g) === ctx.grinderModel) || {}).id || null);
+  } catch (e) { console.warn('Could not read the live workflow:', e); }
+}
+
 async function initializeDyeGrinders() {
   const grid = document.getElementById('dye-cards-grid');
   if (!grid) return;
 
   await reload();
+  await loadSelectedGrinder();
+  renderGrinderCards(grid);
   setupSortButtons((sort) => { currentSort = sort; renderGrinderCards(grid); });
 
   const editId = new URLSearchParams(window.location.search).get('edit');
@@ -1595,6 +1665,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
 			body: devPageShell("Grinders", content$11, styles$13, [
 				devApiScript,
 				buildGrinderBodyScript,
+				cardLongPressScript,
 				pageScript$15
 			])
 		};
@@ -2314,40 +2385,6 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
 			body: devPageShell("Equipment", content$9, styles$11, [devApiScript, pageScript$13])
 		};
 	}
-	//#endregion
-	//#region src/utils/fav-card-tap.ts
-	/**
-	* What a tap on a favourite card does, as a browser-side script string (no local imports,
-	* so test/fav-card-tap.test.mjs can eval it directly): the first tap selects, tapping the
-	* card that is already selected opens its edit page.
-	*/
-	var favCardTapScript = `
-function decideCardTap(selectedId, favId) {
-  return selectedId && favId && selectedId === favId ? 'edit' : 'select';
-}
-`;
-	/**
-	* The 500 ms card long-press, shared by auto-favs, select-recipe and bean-picker: calls
-	* onLong() after a held press, and swallows the click that ends it so the card's ordinary
-	* tap does not also fire. (shared-components' attachPresetLongPress is a different shape:
-	* it can decline to fire, so it keeps its own copy.)
-	*/
-	var cardLongPressScript = `
-function attachCardLongPress(card, onLong) {
-  let timer = null, longFired = false;
-  const clear = () => { if (timer) { clearTimeout(timer); timer = null; } };
-  card.addEventListener('pointerdown', () => {
-    longFired = false;
-    clear();
-    timer = setTimeout(() => { timer = null; longFired = true; onLong(); }, 500);
-  });
-  ['pointerup','pointerleave','pointercancel'].forEach(ev => card.addEventListener(ev, clear));
-  // Capture phase: stop the trailing click from also firing the card's tap.
-  card.addEventListener('click', (e) => {
-    if (longFired) { e.stopImmediatePropagation(); e.preventDefault(); longFired = false; }
-  }, true);
-}
-`;
 	//#endregion
 	//#region src/utils/lucide.ts
 	/** Inline Lucide SVG icons — only icons used in DYE2 redesign */
@@ -3507,6 +3544,19 @@ async function submitForm() {
   }
 }
 
+// Both buttons leave the same way. history.back() is right for edit-shot, which
+// navigated here from its own page, but wrong for a caller that made this page the
+// FIRST entry of a fresh browsing context: Streamline opens DYE2 pages in an iframe
+// overlay, where there is no entry of ours to pop and back() walks the parent instead.
+// ?return= names where to go, exactly as recipe-edit and the dashboard already read it.
+// Unlike bean-picker's, this one changes nothing else: confirm still writes the
+// workflow, so the caller gets the pick through the workflow, not through a hand-back.
+function leavePicker() {
+  const ret = new URLSearchParams(location.search).get('return');
+  if (ret) { window.location.href = ret; return; }
+  window.history.back();
+}
+
 async function initializeDyeGrinders() {
   const grid = document.getElementById('dye-cards-grid');
   const cancelBtn = document.getElementById('dye-cancel-btn');
@@ -3535,7 +3585,7 @@ async function initializeDyeGrinders() {
   if (cancelBtn) {
     cancelBtn.addEventListener('click', () => {
       ['dye_selectedGrinderId','dye_selectedGrinderModel'].forEach(k => sessionStorage.removeItem(k));
-      window.history.back();
+      leavePicker();
     });
   }
 
@@ -3546,7 +3596,7 @@ async function initializeDyeGrinders() {
       try {
         await updateWorkflow({ context: markDye({ grinderId: selectedGrinderId, grinderModel: g ? grinderName(g) : '' }) });
       } catch (e) { console.warn('workflow update failed:', e); }
-      window.history.back();
+      leavePicker();
     });
   }
 

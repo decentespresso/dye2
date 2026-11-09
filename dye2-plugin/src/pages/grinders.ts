@@ -1,6 +1,7 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
 import { buildGrinderBodyScript } from "../utils/grinder-form";
+import { cardLongPressScript } from "../utils/fav-card-tap";
 
 const styles = `
   .dye-sort-btn {
@@ -43,6 +44,14 @@ const styles = `
     gap: 8px;
   }
   .dye-card:hover { opacity: 0.85; }
+  /* Same selected treatment as grinder-picker, so the two grids read alike. */
+  .dye-card.dye-card-selected {
+    background: var(--mimoja-blue);
+    border-color: var(--mimoja-blue);
+    color: #fff;
+  }
+  .dye-card.dye-card-selected .dye-card-sub,
+  .dye-card.dye-card-selected .dye-card-date { opacity: 0.85; }
   .dye-card-add {
     border: 2px solid var(--mimoja-blue);
     color: var(--mimoja-blue);
@@ -236,6 +245,7 @@ let searchQuery = '';
 let editingId = null;
 let editingExtras = {};
 let currentSort = 'recent';
+let selectedGrinderId = null;
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -305,7 +315,20 @@ function renderGrinderCards(grid) {
       '<div class="dye-card-name">' + esc(grinderName(g)) + '</div>' +
       (sub ? '<div class="dye-card-sub">' + esc(sub) + '</div>' : '') +
       (meta ? '<div class="dye-card-date">' + esc(meta) + '</div>' : '');
-    card.addEventListener('click', () => openModal(g));
+    if (g.id === selectedGrinderId) card.classList.add('dye-card-selected');
+    // Tap picks the grinder for the next shot, a 500ms hold edits it -- the same split as
+    // bean-picker and the dashboard's grinder tabs. There is no CONFIRM on this page, so the
+    // tap writes straight through; PUT /workflow deep-merges, so this partial context is safe.
+    // attachCardLongPress swallows the click that ends the hold, so the hold does not also
+    // select. Verified in Chrome: it swallows regardless of which of the two is wired first.
+    attachCardLongPress(card, () => openModal(g));
+    card.addEventListener('click', () => {
+      grid.querySelectorAll('.dye-card').forEach(c => c.classList.remove('dye-card-selected'));
+      card.classList.add('dye-card-selected');
+      selectedGrinderId = g.id;
+      updateWorkflow({ context: markDye({ grinderId: g.id, grinderModel: grinderName(g) }) })
+        .catch(e => console.warn('workflow update failed:', e));
+    });
     grid.appendChild(card);
   });
 }
@@ -393,11 +416,25 @@ async function reload() {
   renderGrinderCards(document.getElementById('dye-cards-grid'));
 }
 
+/* The grid shows which grinder the next shot will use, so the live workflow is the source of
+   truth for the highlight -- not sessionStorage, which a Streamline-side change would not
+   touch. Match by id; older workflow state only ever carried the model string. */
+async function loadSelectedGrinder() {
+  try {
+    const ctx = ((await getWorkflow()) || {}).context || {};
+    selectedGrinderId = (ctx.grinderId && grindersCache.some(g => g.id === ctx.grinderId))
+      ? ctx.grinderId
+      : ((grindersCache.find(g => grinderName(g) === ctx.grinderModel) || {}).id || null);
+  } catch (e) { console.warn('Could not read the live workflow:', e); }
+}
+
 async function initializeDyeGrinders() {
   const grid = document.getElementById('dye-cards-grid');
   if (!grid) return;
 
   await reload();
+  await loadSelectedGrinder();
+  renderGrinderCards(grid);
   setupSortButtons((sort) => { currentSort = sort; renderGrinderCards(grid); });
 
   const editId = new URLSearchParams(window.location.search).get('edit');
@@ -429,6 +466,6 @@ export function renderGrindersPage(request: HttpRequest): HttpResponse {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Grinders", content, styles, [devApiScript, buildGrinderBodyScript, pageScript]),
+    body: devPageShell("Grinders", content, styles, [devApiScript, buildGrinderBodyScript, cardLongPressScript, pageScript]),
   };
 }

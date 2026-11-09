@@ -425,6 +425,19 @@ async function submitForm() {
   }
 }
 
+// Both buttons leave the same way. history.back() is right for edit-shot, which
+// navigated here from its own page, but wrong for a caller that made this page the
+// FIRST entry of a fresh browsing context: Streamline opens DYE2 pages in an iframe
+// overlay, where there is no entry of ours to pop and back() walks the parent instead.
+// ?return= names where to go, exactly as recipe-edit and the dashboard already read it.
+// Unlike bean-picker's, this one changes nothing else: confirm still writes the
+// workflow, so the caller gets the pick through the workflow, not through a hand-back.
+function leavePicker() {
+  const ret = new URLSearchParams(location.search).get('return');
+  if (ret) { window.location.href = ret; return; }
+  window.history.back();
+}
+
 async function initializeDyeGrinders() {
   const grid = document.getElementById('dye-cards-grid');
   const cancelBtn = document.getElementById('dye-cancel-btn');
@@ -453,7 +466,7 @@ async function initializeDyeGrinders() {
   if (cancelBtn) {
     cancelBtn.addEventListener('click', () => {
       ['dye_selectedGrinderId','dye_selectedGrinderModel'].forEach(k => sessionStorage.removeItem(k));
-      window.history.back();
+      leavePicker();
     });
   }
 
@@ -464,7 +477,7 @@ async function initializeDyeGrinders() {
       try {
         await updateWorkflow({ context: markDye({ grinderId: selectedGrinderId, grinderModel: g ? grinderName(g) : '' }) });
       } catch (e) { console.warn('workflow update failed:', e); }
-      window.history.back();
+      leavePicker();
     });
   }
 
