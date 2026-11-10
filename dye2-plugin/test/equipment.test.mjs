@@ -54,7 +54,10 @@ console.log('ok   equipment KV table');
   assert.equal(noBean.beanBatchId, null, 'a recipe naming no bean clears the live bean');
   assert.equal(noBean.coffeeName, null);
   assert.equal(noBean.coffeeRoaster, null);
-  assert.ok(!('grinderModel' in noBean), 'but not the grinder: equipment is not the recipe');
+  // The grinder follows the same rule since streamline-js#189: a shot must not be filed
+  // under the previously applied item's grinder. Covered in full alongside the bean.
+  assert.equal(noBean.grinderModel, null, 'a recipe naming no grinder clears the live one');
+  assert.ok('grinderModel' in noBean, 'as an explicit null -- an absent key deep-merges away');
   console.log('ok   recipe workflow carries the bean batch');
 }
 
@@ -128,17 +131,22 @@ console.log('ok   equipment KV table');
   })).context;
   assert.deepEqual(r.extras.dye, {
     v: 1, coffeeName: true, coffeeRoaster: true, beanBatchId: null, grinderId: true, grinderModel: true,
-    baristaName: true, basketId: true, basketName: true, rpm: true,
-  }, 'recipe flags what it set; the absent batch it clears is nulled');
-  assert.ok(!('drinkerName' in r.extras.dye) && !('note' in r.extras.dye), 'unset fields are not flagged');
+    baristaName: true, drinkerName: null, basketId: true, basketName: true, rpm: true,
+  }, 'recipe flags what it set; the batch and the drinker it clears are nulled');
+  assert.ok(!('note' in r.extras.dye), 'unset fields are not flagged');
   assert.equal(r.extras.rpm, 900, 'values survive the flagging');
   // A recipe naming no bean still writes something flaggable: the three nulls that clear the
   // previous recipe's coffee. They are flagged null, exactly like the batch cleared above, so
   // Streamline's post-shot clear knows DYE2 nulled them rather than never touching them.
+  // Since streamline-js#189 the identities it clears are in there too, flagged null for the
+  // same reason: DYE2 nulled them, it did not leave them untouched.
   const none = (await api.buildRecipeWorkflow({ dashboardVariables: { dose: 18 } })).context;
-  assert.deepEqual(none.extras.dye, { v: 1, coffeeName: null, coffeeRoaster: null, beanBatchId: null });
-  assert.ok(!('grinderId' in none.extras.dye) && !('rpm' in none.extras.dye),
-    'and nothing else is claimed');
+  assert.deepEqual(none.extras.dye, {
+    v: 1, coffeeName: null, coffeeRoaster: null, beanBatchId: null,
+    grinderId: null, grinderModel: null, baristaName: null, drinkerName: null,
+    basketId: null, basketName: null,
+  });
+  assert.ok(!('rpm' in none.extras.dye), 'and a number it never set is not claimed');
 
   const f = (await api.buildFavouriteWorkflow({ snapshot: { dose: 18, note: 'n', coffeeName: 'X', rpm: 800, grindSetting: 3 }, copyMask: { beans: false } })).context;
   assert.deepEqual(f.extras.dye, { v: 1, rpm: true, note: true }, 'copyMask-skipped fields are not flagged');

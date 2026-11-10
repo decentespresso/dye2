@@ -443,11 +443,20 @@ async function buildRecipeWorkflow(recipe) {
   if (dv.grind != null) ctx.grinderSetting = String(dv.grind);
   if (dv.rpm != null)   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm };
   if (dv.feedRate != null) ctx.extras = { ...(ctx.extras || {}), feedRate: dv.feedRate };
-  if (dv.grinderId) ctx.grinderId = dv.grinderId;
-  // PUT /workflow deep-merges, so omitting grinderModel would leave the previous grinder's name.
-  if (dv.grinderModel) ctx.grinderModel = dv.grinderModel;
-  if (dv.basketId)   ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId };
-  if (dv.basketName) ctx.extras = { ...(ctx.extras || {}), basketName: dv.basketName };
+  // The bean rule below (dye2#27), now for the rest of the identities (streamline-js#189):
+  // a recipe naming no grinder, basket, barista or drinker CLEARS the live one instead of
+  // inheriting it. PUT deep-merges, so omitting these left the previously applied item's
+  // grinder standing — tap a recipe that records a grinder, then one that does not, and the
+  // second shot is filed under the first one's grinder, basket and barista.
+  //
+  // The numbers are deliberately NOT in this rule: grind, dose, yield, rpm and feed rate
+  // carry over when a recipe does not name them. "Ground on the Niche" is a claim about this
+  // shot and must not be inherited; a grind of 7.5 is just where the dial sits and stays true
+  // until someone moves it. So a recipe holding a grind with no grinder — every recipe saved
+  // before DYE2 tracked grinders — sets the number and clears the attribution.
+  ctx.grinderId    = dv.grinderId    || null;
+  ctx.grinderModel = dv.grinderModel || null;
+  ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId || null, basketName: dv.basketName || null };
   // One pick, written together: a recipe naming a bean with no batch clears the previous
   // batch (PUT deep-merges, so omitting it would keep another roast's id). See dye2#27.
   if (recipe && (recipe.beanId || recipe.beanName)) {
@@ -464,8 +473,8 @@ async function buildRecipeWorkflow(recipe) {
     ctx.coffeeRoaster = null;
     ctx.beanBatchId   = null;
   }
-  if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
-  if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;
+  ctx.baristaName = (recipe && recipe.barista) || null;
+  ctx.drinkerName = (recipe && recipe.drinker) || null;
   if (recipe && (recipe.profileId || recipe.profileTitle)) {
     if (usableProfileSnapshot(recipe.profileSnapshot)) {
       wf.profile = recipe.profileSnapshot;

@@ -868,11 +868,20 @@ async function buildRecipeWorkflow(recipe) {
   if (dv.grind != null) ctx.grinderSetting = String(dv.grind);
   if (dv.rpm != null)   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm };
   if (dv.feedRate != null) ctx.extras = { ...(ctx.extras || {}), feedRate: dv.feedRate };
-  if (dv.grinderId) ctx.grinderId = dv.grinderId;
-  // PUT /workflow deep-merges, so omitting grinderModel would leave the previous grinder's name.
-  if (dv.grinderModel) ctx.grinderModel = dv.grinderModel;
-  if (dv.basketId)   ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId };
-  if (dv.basketName) ctx.extras = { ...(ctx.extras || {}), basketName: dv.basketName };
+  // The bean rule below (dye2#27), now for the rest of the identities (streamline-js#189):
+  // a recipe naming no grinder, basket, barista or drinker CLEARS the live one instead of
+  // inheriting it. PUT deep-merges, so omitting these left the previously applied item's
+  // grinder standing — tap a recipe that records a grinder, then one that does not, and the
+  // second shot is filed under the first one's grinder, basket and barista.
+  //
+  // The numbers are deliberately NOT in this rule: grind, dose, yield, rpm and feed rate
+  // carry over when a recipe does not name them. "Ground on the Niche" is a claim about this
+  // shot and must not be inherited; a grind of 7.5 is just where the dial sits and stays true
+  // until someone moves it. So a recipe holding a grind with no grinder — every recipe saved
+  // before DYE2 tracked grinders — sets the number and clears the attribution.
+  ctx.grinderId    = dv.grinderId    || null;
+  ctx.grinderModel = dv.grinderModel || null;
+  ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId || null, basketName: dv.basketName || null };
   // One pick, written together: a recipe naming a bean with no batch clears the previous
   // batch (PUT deep-merges, so omitting it would keep another roast's id). See dye2#27.
   if (recipe && (recipe.beanId || recipe.beanName)) {
@@ -889,8 +898,8 @@ async function buildRecipeWorkflow(recipe) {
     ctx.coffeeRoaster = null;
     ctx.beanBatchId   = null;
   }
-  if (recipe && recipe.barista) ctx.baristaName = recipe.barista;
-  if (recipe && recipe.drinker) ctx.drinkerName = recipe.drinker;
+  ctx.baristaName = (recipe && recipe.barista) || null;
+  ctx.drinkerName = (recipe && recipe.drinker) || null;
   if (recipe && (recipe.profileId || recipe.profileTitle)) {
     if (usableProfileSnapshot(recipe.profileSnapshot)) {
       wf.profile = recipe.profileSnapshot;
@@ -7682,8 +7691,15 @@ async function applyRecipe(recipe) {
   if (dv.rpm != null)   { ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm }; wrote.push('rpm'); }
   if (dv.feedRate != null) { ctx.extras = { ...(ctx.extras || {}), feedRate: dv.feedRate }; wrote.push('feedRate'); }
   const grinder = dv.grinderId ? grinders.find(g => g.id === dv.grinderId) : null;
-  // Write id and name together: tabs match by id, shots record the name.
-  if (grinder) { ctx.grinderId = grinder.id; ctx.grinderModel = grinder.model || grinder.name; wrote.push('grinderId', 'grinderModel'); }
+  // Write id and name together: tabs match by id, shots record the name. A recipe naming no
+  // grinder (or one whose grinder has since been deleted) CLEARS it rather than leaving the
+  // previously applied item's grinder on the next shot — the identity rule below, and the same
+  // rule dev-api buildRecipeWorkflow applies to the stored body (streamline-js#189).
+  if (grinder) { ctx.grinderId = grinder.id; ctx.grinderModel = grinder.model || grinder.name; }
+  else { ctx.grinderId = null; ctx.grinderModel = null; }
+  wrote.push('grinderId', 'grinderModel');
+  ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId || null, basketName: dv.basketName || null };
+  wrote.push('basketId', 'basketName');
   // Bean, roaster and batch are one pick (bean-picker), so they move together: a recipe that
   // names a bean but holds no batch clears the previous one rather than leaving a shot
   // carrying one roast's id under another coffee's name (dye2#27).
@@ -7694,13 +7710,15 @@ async function applyRecipe(recipe) {
     wrote.push('coffeeName', 'coffeeRoaster', 'beanBatchId');
   } else {
     // Naming no bean clears the live one: switching from a recipe that names Ethiopia to one
-    // that names nothing must not leave the next shot recorded under Ethiopia. Equipment and
-    // session fields (grinder, basket, barista) are left alone — see dev-api buildRecipeWorkflow.
+    // that names nothing must not leave the next shot recorded under Ethiopia. The equipment
+    // and session identities follow the same rule above and below; the numbers (grind, dose,
+    // yield, rpm, feed rate) do not — see dev-api buildRecipeWorkflow.
     ctx.coffeeName = null; ctx.coffeeRoaster = null; ctx.beanBatchId = null;
     wrote.push('coffeeName', 'coffeeRoaster', 'beanBatchId');
   }
-  if (recipe.barista) { ctx.baristaName = recipe.barista; wrote.push('baristaName'); }
-  if (recipe.drinker) { ctx.drinkerName = recipe.drinker; wrote.push('drinkerName'); }
+  ctx.baristaName = recipe.barista || null;
+  ctx.drinkerName = recipe.drinker || null;
+  wrote.push('baristaName', 'drinkerName');
   markDye(ctx, wrote);
   setRecipeId(ctx, recipe.id);
   currentWorkflow.context = ctx;

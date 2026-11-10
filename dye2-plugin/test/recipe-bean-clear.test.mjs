@@ -39,12 +39,44 @@ const ctxOf = (id) => stored.find((r) => r.id === id).workflow.context;
   assert.equal(ctxOf('c').coffeeName, 'Kenya');
   assert.equal(ctxOf('c').beanBatchId, null);
 
-  // Equipment and session fields are deliberately left alone.
+  // The identities follow the bean (streamline-js#189): a recipe naming no grinder, basket,
+  // barista or drinker clears each one rather than filing the shot under the last item's.
   for (const k of ['grinderId', 'grinderModel', 'baristaName', 'drinkerName']) {
-    assert.ok(!(k in ctxOf('b')), k + ' stays live: a recipe is not the grinder or the barista');
+    assert.equal(ctxOf('b')[k], null, k + ' must be cleared, not inherited');
+    assert.ok(k in ctxOf('b'), k + ' must be sent as an explicit null');
   }
+  for (const k of ['basketId', 'basketName']) {
+    assert.equal(ctxOf('b').extras[k], null, k + ' must be cleared, not inherited');
+    assert.ok(k in ctxOf('b').extras, k + ' must be sent as an explicit null');
+  }
+
+  // The numbers are not identities: a recipe that names a grind but no grinder sets the dial
+  // and clears the attribution. Every recipe saved before DYE2 tracked grinders is this case.
+  await api.updateRecipe('d', { name: 'D', dashboardVariables: { dose: 18, grind: 7.5, rpm: 1400 } });
+  assert.equal(ctxOf('d').grinderSetting, '7.5');
+  assert.equal(ctxOf('d').targetDoseWeight, 18);
+  assert.equal(ctxOf('d').extras.rpm, 1400);
+  assert.equal(ctxOf('d').grinderId, null, 'a grind number is not a grinder');
+  assert.equal(ctxOf('d').grinderModel, null);
+
+  // A recipe that does name them still carries them.
+  await api.updateRecipe('e', {
+    name: 'E', barista: 'Vid', drinker: 'Mark',
+    dashboardVariables: { grinderId: 'g-1', grinderModel: 'Niche', basketId: 'bk-1', basketName: 'VST 18' },
+  });
+  assert.equal(ctxOf('e').grinderId, 'g-1');
+  assert.equal(ctxOf('e').grinderModel, 'Niche');
+  assert.equal(ctxOf('e').extras.basketId, 'bk-1');
+  assert.equal(ctxOf('e').extras.basketName, 'VST 18');
+  assert.equal(ctxOf('e').baristaName, 'Vid');
+  assert.equal(ctxOf('e').drinkerName, 'Mark');
+
+  // markDye turns a cleared field's flag null, so Streamline's post-shot clear reads it as
+  // DYE2 clearing the field rather than owning a value.
+  assert.equal(ctxOf('b').extras.dye.grinderId, null);
+  assert.equal(ctxOf('e').extras.dye.grinderId, true);
 }
-console.log('ok   a recipe naming no bean clears the live bean');
+console.log('ok   a recipe naming no bean, grinder, basket or barista clears each of them');
 
 // Rows stored before the rule keep no bean keys at all; the one-time pass adds the nulls.
 {
@@ -69,6 +101,10 @@ console.log('ok   clearBeanlessRecipeWorkflows: one-shot, idempotent');
   const page = readFileSync(new URL('../src/pages/dashboard.ts', import.meta.url), 'utf8');
   assert.match(page, /ctx\.coffeeName = null; ctx\.coffeeRoaster = null; ctx\.beanBatchId = null;/,
     'applyRecipe clears the bean when the recipe names none');
+  assert.match(page, /else \{ ctx\.grinderId = null; ctx\.grinderModel = null; \}/,
+    'applyRecipe clears the grinder when the recipe names none');
+  assert.match(page, /ctx\.baristaName = recipe\.barista \|\| null;/,
+    'applyRecipe clears the barista when the recipe names none');
 }
 {
   const plugin = readFileSync(new URL('../src/plugin.ts', import.meta.url), 'utf8');

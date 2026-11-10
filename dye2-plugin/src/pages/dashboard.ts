@@ -1742,8 +1742,15 @@ async function applyRecipe(recipe) {
   if (dv.rpm != null)   { ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm }; wrote.push('rpm'); }
   if (dv.feedRate != null) { ctx.extras = { ...(ctx.extras || {}), feedRate: dv.feedRate }; wrote.push('feedRate'); }
   const grinder = dv.grinderId ? grinders.find(g => g.id === dv.grinderId) : null;
-  // Write id and name together: tabs match by id, shots record the name.
-  if (grinder) { ctx.grinderId = grinder.id; ctx.grinderModel = grinder.model || grinder.name; wrote.push('grinderId', 'grinderModel'); }
+  // Write id and name together: tabs match by id, shots record the name. A recipe naming no
+  // grinder (or one whose grinder has since been deleted) CLEARS it rather than leaving the
+  // previously applied item's grinder on the next shot — the identity rule below, and the same
+  // rule dev-api buildRecipeWorkflow applies to the stored body (streamline-js#189).
+  if (grinder) { ctx.grinderId = grinder.id; ctx.grinderModel = grinder.model || grinder.name; }
+  else { ctx.grinderId = null; ctx.grinderModel = null; }
+  wrote.push('grinderId', 'grinderModel');
+  ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId || null, basketName: dv.basketName || null };
+  wrote.push('basketId', 'basketName');
   // Bean, roaster and batch are one pick (bean-picker), so they move together: a recipe that
   // names a bean but holds no batch clears the previous one rather than leaving a shot
   // carrying one roast's id under another coffee's name (dye2#27).
@@ -1754,13 +1761,15 @@ async function applyRecipe(recipe) {
     wrote.push('coffeeName', 'coffeeRoaster', 'beanBatchId');
   } else {
     // Naming no bean clears the live one: switching from a recipe that names Ethiopia to one
-    // that names nothing must not leave the next shot recorded under Ethiopia. Equipment and
-    // session fields (grinder, basket, barista) are left alone — see dev-api buildRecipeWorkflow.
+    // that names nothing must not leave the next shot recorded under Ethiopia. The equipment
+    // and session identities follow the same rule above and below; the numbers (grind, dose,
+    // yield, rpm, feed rate) do not — see dev-api buildRecipeWorkflow.
     ctx.coffeeName = null; ctx.coffeeRoaster = null; ctx.beanBatchId = null;
     wrote.push('coffeeName', 'coffeeRoaster', 'beanBatchId');
   }
-  if (recipe.barista) { ctx.baristaName = recipe.barista; wrote.push('baristaName'); }
-  if (recipe.drinker) { ctx.drinkerName = recipe.drinker; wrote.push('drinkerName'); }
+  ctx.baristaName = recipe.barista || null;
+  ctx.drinkerName = recipe.drinker || null;
+  wrote.push('baristaName', 'drinkerName');
   markDye(ctx, wrote);
   setRecipeId(ctx, recipe.id);
   currentWorkflow.context = ctx;

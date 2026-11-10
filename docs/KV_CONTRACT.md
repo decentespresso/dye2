@@ -488,9 +488,17 @@ under A's bean. Decaid accepts the nulls (`workflow_handler.dart` `rejectExplici
 guards only `context.targetYield`), and a recent already clears bean and grinder this way.
 The R strip applies the STORED body (streamline_project `dyeStrip.js` `applyStoredWorkflow`),
 so rows written before this rule are patched by a one-time pass on plugin load
-(`clearBeanlessRecipeWorkflows`, the `recipeBeansMigrated` flag). Grinder, basket and
-barista/drinker are deliberately NOT cleared: equipment and session state, not the recipe's
-identity. A recipe that names a bean but no batch still clears the batch (dye2#27).
+(`clearBeanlessRecipeWorkflows`, the `recipeBeansMigrated` flag). A recipe that names a bean
+but no batch still clears the batch (dye2#27).
+
+**And so do the identities** (streamline-js#189). `grinderId`, `grinderModel`, `baristaName`,
+`drinkerName`, `extras.basketId` and `extras.basketName` are nulled whenever the row names
+none, for the same deep-merge reason: a recipe recording no grinder left the previously
+applied item's grinder on the shot. Rows saved before this rule carry no such keys and get no
+migration pass — Streamline normalises them at apply time instead (`clearInheritedIdentity`),
+so the fix reaches old rows without a second one-shot flag. The **numbers** — `grind`, `rpm`,
+`feedRate`, dose and yield — are deliberately NOT cleared: a grind is where the dial sits and
+stays true until someone moves it, while a grinder name is a claim about this shot.
 
 ### `equipment[]`
 
