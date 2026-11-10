@@ -437,23 +437,26 @@ async function buildRecipeWorkflow(recipe) {
   const dv = (recipe && recipe.dashboardVariables) || {};
   const ctx = {};
   const wf = { context: ctx };
-  if (dv.dose != null)  ctx.targetDoseWeight = dv.dose;
+  // The numbers follow the same clear rule as the identities below: a recipe naming no
+  // dose, grind, rpm or feed rate — or naming it as 0 — CLEARS the live one instead of
+  // inheriting the previously applied recipe's. A recipe is the whole shot, not an overlay
+  // on the last one. PUT deep-merges, so an omission left the earlier number standing and
+  // it read as if it belonged to this recipe.
+  ctx.targetDoseWeight = dv.dose || null;
+  ctx.grinderSetting = dv.grind ? String(dv.grind) : null;
+  ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm || null, feedRate: dv.feedRate || null };
+  // targetYield clears to 0, not null, and Decaid forces it: workflow_handler.dart passes
+  // targetYield to rejectExplicitNulls, so {"context":{"targetYield":null}} answers 400 and
+  // takes the whole apply down with it. 0 is Decaid's own clear for the field — stop-at-
+  // weight off — so that is what a recipe naming no yield writes.
   if (dv.drink != null) ctx.targetYield = dv.drink;
   else if (dv.ratio != null && dv.dose != null) ctx.targetYield = Math.round(dv.dose * dv.ratio * 10) / 10;
-  if (dv.grind != null) ctx.grinderSetting = String(dv.grind);
-  if (dv.rpm != null)   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm };
-  if (dv.feedRate != null) ctx.extras = { ...(ctx.extras || {}), feedRate: dv.feedRate };
+  else ctx.targetYield = 0;
   // The bean rule below (dye2#27), now for the rest of the identities (streamline-js#189):
   // a recipe naming no grinder, basket, barista or drinker CLEARS the live one instead of
   // inheriting it. PUT deep-merges, so omitting these left the previously applied item's
   // grinder standing — tap a recipe that records a grinder, then one that does not, and the
   // second shot is filed under the first one's grinder, basket and barista.
-  //
-  // The numbers are deliberately NOT in this rule: grind, dose, yield, rpm and feed rate
-  // carry over when a recipe does not name them. "Ground on the Niche" is a claim about this
-  // shot and must not be inherited; a grind of 7.5 is just where the dial sits and stays true
-  // until someone moves it. So a recipe holding a grind with no grinder — every recipe saved
-  // before DYE2 tracked grinders — sets the number and clears the attribution.
   ctx.grinderId    = dv.grinderId    || null;
   ctx.grinderModel = dv.grinderModel || null;
   ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId || null, basketName: dv.basketName || null };

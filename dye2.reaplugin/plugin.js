@@ -862,23 +862,26 @@ async function buildRecipeWorkflow(recipe) {
   const dv = (recipe && recipe.dashboardVariables) || {};
   const ctx = {};
   const wf = { context: ctx };
-  if (dv.dose != null)  ctx.targetDoseWeight = dv.dose;
+  // The numbers follow the same clear rule as the identities below: a recipe naming no
+  // dose, grind, rpm or feed rate — or naming it as 0 — CLEARS the live one instead of
+  // inheriting the previously applied recipe's. A recipe is the whole shot, not an overlay
+  // on the last one. PUT deep-merges, so an omission left the earlier number standing and
+  // it read as if it belonged to this recipe.
+  ctx.targetDoseWeight = dv.dose || null;
+  ctx.grinderSetting = dv.grind ? String(dv.grind) : null;
+  ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm || null, feedRate: dv.feedRate || null };
+  // targetYield clears to 0, not null, and Decaid forces it: workflow_handler.dart passes
+  // targetYield to rejectExplicitNulls, so {"context":{"targetYield":null}} answers 400 and
+  // takes the whole apply down with it. 0 is Decaid's own clear for the field — stop-at-
+  // weight off — so that is what a recipe naming no yield writes.
   if (dv.drink != null) ctx.targetYield = dv.drink;
   else if (dv.ratio != null && dv.dose != null) ctx.targetYield = Math.round(dv.dose * dv.ratio * 10) / 10;
-  if (dv.grind != null) ctx.grinderSetting = String(dv.grind);
-  if (dv.rpm != null)   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm };
-  if (dv.feedRate != null) ctx.extras = { ...(ctx.extras || {}), feedRate: dv.feedRate };
+  else ctx.targetYield = 0;
   // The bean rule below (dye2#27), now for the rest of the identities (streamline-js#189):
   // a recipe naming no grinder, basket, barista or drinker CLEARS the live one instead of
   // inheriting it. PUT deep-merges, so omitting these left the previously applied item's
   // grinder standing — tap a recipe that records a grinder, then one that does not, and the
   // second shot is filed under the first one's grinder, basket and barista.
-  //
-  // The numbers are deliberately NOT in this rule: grind, dose, yield, rpm and feed rate
-  // carry over when a recipe does not name them. "Ground on the Niche" is a claim about this
-  // shot and must not be inherited; a grind of 7.5 is just where the dial sits and stays true
-  // until someone moves it. So a recipe holding a grind with no grinder — every recipe saved
-  // before DYE2 tracked grinders — sets the number and clears the attribution.
   ctx.grinderId    = dv.grinderId    || null;
   ctx.grinderModel = dv.grinderModel || null;
   ctx.extras = { ...(ctx.extras || {}), basketId: dv.basketId || null, basketName: dv.basketName || null };
@@ -1167,12 +1170,95 @@ function buildGrinderBody(fields, isEdit, existingExtras) {
     if (sv) body.settingValues = sv.split(',').map(s => s.trim()).filter(Boolean);
     else if (isEdit) body.settingValues = null;
   }
+  // Range and defaults live in extras for the same reason feedRate does: the grinder record
+  // has no top-level slot for them. They are DYE2's own, and they are plain numbers -- a
+  // blank field is null, which means "this grinder declares none", not zero.
+  const ranged = ['settingMin','settingMax','settingDefault','rpmMin','rpmMax','rpmDefault'];
+  const given = k => { const v = fields[k]; return v !== '' && v != null && !isNaN(parseFloat(v)); };
   const fr = fields.feedRate;
-  if (fr || isEdit) {
+  if (fr || isEdit || ranged.some(given)) {
     body.extras = { ...(existingExtras || {}) };
     body.extras.feedRate = fr || null;
+    // Same isEdit rule as every field above: on an edit a blank clears to an explicit null,
+    // on a create it is simply absent rather than six nulls on a brand-new record.
+    ranged.forEach(k => {
+      if (given(k)) body.extras[k] = parseFloat(fields[k]);
+      else if (isEdit) body.extras[k] = null;
+    });
+    // A preset grinder's positions are named: a numeric range over them is meaningless.
+    if (st !== 'numeric') {
+      ['settingMin','settingMax','settingDefault'].forEach(k => {
+        if (isEdit) body.extras[k] = null; else delete body.extras[k];
+      });
+    }
   }
   return body;
+}
+`;
+	/**
+	* The grinder's declared range and defaults, and the two things DYE2 does with them.
+	*
+	* They live in `extras` (see buildGrinderBody above): the grinder record has no top-level
+	* slot, and extras is the documented place for custom data. A missing or non-numeric value
+	* is null -- "this grinder declares none" -- never 0, which is a legitimate setting.
+	*
+	* grinderDefaultsPatch is what a MANUAL grinder change writes: picking a different grinder
+	* invalidates the dial position, because a 7.5 on the Niche is not a 7.5 on the DF64. A
+	* recipe apply never goes through here -- the recipe's own numbers win, and a recipe naming
+	* no grind leaves it cleared rather than borrowing the grinder's default.
+	*/
+	var grinderLimitsScript = `
+function grinderLimits(g) {
+  const e = (g && g.extras) || {};
+  const num = v => (typeof v === 'number' && isFinite(v)) ? v : null;
+  return {
+    settingMin: num(e.settingMin), settingMax: num(e.settingMax), settingDefault: num(e.settingDefault),
+    rpmMin: num(e.rpmMin), rpmMax: num(e.rpmMax), rpmDefault: num(e.rpmDefault),
+  };
+}
+
+// parseFloat, deliberately NOT used: a grind setting is free text on the host
+// (WorkflowContext.grinderSetting is a String?), and parseFloat reads "15 clicks" as 15 and
+// "1.1.0" as 1.1. Anything that is not plainly a number comes back exactly as it was typed.
+function clampToRange(value, min, max) {
+  const v = typeof value === 'number'
+    ? value
+    : (typeof value === 'string' && value.trim() !== '' && isFinite(Number(value)) ? Number(value) : NaN);
+  if (!isFinite(v)) return value;
+  if (min != null && v < min) return min;
+  if (max != null && v > max) return max;
+  return v;
+}
+
+// The midpoint of a declared range, for a grinder that bounds a value but names no default:
+// knowing where a grinder starts and stops is already saying the middle is a fair opening
+// guess, so it beats carrying the previous grinder's number over. Needs BOTH bounds -- the
+// middle of a range with one open end is not a number.
+//
+// Snapped to the grinder's own small step when it declares one, measured from min so it lands
+// on that grinder's lattice: a grinder stepping in whole numbers from 1 to 10 opens at 6, not
+// at an unreachable 5.5.
+function midOfRange(min, max, step) {
+  if (min == null || max == null) return null;
+  let mid = (min + max) / 2;
+  if (typeof step === 'number' && isFinite(step) && step > 0) {
+    mid = min + Math.round((mid - min) / step) * step;
+  }
+  return clampToRange(Math.round(mid * 1000) / 1000, min, max);
+}
+
+function grinderDefaultsPatch(g) {
+  const l = grinderLimits(g);
+  const out = {};
+  const setting = l.settingDefault != null
+    ? clampToRange(l.settingDefault, l.settingMin, l.settingMax)
+    : midOfRange(l.settingMin, l.settingMax, g && g.settingSmallStep);
+  if (setting != null) out.grinderSetting = setting;
+  const rpm = l.rpmDefault != null
+    ? clampToRange(l.rpmDefault, l.rpmMin, l.rpmMax)
+    : midOfRange(l.rpmMin, l.rpmMax, g && g.rpmSmallStep);
+  if (rpm != null) out.rpm = rpm;
+  return out;
 }
 `;
 	//#endregion
@@ -1272,6 +1358,13 @@ function attachCardLongPress(card, onLong) {
     min-height: 80px;
   }
   .dye-card-add svg { stroke: var(--mimoja-blue); }
+  /* Archived: still listed here, and only here -- the pickers never offer one. Dimmed and
+     dashed so it reads as set aside rather than deleted. */
+  .dye-card.dye-card-archived {
+    opacity: 0.45;
+    border-style: dashed;
+  }
+  .dye-card.dye-card-archived:hover { opacity: 0.65; }
 
   .dye-card-name  { font-size: 22px; font-weight: 600; line-height: 1.3; }
   .dye-card-sub   { font-size: 20px; font-weight: 400; opacity: 0.7; }
@@ -1319,6 +1412,7 @@ function attachCardLongPress(card, onLong) {
   }
   .dye-field textarea { height: auto; padding: 12px 14px; resize: vertical; }
   .dye-field-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .dye-field-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
   .dye-modal-actions { display: flex; justify-content: flex-end; gap: 14px; margin-top: 24px; }
   .dye-btn {
     height: 56px; padding: 0 30px; border-radius: 9999px;
@@ -1412,6 +1506,20 @@ function attachCardLongPress(card, onLong) {
             <input name="settingBigStep" type="number" step="any" placeholder="e.g. 1" />
           </div>
         </div>
+        <div id="dye-numeric-range" class="dye-field dye-field-3">
+          <div>
+            <label>Setting Min</label>
+            <input name="settingMin" type="number" step="any" placeholder="e.g. 0" />
+          </div>
+          <div>
+            <label>Setting Max</label>
+            <input name="settingMax" type="number" step="any" placeholder="e.g. 50" />
+          </div>
+          <div>
+            <label>Setting Default</label>
+            <input name="settingDefault" type="number" step="any" placeholder="blank = middle of the range" />
+          </div>
+        </div>
         <div id="dye-preset-settings" class="dye-field dye-hidden">
           <label>Setting Values (comma-separated)</label>
           <input name="settingValues" placeholder="e.g. Fine, Medium, Coarse" />
@@ -1426,6 +1534,20 @@ function attachCardLongPress(card, onLong) {
             <input name="rpmBigStep" type="number" step="any" placeholder="e.g. 100" />
           </div>
         </div>
+        <div class="dye-field dye-field-3">
+          <div>
+            <label>RPM Min</label>
+            <input name="rpmMin" type="number" step="any" placeholder="e.g. 300" />
+          </div>
+          <div>
+            <label>RPM Max</label>
+            <input name="rpmMax" type="number" step="any" placeholder="e.g. 1400" />
+          </div>
+          <div>
+            <label>RPM Default</label>
+            <input name="rpmDefault" type="number" step="any" placeholder="blank = middle of the range" />
+          </div>
+        </div>
         <div class="dye-field">
           <label>Feed Rate</label>
           <input name="feedRate" placeholder="e.g. FF/MF/SF or feeder RPM range" />
@@ -1437,6 +1559,7 @@ function attachCardLongPress(card, onLong) {
         <div id="dye-modal-error" class="dye-modal-error dye-hidden"></div>
         <div class="dye-modal-actions">
           <button type="button" id="dye-modal-delete" class="dye-btn dye-btn-danger dye-hidden">DELETE</button>
+          <button type="button" id="dye-modal-archive" class="dye-btn dye-btn-ghost dye-hidden">ARCHIVE</button>
           <button type="button" id="dye-modal-cancel" class="dye-btn dye-btn-ghost">CANCEL</button>
           <button type="submit" id="dye-modal-save" class="dye-btn dye-btn-primary">SAVE</button>
         </div>
@@ -1450,6 +1573,7 @@ let grindersCache = [];
 let searchQuery = '';
 let editingId = null;
 let editingExtras = {};
+let editingArchived = false;
 let currentSort = 'recent';
 let selectedGrinderId = null;
 
@@ -1512,16 +1636,26 @@ function renderGrinderCards(grid) {
   addCard.addEventListener('click', () => openModal(null));
   grid.appendChild(addCard);
 
-  sortItems(grindersCache.filter(matchesSearch), currentSort).forEach(g => {
+  // Archived grinders sort to the end of whatever order is picked, so the ones in rotation
+  // stay at the top and the set-aside ones are still reachable without a second screen.
+  const inOrder = sortItems(grindersCache.filter(matchesSearch), currentSort);
+  [...inOrder.filter(g => !g.archived), ...inOrder.filter(g => g.archived)].forEach(g => {
     const card = document.createElement('div');
-    card.className = 'dye-card';
+    card.className = 'dye-card' + (g.archived ? ' dye-card-archived' : '');
     const sub = grinderSub(g);
-    const meta = grinderMeta(g);
+    const meta = [g.archived ? 'Archived' : '', grinderMeta(g)].filter(Boolean).join(' · ');
     card.innerHTML =
       '<div class="dye-card-name">' + esc(grinderName(g)) + '</div>' +
       (sub ? '<div class="dye-card-sub">' + esc(sub) + '</div>' : '') +
       (meta ? '<div class="dye-card-date">' + esc(meta) + '</div>' : '');
     if (g.id === selectedGrinderId) card.classList.add('dye-card-selected');
+    // An archived grinder is not offerable: a tap opens its editor (where UNARCHIVE is)
+    // instead of writing it to the workflow as the next shot's grinder.
+    if (g.archived) {
+      card.addEventListener('click', () => openModal(g));
+      grid.appendChild(card);
+      return;
+    }
     // Tap picks the grinder for the next shot, a 500ms hold edits it -- the same split as
     // bean-picker and the dashboard's grinder tabs. There is no CONFIRM on this page, so the
     // tap writes straight through; PUT /workflow deep-merges, so this partial context is safe.
@@ -1532,7 +1666,13 @@ function renderGrinderCards(grid) {
       grid.querySelectorAll('.dye-card').forEach(c => c.classList.remove('dye-card-selected'));
       card.classList.add('dye-card-selected');
       selectedGrinderId = g.id;
-      updateWorkflow({ context: markDye({ grinderId: g.id, grinderModel: grinderName(g) }) })
+      // The grinder's own defaults ride along, clamped to its own range: a dial position
+      // belongs to the grinder it was read off. Same rule as the dashboard's grinder tabs.
+      const d = grinderDefaultsPatch(g);
+      const ctx = { grinderId: g.id, grinderModel: grinderName(g) };
+      if (d.grinderSetting != null) ctx.grinderSetting = d.grinderSetting;
+      if (d.rpm != null) ctx.extras = { rpm: d.rpm };
+      updateWorkflow({ context: markDye(ctx) })
         .catch(e => console.warn('workflow update failed:', e));
     });
     grid.appendChild(card);
@@ -1545,18 +1685,25 @@ function setField(name, val) { const el = form().elements[name]; if (el) el.valu
 function toggleSettingSections() {
   const isNumeric = form().elements['settingType'].value === 'numeric';
   document.getElementById('dye-numeric-settings').classList.toggle('dye-hidden', !isNumeric);
+  // A preset grinder's positions are named, not numbered, so a numeric range and default
+  // mean nothing there -- settingValues is its whole vocabulary. RPM is independent of the
+  // setting type and stays visible either way.
+  document.getElementById('dye-numeric-range').classList.toggle('dye-hidden', !isNumeric);
   document.getElementById('dye-preset-settings').classList.toggle('dye-hidden', isNumeric);
 }
 
 function openModal(g) {
   editingId = g ? g.id : null;
   editingExtras = (g && g.extras) || {};
+  editingArchived = !!(g && g.archived);
   document.getElementById('dye-modal-title').textContent = g ? 'Edit Grinder' : 'New Grinder';
   document.getElementById('dye-modal-error').classList.add('dye-hidden');
   form().reset();
   if (g) {
     ['model','burrs','burrType','burrSize','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','notes'].forEach(k => setField(k, g[k]));
     setField('feedRate', editingExtras.feedRate);
+    ['settingMin','settingMax','settingDefault','rpmMin','rpmMax','rpmDefault']
+      .forEach(k => setField(k, editingExtras[k]));
     setField('settingValues', Array.isArray(g.settingValues) ? g.settingValues.join(', ') : (g.settingValues || ''));
     if (!g.settingType) setField('settingType', 'numeric');
   } else {
@@ -1564,6 +1711,12 @@ function openModal(g) {
   }
   toggleSettingSections();
   document.getElementById('dye-modal-delete').classList.toggle('dye-hidden', !g);
+  // One button, both directions: this page is the only place an archived grinder is listed,
+  // so if it could not bring one back, archiving would strand it exactly as the Beanconqueror
+  // import used to (nothing else in DYE2 ever wrote the flag, and nothing showed it).
+  const archiveBtn = document.getElementById('dye-modal-archive');
+  archiveBtn.classList.toggle('dye-hidden', !g);
+  archiveBtn.textContent = editingArchived ? 'UNARCHIVE' : 'ARCHIVE';
   document.getElementById('dye-modal-backdrop').classList.add('open');
 }
 
@@ -1575,9 +1728,21 @@ function closeModal() {
 async function submitForm() {
   const fd = new FormData(form());
   const fields = {};
-  ['model','burrs','burrType','burrSize','feedRate','notes','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','settingValues']
+  ['model','burrs','burrType','burrSize','feedRate','notes','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','settingValues',
+   'settingMin','settingMax','settingDefault','rpmMin','rpmMax','rpmDefault']
     .forEach(k => { fields[k] = fd.get(k); });
   const body = buildGrinderBody(fields, !!editingId, editingExtras);
+  // A reversed range silently breaks every clamp that reads it, so it is refused at the one
+  // place it can be entered rather than defended at each of the places it is used.
+  const ex = body.extras || {};
+  const reversed = [['Setting', ex.settingMin, ex.settingMax], ['RPM', ex.rpmMin, ex.rpmMax]]
+    .find(([, lo, hi]) => lo != null && hi != null && lo > hi);
+  if (reversed) {
+    const errEl = document.getElementById('dye-modal-error');
+    errEl.textContent = reversed[0] + ' Min must not be greater than ' + reversed[0] + ' Max.';
+    errEl.classList.remove('dye-hidden');
+    return;
+  }
 
   try {
     const url = editingId ? '/api/v1/grinders/' + editingId : '/api/v1/grinders';
@@ -1592,6 +1757,29 @@ async function submitForm() {
   } catch (err) {
     const errEl = document.getElementById('dye-modal-error');
     errEl.textContent = 'Save failed: ' + err.message;
+    errEl.classList.remove('dye-hidden');
+  }
+}
+
+// Archive is the reversible one, and it is NOT delete: the grinder leaves the pickers but
+// stays in the database, so recipes that name it keep working and shots keep resolving it.
+// PUT deep-merges, so the flag alone is the whole body -- every other field is left as is.
+async function toggleArchive() {
+  if (!editingId) return;
+  const next = !editingArchived;
+  if (next && !confirm('Archive this grinder? It leaves the pickers but keeps working in the recipes and shots that name it, and you can bring it back from this page.')) return;
+  try {
+    const res = await fetch('/api/v1/grinders/' + editingId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived: next }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + await res.text());
+    closeModal();
+    await reload();
+  } catch (err) {
+    const errEl = document.getElementById('dye-modal-error');
+    errEl.textContent = (next ? 'Archive' : 'Unarchive') + ' failed: ' + err.message;
     errEl.classList.remove('dye-hidden');
   }
 }
@@ -1613,7 +1801,11 @@ async function deleteGrinder() {
 
 async function reload() {
   try {
-    const result = await getGrinders();
+    // Archived included: this page is the one place they are listed, and without them an
+    // archived grinder is invisible, unpickable and impossible to bring back or delete.
+    // The pickers (grinder-picker, auto-fav-edit, recipe-edit chips) deliberately do NOT
+    // pass the flag -- an archived grinder must not be offered for a new shot.
+    const result = await getGrinders(true);
     grindersCache = Array.isArray(result) ? result : (result.items || []);
   } catch (e) {
     console.error('Failed to load grinders:', e);
@@ -1657,6 +1849,7 @@ async function initializeDyeGrinders() {
   document.getElementById('dye-done-btn')?.addEventListener('click', () => window.history.back());
   document.getElementById('dye-modal-cancel')?.addEventListener('click', closeModal);
   document.getElementById('dye-modal-delete')?.addEventListener('click', deleteGrinder);
+  document.getElementById('dye-modal-archive')?.addEventListener('click', toggleArchive);
   document.getElementById('dye-modal-backdrop')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeModal();
   });
@@ -1674,6 +1867,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
 			body: devPageShell("Grinders", content$11, styles$13, [
 				devApiScript,
 				buildGrinderBodyScript,
+				grinderLimitsScript,
 				cardLongPressScript,
 				pageScript$15
 			])
@@ -3603,7 +3797,14 @@ async function initializeDyeGrinders() {
       if (!selectedGrinderId) return;
       const g = grindersCache.find(x => x.id === selectedGrinderId);
       try {
-        await updateWorkflow({ context: markDye({ grinderId: selectedGrinderId, grinderModel: g ? grinderName(g) : '' }) });
+        // The picked grinder's own defaults ride along, clamped to its own range -- the
+        // same rule as the dashboard's grinder tabs and the grinders page. A dial position
+        // belongs to the grinder it was read off.
+        const d = g ? grinderDefaultsPatch(g) : {};
+        const ctx = { grinderId: selectedGrinderId, grinderModel: g ? grinderName(g) : '' };
+        if (d.grinderSetting != null) ctx.grinderSetting = d.grinderSetting;
+        if (d.rpm != null) ctx.extras = { rpm: d.rpm };
+        await updateWorkflow({ context: markDye(ctx) });
       } catch (e) { console.warn('workflow update failed:', e); }
       leavePicker();
     });
@@ -3625,7 +3826,11 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Select Grinder", content$7, styles$10, [devApiScript, pageScript$11])
+			body: devPageShell("Select Grinder", content$7, styles$10, [
+				devApiScript,
+				grinderLimitsScript,
+				pageScript$11
+			])
 		};
 	}
 	//#endregion
@@ -6357,7 +6562,17 @@ function shotWeights(shot) {
         <div class="h-[2px] bg-[var(--profile-button-outline-color)] shrink-0"></div>
 
         <div class="flex flex-col gap-[18px] shrink-0">
-          <div id="dye-grinder-tabs" class="flex gap-[27px] overflow-x-auto"></div>
+          <!-- Same rail treatment as the recipe pills below: a machine with more grinders
+               than fit would otherwise have the rest off-screen with no way to reach them. -->
+          <div class="flex items-center gap-[18px]">
+            <button id="dye-grinder-prev" class="flex items-center justify-center shrink-0 cursor-pointer text-[var(--mimoja-blue)]">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div id="dye-grinder-tabs" class="flex gap-[27px] flex-1 overflow-x-auto" style="scrollbar-width:none"></div>
+            <button id="dye-grinder-next" class="flex items-center justify-center shrink-0 cursor-pointer text-[var(--mimoja-blue)]">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--mimoja-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
           <div class="flex items-center gap-[18px]">
             <!-- Same 45px gap as the Dose/Drink row above: both rows hold identical
                  label+stepper groups, so equal gaps make Grind line up under Dose and
@@ -7503,9 +7718,13 @@ function grinderTabLabel(g) {
   return parts.length ? name + ' (' + parts.join(' · ') + ')' : name;
 }
 
+// The grinder tab the rail is already centred on, so a plain re-render leaves the scroll alone.
+let grinderRailCentredKey = '';
+
 function renderGrinderTabs() {
   const container = document.getElementById('dye-grinder-tabs');
-  if (!container || grinders.length === 0) return;
+  if (!container) return;
+  if (grinders.length === 0) { updateRailArrows(GRINDER_RAIL); return; }
   container.innerHTML = '';
   const ctx = (currentWorkflow && currentWorkflow.context) || {};
   // Match by id first (unambiguous between two grinders sharing a model name); fall back
@@ -7521,13 +7740,40 @@ function renderGrinderTabs() {
       currentWorkflow.context = currentWorkflow.context || {};
       currentWorkflow.context.grinderId = g.id;
       currentWorkflow.context.grinderModel = g.model || g.name;
-      markDye(currentWorkflow.context, ['grinderId', 'grinderModel']);
+      const wrote = ['grinderId', 'grinderModel'];
+      // A manual grinder change takes that grinder's declared defaults with it: a dial
+      // position belongs to the grinder it was read off, so 7.5 on the Niche is not 7.5 on
+      // the DF64 and carrying it over is a false number. A grinder declaring no default
+      // leaves the live value alone. A recipe apply never comes through here -- the recipe's
+      // own numbers win, and a recipe naming no grind leaves it cleared (streamline-js#189).
+      const defaults = grinderDefaultsPatch(g);
+      if (defaults.grinderSetting != null) {
+        currentWorkflow.context.grinderSetting = defaults.grinderSetting;
+      }
+      if (defaults.rpm != null) {
+        currentWorkflow.context.extras = { ...(currentWorkflow.context.extras || {}), rpm: defaults.rpm };
+        wrote.push('rpm');
+      }
+      markDye(currentWorkflow.context, wrote);
       renderGrinderTabs();
+      // The grind and rpm readouts came from the previous grinder: repaint them, or the
+      // defaults land in the workflow while the page still shows the old numbers.
+      renderNextShot();
       pushWorkflow().catch(e => console.warn(e));
     });
     attachCardLongPress(tab, () => { window.location.href = 'grinders?edit=' + encodeURIComponent(g.id); });
     container.appendChild(tab);
   });
+  // The tabs never wrap, so with enough grinders the active one can sit off-screen: bring it
+  // into view -- but only when the active grinder itself changed. This runs on every workflow
+  // refresh, and re-centring then would drag the rail back under a barista who had scrolled it
+  // to look at something else. Same guard, same reason, as the recipe rail below.
+  const activeKey = (activeIdx >= 0 && grinders[activeIdx] && grinders[activeIdx].id) || '';
+  if (activeKey !== grinderRailCentredKey) {
+    grinderRailCentredKey = activeKey;
+    centreRailOn(container.querySelector('.dye-grinder-tab.active'));
+  }
+  updateRailArrows(GRINDER_RAIL);
 }
 
 function renderRecipePills(workflow) {
@@ -7551,7 +7797,7 @@ function renderRecipePills(workflow) {
   const slotless = selRecipeId && recipes.length ? recipes.find(r => r && String(r.id) === selRecipeId && r.stripSlot == null) : null;
   const items = [...(slotless ? [slotless] : []), ...recipeItems];
   container.innerHTML = '';
-  if (items.length === 0) { container.innerHTML = '<span style="color:var(--low-contrast-white);font-size:21px;">No recipes yet</span>'; updateRailArrows(); return; }
+  if (items.length === 0) { container.innerHTML = '<span style="color:var(--low-contrast-white);font-size:21px;">No recipes yet</span>'; updateRailArrows(RECIPE_RAIL); return; }
   const activeTitle = workflow.profile && workflow.profile.title;
   items.forEach((item, i) => {
     const title = typeof item === 'string' ? item : (item.name || item.title || ('Recipe ' + (i + 1)));
@@ -7600,39 +7846,47 @@ function renderRecipePills(workflow) {
     railCentredKey = activeKey;
     centreRailOn(container.querySelector('.dye-recipe-pill.active'));
   }
-  updateRailArrows();
+  updateRailArrows(RECIPE_RAIL);
 }
 
 // The pill the rail is already centred on, so a plain re-render leaves the scroll alone.
 let railCentredKey = '';
 
-// Bring a pill to the middle of the rail. scrollIntoView is not used: it scrolls every
+// The two horizontal rails on this page -- the recipe pills and the grinder tabs -- behave
+// identically: scroll sideways, one item per arrow press, arrows greyed at each end and gone
+// when everything fits. Each rail's own CSS gap is carried here so an arrow press lands flush
+// with an item edge rather than part-way through one.
+const RECIPE_RAIL  = { rail: 'dye-recipe-pills', prev: 'dye-recipe-prev', next: 'dye-recipe-next', item: '.dye-recipe-pill', gap: 12 };
+const GRINDER_RAIL = { rail: 'dye-grinder-tabs', prev: 'dye-grinder-prev', next: 'dye-grinder-next', item: '.dye-grinder-tab', gap: 27 };
+
+// Bring an item to the middle of its rail. scrollIntoView is not used: it scrolls every
 // scrollable ancestor, and the page itself is one. Measured off rects, not offsetLeft --
-// the pill's offsetParent is #dye-dash-root rather than the rail, so offsetLeft is in the
+// the item's offsetParent is #dye-dash-root rather than the rail, so offsetLeft is in the
 // wrong space. Rects are in painted pixels and dev-shell scales the page (and not evenly
 // in x and y), while scrollBy wants layout pixels, hence the divide.
-function centreRailOn(pill) {
-  const rail = document.getElementById('dye-recipe-pills');
-  if (!rail || !pill) return;
-  const r = rail.getBoundingClientRect(), p = pill.getBoundingClientRect();
+//
+// The rail is the item's own parent, so this needs no id and works on either rail.
+function centreRailOn(item) {
+  const rail = item && item.parentElement;
+  if (!rail || !item) return;
+  const r = rail.getBoundingClientRect(), p = item.getBoundingClientRect();
   const scale = r.width / rail.clientWidth || 1;
   const delta = ((p.left + p.width / 2) - (r.left + r.width / 2)) / scale;
   rail.scrollBy({ left: delta, behavior: 'smooth' });   // the browser clamps at both ends
 }
 
-// One arrow press moves one pill, so the rail always lands flush with a cell edge. 12 is the
-// rail's gap-[12px]; a rail with no pills in it cannot scroll anyway.
-function railStep() {
-  const rail = document.getElementById('dye-recipe-pills');
-  const pill = rail && rail.querySelector('.dye-recipe-pill');
-  return pill ? pill.offsetWidth + 12 : 0;
+// One arrow press moves one item. A rail with nothing in it cannot scroll anyway.
+function railStep(spec) {
+  const rail = document.getElementById(spec.rail);
+  const item = rail && rail.querySelector(spec.item);
+  return item ? item.offsetWidth + spec.gap : 0;
 }
 
-// Grey out the rail arrows at each end of the scroll; both go off when the pills fit.
-function updateRailArrows() {
-  const rail = document.getElementById('dye-recipe-pills');
-  const prev = document.getElementById('dye-recipe-prev');
-  const next = document.getElementById('dye-recipe-next');
+// Grey out a rail's arrows at each end of its scroll; both go off when everything fits.
+function updateRailArrows(spec) {
+  const rail = document.getElementById(spec.rail);
+  const prev = document.getElementById(spec.prev);
+  const next = document.getElementById(spec.next);
   if (!rail || !prev || !next) return;
   const fits = rail.scrollWidth <= rail.clientWidth + 1;
   prev.classList.toggle('dye-rail-arrow-hide', fits);
@@ -7641,6 +7895,15 @@ function updateRailArrows() {
   const atEnd = rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 1;
   prev.disabled = atStart; prev.classList.toggle('dye-rail-arrow-off', atStart);
   next.disabled = atEnd; next.classList.toggle('dye-rail-arrow-off', atEnd);
+}
+
+function wireRail(spec) {
+  const rail = document.getElementById(spec.rail);
+  document.getElementById(spec.prev)?.addEventListener('click', () => rail?.scrollBy({ left: -railStep(spec), behavior: 'smooth' }));
+  document.getElementById(spec.next)?.addEventListener('click', () => rail?.scrollBy({ left: railStep(spec), behavior: 'smooth' }));
+  // The smooth scrollBy animates, so the scroll event settles the final arrow state.
+  rail?.addEventListener('scroll', () => updateRailArrows(spec));
+  window.addEventListener('resize', () => updateRailArrows(spec));
 }
 
 // PUT /api/v1/workflow deep-merges its body onto whatever workflow is already
@@ -7684,12 +7947,20 @@ async function applyRecipe(recipe) {
   // The fields this apply sets, flagged for Streamline's post-shot clear (markDye): ctx is a
   // copy of the whole live context, so scanning it would claim other plugins' values too.
   const wrote = [];
-  if (dv.dose != null)  ctx.targetDoseWeight = dv.dose;
+  // The numbers follow the identity rule below: a recipe naming no dose, grind, rpm or feed
+  // rate — or naming it as 0 — clears the live one rather than inheriting the previously
+  // applied recipe's, because a recipe is the whole shot and not an overlay on the last one.
+  // Same rule, same place, as dev-api buildRecipeWorkflow (streamline-js#189).
+  ctx.targetDoseWeight = dv.dose || null;
+  ctx.grinderSetting = dv.grind || null;
+  ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm || null, feedRate: dv.feedRate || null };
+  wrote.push('rpm', 'feedRate');
+  // Cleared to 0, not null: Decaid's workflow_handler.dart passes targetYield to
+  // rejectExplicitNulls, so a null answers 400 and takes the whole apply down. 0 is its own
+  // clear for the field (stop-at-weight off).
   if (dv.drink != null) ctx.targetYield = dv.drink;
   else if (dv.ratio != null && dv.dose != null) ctx.targetYield = Math.round(dv.dose * dv.ratio * 10) / 10;
-  if (dv.grind != null) ctx.grinderSetting = dv.grind;
-  if (dv.rpm != null)   { ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm }; wrote.push('rpm'); }
-  if (dv.feedRate != null) { ctx.extras = { ...(ctx.extras || {}), feedRate: dv.feedRate }; wrote.push('feedRate'); }
+  else ctx.targetYield = 0;
   const grinder = dv.grinderId ? grinders.find(g => g.id === dv.grinderId) : null;
   // Write id and name together: tabs match by id, shots record the name. A recipe naming no
   // grinder (or one whose grinder has since been deleted) CLEARS it rather than leaving the
@@ -7834,6 +8105,11 @@ function isNumericText(t) {
   return s !== '' && Number.isFinite(Number(s));
 }
 
+// min and max may each be a FUNCTION as well as a number: the grind and rpm bounds come from
+// whichever grinder the workflow names right now, and that changes under the page. Resolved at
+// the moment of the tap rather than captured at wiring time.
+function bound(v) { return typeof v === 'function' ? v() : v; }
+
 function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onChange, allowText) {
   const minusBtn = document.getElementById(minusId);
   const plusBtn = document.getElementById(plusId);
@@ -7845,11 +8121,12 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
     // Free text has no step to move by, and stepping would coerce it to a number.
     // Leave it alone — typing is the way to change it.
     if (allowText && !isNumericText(valueEl.value)) return;
+    const lo = bound(min);
     const raw = parseFloat(valueEl.value);
     // Empty field shows "—" → start from min so − begins working.
-    const base = isNaN(raw) ? min : raw;
-    if (base <= min) { valueEl.value = formatter(min); clearTimeout(debounceTimer); debounceTimer = setTimeout(() => onChange(min), 500); return; }
-    const val = Math.max(min, parseFloat((base - step).toFixed(2)));
+    const base = isNaN(raw) ? lo : raw;
+    if (base <= lo) { valueEl.value = formatter(lo); clearTimeout(debounceTimer); debounceTimer = setTimeout(() => onChange(lo), 500); return; }
+    const val = Math.max(lo, parseFloat((base - step).toFixed(2)));
     valueEl.value = formatter(val);
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => onChange(val), 500);
@@ -7860,9 +8137,11 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
     // Free text has no step to move by, and stepping would coerce it to a number.
     // Leave it alone — typing is the way to change it.
     if (allowText && !isNumericText(valueEl.value)) return;
+    const lo = bound(min);
+    const hi = bound(max);
     const raw = parseFloat(valueEl.value);
-    const base = isNaN(raw) ? min : raw;
-    const val = max !== null ? Math.min(max, parseFloat((base + step).toFixed(2))) : parseFloat((base + step).toFixed(2));
+    const base = isNaN(raw) ? lo : raw;
+    const val = hi != null ? Math.min(hi, parseFloat((base + step).toFixed(2))) : parseFloat((base + step).toFixed(2));
     valueEl.value = formatter(val);
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => onChange(val), 500);
@@ -7910,8 +8189,10 @@ function makeValueEditable(valueId, min, max, formatter, onChange, allowText) {
     }
     let v = parseFloat(raw);
     if (apply && !isNaN(v)) {
-      if (min != null) v = Math.max(min, v);
-      if (max != null) v = Math.min(max, v);
+      const lo = bound(min);
+      const hi = bound(max);
+      if (lo != null) v = Math.max(lo, v);
+      if (hi != null) v = Math.min(hi, v);
       input.value = formatter(v);
       onChange(v);
     } else {
@@ -7925,6 +8206,15 @@ function makeValueEditable(valueId, min, max, formatter, onChange, allowText) {
   input.addEventListener('blur', () => commit(true));
 }
 
+// The grinder the live workflow names, for its declared range and defaults. Null when it
+// names none, or when the catalogue no longer holds it -- then the steppers keep their
+// built-in bounds, exactly as before the range existed.
+function currentGrinder() {
+  const ctx = (currentWorkflow && currentWorkflow.context) || {};
+  if (!ctx.grinderId) return null;
+  return grinders.find(g => g && g.id === ctx.grinderId) || null;
+}
+
 function setupDoseControls() {
   wireAdjuster('dye-dose-minus', 'dye-dose-plus', 'dye-dose-value', 0.5, 0, null,
     val => val + 'g',
@@ -7934,12 +8224,19 @@ function setupDoseControls() {
     val => val + 'g',
     val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.targetYield = val; updateRatioDisplay(); pushWorkflow().catch(e => console.warn(e)); }
   );
-  wireAdjuster('dye-grind-minus', 'dye-grind-plus', 'dye-grind-value', 0.1, 0, null,
+  // Grind and rpm take their bounds from the grinder the workflow names, so the steppers stop
+  // where that grinder stops. A grinder declaring no range keeps the built-in floor and no
+  // ceiling, which is what every grinder did before the range existed.
+  wireAdjuster('dye-grind-minus', 'dye-grind-plus', 'dye-grind-value', 0.1,
+    () => { const l = grinderLimits(currentGrinder()); return l.settingMin != null ? l.settingMin : 0; },
+    () => grinderLimits(currentGrinder()).settingMax,
     val => (typeof val === 'number' ? val.toFixed(1) : String(val)),
     val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.grinderSetting = String(val); pushWorkflow().catch(e => console.warn(e)); },
     true   // grind is free text: see isNumericText
   );
-  wireAdjuster('dye-rpm-minus', 'dye-rpm-plus', 'dye-rpm-value', 1, 1, null,
+  wireAdjuster('dye-rpm-minus', 'dye-rpm-plus', 'dye-rpm-value', 1,
+    () => { const l = grinderLimits(currentGrinder()); return l.rpmMin != null ? l.rpmMin : 1; },
+    () => grinderLimits(currentGrinder()).rpmMax,
     val => String(val),
     val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.extras = { ...(currentWorkflow.context.extras || {}), rpm: val }; markDye(currentWorkflow.context, ['rpm']); pushWorkflow().catch(e => console.warn(e)); }
   );
@@ -8294,12 +8591,8 @@ function wireDashboardControls() {
   setupAddNote();
   setupHistoryRevert();
   subscribeChanged();   // a strip "Save changes" clears the pill's star without a reload
-  const pills = document.getElementById('dye-recipe-pills');
-  document.getElementById('dye-recipe-prev')?.addEventListener('click', () => pills?.scrollBy({ left: -railStep(), behavior: 'smooth' }));
-  document.getElementById('dye-recipe-next')?.addEventListener('click', () => pills?.scrollBy({ left: railStep(), behavior: 'smooth' }));
-  // The smooth scrollBy animates, so the scroll event settles the final arrow state.
-  pills?.addEventListener('scroll', updateRailArrows);
-  window.addEventListener('resize', updateRailArrows);
+  wireRail(RECIPE_RAIL);
+  wireRail(GRINDER_RAIL);
   document.addEventListener('click', () => {
     document.querySelectorAll('.dye-dash-dropdown.open').forEach(dd => dd.classList.remove('open'));
   });
@@ -8441,6 +8734,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 				shotPagingScript,
 				chartScript,
 				cardLongPressScript,
+				grinderLimitsScript,
 				pageScript$6
 			], { echarts: true })
 		};
@@ -12238,6 +12532,11 @@ let allRecipes = [];    // the library, to name whoever holds a slot
 let stripSlot = null;   // 1..5 | null, the strip slot the tabs target for this recipe
 let slotArmed = null;   // slot whose current holder the next SAVE tap replaces
 let grinders = [];
+// Every grinder id Decaid still holds, ARCHIVED ONES INCLUDED, which is not the same set as
+// the grinders list above: the chip row lists only unarchived grinders, but an archived grinder is
+// hidden, not deleted, and a recipe naming one still means it. Used solely to tell "deleted"
+// from "merely not on the row" -- see renderGrinderChips. null until the fetch answers.
+let knownGrinderIds = null;
 let baskets = [];
 let showOnStreamline = true;
 let selectedGrinderId = null;
@@ -12462,9 +12761,12 @@ function renderRecipe(recipe) {
   renderBeanChips();
   renderProfileChips();
 
-  if (dv.grinderId) selectedGrinderId = dv.grinderId;
+  // Assigned, not guarded: these are module-level, so a guard left the PREVIOUS recipe's
+  // grinder selected when this one names none -- invisible while the row had no None chip to
+  // show the difference, and a saved-through wrong grinder once it does.
+  selectedGrinderId = dv.grinderId || null;
   renderGrinderChips();
-  if (dv.basketId) selectedBasketId = dv.basketId;
+  selectedBasketId = dv.basketId || null;
   renderBasketChips();
 
   equipmentSelIds = Array.isArray(dv.equipmentIds) ? dv.equipmentIds.slice() : [];
@@ -12649,8 +12951,7 @@ function applyToCurrentRecipe(src) {
     dashboardVariables: { ...(cur.dashboardVariables || {}), ...(src.dashboardVariables || {}) },
   };
   recipe = merged;
-  if (merged.dashboardVariables.grinderId) selectedGrinderId = merged.dashboardVariables.grinderId;
-  if (merged.dashboardVariables.basketId) selectedBasketId = merged.dashboardVariables.basketId;
+  // renderRecipe assigns selectedGrinderId/selectedBasketId from the merged dashboardVariables.
   renderRecipe(merged);
 }
 
@@ -12825,45 +13126,68 @@ function fillFromProfile(record) {
   });
 }
 
+// A chip row could only ever be set, never cleared: every chip assigned an id and nothing
+// assigned null back, so once a recipe named a grinder there was no way in the editor to say
+// it names none. The leading "None" chip is that way back, and it is what makes the clear
+// rule (streamline-js#189 — a recipe naming no grinder clears the live one rather than
+// inheriting the last recipe's) something a user can actually ask for.
+function renderPickerChips(container, items, { label, selectedId, onSelect }) {
+  if (!container) return;
+  container.innerHTML = '';
+  const chip = (text, id) => {
+    const b = document.createElement('button');
+    b.className = 're-grinder-chip' + (id === selectedId ? ' active' : '');
+    b.textContent = text;
+    b.addEventListener('click', () => {
+      container.querySelectorAll('.re-grinder-chip').forEach(c => c.classList.remove('active'));
+      b.classList.add('active');
+      onSelect(id);
+    });
+    container.appendChild(b);
+  };
+  chip('None', null);
+  items.forEach(item => chip(label(item), item.id));
+}
+
 function renderGrinderChips() {
   const container = document.getElementById('re-grinder-chips');
   if (!container) return;
-  container.innerHTML = '';
   if (grinders.length === 0) {
     container.innerHTML = '<span style="color:var(--text-primary-disabled);font-size:20px">No grinders</span>';
     return;
   }
-  grinders.forEach(g => {
-    const chip = document.createElement('button');
-    chip.className = 're-grinder-chip' + (g.id === selectedGrinderId ? ' active' : '');
-    chip.textContent = g.model || g.name || 'Grinder';
-    chip.addEventListener('click', () => {
-      container.querySelectorAll('.re-grinder-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      selectedGrinderId = g.id;
-    });
-    container.appendChild(chip);
+  // A recipe keeps the grinder id it was saved with and nothing rewrites it when that grinder
+  // is DELETED, so the row used to light no chip at all -- which looked exactly like a recipe
+  // that names no grinder. Resolve it: gone means None, and saving then clears the dead id for
+  // good. Archived is NOT gone (knownGrinderIds includes archived rows), and neither is an
+  // unreadable catalogue (null). Shot history is deliberately untouched by this: it shows the
+  // name the shot itself recorded (edit-shot.ts), never a lookup against today's list.
+  if (selectedGrinderId && knownGrinderIds && !knownGrinderIds.has(selectedGrinderId)) {
+    selectedGrinderId = null;
+  }
+  renderPickerChips(container, grinders, {
+    label: g => g.model || g.name || 'Grinder',
+    selectedId: selectedGrinderId,
+    onSelect: id => { selectedGrinderId = id; },
   });
 }
 
 function renderBasketChips() {
   const container = document.getElementById('re-basket-chips');
   if (!container) return;
-  container.innerHTML = '';
   if (baskets.length === 0) {
     container.innerHTML = '<span style="color:var(--text-primary-disabled);font-size:20px">No baskets</span>';
     return;
   }
-  baskets.forEach(b => {
-    const chip = document.createElement('button');
-    chip.className = 're-grinder-chip' + (b.id === selectedBasketId ? ' active' : '');
-    chip.textContent = b.name || 'Basket';
-    chip.addEventListener('click', () => {
-      container.querySelectorAll('.re-grinder-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      selectedBasketId = b.id;
-    });
-    container.appendChild(chip);
+  // Same as the grinder row. Baskets are a plain KV array with no archived flag, so the list
+  // itself is the whole truth: not in it means deleted.
+  if (selectedBasketId && !baskets.some(b => b && b.id === selectedBasketId)) {
+    selectedBasketId = null;
+  }
+  renderPickerChips(container, baskets, {
+    label: b => b.name || 'Basket',
+    selectedId: selectedBasketId,
+    onSelect: id => { selectedBasketId = id; },
   });
 }
 
@@ -13396,6 +13720,15 @@ async function initRecipeEdit() {
     const gs = await getGrinders().catch(() => []);
     grinders = Array.isArray(gs) ? gs : (gs && gs.items ? gs.items : []);
   } catch (e) { grinders = []; }
+
+  // Second read, archived included, for the deleted-or-not question only. A failed read
+  // leaves the set null, which renderGrinderChips treats as "could not check" and leaves the
+  // stored grinder selected: an unreachable catalogue must not look like a deletion.
+  try {
+    const all = await getGrinders(true).catch(() => null);
+    const list = Array.isArray(all) ? all : (all && all.items ? all.items : null);
+    knownGrinderIds = list ? new Set(list.map(g => g && g.id)) : null;
+  } catch (e) { knownGrinderIds = null; }
 
   try {
     baskets = await getBaskets().catch(() => []);

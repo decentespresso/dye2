@@ -131,8 +131,8 @@ console.log('ok   equipment KV table');
   })).context;
   assert.deepEqual(r.extras.dye, {
     v: 1, coffeeName: true, coffeeRoaster: true, beanBatchId: null, grinderId: true, grinderModel: true,
-    baristaName: true, drinkerName: null, basketId: true, basketName: true, rpm: true,
-  }, 'recipe flags what it set; the batch and the drinker it clears are nulled');
+    baristaName: true, drinkerName: null, basketId: true, basketName: true, rpm: true, feedRate: null,
+  }, 'recipe flags what it set; the batch, drinker and feed rate it clears are nulled');
   assert.ok(!('note' in r.extras.dye), 'unset fields are not flagged');
   assert.equal(r.extras.rpm, 900, 'values survive the flagging');
   // A recipe naming no bean still writes something flaggable: the three nulls that clear the
@@ -140,13 +140,18 @@ console.log('ok   equipment KV table');
   // Streamline's post-shot clear knows DYE2 nulled them rather than never touching them.
   // Since streamline-js#189 the identities it clears are in there too, flagged null for the
   // same reason: DYE2 nulled them, it did not leave them untouched.
+  // The numbers it clears are in there on the same terms: a recipe naming no rpm or feed
+  // rate nulls the live one, so the flag is null rather than absent.
   const none = (await api.buildRecipeWorkflow({ dashboardVariables: { dose: 18 } })).context;
   assert.deepEqual(none.extras.dye, {
     v: 1, coffeeName: null, coffeeRoaster: null, beanBatchId: null,
     grinderId: null, grinderModel: null, baristaName: null, drinkerName: null,
-    basketId: null, basketName: null,
+    basketId: null, basketName: null, rpm: null, feedRate: null,
   });
-  assert.ok(!('rpm' in none.extras.dye), 'and a number it never set is not claimed');
+  assert.ok(!('note' in none.extras.dye), 'and a field it never touches is not claimed');
+  assert.equal(none.targetDoseWeight, 18, 'the number it does name is kept');
+  assert.equal(none.grinderSetting, null, 'the ones it does not are cleared');
+  assert.equal(none.targetYield, 0, 'yield clears to 0 -- Decaid rejects an explicit null');
 
   const f = (await api.buildFavouriteWorkflow({ snapshot: { dose: 18, note: 'n', coffeeName: 'X', rpm: 800, grindSetting: 3 }, copyMask: { beans: false } })).context;
   assert.deepEqual(f.extras.dye, { v: 1, rpm: true, note: true }, 'copyMask-skipped fields are not flagged');

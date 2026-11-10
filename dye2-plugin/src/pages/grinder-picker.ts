@@ -1,5 +1,6 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
+import { grinderLimitsScript } from "../utils/grinder-form";
 
 const styles = `
   .dye-sort-btn {
@@ -475,7 +476,14 @@ async function initializeDyeGrinders() {
       if (!selectedGrinderId) return;
       const g = grindersCache.find(x => x.id === selectedGrinderId);
       try {
-        await updateWorkflow({ context: markDye({ grinderId: selectedGrinderId, grinderModel: g ? grinderName(g) : '' }) });
+        // The picked grinder's own defaults ride along, clamped to its own range -- the
+        // same rule as the dashboard's grinder tabs and the grinders page. A dial position
+        // belongs to the grinder it was read off.
+        const d = g ? grinderDefaultsPatch(g) : {};
+        const ctx = { grinderId: selectedGrinderId, grinderModel: g ? grinderName(g) : '' };
+        if (d.grinderSetting != null) ctx.grinderSetting = d.grinderSetting;
+        if (d.rpm != null) ctx.extras = { rpm: d.rpm };
+        await updateWorkflow({ context: markDye(ctx) });
       } catch (e) { console.warn('workflow update failed:', e); }
       leavePicker();
     });
@@ -498,6 +506,6 @@ export function renderGrinderPickerPage(request: HttpRequest): HttpResponse {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Select Grinder", content, styles, [devApiScript, pageScript]),
+    body: devPageShell("Select Grinder", content, styles, [devApiScript, grinderLimitsScript, pageScript]),
   };
 }

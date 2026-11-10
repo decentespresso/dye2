@@ -444,6 +444,11 @@ let allRecipes = [];    // the library, to name whoever holds a slot
 let stripSlot = null;   // 1..5 | null, the strip slot the tabs target for this recipe
 let slotArmed = null;   // slot whose current holder the next SAVE tap replaces
 let grinders = [];
+// Every grinder id Decaid still holds, ARCHIVED ONES INCLUDED, which is not the same set as
+// the grinders list above: the chip row lists only unarchived grinders, but an archived grinder is
+// hidden, not deleted, and a recipe naming one still means it. Used solely to tell "deleted"
+// from "merely not on the row" -- see renderGrinderChips. null until the fetch answers.
+let knownGrinderIds = null;
 let baskets = [];
 let showOnStreamline = true;
 let selectedGrinderId = null;
@@ -668,9 +673,12 @@ function renderRecipe(recipe) {
   renderBeanChips();
   renderProfileChips();
 
-  if (dv.grinderId) selectedGrinderId = dv.grinderId;
+  // Assigned, not guarded: these are module-level, so a guard left the PREVIOUS recipe's
+  // grinder selected when this one names none -- invisible while the row had no None chip to
+  // show the difference, and a saved-through wrong grinder once it does.
+  selectedGrinderId = dv.grinderId || null;
   renderGrinderChips();
-  if (dv.basketId) selectedBasketId = dv.basketId;
+  selectedBasketId = dv.basketId || null;
   renderBasketChips();
 
   equipmentSelIds = Array.isArray(dv.equipmentIds) ? dv.equipmentIds.slice() : [];
@@ -855,8 +863,7 @@ function applyToCurrentRecipe(src) {
     dashboardVariables: { ...(cur.dashboardVariables || {}), ...(src.dashboardVariables || {}) },
   };
   recipe = merged;
-  if (merged.dashboardVariables.grinderId) selectedGrinderId = merged.dashboardVariables.grinderId;
-  if (merged.dashboardVariables.basketId) selectedBasketId = merged.dashboardVariables.basketId;
+  // renderRecipe assigns selectedGrinderId/selectedBasketId from the merged dashboardVariables.
   renderRecipe(merged);
 }
 
@@ -1031,45 +1038,68 @@ function fillFromProfile(record) {
   });
 }
 
+// A chip row could only ever be set, never cleared: every chip assigned an id and nothing
+// assigned null back, so once a recipe named a grinder there was no way in the editor to say
+// it names none. The leading "None" chip is that way back, and it is what makes the clear
+// rule (streamline-js#189 — a recipe naming no grinder clears the live one rather than
+// inheriting the last recipe's) something a user can actually ask for.
+function renderPickerChips(container, items, { label, selectedId, onSelect }) {
+  if (!container) return;
+  container.innerHTML = '';
+  const chip = (text, id) => {
+    const b = document.createElement('button');
+    b.className = 're-grinder-chip' + (id === selectedId ? ' active' : '');
+    b.textContent = text;
+    b.addEventListener('click', () => {
+      container.querySelectorAll('.re-grinder-chip').forEach(c => c.classList.remove('active'));
+      b.classList.add('active');
+      onSelect(id);
+    });
+    container.appendChild(b);
+  };
+  chip('None', null);
+  items.forEach(item => chip(label(item), item.id));
+}
+
 function renderGrinderChips() {
   const container = document.getElementById('re-grinder-chips');
   if (!container) return;
-  container.innerHTML = '';
   if (grinders.length === 0) {
     container.innerHTML = '<span style="color:var(--text-primary-disabled);font-size:20px">No grinders</span>';
     return;
   }
-  grinders.forEach(g => {
-    const chip = document.createElement('button');
-    chip.className = 're-grinder-chip' + (g.id === selectedGrinderId ? ' active' : '');
-    chip.textContent = g.model || g.name || 'Grinder';
-    chip.addEventListener('click', () => {
-      container.querySelectorAll('.re-grinder-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      selectedGrinderId = g.id;
-    });
-    container.appendChild(chip);
+  // A recipe keeps the grinder id it was saved with and nothing rewrites it when that grinder
+  // is DELETED, so the row used to light no chip at all -- which looked exactly like a recipe
+  // that names no grinder. Resolve it: gone means None, and saving then clears the dead id for
+  // good. Archived is NOT gone (knownGrinderIds includes archived rows), and neither is an
+  // unreadable catalogue (null). Shot history is deliberately untouched by this: it shows the
+  // name the shot itself recorded (edit-shot.ts), never a lookup against today's list.
+  if (selectedGrinderId && knownGrinderIds && !knownGrinderIds.has(selectedGrinderId)) {
+    selectedGrinderId = null;
+  }
+  renderPickerChips(container, grinders, {
+    label: g => g.model || g.name || 'Grinder',
+    selectedId: selectedGrinderId,
+    onSelect: id => { selectedGrinderId = id; },
   });
 }
 
 function renderBasketChips() {
   const container = document.getElementById('re-basket-chips');
   if (!container) return;
-  container.innerHTML = '';
   if (baskets.length === 0) {
     container.innerHTML = '<span style="color:var(--text-primary-disabled);font-size:20px">No baskets</span>';
     return;
   }
-  baskets.forEach(b => {
-    const chip = document.createElement('button');
-    chip.className = 're-grinder-chip' + (b.id === selectedBasketId ? ' active' : '');
-    chip.textContent = b.name || 'Basket';
-    chip.addEventListener('click', () => {
-      container.querySelectorAll('.re-grinder-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      selectedBasketId = b.id;
-    });
-    container.appendChild(chip);
+  // Same as the grinder row. Baskets are a plain KV array with no archived flag, so the list
+  // itself is the whole truth: not in it means deleted.
+  if (selectedBasketId && !baskets.some(b => b && b.id === selectedBasketId)) {
+    selectedBasketId = null;
+  }
+  renderPickerChips(container, baskets, {
+    label: b => b.name || 'Basket',
+    selectedId: selectedBasketId,
+    onSelect: id => { selectedBasketId = id; },
   });
 }
 
@@ -1602,6 +1632,15 @@ async function initRecipeEdit() {
     const gs = await getGrinders().catch(() => []);
     grinders = Array.isArray(gs) ? gs : (gs && gs.items ? gs.items : []);
   } catch (e) { grinders = []; }
+
+  // Second read, archived included, for the deleted-or-not question only. A failed read
+  // leaves the set null, which renderGrinderChips treats as "could not check" and leaves the
+  // stored grinder selected: an unreachable catalogue must not look like a deletion.
+  try {
+    const all = await getGrinders(true).catch(() => null);
+    const list = Array.isArray(all) ? all : (all && all.items ? all.items : null);
+    knownGrinderIds = list ? new Set(list.map(g => g && g.id)) : null;
+  } catch (e) { knownGrinderIds = null; }
 
   try {
     baskets = await getBaskets().catch(() => []);

@@ -495,10 +495,19 @@ but no batch still clears the batch (dye2#27).
 `drinkerName`, `extras.basketId` and `extras.basketName` are nulled whenever the row names
 none, for the same deep-merge reason: a recipe recording no grinder left the previously
 applied item's grinder on the shot. Rows saved before this rule carry no such keys and get no
-migration pass — Streamline normalises them at apply time instead (`clearInheritedIdentity`),
-so the fix reaches old rows without a second one-shot flag. The **numbers** — `grind`, `rpm`,
-`feedRate`, dose and yield — are deliberately NOT cleared: a grind is where the dial sits and
-stays true until someone moves it, while a grinder name is a claim about this shot.
+migration pass — Streamline normalises them at apply time instead (`clearInheritedFields`),
+so the fix reaches old rows without a second one-shot flag.
+
+**And so do the numbers.** `grinderSetting`, `targetDoseWeight`, `extras.rpm` and
+`extras.feedRate` are nulled whenever the row names none — or names `0`, which is read as
+naming none — on the same rule: a recipe is the whole shot, not an overlay on the last one, so
+the previously applied recipe's dose must not stand in for one this recipe never recorded.
+`targetYield` is the one field cleared to **`0` instead of `null`**, and Decaid forces it:
+`workflow_handler.dart` passes `targetYield` to `rejectExplicitNulls`, so
+`{"context":{"targetYield":null}}` answers `400` and takes the whole apply down with it. `0`
+is Decaid's own clear for that field — stop-at-weight off. On Streamline's tiles a cleared
+grind or dose falls back to the machine's own value and then to a dash, rather than reading
+`0` as a dial position.
 
 ### `equipment[]`
 

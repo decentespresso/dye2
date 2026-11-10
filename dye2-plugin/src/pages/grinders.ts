@@ -1,6 +1,6 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
-import { buildGrinderBodyScript } from "../utils/grinder-form";
+import { buildGrinderBodyScript, grinderLimitsScript } from "../utils/grinder-form";
 import { cardLongPressScript } from "../utils/fav-card-tap";
 
 const styles = `
@@ -64,6 +64,13 @@ const styles = `
     min-height: 80px;
   }
   .dye-card-add svg { stroke: var(--mimoja-blue); }
+  /* Archived: still listed here, and only here -- the pickers never offer one. Dimmed and
+     dashed so it reads as set aside rather than deleted. */
+  .dye-card.dye-card-archived {
+    opacity: 0.45;
+    border-style: dashed;
+  }
+  .dye-card.dye-card-archived:hover { opacity: 0.65; }
 
   .dye-card-name  { font-size: 22px; font-weight: 600; line-height: 1.3; }
   .dye-card-sub   { font-size: 20px; font-weight: 400; opacity: 0.7; }
@@ -111,6 +118,7 @@ const styles = `
   }
   .dye-field textarea { height: auto; padding: 12px 14px; resize: vertical; }
   .dye-field-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .dye-field-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
   .dye-modal-actions { display: flex; justify-content: flex-end; gap: 14px; margin-top: 24px; }
   .dye-btn {
     height: 56px; padding: 0 30px; border-radius: 9999px;
@@ -205,6 +213,20 @@ const content = `
             <input name="settingBigStep" type="number" step="any" placeholder="e.g. 1" />
           </div>
         </div>
+        <div id="dye-numeric-range" class="dye-field dye-field-3">
+          <div>
+            <label>Setting Min</label>
+            <input name="settingMin" type="number" step="any" placeholder="e.g. 0" />
+          </div>
+          <div>
+            <label>Setting Max</label>
+            <input name="settingMax" type="number" step="any" placeholder="e.g. 50" />
+          </div>
+          <div>
+            <label>Setting Default</label>
+            <input name="settingDefault" type="number" step="any" placeholder="blank = middle of the range" />
+          </div>
+        </div>
         <div id="dye-preset-settings" class="dye-field dye-hidden">
           <label>Setting Values (comma-separated)</label>
           <input name="settingValues" placeholder="e.g. Fine, Medium, Coarse" />
@@ -219,6 +241,20 @@ const content = `
             <input name="rpmBigStep" type="number" step="any" placeholder="e.g. 100" />
           </div>
         </div>
+        <div class="dye-field dye-field-3">
+          <div>
+            <label>RPM Min</label>
+            <input name="rpmMin" type="number" step="any" placeholder="e.g. 300" />
+          </div>
+          <div>
+            <label>RPM Max</label>
+            <input name="rpmMax" type="number" step="any" placeholder="e.g. 1400" />
+          </div>
+          <div>
+            <label>RPM Default</label>
+            <input name="rpmDefault" type="number" step="any" placeholder="blank = middle of the range" />
+          </div>
+        </div>
         <div class="dye-field">
           <label>Feed Rate</label>
           <input name="feedRate" placeholder="e.g. FF/MF/SF or feeder RPM range" />
@@ -230,6 +266,7 @@ const content = `
         <div id="dye-modal-error" class="dye-modal-error dye-hidden"></div>
         <div class="dye-modal-actions">
           <button type="button" id="dye-modal-delete" class="dye-btn dye-btn-danger dye-hidden">DELETE</button>
+          <button type="button" id="dye-modal-archive" class="dye-btn dye-btn-ghost dye-hidden">ARCHIVE</button>
           <button type="button" id="dye-modal-cancel" class="dye-btn dye-btn-ghost">CANCEL</button>
           <button type="submit" id="dye-modal-save" class="dye-btn dye-btn-primary">SAVE</button>
         </div>
@@ -244,6 +281,7 @@ let grindersCache = [];
 let searchQuery = '';
 let editingId = null;
 let editingExtras = {};
+let editingArchived = false;
 let currentSort = 'recent';
 let selectedGrinderId = null;
 
@@ -306,16 +344,26 @@ function renderGrinderCards(grid) {
   addCard.addEventListener('click', () => openModal(null));
   grid.appendChild(addCard);
 
-  sortItems(grindersCache.filter(matchesSearch), currentSort).forEach(g => {
+  // Archived grinders sort to the end of whatever order is picked, so the ones in rotation
+  // stay at the top and the set-aside ones are still reachable without a second screen.
+  const inOrder = sortItems(grindersCache.filter(matchesSearch), currentSort);
+  [...inOrder.filter(g => !g.archived), ...inOrder.filter(g => g.archived)].forEach(g => {
     const card = document.createElement('div');
-    card.className = 'dye-card';
+    card.className = 'dye-card' + (g.archived ? ' dye-card-archived' : '');
     const sub = grinderSub(g);
-    const meta = grinderMeta(g);
+    const meta = [g.archived ? 'Archived' : '', grinderMeta(g)].filter(Boolean).join(' · ');
     card.innerHTML =
       '<div class="dye-card-name">' + esc(grinderName(g)) + '</div>' +
       (sub ? '<div class="dye-card-sub">' + esc(sub) + '</div>' : '') +
       (meta ? '<div class="dye-card-date">' + esc(meta) + '</div>' : '');
     if (g.id === selectedGrinderId) card.classList.add('dye-card-selected');
+    // An archived grinder is not offerable: a tap opens its editor (where UNARCHIVE is)
+    // instead of writing it to the workflow as the next shot's grinder.
+    if (g.archived) {
+      card.addEventListener('click', () => openModal(g));
+      grid.appendChild(card);
+      return;
+    }
     // Tap picks the grinder for the next shot, a 500ms hold edits it -- the same split as
     // bean-picker and the dashboard's grinder tabs. There is no CONFIRM on this page, so the
     // tap writes straight through; PUT /workflow deep-merges, so this partial context is safe.
@@ -326,7 +374,13 @@ function renderGrinderCards(grid) {
       grid.querySelectorAll('.dye-card').forEach(c => c.classList.remove('dye-card-selected'));
       card.classList.add('dye-card-selected');
       selectedGrinderId = g.id;
-      updateWorkflow({ context: markDye({ grinderId: g.id, grinderModel: grinderName(g) }) })
+      // The grinder's own defaults ride along, clamped to its own range: a dial position
+      // belongs to the grinder it was read off. Same rule as the dashboard's grinder tabs.
+      const d = grinderDefaultsPatch(g);
+      const ctx = { grinderId: g.id, grinderModel: grinderName(g) };
+      if (d.grinderSetting != null) ctx.grinderSetting = d.grinderSetting;
+      if (d.rpm != null) ctx.extras = { rpm: d.rpm };
+      updateWorkflow({ context: markDye(ctx) })
         .catch(e => console.warn('workflow update failed:', e));
     });
     grid.appendChild(card);
@@ -339,18 +393,25 @@ function setField(name, val) { const el = form().elements[name]; if (el) el.valu
 function toggleSettingSections() {
   const isNumeric = form().elements['settingType'].value === 'numeric';
   document.getElementById('dye-numeric-settings').classList.toggle('dye-hidden', !isNumeric);
+  // A preset grinder's positions are named, not numbered, so a numeric range and default
+  // mean nothing there -- settingValues is its whole vocabulary. RPM is independent of the
+  // setting type and stays visible either way.
+  document.getElementById('dye-numeric-range').classList.toggle('dye-hidden', !isNumeric);
   document.getElementById('dye-preset-settings').classList.toggle('dye-hidden', isNumeric);
 }
 
 function openModal(g) {
   editingId = g ? g.id : null;
   editingExtras = (g && g.extras) || {};
+  editingArchived = !!(g && g.archived);
   document.getElementById('dye-modal-title').textContent = g ? 'Edit Grinder' : 'New Grinder';
   document.getElementById('dye-modal-error').classList.add('dye-hidden');
   form().reset();
   if (g) {
     ['model','burrs','burrType','burrSize','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','notes'].forEach(k => setField(k, g[k]));
     setField('feedRate', editingExtras.feedRate);
+    ['settingMin','settingMax','settingDefault','rpmMin','rpmMax','rpmDefault']
+      .forEach(k => setField(k, editingExtras[k]));
     setField('settingValues', Array.isArray(g.settingValues) ? g.settingValues.join(', ') : (g.settingValues || ''));
     if (!g.settingType) setField('settingType', 'numeric');
   } else {
@@ -358,6 +419,12 @@ function openModal(g) {
   }
   toggleSettingSections();
   document.getElementById('dye-modal-delete').classList.toggle('dye-hidden', !g);
+  // One button, both directions: this page is the only place an archived grinder is listed,
+  // so if it could not bring one back, archiving would strand it exactly as the Beanconqueror
+  // import used to (nothing else in DYE2 ever wrote the flag, and nothing showed it).
+  const archiveBtn = document.getElementById('dye-modal-archive');
+  archiveBtn.classList.toggle('dye-hidden', !g);
+  archiveBtn.textContent = editingArchived ? 'UNARCHIVE' : 'ARCHIVE';
   document.getElementById('dye-modal-backdrop').classList.add('open');
 }
 
@@ -369,9 +436,21 @@ function closeModal() {
 async function submitForm() {
   const fd = new FormData(form());
   const fields = {};
-  ['model','burrs','burrType','burrSize','feedRate','notes','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','settingValues']
+  ['model','burrs','burrType','burrSize','feedRate','notes','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','settingValues',
+   'settingMin','settingMax','settingDefault','rpmMin','rpmMax','rpmDefault']
     .forEach(k => { fields[k] = fd.get(k); });
   const body = buildGrinderBody(fields, !!editingId, editingExtras);
+  // A reversed range silently breaks every clamp that reads it, so it is refused at the one
+  // place it can be entered rather than defended at each of the places it is used.
+  const ex = body.extras || {};
+  const reversed = [['Setting', ex.settingMin, ex.settingMax], ['RPM', ex.rpmMin, ex.rpmMax]]
+    .find(([, lo, hi]) => lo != null && hi != null && lo > hi);
+  if (reversed) {
+    const errEl = document.getElementById('dye-modal-error');
+    errEl.textContent = reversed[0] + ' Min must not be greater than ' + reversed[0] + ' Max.';
+    errEl.classList.remove('dye-hidden');
+    return;
+  }
 
   try {
     const url = editingId ? '/api/v1/grinders/' + editingId : '/api/v1/grinders';
@@ -386,6 +465,29 @@ async function submitForm() {
   } catch (err) {
     const errEl = document.getElementById('dye-modal-error');
     errEl.textContent = 'Save failed: ' + err.message;
+    errEl.classList.remove('dye-hidden');
+  }
+}
+
+// Archive is the reversible one, and it is NOT delete: the grinder leaves the pickers but
+// stays in the database, so recipes that name it keep working and shots keep resolving it.
+// PUT deep-merges, so the flag alone is the whole body -- every other field is left as is.
+async function toggleArchive() {
+  if (!editingId) return;
+  const next = !editingArchived;
+  if (next && !confirm('Archive this grinder? It leaves the pickers but keeps working in the recipes and shots that name it, and you can bring it back from this page.')) return;
+  try {
+    const res = await fetch('/api/v1/grinders/' + editingId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived: next }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + await res.text());
+    closeModal();
+    await reload();
+  } catch (err) {
+    const errEl = document.getElementById('dye-modal-error');
+    errEl.textContent = (next ? 'Archive' : 'Unarchive') + ' failed: ' + err.message;
     errEl.classList.remove('dye-hidden');
   }
 }
@@ -407,7 +509,11 @@ async function deleteGrinder() {
 
 async function reload() {
   try {
-    const result = await getGrinders();
+    // Archived included: this page is the one place they are listed, and without them an
+    // archived grinder is invisible, unpickable and impossible to bring back or delete.
+    // The pickers (grinder-picker, auto-fav-edit, recipe-edit chips) deliberately do NOT
+    // pass the flag -- an archived grinder must not be offered for a new shot.
+    const result = await getGrinders(true);
     grindersCache = Array.isArray(result) ? result : (result.items || []);
   } catch (e) {
     console.error('Failed to load grinders:', e);
@@ -451,6 +557,7 @@ async function initializeDyeGrinders() {
   document.getElementById('dye-done-btn')?.addEventListener('click', () => window.history.back());
   document.getElementById('dye-modal-cancel')?.addEventListener('click', closeModal);
   document.getElementById('dye-modal-delete')?.addEventListener('click', deleteGrinder);
+  document.getElementById('dye-modal-archive')?.addEventListener('click', toggleArchive);
   document.getElementById('dye-modal-backdrop')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeModal();
   });
@@ -466,6 +573,6 @@ export function renderGrindersPage(request: HttpRequest): HttpResponse {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Grinders", content, styles, [devApiScript, buildGrinderBodyScript, cardLongPressScript, pageScript]),
+    body: devPageShell("Grinders", content, styles, [devApiScript, buildGrinderBodyScript, grinderLimitsScript, cardLongPressScript, pageScript]),
   };
 }

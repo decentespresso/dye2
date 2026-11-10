@@ -130,6 +130,33 @@ takes the grinder's current `extras` as a third argument and spreads it under th
 unrelated key (like `bcUuid`) survives; `grinders.ts` must pass the grinder being edited's
 `extras`, not just the feed-rate field.
 
+The grinder's **range and defaults** ride in that same `extras` map, for the same reason:
+`settingMin`, `settingMax`, `settingDefault`, `rpmMin`, `rpmMax`, `rpmDefault`, each a plain
+number or `null` ("this grinder declares none" — never `0`, which is a legitimate setting).
+`grinder-form.ts` owns them: `buildGrinderBody` writes them, and `grinderLimitsScript` reads
+them back (`grinderLimits`, `clampToRange`, `grinderDefaultsPatch`). A **preset** grinder
+stores no setting range — its positions are named, so a numeric min/max over them means
+nothing — while rpm is independent of the setting type. A reversed range is refused on save,
+at the one place it can be typed, rather than defended at each place it is read.
+
+Two things use them. The dashboard's grind and rpm steppers take their bounds from whichever
+grinder the live workflow names, resolved at the moment of the tap rather than at wiring time
+(`wireAdjuster`'s `min`/`max` accept a function). And a **manual** grinder change — the
+dashboard's grinder tabs, the grinders page card tap, the grinder picker's CONFIRM — writes
+that grinder's defaults along with its id, clamped to its own range: a dial position belongs
+to the grinder it was read off, so 7.5 on the Niche is not 7.5 on the DF64. A grinder that
+bounds a value but names no default opens on the **middle of its range** — bounding it is
+already saying the middle is a fair first guess, and it still beats carrying the previous
+grinder's number over. Both bounds are required (the middle of a half-open range is not a
+number), and the midpoint is snapped to the grinder's own `settingSmallStep`/`rpmSmallStep`
+measured from `min`, so a grinder stepping in whole numbers from 1 to 10 opens at 6 rather
+than an unreachable 5.5. A **recipe apply
+never** goes through that path: the recipe's own numbers win, and a recipe naming no grind
+leaves it cleared (streamline-js#189) rather than borrowing the grinder's default.
+
+Streamline reads the same two keys for its Grind tile (`grinder-sync.js` `workflowGrindRange`,
+fed to `ui.js` by the workflow poll), so the tile stops where the grinder stops.
+
 Every DYE2 write of a bean, grinder, barista/drinker, basket, rpm, feed rate or note field also flags it in
 `context.extras.dye = { v: 1, <field>: true }` through `markDye()` (`dev-api.ts`). Streamline's
 post-shot clear (`dye-context.js`) wipes only flagged fields, so an unflagged write is cleared
