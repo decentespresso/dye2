@@ -1667,11 +1667,16 @@ function renderGrinderCards(grid) {
       card.classList.add('dye-card-selected');
       selectedGrinderId = g.id;
       // The grinder's own defaults ride along, clamped to its own range: a dial position
-      // belongs to the grinder it was read off. Same rule as the dashboard's grinder tabs.
+      // belongs to the grinder it was read off. A grinder declaring neither default nor
+      // range clears the value instead of keeping the previous grinder's number. Same rule
+      // as the dashboard's grinder tabs.
       const d = grinderDefaultsPatch(g);
-      const ctx = { grinderId: g.id, grinderModel: grinderName(g) };
-      if (d.grinderSetting != null) ctx.grinderSetting = d.grinderSetting;
-      if (d.rpm != null) ctx.extras = { rpm: d.rpm };
+      const ctx = {
+        grinderId: g.id,
+        grinderModel: grinderName(g),
+        grinderSetting: d.grinderSetting != null ? d.grinderSetting : null,
+        extras: { rpm: d.rpm != null ? d.rpm : null },
+      };
       updateWorkflow({ context: markDye(ctx) })
         .catch(e => console.warn('workflow update failed:', e));
     });
@@ -3799,11 +3804,15 @@ async function initializeDyeGrinders() {
       try {
         // The picked grinder's own defaults ride along, clamped to its own range -- the
         // same rule as the dashboard's grinder tabs and the grinders page. A dial position
-        // belongs to the grinder it was read off.
+        // belongs to the grinder it was read off, so a grinder declaring neither default nor
+        // range clears the value rather than inheriting the previous grinder's number.
         const d = g ? grinderDefaultsPatch(g) : {};
-        const ctx = { grinderId: selectedGrinderId, grinderModel: g ? grinderName(g) : '' };
-        if (d.grinderSetting != null) ctx.grinderSetting = d.grinderSetting;
-        if (d.rpm != null) ctx.extras = { rpm: d.rpm };
+        const ctx = {
+          grinderId: selectedGrinderId,
+          grinderModel: g ? grinderName(g) : '',
+          grinderSetting: d.grinderSetting != null ? d.grinderSetting : null,
+          extras: { rpm: d.rpm != null ? d.rpm : null },
+        };
         await updateWorkflow({ context: markDye(ctx) });
       } catch (e) { console.warn('workflow update failed:', e); }
       leavePicker();
@@ -4374,6 +4383,34 @@ function profileName(p) { const pr = (p && p.profile) || {}; return pr.title || 
 function profileSub(p)  { const pr = (p && p.profile) || {}; return pr.author || pr.beverage_type || p.author || p.beverage_type || p.type || ''; }
 function profileMeta(p) { const pr = (p && p.profile) || {}; return pr.notes || p.notes || p.description || ''; }
 
+// A yield of 0 means 'not set', not 'zero grams' -- plenty of profiles keep theirs in
+// target_volume and leave target_weight at 0. Same reading as recipe-edit's profileYieldOf.
+function profileYieldOf(prof) {
+  const pos = (v) => { const n = parseFloat(v); return Number.isFinite(n) && n > 0 ? n : null; };
+  return prof ? (pos(prof.target_weight) ?? pos(prof.target_volume)) : null;
+}
+
+// What the picked profile itself says about the next shot's Dose and Drink, so the dashboard
+// shows the profile's numbers instead of the previous shot's. A profile names only its yield
+// (no library profile sets a bean weight), so the dose follows at the ratio already in play --
+// the same rule as recipe-edit's fillFromProfile. A profile naming no yield patches nothing
+// and leaves both alone.
+async function profileTargetsPatch(prof) {
+  const yieldG = profileYieldOf(prof);
+  if (yieldG == null) return null;
+  const drink = Math.round(yieldG * 10) / 10;
+  const ctx = { targetYield: drink };
+  let live = {};
+  try { live = ((await getWorkflow()) || {}).context || {}; }
+  catch (e) { console.warn('profile-picker: could not read the live workflow for the ratio:', e); }
+  const dose = parseFloat(live.targetDoseWeight), prevYield = parseFloat(live.targetYield);
+  if (dose > 0 && prevYield > 0) {
+    // Round to the dashboard's own 0.5g dose step, so the stepper starts on its lattice.
+    ctx.targetDoseWeight = Math.round((drink / (prevYield / dose)) * 2) / 2;
+  }
+  return ctx;
+}
+
 function matchesSearch(p) {
   if (!searchQuery) return true;
   const hay = profileName(p) + ' ' + profileSub(p) + ' ' + profileMeta(p);
@@ -4530,7 +4567,10 @@ async function initializeDyeProfiles() {
       const full = p && p.profile && Array.isArray(p.profile.steps) && p.profile.steps.length ? p.profile : null;
       if (!full) console.warn('profile-picker: no full record for ' + selectedProfileId + ' -- sending id/title only, brew steps will not change');
       try {
-        await updateWorkflow({ profile: full || { id: selectedProfileId, title: p ? profileName(p) : '' } });
+        const body = { profile: full || { id: selectedProfileId, title: p ? profileName(p) : '' } };
+        const ctx = await profileTargetsPatch((p && p.profile) || p);
+        if (ctx) body.context = ctx;
+        await updateWorkflow(body);
       } catch (e) { console.warn('workflow update failed:', e); }
       leaveProfilePicker(null);
     });
@@ -7743,17 +7783,18 @@ function renderGrinderTabs() {
       const wrote = ['grinderId', 'grinderModel'];
       // A manual grinder change takes that grinder's declared defaults with it: a dial
       // position belongs to the grinder it was read off, so 7.5 on the Niche is not 7.5 on
-      // the DF64 and carrying it over is a false number. A grinder declaring no default
-      // leaves the live value alone. A recipe apply never comes through here -- the recipe's
-      // own numbers win, and a recipe naming no grind leaves it cleared (streamline-js#189).
+      // the DF64 and carrying it over is a false number. So the new grinder's default (or
+      // the midpoint of its declared range) wins, and a grinder declaring neither clears the
+      // readout to a dash -- "dial me in" -- rather than leaving the old grinder's number
+      // standing. A recipe apply never comes through here -- the recipe's own numbers win,
+      // and a recipe naming no grind leaves it cleared (streamline-js#189).
       const defaults = grinderDefaultsPatch(g);
-      if (defaults.grinderSetting != null) {
-        currentWorkflow.context.grinderSetting = defaults.grinderSetting;
-      }
-      if (defaults.rpm != null) {
-        currentWorkflow.context.extras = { ...(currentWorkflow.context.extras || {}), rpm: defaults.rpm };
-        wrote.push('rpm');
-      }
+      currentWorkflow.context.grinderSetting = defaults.grinderSetting != null ? defaults.grinderSetting : null;
+      currentWorkflow.context.extras = {
+        ...(currentWorkflow.context.extras || {}),
+        rpm: defaults.rpm != null ? defaults.rpm : null,
+      };
+      wrote.push('rpm');
       markDye(currentWorkflow.context, wrote);
       renderGrinderTabs();
       // The grind and rpm readouts came from the previous grinder: repaint them, or the

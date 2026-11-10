@@ -478,11 +478,15 @@ async function initializeDyeGrinders() {
       try {
         // The picked grinder's own defaults ride along, clamped to its own range -- the
         // same rule as the dashboard's grinder tabs and the grinders page. A dial position
-        // belongs to the grinder it was read off.
+        // belongs to the grinder it was read off, so a grinder declaring neither default nor
+        // range clears the value rather than inheriting the previous grinder's number.
         const d = g ? grinderDefaultsPatch(g) : {};
-        const ctx = { grinderId: selectedGrinderId, grinderModel: g ? grinderName(g) : '' };
-        if (d.grinderSetting != null) ctx.grinderSetting = d.grinderSetting;
-        if (d.rpm != null) ctx.extras = { rpm: d.rpm };
+        const ctx = {
+          grinderId: selectedGrinderId,
+          grinderModel: g ? grinderName(g) : '',
+          grinderSetting: d.grinderSetting != null ? d.grinderSetting : null,
+          extras: { rpm: d.rpm != null ? d.rpm : null },
+        };
         await updateWorkflow({ context: markDye(ctx) });
       } catch (e) { console.warn('workflow update failed:', e); }
       leavePicker();

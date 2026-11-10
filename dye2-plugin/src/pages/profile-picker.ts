@@ -124,6 +124,34 @@ function profileName(p) { const pr = (p && p.profile) || {}; return pr.title || 
 function profileSub(p)  { const pr = (p && p.profile) || {}; return pr.author || pr.beverage_type || p.author || p.beverage_type || p.type || ''; }
 function profileMeta(p) { const pr = (p && p.profile) || {}; return pr.notes || p.notes || p.description || ''; }
 
+// A yield of 0 means 'not set', not 'zero grams' -- plenty of profiles keep theirs in
+// target_volume and leave target_weight at 0. Same reading as recipe-edit's profileYieldOf.
+function profileYieldOf(prof) {
+  const pos = (v) => { const n = parseFloat(v); return Number.isFinite(n) && n > 0 ? n : null; };
+  return prof ? (pos(prof.target_weight) ?? pos(prof.target_volume)) : null;
+}
+
+// What the picked profile itself says about the next shot's Dose and Drink, so the dashboard
+// shows the profile's numbers instead of the previous shot's. A profile names only its yield
+// (no library profile sets a bean weight), so the dose follows at the ratio already in play --
+// the same rule as recipe-edit's fillFromProfile. A profile naming no yield patches nothing
+// and leaves both alone.
+async function profileTargetsPatch(prof) {
+  const yieldG = profileYieldOf(prof);
+  if (yieldG == null) return null;
+  const drink = Math.round(yieldG * 10) / 10;
+  const ctx = { targetYield: drink };
+  let live = {};
+  try { live = ((await getWorkflow()) || {}).context || {}; }
+  catch (e) { console.warn('profile-picker: could not read the live workflow for the ratio:', e); }
+  const dose = parseFloat(live.targetDoseWeight), prevYield = parseFloat(live.targetYield);
+  if (dose > 0 && prevYield > 0) {
+    // Round to the dashboard's own 0.5g dose step, so the stepper starts on its lattice.
+    ctx.targetDoseWeight = Math.round((drink / (prevYield / dose)) * 2) / 2;
+  }
+  return ctx;
+}
+
 function matchesSearch(p) {
   if (!searchQuery) return true;
   const hay = profileName(p) + ' ' + profileSub(p) + ' ' + profileMeta(p);
@@ -280,7 +308,10 @@ async function initializeDyeProfiles() {
       const full = p && p.profile && Array.isArray(p.profile.steps) && p.profile.steps.length ? p.profile : null;
       if (!full) console.warn('profile-picker: no full record for ' + selectedProfileId + ' -- sending id/title only, brew steps will not change');
       try {
-        await updateWorkflow({ profile: full || { id: selectedProfileId, title: p ? profileName(p) : '' } });
+        const body = { profile: full || { id: selectedProfileId, title: p ? profileName(p) : '' } };
+        const ctx = await profileTargetsPatch((p && p.profile) || p);
+        if (ctx) body.context = ctx;
+        await updateWorkflow(body);
       } catch (e) { console.warn('workflow update failed:', e); }
       leaveProfilePicker(null);
     });

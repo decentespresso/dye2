@@ -1590,17 +1590,18 @@ function renderGrinderTabs() {
       const wrote = ['grinderId', 'grinderModel'];
       // A manual grinder change takes that grinder's declared defaults with it: a dial
       // position belongs to the grinder it was read off, so 7.5 on the Niche is not 7.5 on
-      // the DF64 and carrying it over is a false number. A grinder declaring no default
-      // leaves the live value alone. A recipe apply never comes through here -- the recipe's
-      // own numbers win, and a recipe naming no grind leaves it cleared (streamline-js#189).
+      // the DF64 and carrying it over is a false number. So the new grinder's default (or
+      // the midpoint of its declared range) wins, and a grinder declaring neither clears the
+      // readout to a dash -- "dial me in" -- rather than leaving the old grinder's number
+      // standing. A recipe apply never comes through here -- the recipe's own numbers win,
+      // and a recipe naming no grind leaves it cleared (streamline-js#189).
       const defaults = grinderDefaultsPatch(g);
-      if (defaults.grinderSetting != null) {
-        currentWorkflow.context.grinderSetting = defaults.grinderSetting;
-      }
-      if (defaults.rpm != null) {
-        currentWorkflow.context.extras = { ...(currentWorkflow.context.extras || {}), rpm: defaults.rpm };
-        wrote.push('rpm');
-      }
+      currentWorkflow.context.grinderSetting = defaults.grinderSetting != null ? defaults.grinderSetting : null;
+      currentWorkflow.context.extras = {
+        ...(currentWorkflow.context.extras || {}),
+        rpm: defaults.rpm != null ? defaults.rpm : null,
+      };
+      wrote.push('rpm');
       markDye(currentWorkflow.context, wrote);
       renderGrinderTabs();
       // The grind and rpm readouts came from the previous grinder: repaint them, or the

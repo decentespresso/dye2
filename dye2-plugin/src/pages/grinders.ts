@@ -375,11 +375,16 @@ function renderGrinderCards(grid) {
       card.classList.add('dye-card-selected');
       selectedGrinderId = g.id;
       // The grinder's own defaults ride along, clamped to its own range: a dial position
-      // belongs to the grinder it was read off. Same rule as the dashboard's grinder tabs.
+      // belongs to the grinder it was read off. A grinder declaring neither default nor
+      // range clears the value instead of keeping the previous grinder's number. Same rule
+      // as the dashboard's grinder tabs.
       const d = grinderDefaultsPatch(g);
-      const ctx = { grinderId: g.id, grinderModel: grinderName(g) };
-      if (d.grinderSetting != null) ctx.grinderSetting = d.grinderSetting;
-      if (d.rpm != null) ctx.extras = { rpm: d.rpm };
+      const ctx = {
+        grinderId: g.id,
+        grinderModel: grinderName(g),
+        grinderSetting: d.grinderSetting != null ? d.grinderSetting : null,
+        extras: { rpm: d.rpm != null ? d.rpm : null },
+      };
       updateWorkflow({ context: markDye(ctx) })
         .catch(e => console.warn('workflow update failed:', e));
     });
