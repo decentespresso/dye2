@@ -243,21 +243,21 @@ assert.equal(shotPatchAffectsRecents('{"annotations":{"espressoNotes":"x"}}'), f
 
 console.log("dashboard-open tests passed");
 
-// 9. The pill rail is the whole recipe library, not Streamline's 5-cell R strip: a recipe with
-// no stripSlot (what Edit Auto Favourite's SAVE TO RECIPE writes) still gets a pill, slotted
-// ones lead in slot order, and the selected recipe is never rendered twice.
+// 9. The pill rail is the whole recipe library, not Streamline's 5-cell R strip: neither
+// stripSlot (null on what Edit Auto Favourite's SAVE TO RECIPE writes) nor
+// showOnStreamlineDashboard (false once a cell is cleared on Streamline's own strip) drops a
+// recipe from it. stripSlot only orders them.
 {
   const src = readFileSync(new URL('../src/pages/dashboard.ts', import.meta.url), 'utf8');
   const body = src.slice(src.indexOf('function renderRecipePills('));
-  const fn = new Function('recipes', 'selRecipeId', `
+  const fn = new Function('recipes', `
     const slotOf = (r) => (r && r.stripSlot != null ? r.stripSlot : Infinity);
-    const recipeItems = recipes.filter(r => r && r.showOnStreamlineDashboard !== false)
-      .map((r, i) => [r, i]).sort((a, b) => (slotOf(a[0]) - slotOf(b[0])) || (a[1] - b[1])).map(([r]) => r);
-    const hidden = selRecipeId ? recipes.find(r => r && String(r.id) === selRecipeId && !recipeItems.includes(r)) : null;
-    return [...(hidden ? [hidden] : []), ...recipeItems].map(r => r.id);
+    return recipes.filter(r => r)
+      .map((r, i) => [r, i]).sort((a, b) => (slotOf(a[0]) - slotOf(b[0])) || (a[1] - b[1])).map(([r]) => r.id);
   `);
-  assert.match(body, /filter\(r => r && r\.showOnStreamlineDashboard !== false\)/,
-    'the rail filters on the hidden flag only, not on stripSlot');
+  const code = body.slice(0, body.indexOf('container.innerHTML')).replace(/^\s*\/\/.*$/gm, '');
+  assert.doesNotMatch(code, /showOnStreamlineDashboard/,
+    'nothing filters the rail by the Streamline-strip flag');
 
   const rows = [
     { id: 'lib1', name: 'From a favourite' },                    // stripSlot absent
@@ -266,11 +266,8 @@ console.log("dashboard-open tests passed");
     { id: 's1', name: 'One', stripSlot: 1 },
     { id: 'off', name: 'Hidden', stripSlot: 4, showOnStreamlineDashboard: false },
   ];
-  assert.deepEqual(fn(rows, null), ['s1', 's2', 'lib1', 'lib2'],
-    'slotted lead in slot order, unslotted follow as stored, hidden stays off');
-  assert.deepEqual(fn(rows, 'lib2'), ['s1', 's2', 'lib1', 'lib2'],
-    'the selected library recipe is listed once, not prepended a second time');
-  assert.deepEqual(fn(rows, 'off'), ['off', 's1', 's2', 'lib1', 'lib2'],
-    'a hidden recipe still shows while it is the selection');
+  assert.deepEqual(fn(rows), ['s1', 's2', 'off', 'lib1', 'lib2'],
+    'slotted lead in slot order, unslotted follow as stored, every recipe gets a pill');
+  assert.equal(new Set(fn(rows)).size, rows.length, 'one pill per recipe, no duplicates');
 }
 console.log('ok   the recipe rail shows the whole library, slotted first');
