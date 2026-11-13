@@ -50,9 +50,8 @@ for (const [file, wire] of [
 {
   const src = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
   assert.match(src, /grind: grindOrText\(grind\),/, 'favouriteToRecipePatch keeps the text');
-  const m = src.match(/function grindOrText\(v\) \{[\s\S]*?\n\}/);
-  assert.ok(m, 'grindOrText is defined in the page script');
-  const grindOrText = new Function(m[0] + '; return grindOrText;')();
+  const grab = (sig) => { const m = src.match(new RegExp('function ' + sig + ' \\{[\\s\\S]*?\\n\\}')); assert.ok(m, sig + ' is defined in the page script'); return m[0]; };
+  const grindOrText = new Function(grab('isNumericText\\(t\\)') + grab('grindOrText\\(v\\)') + '; return grindOrText;')();
   assert.equal(grindOrText('1.1.0'), '1.1.0');
   assert.equal(grindOrText('15 clicks'), '15 clicks');
   assert.equal(grindOrText('C40'), 'C40');

@@ -812,12 +812,10 @@ function favouriteToRecipePatch(fav) {
 
 // A grind setting is a number when it plainly is one, otherwise the text as typed
 // (KV_CONTRACT: grind / snapshot.grindSetting; the host's grinderSetting is a String?).
+// Same test the grind stepper's allowText wiring uses, so the two cannot disagree.
 function grindOrText(v) {
-  if (v == null) return undefined;
-  const t = String(v).trim();
-  if (t === '') return undefined;
-  const n = Number(t);
-  return Number.isFinite(n) ? n : t;
+  const t = v == null ? '' : String(v).trim();
+  return t === '' ? undefined : (isNumericText(t) ? Number(t) : t);
 }
 
 // Nothing in the record for a dashboard variable? Fall back to the field's own first preset —

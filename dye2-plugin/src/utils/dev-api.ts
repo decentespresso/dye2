@@ -6,6 +6,22 @@
 export const devApiScript = `
 const API_BASE_URL = '/api/v1';
 
+// Every DYE2 page runs inside Decaid's skin WebView, whose console is piped to
+// webview_console.log (skin_view.dart onConsoleMessage -> WebViewLogService) and shipped in
+// the support package a user sends -- at any app log level, unlike the plugin runtime's
+// host.log, which Dart records at FINEST and the default INFO level drops. So the WebView
+// console is the channel a bug report actually carries: one '[dye2]' prefix to grep for.
+// The file is capped at 1MB and truncated from the front, so log decisions and writes, not
+// renders. ponytail: console only -- no ring buffer, no log endpoint; add one if a report
+// ever needs the plugin runtime's own lines too.
+function dlog(what, detail) {
+  try {
+    console.log('[dye2] ' + what + (detail === undefined ? '' : ' ' + JSON.stringify(detail)));
+  } catch (e) { console.log('[dye2] ' + what); }
+}
+// Guarded: the tests evaluate this whole string in node, where there is no location.
+if (typeof location !== 'undefined') dlog('page', { at: location.pathname + location.search });
+
 async function getBeans(includeArchived = false) {
   const params = includeArchived ? '?includeArchived=true' : '';
   const res = await fetch(API_BASE_URL + '/beans' + params);
@@ -138,11 +154,23 @@ async function updateWorkflow(data) {
     const { selection, ...rest } = dye;
     data = { ...data, context: { ...data.context, extras: { ...data.context.extras, dye: rest } } };
   }
+  const ctx = (data && data.context) || {};
+  // A workflow PUT deep-merges on the host (workflow_handler.dart _applyUpdate), so a report
+  // needs to show what was sent, not what the page displayed. Steps are summarised by count:
+  // a whole profile would swamp the 1MB log, and the count is what tells a stub from a profile.
+  dlog('PUT /workflow', {
+    keys: Object.keys(data || {}),
+    dose: ctx.targetDoseWeight, yield: ctx.targetYield, grind: ctx.grinderSetting,
+    bean: ctx.coffeeName, batch: ctx.beanBatchId, grinder: ctx.grinderId,
+    profile: data && data.profile ? { id: data.profile.id, title: data.profile.title, steps: (data.profile.steps || []).length } : null,
+    dye: (ctx.extras || {}).dye,
+  });
   const res = await fetch(API_BASE_URL + '/workflow', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
+  dlog('PUT /workflow ->', res.status);
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
@@ -215,6 +243,9 @@ async function kvSetArray(key, arr) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(arr),
   });
+  // The KV store is last-write-wins over the whole array (KV_CONTRACT), so the ids and the
+  // row count are what a lost-row report turns on.
+  dlog('kv write ' + key, { rows: (arr || []).length, ids: (arr || []).map(x => x && x.id), status: res.status });
   if (!res.ok) throw new Error('HTTP ' + res.status);
 }
 

@@ -157,6 +157,7 @@ const fn = (src, sig) => { const i = src.indexOf(sig); return src.slice(i, src.i
     + fn(page, 'function profileTitleOf(snapshot, wfProfile)')
     + fn(page, 'function profileIdByTitle(title)')
     + fn(page, 'function libraryProfileById(id)')
+    + fn(page, 'function isNumericText(t)')
     + fn(page, 'function grindOrText(v)')
     + fn(page, 'function favouriteToRecipePatch(fav)');
   const usable = fn(api, 'function usableProfileSnapshot(p)');
