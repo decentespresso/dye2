@@ -485,6 +485,28 @@ function getAssignedSlot() {
   const active = document.querySelector('.afe-fav-num.active');
   return active ? parseInt(active.dataset.num) : null;
 }
+function highlightSlot(n) {
+  document.querySelectorAll('.afe-fav-num').forEach(b => b.classList.toggle('active', parseInt(b.dataset.num) === n));
+}
+function setAlwaysDisplay(on) {
+  document.querySelectorAll('#afe-always-display .dye-seg-btn').forEach((b, i) => {
+    const active = on ? i === 0 : i === 1;
+    b.classList.toggle('active', active);
+    b.style.background = active ? 'var(--mimoja-blue)' : 'transparent';
+    b.style.color = active ? '#fff' : 'var(--text-primary)';
+  });
+}
+// The F strip has four cells (FAV_SLOT_MAX, declared once in dev-api's script -- every page
+// script shares one global scope, so re-declaring it here is a SyntaxError that kills the whole
+// page). A SAVED favourite holds its slot for good; a recent is re-placed around the saved ones
+// on every recompute (recent-favs assignSlots), so it never blocks a pin. All four held -> 1,
+// the leftmost, and SAVE's takeSlot displaces whoever held it.
+async function nextFreeFavSlot() {
+  const favs = await getAutoFavourites().catch(() => []);
+  const held = new Set((Array.isArray(favs) ? favs : []).filter(f => f && !f.auto).map(f => f.favSlot));
+  for (let n = 1; n <= FAV_SLOT_MAX; n++) if (!held.has(n)) return n;
+  return 1;
+}
 function set(id, val) { const e = el(id); if (e) e.textContent = val == null ? '—' : val; }
 // input.value is only ever the "+ New..." typing buffer now (see startTypingNew /
 // renderDrop) — the read-only value span shows lookupState[field].label instead, so
@@ -551,17 +573,13 @@ function renderFav(fav) {
   syncAllRowStates();
   refreshAllValues();
 
-  if (fav.favSlot) document.querySelectorAll('.afe-fav-num').forEach(btn => btn.classList.toggle('active', parseInt(btn.dataset.num) === fav.favSlot));
-
   const alwaysOn = fav.alwaysOnDashboard !== false;
-  const yesBtn = document.querySelector('#afe-always-display .dye-seg-btn[data-idx="0"]');
-  const noBtn  = document.querySelector('#afe-always-display .dye-seg-btn[data-idx="1"]');
-  if (yesBtn && noBtn) [yesBtn, noBtn].forEach((btn, i) => {
-    const active = alwaysOn ? i === 0 : i === 1;
-    btn.classList.toggle('active', active);
-    btn.style.background = active ? 'var(--mimoja-blue)' : 'transparent';
-    btn.style.color = active ? '#fff' : 'var(--text-primary)';
-  });
+  // Show the cell this favourite would take, so "Yes" is never a number-less promise. A record
+  // that names its own slot keeps it; otherwise the same pick SAVE would make.
+  if (fav.favSlot) highlightSlot(fav.favSlot);
+  else if (alwaysOn) nextFreeFavSlot().then(n => { if (getAlwaysDisplay() && getAssignedSlot() == null) highlightSlot(n); });
+
+  setAlwaysDisplay(alwaysOn);
 }
 
 // Builds the favourite-shaped save payload — also used to stash a draft before the
@@ -636,11 +654,22 @@ function setupControls() {
     noteInput.addEventListener('blur', () => { if (editing === 'afe-note') endEdit('afe-note'); });
   }
 
+  // "Always display on Dashboard" and "Assign Fav Number" are two views of ONE decision: pin
+  // this favourite to an F-strip cell, and which cell. Whichever the barista touches last wins,
+  // and the other follows, so the page never shows Yes with no number or a number with No.
+  //   Yes  -> pick a slot now (lowest 1..4 no SAVED favourite holds; all taken -> 1, the
+  //           leftmost, whose holder loses it on SAVE) and light it up.
+  //   No   -> no pin, no number.
+  //   tap n-> pin to n, which turns Yes on.
+  //   tap the lit number again -> unpin, which turns No on.
   document.querySelectorAll('.afe-fav-num').forEach(btn => btn.addEventListener('click', () => {
-    // No slot is selected by default; tapping the selected one again unselects it.
     const was = btn.classList.contains('active');
-    document.querySelectorAll('.afe-fav-num').forEach(b => b.classList.remove('active'));
-    if (!was) btn.classList.add('active');
+    highlightSlot(was ? null : parseInt(btn.dataset.num));
+    setAlwaysDisplay(!was);
+  }));
+  document.querySelectorAll('#afe-always-display .dye-seg-btn').forEach(btn => btn.addEventListener('click', async () => {
+    // After setupSegmentControls' own handler, which paints the segment; this one follows it.
+    highlightSlot(btn.dataset.idx === '0' ? (getAssignedSlot() || await nextFreeFavSlot()) : null);
   }));
 
   el('afe-cancel-btn')?.addEventListener('click', () => window.history.back());
@@ -670,6 +699,19 @@ function setupControls() {
           equipmentIds: s.equipmentIds, equipmentNames: s.equipmentNames, equipmentCustom: s.equipmentCustom,
         },
       });
+      // "Always display on Dashboard = Yes" also pins this as a SAVED favourite on the F strip.
+      // createAutoFavourite/updateAutoFavourite's own takeSlot() frees the slot on whoever held
+      // it, so landing on a full strip's leftmost cell simply displaces that row (it stays a
+      // favourite, just unpinned). A recent lost its id in initAutoFavEdit, so it is promoted to
+      // a real saved row here -- which is what stops the next recompute re-placing it.
+      const favSlot = getAlwaysDisplay() ? (getAssignedSlot() || await nextFreeFavSlot()) : null;
+      if (favSlot != null) {
+        const favData = { ...data, favSlot, alwaysOnDashboard: true };
+        if (currentFav && currentFav.id) await updateAutoFavourite(currentFav.id, favData);
+        else await createAutoFavourite(favData);
+        // assignSlots places the recents around the saved pins, so the strip needs a recompute.
+        fetch('/api/v1/plugins/dye2.reaplugin/recent-favs', { method: 'POST' }).catch(() => {});
+      }
       window.history.back();
     } catch (e) { console.error('Failed to save recipe:', e); }
   });

@@ -54,9 +54,8 @@ const held = [1, 2, 3, 4, 5].map((n) => ({ id: 'r' + n, name: 'R' + n, stripSlot
 }
 console.log('ok   save-recipe: no slot -> library, explicit slot honoured, holder demoted');
 
-// auto-fav-edit: SAVE TO RECIPE writes a NEW recipes[] row from the edited favourite, library
-// only (no stripSlot), and never writes autoFavourites[]. The "Assign Fav Number" picker stays
-// on screen unchanged but feeds nothing -- the barista places the recipe later.
+// auto-fav-edit: SAVE TO RECIPE always writes a NEW recipes[] row (library only, no stripSlot),
+// and ALSO pins the favourite to an F-strip cell when "Always display on Dashboard" is Yes.
 {
   const page = readFileSync(new URL('../src/pages/auto-fav-edit.ts', import.meta.url), 'utf8');
   assert.ok(!/afe-fav-num\$\{n === 1/.test(page), 'no button is rendered active');
@@ -64,7 +63,23 @@ console.log('ok   save-recipe: no slot -> library, explicit slot honoured, holde
   assert.ok(page.includes('>SAVE TO RECIPE<'), 'the save button says where it saves');
   assert.ok(/await updateRecipe\(newId\('recipe'\), \{/.test(page), 'SAVE creates a new recipe row');
   assert.ok(!/stripSlot\s*[:=]/.test(page), 'nothing on this page targets a recipe strip slot');
-  assert.ok(!/createAutoFavourite|updateAutoFavourite/.test(page), 'SAVE no longer writes autoFavourites[]');
   assert.ok(!page.includes('REPLACE RECIPE'), 'no recipe-replace confirm left on this page');
+  assert.ok(/const favSlot = getAlwaysDisplay\(\) \? \(getAssignedSlot\(\) \|\| await nextFreeFavSlot\(\)\) : null;/.test(page),
+    'the pin is the tapped number, else the next free cell, and nothing when the answer is No');
+  assert.ok(/await updateAutoFavourite\(currentFav\.id, favData\)/.test(page)
+    && /else await createAutoFavourite\(favData\)/.test(page), 'Yes writes the favourite itself');
+  assert.ok(/recent-favs', \{ method: 'POST' \}/.test(page), 'and asks for a strip recompute');
+
+  // The pin target: lowest 1..4 no SAVED favourite holds; recents never block one; all four
+  // held means the leftmost cell, whose holder SAVE's takeSlot then frees.
+  const src = page.match(/async function nextFreeFavSlot\(\) \{[\s\S]*?\n\}/)[0];
+  const pick = (favs) => new Function('getAutoFavourites', 'FAV_SLOT_MAX',
+    src + '; return nextFreeFavSlot;')(async () => favs, 4)();
+  assert.equal(await pick([]), 1, 'empty strip: the first cell');
+  assert.equal(await pick([{ favSlot: 1 }, { favSlot: 3 }]), 2, 'the lowest cell no saved row holds');
+  assert.equal(await pick([{ favSlot: 1, auto: true }, { favSlot: 2, auto: true }]), 1, 'recents do not block a pin');
+  assert.equal(await pick([{ favSlot: 1 }, { favSlot: 2 }, { favSlot: 3 }, { favSlot: 4 }]), 1,
+    'all four held: overwrite the leftmost');
+  assert.equal(await pick([{ favSlot: null }, { favSlot: 1 }]), 2, 'an unpinned favourite holds nothing');
 }
-console.log('ok   auto-fav-edit: SAVE TO RECIPE adds a library recipe, writes no favourite');
+console.log('ok   auto-fav-edit: SAVE adds a library recipe, and pins the favourite when Yes');

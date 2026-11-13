@@ -60,6 +60,11 @@ one side (this once left two rows both holding slot 1).
 whatever else held it in the SAME array write. The usable range is **1..4 or null**: the F strip
 shows four favourites (its fifth cell is VIEW ALL AUTO FAV), so a writer stores any other value as
 `null` and `assignSlots` never hands out or honours slot 5. A one-time pass gated by the
+auto-fav-edit's SAVE sets it: "Always display on Dashboard" = Yes pins the edited favourite to the
+number its picker shows -- the tapped one, else the lowest 1..4 no SAVED favourite holds, else 1 (the
+leftmost cell), whose holder is unpinned by `takeSlot` and stays in the library. A recent being edited
+is promoted to a saved row by the same write. = No writes no favourite at all. The two controls are one
+decision: the picker and the Yes/No follow each other, last action wins. A one-time pass gated by the
 `favSlotsMigrated` plugin-storage flag runs `dedupeFavSlots` over the SAVED rows (re-reading the key
 before the write): of rows sharing a `favSlot`, a shown row (`alwaysOnDashboard !== false`) beats a
 hidden one, then the newest `capturedAt`, then the larger id; losers become `favSlot: null` and keep
@@ -413,9 +418,10 @@ plugins should not read it.
                                 // the autoFavourites slot rule).
                                 // A recipe's own slot is only ever set by the barista (recipe-edit tabs, an
                                 // explicit `slot`). auto-fav-edit's SAVE TO RECIPE is a writer of recipes[]:
-                                // it adds a NEW row (stripSlot null, library only) from the edited favourite
-                                // and does not write autoFavourites[] at all. Its "Assign Fav Number" picker
-                                // is inert -- it feeds no save, and nothing there sets favSlot.
+                                // it adds a NEW row (stripSlot null, library only) from the edited favourite.
+                                // The same SAVE also writes autoFavourites[] when its "Always display on
+                                // Dashboard" is Yes -- a favourite pinned to an F-strip cell, never a recipe
+                                // slot (see the autoFavourites slot rule).
                                 // Assigned in recipe-edit by its five header tabs (one per slot, named for the
                                 // holder); SAVE writes the targeted slot through updateRecipe.
                                 // Migration (plugin load, idempotent): a row whose id is '1'..'5' and that has
