@@ -11459,7 +11459,7 @@ function initEquipmentField(field) {
     </div>
     <div class="flex items-center gap-[16px]">
       <button id="afe-cancel-btn" class="flex justify-center items-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)]">CANCEL</button>
-      <button id="afe-save-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[310px] h-[82px] rounded-[68px] font-bold text-[24px]">SAVE</button>
+      <button id="afe-save-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[310px] h-[82px] rounded-[68px] font-bold text-[24px]">SAVE TO RECIPE</button>
     </div>
   </div>
 
@@ -11924,19 +11924,33 @@ function setupControls() {
 
   el('afe-cancel-btn')?.addEventListener('click', () => window.history.back());
 
-  // SAVE writes the favourite itself (autoFavourites[]), favSlot included. A recent (auto:
-  // true) has no id at this point (initAutoFavEdit stripped it), so this always creates a
-  // real saved row for one -- exactly the promotion the F strip needs to stop re-placing it
-  // on the next recent-favs recompute. updateAutoFavourite/createAutoFavourite's own
-  // takeSlot() clears the slot off whoever held it, same as stripSlot for recipes.
+  // SAVE TO RECIPE: the edited favourite becomes a NEW library recipe (recipes[]), never a
+  // row in autoFavourites[]. updateRecipe on an unseen id defaults stripSlot to null, so the
+  // recipe lands in the library only and the barista places it later (Select Recipe / the R
+  // strip's blank cell). The "Assign Fav Number" picker above is left as it is but no longer
+  // feeds a save -- F-strip placement is recent-favs' business now.
   el('afe-save-btn')?.addEventListener('click', async () => {
     const data = collectFavData();
+    const s = data.snapshot || {};
     try {
-      if (currentFav && currentFav.id) await updateAutoFavourite(currentFav.id, data);
-      else await createAutoFavourite(data);
-      fetch('/api/v1/plugins/dye2.reaplugin/recent-favs', { method: 'POST' }).catch(() => {});
+      // Match the bean by name so recipe-edit's bean chip has something to highlight, the same
+      // best-effort lookup favouriteToRecipePatch does on the way in.
+      const beans = s.coffeeName ? await getBeans().catch(() => []) : [];
+      const bean = (Array.isArray(beans) ? beans : (beans.items || [])).find(b => b && b.name === s.coffeeName);
+      await updateRecipe(newId('recipe'), {
+        name: data.title || s.coffeeName || 'Recipe', beverage: data.beverage || '',
+        beanId: bean ? bean.id : null,
+        beanName: s.coffeeName, beanRoaster: s.coffeeRoaster, beanBatchId: s.beanBatchId,
+        profileId: s.profileId, profileTitle: s.profileTitle, profileSnapshot: s.profileSnapshot,
+        barista: s.barista, drinker: s.drinker,
+        dashboardVariables: {
+          dose: s.dose, drink: s.drink, grind: s.grindSetting, rpm: s.rpm, feedRate: s.feedRate,
+          grinderId: s.grinderId, grinderModel: s.grinderModel, basketId: s.basketId, basketName: s.basketName,
+          equipmentIds: s.equipmentIds, equipmentNames: s.equipmentNames, equipmentCustom: s.equipmentCustom,
+        },
+      });
       window.history.back();
-    } catch (e) { console.error('Failed to save favourite:', e); }
+    } catch (e) { console.error('Failed to save recipe:', e); }
   });
 }
 
@@ -12921,7 +12935,11 @@ function favouriteToRecipePatch(fav) {
       // no (1:R) sub and its ratio presets have nothing to mark.
       ratio: (dose > 0 && drink > 0) ? Math.round((drink / dose) * 10) / 10 : undefined,
       brewC,
-      grind: grind != null ? parseFloat(grind) : undefined,
+      // A grinder scale need not be one number ("1.1.0", "15 clicks", "C40"): keep the text
+      // unless it is plainly numeric, same rule as workflow-record's grindValue and
+      // getCurrentRecipeData above. parseFloat turned "1.1.0" into 1.1 and "C40" into NaN,
+      // which the stepper then painted as "NaN".
+      grind: grindOrText(grind),
       rpm:   pick(s.rpm, wfExtras.rpm),
       feedRate: pick(s.feedRate, wfExtras.feedRate),
       grinderId:    pick(s.grinderId, wfCtx.grinderId),
@@ -12933,6 +12951,16 @@ function favouriteToRecipePatch(fav) {
       equipmentCustom: s.equipmentCustom,
     },
   };
+}
+
+// A grind setting is a number when it plainly is one, otherwise the text as typed
+// (KV_CONTRACT: grind / snapshot.grindSetting; the host's grinderSetting is a String?).
+function grindOrText(v) {
+  if (v == null) return undefined;
+  const t = String(v).trim();
+  if (t === '') return undefined;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : t;
 }
 
 // Nothing in the record for a dashboard variable? Fall back to the field's own first preset —

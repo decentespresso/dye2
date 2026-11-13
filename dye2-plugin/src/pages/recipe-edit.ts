@@ -792,7 +792,11 @@ function favouriteToRecipePatch(fav) {
       // no (1:R) sub and its ratio presets have nothing to mark.
       ratio: (dose > 0 && drink > 0) ? Math.round((drink / dose) * 10) / 10 : undefined,
       brewC,
-      grind: grind != null ? parseFloat(grind) : undefined,
+      // A grinder scale need not be one number ("1.1.0", "15 clicks", "C40"): keep the text
+      // unless it is plainly numeric, same rule as workflow-record's grindValue and
+      // getCurrentRecipeData above. parseFloat turned "1.1.0" into 1.1 and "C40" into NaN,
+      // which the stepper then painted as "NaN".
+      grind: grindOrText(grind),
       rpm:   pick(s.rpm, wfExtras.rpm),
       feedRate: pick(s.feedRate, wfExtras.feedRate),
       grinderId:    pick(s.grinderId, wfCtx.grinderId),
@@ -804,6 +808,16 @@ function favouriteToRecipePatch(fav) {
       equipmentCustom: s.equipmentCustom,
     },
   };
+}
+
+// A grind setting is a number when it plainly is one, otherwise the text as typed
+// (KV_CONTRACT: grind / snapshot.grindSetting; the host's grinderSetting is a String?).
+function grindOrText(v) {
+  if (v == null) return undefined;
+  const t = String(v).trim();
+  if (t === '') return undefined;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : t;
 }
 
 // Nothing in the record for a dashboard variable? Fall back to the field's own first preset —

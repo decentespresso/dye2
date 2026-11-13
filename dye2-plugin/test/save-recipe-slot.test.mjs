@@ -54,17 +54,17 @@ const held = [1, 2, 3, 4, 5].map((n) => ({ id: 'r' + n, name: 'R' + n, stripSlot
 }
 console.log('ok   save-recipe: no slot -> library, explicit slot honoured, holder demoted');
 
-// auto-fav-edit: the "Assign Fav Number" picker (1..4, the F strip's own range) starts with no
-// slot selected, and SAVE writes the favourite itself -- not a recipe -- so a saved favSlot
-// sticks instead of being discarded on the next recent-favs recompute (dye2 F-strip pin bug).
+// auto-fav-edit: SAVE TO RECIPE writes a NEW recipes[] row from the edited favourite, library
+// only (no stripSlot), and never writes autoFavourites[]. The "Assign Fav Number" picker stays
+// on screen unchanged but feeds nothing -- the barista places the recipe later.
 {
   const page = readFileSync(new URL('../src/pages/auto-fav-edit.ts', import.meta.url), 'utf8');
   assert.ok(!/afe-fav-num\$\{n === 1/.test(page), 'no button is rendered active');
-  assert.ok(page.includes('Assign Fav Number'), 'label describes a favourite slot, not a recipe one');
-  assert.ok(!/\[1, 2, 3, 4, 5\]\s*\n\s*\.map\(n => `<button class="afe-fav-num"/.test(page), 'only 4 slots -- the F strip has no 5th cell');
-  assert.ok(/favSlot: getAssignedSlot\(\)/.test(page), 'collectFavData carries the picked slot as favSlot');
-  assert.ok(/currentFav && currentFav\.id\) await updateAutoFavourite\(currentFav\.id, data\)/.test(page)
-    && /else await createAutoFavourite\(data\)/.test(page), 'SAVE writes the favourite, not a recipe');
+  assert.ok(page.includes('Assign Fav Number'), 'picker label is left as it is');
+  assert.ok(page.includes('>SAVE TO RECIPE<'), 'the save button says where it saves');
+  assert.ok(/await updateRecipe\(newId\('recipe'\), \{/.test(page), 'SAVE creates a new recipe row');
+  assert.ok(!/stripSlot\s*[:=]/.test(page), 'nothing on this page targets a recipe strip slot');
+  assert.ok(!/createAutoFavourite|updateAutoFavourite/.test(page), 'SAVE no longer writes autoFavourites[]');
   assert.ok(!page.includes('REPLACE RECIPE'), 'no recipe-replace confirm left on this page');
 }
-console.log('ok   auto-fav-edit: fav-number picker saves onto the favourite itself');
+console.log('ok   auto-fav-edit: SAVE TO RECIPE adds a library recipe, writes no favourite');

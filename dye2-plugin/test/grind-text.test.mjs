@@ -45,4 +45,21 @@ for (const [file, wire] of [
     file + ': +/- must leave a non-numeric setting alone');
 }
 
+// Read From > From Favourite maps the favourite's snapshot.grindSetting onto the recipe. It
+// used to parseFloat it, which painted "C40" as NaN in the stepper and clipped "1.1.0" to 1.1.
+{
+  const src = readFileSync(new URL('../src/pages/recipe-edit.ts', import.meta.url), 'utf8');
+  assert.match(src, /grind: grindOrText\(grind\),/, 'favouriteToRecipePatch keeps the text');
+  const m = src.match(/function grindOrText\(v\) \{[\s\S]*?\n\}/);
+  assert.ok(m, 'grindOrText is defined in the page script');
+  const grindOrText = new Function(m[0] + '; return grindOrText;')();
+  assert.equal(grindOrText('1.1.0'), '1.1.0');
+  assert.equal(grindOrText('15 clicks'), '15 clicks');
+  assert.equal(grindOrText('C40'), 'C40');
+  assert.equal(grindOrText('20.00'), 20);
+  assert.equal(grindOrText(''), undefined);
+  assert.equal(grindOrText(null), undefined);
+  assert.equal(grindOrText(0), 0);
+}
+
 console.log('ok   grind settings keep free text ("1.1.0", "15 clicks")');
