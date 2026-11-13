@@ -242,3 +242,35 @@ assert.equal(shotPatchAffectsRecents('{"annotations":{"espressoNotes":"x"}}'), f
 }
 
 console.log("dashboard-open tests passed");
+
+// 9. The pill rail is the whole recipe library, not Streamline's 5-cell R strip: a recipe with
+// no stripSlot (what Edit Auto Favourite's SAVE TO RECIPE writes) still gets a pill, slotted
+// ones lead in slot order, and the selected recipe is never rendered twice.
+{
+  const src = readFileSync(new URL('../src/pages/dashboard.ts', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('function renderRecipePills('));
+  const fn = new Function('recipes', 'selRecipeId', `
+    const slotOf = (r) => (r && r.stripSlot != null ? r.stripSlot : Infinity);
+    const recipeItems = recipes.filter(r => r && r.showOnStreamlineDashboard !== false)
+      .map((r, i) => [r, i]).sort((a, b) => (slotOf(a[0]) - slotOf(b[0])) || (a[1] - b[1])).map(([r]) => r);
+    const hidden = selRecipeId ? recipes.find(r => r && String(r.id) === selRecipeId && !recipeItems.includes(r)) : null;
+    return [...(hidden ? [hidden] : []), ...recipeItems].map(r => r.id);
+  `);
+  assert.match(body, /filter\(r => r && r\.showOnStreamlineDashboard !== false\)/,
+    'the rail filters on the hidden flag only, not on stripSlot');
+
+  const rows = [
+    { id: 'lib1', name: 'From a favourite' },                    // stripSlot absent
+    { id: 's2', name: 'Two', stripSlot: 2 },
+    { id: 'lib2', name: 'Also library', stripSlot: null },
+    { id: 's1', name: 'One', stripSlot: 1 },
+    { id: 'off', name: 'Hidden', stripSlot: 4, showOnStreamlineDashboard: false },
+  ];
+  assert.deepEqual(fn(rows, null), ['s1', 's2', 'lib1', 'lib2'],
+    'slotted lead in slot order, unslotted follow as stored, hidden stays off');
+  assert.deepEqual(fn(rows, 'lib2'), ['s1', 's2', 'lib1', 'lib2'],
+    'the selected library recipe is listed once, not prepended a second time');
+  assert.deepEqual(fn(rows, 'off'), ['off', 's1', 's2', 'lib1', 'lib2'],
+    'a hidden recipe still shows while it is the selection');
+}
+console.log('ok   the recipe rail shows the whole library, slotted first');

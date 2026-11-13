@@ -6,3 +6,6 @@ node_modules/
 # Local agent settings and worktrees
 .claude/*
 !.claude/skills/
+
+# Playwright MCP scratch output
+.playwright-mcp/

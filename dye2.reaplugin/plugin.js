@@ -7857,17 +7857,26 @@ function renderRecipePills(workflow) {
   // flag, so it is never filtered.
   // Recipes only. Recents (auto favourites) are not pills: they live on the F strip and the
   // auto-favs page, which lists every one of them, and there is no useful cap to put on a rail.
+  // The WHOLE library, not just the slotted ones: stripSlot places a recipe on Streamline's own
+  // 5-cell R strip, which this rail is not -- it scrolls, so it has room for all of them, and a
+  // recipe saved from Edit Auto Favourite (stripSlot null until the barista places it) would
+  // otherwise be invisible here. Slotted first, in slot order, then the rest as stored.
+  const slotOf = (r) => (r && r.stripSlot != null ? r.stripSlot : Infinity);
   const recipeItems = recipes.length
-    ? recipes.filter(r => r && r.stripSlot != null && r.showOnStreamlineDashboard !== false).sort((a, b) => a.stripSlot - b.stripSlot)   // the strip holds the slotted ones; the rest live in Select Recipe
+    ? recipes.filter(r => r && r.showOnStreamlineDashboard !== false)
+        .map((r, i) => [r, i]).sort((a, b) => (slotOf(a[0]) - slotOf(b[0])) || (a[1] - b[1])).map(([r]) => r)
     : (workflow.favorites || workflow.recipes || []);
   // A pending tap (see pendingSelection above) overrides the server-derived selection until it
   // catches up, so the pill the user just tapped stays highlighted instead of flashing back.
   const sel = pendingSelection || derivedSel;
   const selRecipeId = sel && sel.kind === 'recipe' ? String(sel.id) : null;
   const selMark = !pendingSelection && derivedSel && derivedSel.modified ? ' *' : '';
-  // The selected recipe may hold no strip slot (so recipeItems omits it): show it as a pill, first.
-  const slotless = selRecipeId && recipes.length ? recipes.find(r => r && String(r.id) === selRecipeId && r.stripSlot == null) : null;
-  const items = [...(slotless ? [slotless] : []), ...recipeItems];
+  // Every recipe is a pill now, so the selected one needs no special prepend -- it would only
+  // render a second pill for the same recipe. A recipe hidden from the strip still gets one when
+  // it is the selection, since nothing else on this page would show what is loaded.
+  const hidden = selRecipeId && recipes.length
+    ? recipes.find(r => r && String(r.id) === selRecipeId && !recipeItems.includes(r)) : null;
+  const items = [...(hidden ? [hidden] : []), ...recipeItems];
   container.innerHTML = '';
   if (items.length === 0) { container.innerHTML = '<span style="color:var(--low-contrast-white);font-size:21px;">No recipes yet</span>'; updateRailArrows(RECIPE_RAIL); return; }
   const activeTitle = workflow.profile && workflow.profile.title;
