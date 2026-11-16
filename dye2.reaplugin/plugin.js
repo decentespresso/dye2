@@ -67,7 +67,8 @@ function resolveTheme(o) {
 	* moves live inside the scaled <body>.
 	*
 	*   none   - field clears the keyboard
-	*   modal  - translate the position:fixed ancestor up by amount
+	*   modal  - translate the position:fixed ancestor up by amount (capped, like shift, so the
+	*            field stays on screen when fieldTop is given)
 	*   scroll - scrollTop += amount (the scroller has the room)
 	*   pad    - the scroller cannot go far enough: scroll by amount and first add `pad`
 	*            (the shortfall) of bottom padding so it can
@@ -81,7 +82,16 @@ function kbPlan(o) {
   var overlap = o.fieldBottom + margin - (o.vvTop + o.vvHeight);
   if (!(overlap > 0)) return { mode: 'none', amount: 0 };
   var need = overlap / scale;
-  if (o.hasModal) return { mode: 'modal', amount: need };
+  // Same cap as 'shift' below: never translate so far that the field leaves the top of the
+  // screen. A tall modal (.dye-modal is max-height 90vh) with its last field just above the
+  // keyboard asks for more than there is room for, and the uncapped shift took the field,
+  // the title and the Save button off the top -- the modal moved, and nothing useful was
+  // visible. The whole fixed backdrop is what moves, so the modal's own overflow scroll
+  // cannot bring it back.
+  if (o.hasModal) {
+    if (o.fieldTop != null) need = Math.min(need, Math.max(0, (o.fieldTop - 8) / scale));
+    return need > 0 ? { mode: 'modal', amount: need } : { mode: 'none', amount: 0 };
+  }
   if (o.scrollerRoom == null) {
     if (o.fieldTop != null) need = Math.min(need, Math.max(0, (o.fieldTop - 8) / scale));
     return need > 0 ? { mode: 'shift', amount: need } : { mode: 'none', amount: 0 };
@@ -4292,11 +4302,16 @@ function renderBasketCards(grid, baskets, confirmBtn) {
     card.className = 'dye-card';
     const sub = basketSub(b);
     const meta = basketMeta(b);
+    card.title = 'Long-press to edit';
     card.innerHTML =
       '<div class="dye-card-name">' + esc(basketName(b)) + '</div>' +
       (sub ? '<div class="dye-card-sub">' + esc(sub) + '</div>' : '') +
       (meta ? '<div class="dye-card-date">' + esc(meta) + '</div>' : '');
     if (b.id === selectedBasketId) card.classList.add('dye-card-selected');
+    // Long-press opens the editor, the plain tap stays select-only -- the same split as
+    // bean-picker. attachCardLongPress swallows the click that ends the hold, so the hold
+    // does not also select.
+    attachCardLongPress(card, () => openModal(b));
     card.addEventListener('click', () => {
       grid.querySelectorAll('.dye-card').forEach(c => c.classList.remove('dye-card-selected'));
       card.classList.add('dye-card-selected');
@@ -4324,6 +4339,7 @@ function openModal(b) {
   document.getElementById('dye-modal-title').textContent = b ? 'Edit Basket' : 'New Basket';
   document.getElementById('dye-modal-error').classList.add('dye-hidden');
   form().reset();
+  if (b) ['name','size','diameterMm','notes'].forEach(k => setField(k, b[k]));
   document.getElementById('dye-modal-backdrop').classList.add('open');
 }
 
@@ -4340,7 +4356,12 @@ async function submitForm() {
   if (diameter !== '' && diameter != null) body.diameterMm = parseFloat(diameter);
 
   try {
-    const created = await createBasket(body);
+    // An edit updates the row; only a genuinely new basket is created (and then selected).
+    // The body is the whole form, as on the manager page, so emptying a field clears it.
+    // Nothing hidden to carry over: the picker is never offered an archived basket.
+    const created = editingId
+      ? await updateBasket(editingId, body)
+      : await createBasket(body);
     closeModal();
     try {
       basketsCache = await getBaskets();
@@ -4417,7 +4438,11 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Select Filter Basket", content$6, styles$9, [devApiScript, pageScript$10])
+			body: devPageShell("Select Filter Basket", content$6, styles$9, [
+				devApiScript,
+				cardLongPressScript,
+				pageScript$10
+			])
 		};
 	}
 	//#endregion

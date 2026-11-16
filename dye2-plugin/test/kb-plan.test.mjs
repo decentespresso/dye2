@@ -13,6 +13,17 @@ assert.equal(plan({ hasModal: true, scrollerRoom: 0 }).mode, 'none');
 
 // modal: overlap 100 -> 100
 assert.deepEqual(plan({ fieldBottom: 576, hasModal: true, scrollerRoom: 999 }), { mode: 'modal', amount: 100 });
+// A modal shift is capped by the field's own distance from the top, like 'shift': the last
+// field of a tall modal asks for 100 but only has 40 of room above it, and moving the full
+// 100 would carry the field (and the modal's title and buttons) off the top of the screen.
+assert.deepEqual(plan({ fieldBottom: 576, fieldTop: 48, hasModal: true, scrollerRoom: 999 }),
+  { mode: 'modal', amount: 40 });
+// Capped to nothing is 'none', not a 0px translate.
+assert.deepEqual(plan({ fieldBottom: 576, fieldTop: 8, hasModal: true, scrollerRoom: 999 }),
+  { mode: 'none', amount: 0 });
+// Room to spare: the cap does not bind and the full overlap is still used.
+assert.deepEqual(plan({ fieldBottom: 576, fieldTop: 400, hasModal: true, scrollerRoom: 999 }),
+  { mode: 'modal', amount: 100 });
 
 // scroller with enough room
 assert.deepEqual(plan({ fieldBottom: 576, scrollerRoom: 100 }), { mode: 'scroll', amount: 100 });

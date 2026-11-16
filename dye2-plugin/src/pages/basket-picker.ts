@@ -1,5 +1,6 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
+import { cardLongPressScript } from "../utils/fav-card-tap";
 
 const styles = `
   .dye-sort-btn {
@@ -294,11 +295,16 @@ function renderBasketCards(grid, baskets, confirmBtn) {
     card.className = 'dye-card';
     const sub = basketSub(b);
     const meta = basketMeta(b);
+    card.title = 'Long-press to edit';
     card.innerHTML =
       '<div class="dye-card-name">' + esc(basketName(b)) + '</div>' +
       (sub ? '<div class="dye-card-sub">' + esc(sub) + '</div>' : '') +
       (meta ? '<div class="dye-card-date">' + esc(meta) + '</div>' : '');
     if (b.id === selectedBasketId) card.classList.add('dye-card-selected');
+    // Long-press opens the editor, the plain tap stays select-only -- the same split as
+    // bean-picker. attachCardLongPress swallows the click that ends the hold, so the hold
+    // does not also select.
+    attachCardLongPress(card, () => openModal(b));
     card.addEventListener('click', () => {
       grid.querySelectorAll('.dye-card').forEach(c => c.classList.remove('dye-card-selected'));
       card.classList.add('dye-card-selected');
@@ -326,6 +332,7 @@ function openModal(b) {
   document.getElementById('dye-modal-title').textContent = b ? 'Edit Basket' : 'New Basket';
   document.getElementById('dye-modal-error').classList.add('dye-hidden');
   form().reset();
+  if (b) ['name','size','diameterMm','notes'].forEach(k => setField(k, b[k]));
   document.getElementById('dye-modal-backdrop').classList.add('open');
 }
 
@@ -342,7 +349,12 @@ async function submitForm() {
   if (diameter !== '' && diameter != null) body.diameterMm = parseFloat(diameter);
 
   try {
-    const created = await createBasket(body);
+    // An edit updates the row; only a genuinely new basket is created (and then selected).
+    // The body is the whole form, as on the manager page, so emptying a field clears it.
+    // Nothing hidden to carry over: the picker is never offered an archived basket.
+    const created = editingId
+      ? await updateBasket(editingId, body)
+      : await createBasket(body);
     closeModal();
     try {
       basketsCache = await getBaskets();
@@ -420,6 +432,6 @@ export function renderBasketPickerPage(request: HttpRequest): HttpResponse {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Select Filter Basket", content, styles, [devApiScript, pageScript]),
+    body: devPageShell("Select Filter Basket", content, styles, [devApiScript, cardLongPressScript, pageScript]),
   };
 }
