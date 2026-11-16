@@ -262,7 +262,14 @@ function newId(prefix) {
 
 /* ── Filter baskets: same "bridge has no equipment resource" situation as
    recipes/auto-favourites (see bc-map.ts bcMapEquipment) — parked in the KV store. */
-async function getBaskets() { return kvGetArray('baskets'); }
+/* Archived baskets are set aside, not deleted: they keep working in the shots and recipes
+   that name them, but no picker offers one. Same opt-in signature as getGrinders/getBeans,
+   so the pickers, auto-fav-edit and recipe-edit need no filter of their own -- only the
+   manager page (pages/baskets.ts) passes true, and it is the only place to bring one back. */
+async function getBaskets(includeArchived = false) {
+  const arr = await kvGetArray('baskets');
+  return includeArchived ? arr : arr.filter(b => b && !b.archived);
+}
 
 async function createBasket(data) {
   const arr = await kvGetArray('baskets');
@@ -279,6 +286,11 @@ async function updateBasket(id, data) {
   kvUpsert(arr, item);
   await kvSetArray('baskets', arr);
   return item;
+}
+
+async function deleteBasket(id) {
+  const arr = await kvGetArray('baskets');
+  await kvSetArray('baskets', arr.filter(x => !(x && x.id === id)));
 }
 
 /* ── Equipment: free-text kit the user attaches to a shot (scale, tamper, WDT, kettle…).

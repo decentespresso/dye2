@@ -1,5 +1,6 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
+import { dyeConfirmScript } from "../utils/shared-components";
 
 const styles = `
   .dye-sort-btn {
@@ -109,6 +110,11 @@ const styles = `
   }
   .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
+  .dye-btn-danger { background: transparent; color: var(--danger-text); margin-right: auto; }
+  /* Archived: still listed here, and only here -- the pickers never offer one. Dimmed and
+     dashed so it reads as set aside rather than deleted. */
+  .dye-card.dye-card-archived { opacity: 0.45; border-style: dashed; }
+  .dye-card.dye-card-archived:hover { opacity: 0.65; }
   .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
@@ -178,6 +184,8 @@ const content = `
         </div>
         <div id="dye-modal-error" class="dye-modal-error dye-hidden"></div>
         <div class="dye-modal-actions">
+          <button type="button" id="dye-modal-delete" class="dye-btn dye-btn-danger dye-hidden">DELETE</button>
+          <button type="button" id="dye-modal-archive" class="dye-btn dye-btn-ghost dye-hidden">ARCHIVE</button>
           <button type="button" id="dye-modal-cancel" class="dye-btn dye-btn-ghost">CANCEL</button>
           <button type="submit" id="dye-modal-save" class="dye-btn dye-btn-primary">SAVE</button>
         </div>
@@ -191,6 +199,7 @@ const pageScript = `
 let basketsCache = [];
 let searchQuery = '';
 let editingId = null;
+let editingArchived = false;
 let currentSort = 'recent';
 
 function esc(s) {
@@ -205,7 +214,7 @@ function basketSub(b) {
   if (b.diameterMm) parts.push(b.diameterMm + 'mm');
   return parts.join(' · ');
 }
-function basketMeta(b) { return b.notes || ''; }
+function basketMeta(b) { return [b.archived ? 'Archived' : '', b.notes || ''].filter(Boolean).join(' \u00b7 '); }
 
 function matchesSearch(b) {
   if (!searchQuery) return true;
@@ -246,9 +255,12 @@ function renderBasketCards(grid) {
   addCard.addEventListener('click', () => openModal(null));
   grid.appendChild(addCard);
 
-  sortItems(basketsCache.filter(matchesSearch), currentSort).forEach(b => {
+  // Archived baskets sort to the end of whatever order is picked, so the ones in rotation
+  // stay at the top.
+  const inOrder = sortItems(basketsCache.filter(matchesSearch), currentSort);
+  [...inOrder.filter(b => !b.archived), ...inOrder.filter(b => b.archived)].forEach(b => {
     const card = document.createElement('div');
-    card.className = 'dye-card';
+    card.className = 'dye-card' + (b.archived ? ' dye-card-archived' : '');
     const sub = basketSub(b);
     const meta = basketMeta(b);
     card.innerHTML =
@@ -268,6 +280,13 @@ function openModal(b) {
   editingId = b ? b.id : null;
   document.getElementById('dye-modal-title').textContent = b ? 'Edit Basket' : 'New Basket';
   document.getElementById('dye-modal-error').classList.add('dye-hidden');
+  editingArchived = !!(b && b.archived);
+  document.getElementById('dye-modal-delete').classList.toggle('dye-hidden', !b);
+  // One button, both directions: this page is the only place an archived basket is listed,
+  // so without UNARCHIVE here, archiving would strand it.
+  const archiveBtn = document.getElementById('dye-modal-archive');
+  archiveBtn.classList.toggle('dye-hidden', !b);
+  archiveBtn.textContent = editingArchived ? 'UNARCHIVE' : 'ARCHIVE';
   form().reset();
   if (b) {
     ['name','size','diameterMm','notes'].forEach(k => setField(k, b[k]));
@@ -280,12 +299,51 @@ function closeModal() {
   editingId = null;
 }
 
+// Archive is the reversible one, and it is NOT delete: the basket leaves the pickers but
+// stays in the table, so recipes that name it keep working and shots keep resolving it.
+// updateBasket REPLACES the row (no deep merge, unlike the bridge), so the whole row goes
+// back with the flag flipped.
+async function toggleArchive() {
+  const row = basketsCache.find(x => x && x.id === editingId);
+  if (!row) return;
+  const next = !editingArchived;
+  if (next && !await dyeConfirm(
+    'It leaves the pickers but keeps working in the recipes and shots that name it, and you can bring it back from this page.',
+    { title: 'Archive this basket?', confirmText: 'ARCHIVE' })) return;
+  try {
+    await updateBasket(editingId, { ...row, archived: next });
+    closeModal();
+    await reload();
+  } catch (err) {
+    const errEl = document.getElementById('dye-modal-error');
+    errEl.textContent = (next ? 'Archive' : 'Unarchive') + ' failed: ' + err.message;
+    errEl.classList.remove('dye-hidden');
+  }
+}
+
+async function removeEditing() {
+  if (!editingId) return;
+  if (!await dyeConfirm(
+    'Shots and recipes that reference it keep their saved name, but the row itself is gone.',
+    { title: 'Delete this basket?', confirmText: 'DELETE', danger: true })) return;
+  try {
+    await deleteBasket(editingId);
+    closeModal();
+    await reload();
+  } catch (err) {
+    const errEl = document.getElementById('dye-modal-error');
+    errEl.textContent = 'Delete failed: ' + err.message;
+    errEl.classList.remove('dye-hidden');
+  }
+}
+
 async function submitForm() {
   const fd = new FormData(form());
   const body = { name: fd.get('name') || '' };
   ['size','notes'].forEach(k => { const v = fd.get(k); if (v) body[k] = v; });
   const diameter = fd.get('diameterMm');
   if (diameter !== '' && diameter != null) body.diameterMm = parseFloat(diameter);
+  if (editingArchived) body.archived = true;   // the form has no field for it; a save must not un-archive
 
   try {
     if (editingId) await updateBasket(editingId, body);
@@ -301,7 +359,7 @@ async function submitForm() {
 
 async function reload() {
   try {
-    basketsCache = await getBaskets();
+    basketsCache = await getBaskets(true);
   } catch (e) {
     console.error('Failed to load baskets:', e);
     basketsCache = [];
@@ -323,6 +381,8 @@ async function initializeDyeBaskets() {
 
   document.getElementById('dye-done-btn')?.addEventListener('click', () => window.history.back());
   document.getElementById('dye-modal-cancel')?.addEventListener('click', closeModal);
+  document.getElementById('dye-modal-delete')?.addEventListener('click', removeEditing);
+  document.getElementById('dye-modal-archive')?.addEventListener('click', toggleArchive);
   document.getElementById('dye-modal-backdrop')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeModal();
   });
@@ -337,6 +397,6 @@ export function renderBasketsPage(request: HttpRequest): HttpResponse {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Filter Baskets", content, styles, [devApiScript, pageScript]),
+    body: devPageShell("Filter Baskets", content, styles, [devApiScript, dyeConfirmScript, pageScript]),
   };
 }

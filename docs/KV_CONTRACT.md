@@ -600,9 +600,16 @@ above instead of expecting them inside the embedded `workflow` object.
   size,                         // 'single' | 'double' | 'triple' | 'bottomless' | 'other'
   diameterMm,
   notes,
+  archived,                     // true = set aside; absent/false = in rotation
   createdAt,                    // ISO 8601
 }
 ```
+
+`archived` is DYE2's own flag, not a bridge concept: `getBaskets()` filters archived rows
+out by default (same opt-in signature as `getGrinders`/`getBeans`), so no picker offers
+one, while `pages/baskets.ts` passes `true` and is the only place to bring one back.
+`updateBasket` **replaces** the row rather than deep-merging it, so a write that means to
+flip only `archived` must send the whole row.
 
 Applying a basket does not use a `workflow` field (see above) — write
 `context.extras.basketId` / `context.extras.basketName` directly.

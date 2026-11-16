@@ -5,18 +5,19 @@
 import assert from 'node:assert/strict';
 const { devApiScript } = await import('../src/utils/dev-api.ts');
 
-// Fake bridge KV: one key, starts unwritten (decaid returns 200 + null, never 404).
-let stored = null;
+// Fake bridge KV, one slot per key; an unwritten key reads 200 + null, never 404.
+const stored = new Map();
 const urls = [];
 const fakeFetch = async (url, opts) => {
   urls.push(url);
-  if (!opts || opts.method !== 'POST') return { ok: true, status: 200, json: async () => stored };
-  stored = JSON.parse(opts.body);
-  return { ok: true, status: 200, json: async () => stored };
+  const key = String(url).split('/store/')[1] || url;
+  if (!opts || opts.method !== 'POST') return { ok: true, status: 200, json: async () => stored.get(key) ?? null };
+  stored.set(key, JSON.parse(opts.body));
+  return { ok: true, status: 200, json: async () => stored.get(key) };
 };
 
 const api = new Function('fetch', devApiScript +
-  '\nreturn { getEquipment, createEquipment, buildRecipeWorkflow, getRecipe, updateRecipe, recipeChanges, profileAtBrewTemp, buildFavouriteWorkflow, markDye, updateWorkflow, recipeMachineSettings, recipeChanges };')(fakeFetch);
+  '\nreturn { getEquipment, createEquipment, deleteEquipment, getBaskets, createBasket, updateBasket, deleteBasket, buildRecipeWorkflow, getRecipe, updateRecipe, recipeChanges, profileAtBrewTemp, buildFavouriteWorkflow, markDye, updateWorkflow, recipeMachineSettings, recipeChanges };')(fakeFetch);
 
 assert.deepEqual(await api.getEquipment(), [], 'an unwritten key reads as an empty table');
 
@@ -32,6 +33,32 @@ await api.createEquipment('Weber tamper');
 const rows = await api.getEquipment();
 assert.equal(rows.length, 2, 'a genuinely new name adds a row');
 assert.equal(new Set(rows.map(r => r.id)).size, 2, 'ids are unique');
+
+// A row the user retires is gone from the table; others survive (baskets get the same
+// delete, same KV shape -- see pages/baskets.ts removeEditing).
+await api.deleteEquipment(a.id);
+const left = await api.getEquipment();
+assert.equal(left.length, 1, 'delete removes exactly the named row');
+assert.equal(left[0].name, 'Weber tamper', 'and leaves the others alone');
+
+const b1 = await api.createBasket({ name: 'IMS 18g' });
+const b2 = await api.createBasket({ name: 'VST 20g' });
+await api.deleteBasket(b1.id);
+const baskets = await api.getBaskets();
+assert.deepEqual(baskets.map(x => x.name), ['VST 20g'], 'deleteBasket removes just that basket');
+await api.deleteBasket('bskt-nope');
+assert.equal((await api.getBaskets()).length, 1, 'deleting an unknown id is a no-op, not a wipe');
+
+// Archive: the row stays in the table, the pickers stop seeing it. updateBasket REPLACES
+// the row, so the whole row has to go back with the flag -- a bare { archived } would wipe
+// the name, which is what pages/baskets.ts toggleArchive spreads for.
+await api.updateBasket(b2.id, { ...b2, archived: true });
+assert.deepEqual(await api.getBaskets(), [], 'an archived basket is not offered');
+const all = await api.getBaskets(true);
+assert.equal(all.length, 1, 'but it is still in the table');
+assert.equal(all[0].name, 'VST 20g', 'with its fields intact');
+await api.updateBasket(b2.id, { ...all[0], archived: false });
+assert.equal((await api.getBaskets()).length, 1, 'unarchive brings it back');
 
 console.log('ok   equipment KV table');
 
@@ -78,15 +105,15 @@ console.log('ok   equipment KV table');
 
   // while the editor was open, dial-in recorded dose 20 and moved the grind; the barista only
   // renamed the recipe. Neither recorded value is reverted, the other recipe survives.
-  stored = [{ ...loaded, dashboardVariables: { ...loaded.dashboardVariables, dose: 20, grind: 4.5 } }, { id: '2', name: 'Other' }];
+  stored.set('dye2.reaplugin/recipes', [{ ...loaded, dashboardVariables: { ...loaded.dashboardVariables, dose: 20, grind: 4.5 } }, { id: '2', name: 'Other' }]);
   const saved = await api.updateRecipe('1', api.recipeChanges(loaded, { ...form, name: 'Renamed', dashboardVariables: { ...form.dashboardVariables, brewC: 93 } }));
   assert.equal(saved.name, 'Renamed');
   assert.equal(saved.title, 'Renamed', 'title recomputed from the merged record');
   assert.equal(saved.subtitle, 'Ethiopia', 'subtitle recomputed from the merged record');
   assert.equal(saved.workflow.context.targetDoseWeight, 20, 'embedded workflow built from the merged record');
   assert.deepEqual(saved.dashboardVariables, { dose: 20, drink: 36, brewC: 93, rpm: 600, grind: 4.5 });
-  assert.equal(stored.length, 2);
-  assert.equal(stored[1].name, 'Other');
+  assert.equal(stored.get('dye2.reaplugin/recipes').length, 2);
+  assert.equal(stored.get('dye2.reaplugin/recipes')[1].name, 'Other');
   assert.equal((await api.getRecipe('2')).name, 'Other');
   assert.equal(await api.getRecipe('9'), null);
 

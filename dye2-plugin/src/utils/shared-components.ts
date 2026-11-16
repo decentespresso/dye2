@@ -593,3 +593,61 @@ export function dyePickerRailHtml(sorts: [string, string][]): string {
       ${sorts.map(([k, l], i) => `<button class="dye-sort-btn${i === 0 ? ' dye-sort-active' : ''}" data-sort="${k}">${l}</button>`).join('\n      ')}
     </div>`;
 }
+
+/* ── dyeConfirm: the app's own yes/no box, in place of the WebView's confirm().
+   The native one renders a Chrome-looking alert on a Decent tablet, ignores the theme, and
+   blocks the JS thread while it is up. Built from the classes a page already defines
+   (.dye-modal-backdrop, .dye-modal, .dye-btn*), so it ships no CSS of its own -- include it
+   only on a page that styles those. Returns a Promise<boolean>; a cancel resolves false,
+   never rejects, so call sites stay `if (!await dyeConfirm(...)) return;`. */
+export const dyeConfirmScript = `
+function dyeConfirm(message, opts) {
+  const o = opts || {};
+  return new Promise(resolve => {
+    // Built node by node rather than from a markup string: the message is user data (a
+    // basket name can reach one of these), and textContent cannot be escaped wrong.
+    // test/dye-confirm.test.mjs holds that line -- it asserts the script has no innerHTML.
+    const el = (tag, cls, text) => {
+      const n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (text != null) n.textContent = text;
+      return n;
+    };
+    const back = el('div', 'dye-modal-backdrop open');
+    back.style.zIndex = '60';   // above the edit modal (50) this is usually asked from
+    const box = el('div', 'dye-modal');
+    box.style.width = 'min(560px, 92vw)';
+    const msg = el('div', null, message || '');
+    msg.style.fontSize = '20px';
+    msg.style.lineHeight = '1.5';
+    const actions = el('div', 'dye-modal-actions');
+    const noBtn = el('button', 'dye-btn dye-btn-ghost', o.cancelText || 'CANCEL');
+    const yesBtn = el('button', 'dye-btn ' + (o.danger ? 'dye-btn-danger' : 'dye-btn-primary'), o.confirmText || 'OK');
+    noBtn.type = 'button';
+    yesBtn.type = 'button';
+    if (o.danger) yesBtn.style.marginRight = '0';   // .dye-btn-danger pushes left in a form footer
+    actions.appendChild(noBtn);
+    actions.appendChild(yesBtn);
+    box.appendChild(el('h2', null, o.title || 'Are you sure?'));
+    box.appendChild(msg);
+    box.appendChild(actions);
+
+    function done(v) {
+      document.removeEventListener('keydown', onKey, true);
+      back.remove();
+      resolve(v);
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') { e.stopPropagation(); done(false); }
+      else if (e.key === 'Enter') { e.stopPropagation(); done(true); }
+    }
+    yesBtn.addEventListener('click', () => done(true));
+    noBtn.addEventListener('click', () => done(false));
+    back.addEventListener('click', (e) => { if (e.target === back) done(false); });
+    document.addEventListener('keydown', onKey, true);
+    back.appendChild(box);
+    document.body.appendChild(back);
+    yesBtn.focus();
+  });
+}
+`;
