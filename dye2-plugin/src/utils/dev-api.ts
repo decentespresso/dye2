@@ -264,8 +264,8 @@ function newId(prefix) {
    recipes/auto-favourites (see bc-map.ts bcMapEquipment) — parked in the KV store. */
 /* Archived baskets are set aside, not deleted: they keep working in the shots and recipes
    that name them, but no picker offers one. Same opt-in signature as getGrinders/getBeans,
-   so the pickers, auto-fav-edit and recipe-edit need no filter of their own -- only the
-   manager page (pages/baskets.ts) passes true, and it is the only place to bring one back. */
+   so auto-fav-edit and recipe-edit need no filter of their own -- only basket-picker.ts
+   passes true, and it is the only place an archived basket is listed (and un-archived). */
 async function getBaskets(includeArchived = false) {
   const arr = await kvGetArray('baskets');
   return includeArchived ? arr : arr.filter(b => b && !b.archived);

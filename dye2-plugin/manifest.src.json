@@ -26,11 +26,6 @@
       "data": {}
     },
     {
-      "id": "baskets",
-      "type": "http",
-      "data": {}
-    },
-    {
       "id": "equipment",
       "type": "http",
       "data": {}

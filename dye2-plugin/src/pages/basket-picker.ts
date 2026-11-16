@@ -131,6 +131,10 @@ const styles = `
   .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
   .dye-btn-danger { background: transparent; color: var(--danger-text); margin-right: auto; }
+  /* Archived: listed here so it can be brought back, dimmed and dashed so it reads as set
+     aside rather than deleted. A tap edits it instead of picking it. */
+  .dye-card.dye-card-archived { opacity: 0.45; border-style: dashed; }
+  .dye-card.dye-card-archived:hover { opacity: 0.65; }
   .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
@@ -240,7 +244,7 @@ function basketSub(b) {
   return parts.join(' · ');
 }
 
-function basketMeta(b) { return b.notes || ''; }
+function basketMeta(b) { return [b.archived ? 'Archived' : '', b.notes || ''].filter(Boolean).join(' \u00b7 '); }
 
 function matchesSearch(b) {
   if (!searchQuery) return true;
@@ -295,9 +299,12 @@ function renderBasketCards(grid, baskets, confirmBtn) {
   addCard.addEventListener('click', () => openModal(null));
   grid.appendChild(addCard);
 
-  baskets.forEach(b => {
+  // Archived baskets sort to the end of whatever order is picked, so the ones in rotation
+  // stay at the top. This page is the only place they are listed, so it is the only place
+  // UNARCHIVE can be reached.
+  [...baskets.filter(b => !b.archived), ...baskets.filter(b => b.archived)].forEach(b => {
     const card = document.createElement('div');
-    card.className = 'dye-card';
+    card.className = 'dye-card' + (b.archived ? ' dye-card-archived' : '');
     const sub = basketSub(b);
     const meta = basketMeta(b);
     card.title = 'Long-press to edit';
@@ -310,6 +317,14 @@ function renderBasketCards(grid, baskets, confirmBtn) {
     // bean-picker. attachCardLongPress swallows the click that ends the hold, so the hold
     // does not also select.
     attachCardLongPress(card, () => openModal(b));
+    // An archived basket is not offerable: a tap opens its editor (where UNARCHIVE is)
+    // instead of picking it as the next shot's basket.
+    if (b.archived) {
+      card.title = 'Archived -- tap to edit';
+      card.addEventListener('click', () => openModal(b));
+      grid.appendChild(card);
+      return;
+    }
     card.addEventListener('click', () => {
       grid.querySelectorAll('.dye-card').forEach(c => c.classList.remove('dye-card-selected'));
       card.classList.add('dye-card-selected');
@@ -364,7 +379,7 @@ async function afterRowChange(id) {
   forgetIfSelected(id);
   closeModal();
   try {
-    basketsCache = await getBaskets();
+    basketsCache = await getBaskets(true);
   } catch (e) { console.warn('reload baskets failed:', e); }
   rerender();
   updateConfirmButton(confirmBtn);
@@ -378,13 +393,14 @@ function modalError(prefix, err) {
 
 // Archive is the reversible one: the basket leaves this picker but keeps working in the
 // shots and recipes that name it. updateBasket replaces the row, so the whole row goes back
-// with the flag flipped. UNARCHIVE is on the Filter Baskets page, which lists archived rows.
+// with the flag flipped. An archived basket stays listed here, dimmed at the end, so this
+// is also where UNARCHIVE is.
 async function toggleArchive() {
   const row = basketsCache.find(x => x && x.id === editingId);
   if (!row) return;
   const next = !editingArchived;
   if (next && !await dyeConfirm(
-    'It leaves this picker but keeps working in the recipes and shots that name it, and you can bring it back from the Filter Baskets page.',
+    'It stops being offered as a choice but keeps working in the recipes and shots that name it. It stays listed at the end of this page, where you can bring it back.',
     { title: 'Archive this basket?', confirmText: 'ARCHIVE' })) return;
   const id = editingId;
   try {
@@ -415,16 +431,19 @@ async function submitForm() {
   try {
     // An edit updates the row; only a genuinely new basket is created (and then selected).
     // The body is the whole form, as on the manager page, so emptying a field clears it.
-    // Nothing hidden to carry over: the picker is never offered an archived basket.
+    // The archived flag is not on the form, so an edit of an archived basket would clear it
+    // -- carry it over, since this page is where an archived basket is edited.
+    if (editingArchived) body.archived = true;
     const created = editingId
       ? await updateBasket(editingId, body)
       : await createBasket(body);
     closeModal();
     try {
-      basketsCache = await getBaskets();
+      basketsCache = await getBaskets(true);
     } catch (e) { console.warn('reload baskets failed:', e); }
-    // Adding a basket here is in service of picking it — auto-select the new one.
-    if (created && created.id) {
+    // Adding a basket here is in service of picking it — auto-select the new one. An edit of
+    // an archived basket is not a pick, so it is left unselected.
+    if (created && created.id && !created.archived) {
       selectedBasketId = created.id;
       sessionStorage.setItem('dye_selectedBasketId', created.id);
       sessionStorage.setItem('dye_selectedBasketName', basketName(created));
@@ -447,11 +466,16 @@ async function initializeDyeBaskets() {
   selectedBasketId = sessionStorage.getItem('dye_selectedBasketId') || null;
 
   try {
-    basketsCache = await getBaskets();
+    basketsCache = await getBaskets(true);
   } catch (e) {
     console.error('Failed to load baskets:', e);
     basketsCache = [];
   }
+
+  // A restored selection has to still be pickable: the stored id may name a basket that has
+  // since been archived or deleted, and CONFIRM would write it to the workflow regardless.
+  const picked = basketsCache.find(x => x && x.id === selectedBasketId);
+  if (selectedBasketId && (!picked || picked.archived)) forgetIfSelected(selectedBasketId);
 
   rerender();
   updateConfirmButton(confirmBtn);

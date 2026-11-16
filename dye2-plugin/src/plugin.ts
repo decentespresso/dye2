@@ -1,7 +1,6 @@
 /// <reference path="./host.d.ts" />
 
 import { renderGrindersPage } from "./pages/grinders";
-import { renderBasketsPage } from "./pages/baskets";
 import { renderEquipmentPage } from "./pages/equipment";
 import { renderBeanPickerPage } from "./pages/bean-picker";
 import { renderGrinderPickerPage } from "./pages/grinder-picker";
@@ -521,8 +520,6 @@ export default function createPlugin(host: PluginHost): PluginInstance {
         case "grinders":
           return renderGrindersPage(request);
 
-        case "baskets":
-          return renderBasketsPage(request);
 
         case "equipment":
           return renderEquipmentPage(request);

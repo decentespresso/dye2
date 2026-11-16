@@ -606,8 +606,10 @@ above instead of expecting them inside the embedded `workflow` object.
 ```
 
 `archived` is DYE2's own flag, not a bridge concept: `getBaskets()` filters archived rows
-out by default (same opt-in signature as `getGrinders`/`getBeans`), so no picker offers
-one, while `pages/baskets.ts` passes `true` and is the only place to bring one back.
+out by default (same opt-in signature as `getGrinders`/`getBeans`), so nothing offers one
+as a choice, while `pages/basket-picker.ts` passes `true` — it lists archived baskets
+dimmed at the end, where a tap edits one rather than picking it, and is the only place to
+bring one back.
 `updateBasket` **replaces** the row rather than deep-merging it, so a write that means to
 flip only `archived` must send the whole row.
 
