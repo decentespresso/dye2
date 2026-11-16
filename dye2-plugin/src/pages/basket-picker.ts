@@ -1,6 +1,7 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
 import { cardLongPressScript } from "../utils/fav-card-tap";
+import { dyeConfirmScript } from "../utils/shared-components";
 
 const styles = `
   .dye-sort-btn {
@@ -129,6 +130,7 @@ const styles = `
   }
   .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
+  .dye-btn-danger { background: transparent; color: var(--danger-text); margin-right: auto; }
   .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
@@ -204,6 +206,8 @@ const content = `
         </div>
         <div id="dye-modal-error" class="dye-modal-error dye-hidden"></div>
         <div class="dye-modal-actions">
+          <button type="button" id="dye-modal-delete" class="dye-btn dye-btn-danger dye-hidden">DELETE</button>
+          <button type="button" id="dye-modal-archive" class="dye-btn dye-btn-ghost dye-hidden">ARCHIVE</button>
           <button type="button" id="dye-modal-cancel" class="dye-btn dye-btn-ghost">CANCEL</button>
           <button type="submit" id="dye-modal-save" class="dye-btn dye-btn-primary">SAVE</button>
         </div>
@@ -220,6 +224,7 @@ let selectedBasketId = null;
 let currentSort = 'recent';
 let confirmBtn = null;
 let editingId = null;
+let editingArchived = false;
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -331,6 +336,11 @@ function openModal(b) {
   editingId = b ? b.id : null;
   document.getElementById('dye-modal-title').textContent = b ? 'Edit Basket' : 'New Basket';
   document.getElementById('dye-modal-error').classList.add('dye-hidden');
+  editingArchived = !!(b && b.archived);
+  document.getElementById('dye-modal-delete').classList.toggle('dye-hidden', !b);
+  const archiveBtn = document.getElementById('dye-modal-archive');
+  archiveBtn.classList.toggle('dye-hidden', !b);
+  archiveBtn.textContent = editingArchived ? 'UNARCHIVE' : 'ARCHIVE';
   form().reset();
   if (b) ['name','size','diameterMm','notes'].forEach(k => setField(k, b[k]));
   document.getElementById('dye-modal-backdrop').classList.add('open');
@@ -339,6 +349,60 @@ function openModal(b) {
 function closeModal() {
   document.getElementById('dye-modal-backdrop').classList.remove('open');
   editingId = null;
+}
+
+// Archiving or deleting the basket that is currently picked has to drop the selection:
+// CONFIRM writes extras.basketId straight to the workflow, and an archived basket is no
+// longer offered here while a deleted one does not exist at all.
+function forgetIfSelected(id) {
+  if (selectedBasketId !== id) return;
+  selectedBasketId = null;
+  ['dye_selectedBasketId','dye_selectedBasketName'].forEach(k => sessionStorage.removeItem(k));
+}
+
+async function afterRowChange(id) {
+  forgetIfSelected(id);
+  closeModal();
+  try {
+    basketsCache = await getBaskets();
+  } catch (e) { console.warn('reload baskets failed:', e); }
+  rerender();
+  updateConfirmButton(confirmBtn);
+}
+
+function modalError(prefix, err) {
+  const errEl = document.getElementById('dye-modal-error');
+  errEl.textContent = prefix + ' failed: ' + err.message;
+  errEl.classList.remove('dye-hidden');
+}
+
+// Archive is the reversible one: the basket leaves this picker but keeps working in the
+// shots and recipes that name it. updateBasket replaces the row, so the whole row goes back
+// with the flag flipped. UNARCHIVE is on the Filter Baskets page, which lists archived rows.
+async function toggleArchive() {
+  const row = basketsCache.find(x => x && x.id === editingId);
+  if (!row) return;
+  const next = !editingArchived;
+  if (next && !await dyeConfirm(
+    'It leaves this picker but keeps working in the recipes and shots that name it, and you can bring it back from the Filter Baskets page.',
+    { title: 'Archive this basket?', confirmText: 'ARCHIVE' })) return;
+  const id = editingId;
+  try {
+    await updateBasket(id, { ...row, archived: next });
+    await afterRowChange(id);
+  } catch (err) { modalError(next ? 'Archive' : 'Unarchive', err); }
+}
+
+async function removeEditing() {
+  if (!editingId) return;
+  if (!await dyeConfirm(
+    'Shots and recipes that reference it keep their saved name, but the row itself is gone.',
+    { title: 'Delete this basket?', confirmText: 'DELETE', danger: true })) return;
+  const id = editingId;
+  try {
+    await deleteBasket(id);
+    await afterRowChange(id);
+  } catch (err) { modalError('Delete', err); }
 }
 
 async function submitForm() {
@@ -418,6 +482,8 @@ async function initializeDyeBaskets() {
 
   // Modal wiring
   document.getElementById('dye-modal-cancel')?.addEventListener('click', closeModal);
+  document.getElementById('dye-modal-delete')?.addEventListener('click', removeEditing);
+  document.getElementById('dye-modal-archive')?.addEventListener('click', toggleArchive);
   document.getElementById('dye-modal-backdrop')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeModal();
   });
@@ -432,6 +498,6 @@ export function renderBasketPickerPage(request: HttpRequest): HttpResponse {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Select Filter Basket", content, styles, [devApiScript, cardLongPressScript, pageScript]),
+    body: devPageShell("Select Filter Basket", content, styles, [devApiScript, cardLongPressScript, dyeConfirmScript, pageScript]),
   };
 }
