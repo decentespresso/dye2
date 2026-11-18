@@ -16,7 +16,7 @@ import { renderAutoFavEditPage } from "./pages/auto-fav-edit";
 import { renderRecipeEditPage } from "./pages/recipe-edit";
 import { renderSelectRecipePage } from "./pages/select-recipe";
 import { renderBcImportPage } from "./pages/bc-import";
-import { refreshRecentFavourites, shotPatchAffectsRecents, noteShotUpdated, explicitRecipeSlot, migrateRecipeSlots, dropSuggestedRecipes, dedupeRecipeSlots, clearBeanlessRecipeWorkflows, clearBeanlessFavouriteWorkflows, dedupeFavSlots, fattenFavouriteProfiles, favouritesNeedProfileRepair } from "./utils/recent-favs";
+import { refreshRecentFavourites, shotPatchAffectsRecents, noteShotUpdated, explicitRecipeSlot, migrateRecipeSlots, dropSuggestedRecipes, dedupeRecipeSlots, clearBeanlessRecipeWorkflows, restoreZeroGrindRecipeWorkflows, clearBeanlessFavouriteWorkflows, dedupeFavSlots, fattenFavouriteProfiles, favouritesNeedProfileRepair } from "./utils/recent-favs";
 import {
   deriveSelection,
   recipeIdOf,
@@ -356,6 +356,19 @@ export default function createPlugin(host: PluginHost): PluginInstance {
     if (!res.ok) throw new Error(`HTTP ${res.status} clearing beanless recipe workflows`);
   }
 
+  // ponytail: no one-time flag. A repaired row no longer matches, so a load with nothing to do
+  // costs one KV read, and a run that fails or loses a write race heals on the next load.
+  async function healZeroGrindRecipes(): Promise<void> {
+    if (typeof fetch !== "function") return;
+    const rows = await kv("recipes");
+    const next = restoreZeroGrindRecipeWorkflows(rows);
+    if (next === rows) return;
+    const res = await fetch(`${API}/store/${NS}/recipes`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} restoring zero grind settings`);
+  }
+
   // One-time (`favBeansMigrated`, a flag of its own so a tablet that already ran the recipe
   // pass still gets this one): a saved favourite that copies beans but captured none gets
   // explicit nulls in its STORED body, which is what the F strip PUTs.
@@ -481,6 +494,7 @@ export default function createPlugin(host: PluginHost): PluginInstance {
       }
       if (typeof host.storage !== "function") { runRecipeMigration(); runRecipeBeanMigration(); runFavBeanMigration(); runFavSlotMigration(); runFavProfileMigration(); }
       else refreshRecents();
+      healZeroGrindRecipes().catch((e: unknown) => log(`zero grind repair failed: ${e instanceof Error ? e.message : String(e)}`));
       // A restart loses the baseline: look at the workflow once, comparing the stored profile.
       if (typeof fetch === "function") liveWorkflow().then((wf) => trackWorkflow(wf, true));
     },

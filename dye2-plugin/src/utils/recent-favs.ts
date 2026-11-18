@@ -237,6 +237,24 @@ export function clearBeanlessRecipeWorkflows(recipes: AnyRecord[]): AnyRecord[] 
 }
 
 /**
+ * Before dye2#47 a recipe saved at grind 0 stored a null in the workflow body the R strip PUTs.
+ * Only the number 0 was lost: the text "0" was always kept. Returns the same array when no row
+ * needs it.
+ */
+export function restoreZeroGrindRecipeWorkflows(recipes: AnyRecord[]): AnyRecord[] {
+  if (!Array.isArray(recipes)) return recipes;
+  const needs = (r: AnyRecord) =>
+    r && r.dashboardVariables && r.dashboardVariables.grind === 0 &&
+    r.workflow && r.workflow.context && r.workflow.context.grinderSetting == null;
+  if (!recipes.some(needs)) return recipes;
+  return recipes.map((r) =>
+    needs(r)
+      ? { ...r, workflow: { ...r.workflow, context: { ...r.workflow.context, grinderSetting: "0" } } }
+      : r
+  );
+}
+
+/**
  * The favourites' sibling of clearBeanlessRecipeWorkflows, for the same reason: the F strip
  * PUTs a favourite's STORED body, rebuilt only when DYE2 next writes the row. Recents
  * (`auto: true`) already carry explicit bean nulls from toRecentFavourite, and a favourite

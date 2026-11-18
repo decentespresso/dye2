@@ -1807,9 +1807,10 @@ async function applyRecipe(recipe) {
   // The numbers follow the identity rule below: a recipe naming no dose, grind, rpm or feed
   // rate — or naming it as 0 — clears the live one rather than inheriting the previously
   // applied recipe's, because a recipe is the whole shot and not an overlay on the last one.
-  // Same rule, same place, as dev-api buildRecipeWorkflow (streamline-js#189).
+  // Same rule, same place, as dev-api buildRecipeWorkflow (streamline-js#189). The grind alone
+  // has a real 0, a dial position (dye2#47), so only null and '' name none there.
   ctx.targetDoseWeight = dv.dose || null;
-  ctx.grinderSetting = dv.grind || null;
+  ctx.grinderSetting = dv.grind != null && dv.grind !== '' ? String(dv.grind) : null;
   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm || null, feedRate: dv.feedRate || null };
   wrote.push('rpm', 'feedRate');
   // Cleared to 0, not null: Decaid's workflow_handler.dart passes targetYield to

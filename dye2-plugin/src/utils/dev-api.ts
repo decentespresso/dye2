@@ -484,9 +484,10 @@ async function buildRecipeWorkflow(recipe) {
   // dose, grind, rpm or feed rate — or naming it as 0 — CLEARS the live one instead of
   // inheriting the previously applied recipe's. A recipe is the whole shot, not an overlay
   // on the last one. PUT deep-merges, so an omission left the earlier number standing and
-  // it read as if it belonged to this recipe.
+  // it read as if it belonged to this recipe. The grind alone has a real 0, a dial position
+  // (dye2#47), so only null and '' name none there.
   ctx.targetDoseWeight = dv.dose || null;
-  ctx.grinderSetting = dv.grind ? String(dv.grind) : null;
+  ctx.grinderSetting = dv.grind != null && dv.grind !== '' ? String(dv.grind) : null;
   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm || null, feedRate: dv.feedRate || null };
   // targetYield clears to 0, not null, and Decaid forces it: workflow_handler.dart passes
   // targetYield to rejectExplicitNulls, so {"context":{"targetYield":null}} answers 400 and

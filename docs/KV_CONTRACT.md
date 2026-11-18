@@ -507,15 +507,18 @@ migration pass — Streamline normalises them at apply time instead (`clearInher
 so the fix reaches old rows without a second one-shot flag.
 
 **And so do the numbers.** `grinderSetting`, `targetDoseWeight`, `extras.rpm` and
-`extras.feedRate` are nulled whenever the row names none — or names `0`, which is read as
-naming none — on the same rule: a recipe is the whole shot, not an overlay on the last one, so
-the previously applied recipe's dose must not stand in for one this recipe never recorded.
+`extras.feedRate` are nulled whenever the row names none — or, except for `grinderSetting`,
+names `0`, which is read as naming none — on the same rule: a recipe is the whole shot, not an
+overlay on the last one, so the previously applied recipe's dose must not stand in for one this
+recipe never recorded. A grind of `0` is a real dial position and is written as the text `"0"`;
+only `null` and an empty string name no grind (dye2#47). Rows saved at `0` before that rule
+held a null in `workflow.context`; the plugin repairs them on load
+(`restoreZeroGrindRecipeWorkflows`, no flag).
 `targetYield` is the one field cleared to **`0` instead of `null`**, and Decaid forces it:
 `workflow_handler.dart` passes `targetYield` to `rejectExplicitNulls`, so
 `{"context":{"targetYield":null}}` answers `400` and takes the whole apply down with it. `0`
 is Decaid's own clear for that field — stop-at-weight off. On Streamline's tiles a cleared
-grind or dose falls back to the machine's own value and then to a dash, rather than reading
-`0` as a dial position.
+grind or dose falls back to the machine's own value and then to a dash.
 
 ### `equipment[]`
 

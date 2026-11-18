@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { clearBeanlessRecipeWorkflows, clearBeanlessFavouriteWorkflows } from '../src/utils/recent-favs.ts';
+import { clearBeanlessRecipeWorkflows, clearBeanlessFavouriteWorkflows, restoreZeroGrindRecipeWorkflows } from '../src/utils/recent-favs.ts';
 const { devApiScript } = await import('../src/utils/dev-api.ts');
 
 let stored = [];
@@ -112,6 +112,52 @@ console.log('ok   clearBeanlessRecipeWorkflows: one-shot, idempotent');
   assert.ok(plugin.includes('clearBeanlessRecipeWorkflows'), 'and is wired to the helper');
 }
 console.log('ok   both apply paths and the migration agree');
+
+// 0 is a real dial position (dye2#47), so only null and '' name no grind, in both apply paths.
+{
+  const page = readFileSync(new URL('../src/pages/dashboard.ts', import.meta.url), 'utf8');
+  const expr = page.match(/ctx\.grinderSetting = (dv\.grind[^;]*);/);
+  assert.ok(expr, 'applyRecipe sets the grind from the recipe');
+  const applyRecipeGrind = new Function('dv', 'return ' + expr[1]);
+  const stripGrind = async (grind) => {
+    stored = [];
+    await api.updateRecipe('g', { name: 'G', dashboardVariables: { grind } });
+    return ctxOf('g').grinderSetting;
+  };
+  for (const [grind, want] of [[0, '0'], ['0', '0'], [7.5, '7.5'], ['1.1.0', '1.1.0'], ['', null], [null, null], [undefined, null]]) {
+    assert.equal(applyRecipeGrind({ grind }), want, 'applyRecipe, grind ' + JSON.stringify(grind));
+    assert.equal(await stripGrind(grind), want, 'buildRecipeWorkflow, grind ' + JSON.stringify(grind));
+  }
+  // The dose and rpm keep the old rule: their 0 means nothing.
+  await api.updateRecipe('z', { name: 'Z', dashboardVariables: { dose: 0, rpm: 0 } });
+  assert.equal(ctxOf('z').targetDoseWeight, null);
+  assert.equal(ctxOf('z').extras.rpm, null);
+}
+console.log('ok   a grind setting of 0 survives both apply paths');
+
+// Rows saved at grind 0 before dye2#47 hold a null in the body the R strip PUTs.
+{
+  const row = (id, grind, context) => ({ id, dashboardVariables: { grind }, workflow: { profile: { title: 'P' }, context } });
+  const rows = [
+    row('nulled', 0, { grinderSetting: null, targetDoseWeight: 18 }),
+    row('absent', 0, { targetDoseWeight: 18 }),
+    row('kept', 0, { grinderSetting: '0' }),
+    row('moved', 0, { grinderSetting: '5' }),
+    row('none', null, { grinderSetting: null }),
+    row('blank', '', { grinderSetting: null }),
+    { id: 'no-body', dashboardVariables: { grind: 0 } },
+    null,
+  ];
+  const once = restoreZeroGrindRecipeWorkflows(rows);
+  assert.deepEqual(once[0].workflow, { profile: { title: 'P' }, context: { grinderSetting: '0', targetDoseWeight: 18 } });
+  assert.equal(once[1].workflow.context.grinderSetting, '0');
+  for (const i of [2, 3, 4, 5, 6, 7]) assert.equal(once[i], rows[i], 'row ' + i + ' is left as it was');
+  assert.equal(rows[0].workflow.context.grinderSetting, null, 'the input is not mutated');
+  assert.equal(restoreZeroGrindRecipeWorkflows(once), once, 'second run changes nothing');
+  const plugin = readFileSync(new URL('../src/plugin.ts', import.meta.url), 'utf8');
+  assert.match(plugin, /onLoad\([\s\S]*?healZeroGrindRecipes\(\)/, 'the repair runs on load');
+}
+console.log('ok   restoreZeroGrindRecipeWorkflows: repairs only a saved 0 the stored body lost');
 
 // A saved favourite follows the same rule: recents always nulled the bean trio
 // (toRecentFavourite), recipes now do, and a saved favourite that copies beans but captured

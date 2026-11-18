@@ -919,9 +919,10 @@ async function buildRecipeWorkflow(recipe) {
   // dose, grind, rpm or feed rate — or naming it as 0 — CLEARS the live one instead of
   // inheriting the previously applied recipe's. A recipe is the whole shot, not an overlay
   // on the last one. PUT deep-merges, so an omission left the earlier number standing and
-  // it read as if it belonged to this recipe.
+  // it read as if it belonged to this recipe. The grind alone has a real 0, a dial position
+  // (dye2#47), so only null and '' name none there.
   ctx.targetDoseWeight = dv.dose || null;
-  ctx.grinderSetting = dv.grind ? String(dv.grind) : null;
+  ctx.grinderSetting = dv.grind != null && dv.grind !== '' ? String(dv.grind) : null;
   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm || null, feedRate: dv.feedRate || null };
   // targetYield clears to 0, not null, and Decaid forces it: workflow_handler.dart passes
   // targetYield to rejectExplicitNulls, so {"context":{"targetYield":null}} answers 400 and
@@ -7871,9 +7872,10 @@ async function applyRecipe(recipe) {
   // The numbers follow the identity rule below: a recipe naming no dose, grind, rpm or feed
   // rate — or naming it as 0 — clears the live one rather than inheriting the previously
   // applied recipe's, because a recipe is the whole shot and not an overlay on the last one.
-  // Same rule, same place, as dev-api buildRecipeWorkflow (streamline-js#189).
+  // Same rule, same place, as dev-api buildRecipeWorkflow (streamline-js#189). The grind alone
+  // has a real 0, a dial position (dye2#47), so only null and '' name none there.
   ctx.targetDoseWeight = dv.dose || null;
-  ctx.grinderSetting = dv.grind || null;
+  ctx.grinderSetting = dv.grind != null && dv.grind !== '' ? String(dv.grind) : null;
   ctx.extras = { ...(ctx.extras || {}), rpm: dv.rpm || null, feedRate: dv.feedRate || null };
   wrote.push('rpm', 'feedRate');
   // Cleared to 0, not null: Decaid's workflow_handler.dart passes targetYield to
@@ -10110,6 +10112,26 @@ function resolveRoastDate(id, batches) {
 					coffeeName: null,
 					coffeeRoaster: null,
 					beanBatchId: null
+				}
+			}
+		} : r);
+	}
+	/**
+	* Before dye2#47 a recipe saved at grind 0 stored a null in the workflow body the R strip PUTs.
+	* Only the number 0 was lost: the text "0" was always kept. Returns the same array when no row
+	* needs it.
+	*/
+	function restoreZeroGrindRecipeWorkflows(recipes) {
+		if (!Array.isArray(recipes)) return recipes;
+		const needs = (r) => r && r.dashboardVariables && r.dashboardVariables.grind === 0 && r.workflow && r.workflow.context && r.workflow.context.grinderSetting == null;
+		if (!recipes.some(needs)) return recipes;
+		return recipes.map((r) => needs(r) ? {
+			...r,
+			workflow: {
+				...r.workflow,
+				context: {
+					...r.workflow.context,
+					grinderSetting: "0"
 				}
 			}
 		} : r);
@@ -15294,6 +15316,18 @@ bcInit();
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status} clearing beanless recipe workflows`);
 		}
+		async function healZeroGrindRecipes() {
+			if (typeof fetch !== "function") return;
+			const rows = await kv("recipes");
+			const next = restoreZeroGrindRecipeWorkflows(rows);
+			if (next === rows) return;
+			const res = await fetch(`${API}/store/${NS}/recipes`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(next)
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status} restoring zero grind settings`);
+		}
 		async function migrateFavBeans() {
 			if (typeof fetch !== "function") return;
 			const rows = await kv("autoFavourites");
@@ -15445,6 +15479,7 @@ bcInit();
 					runFavSlotMigration();
 					runFavProfileMigration();
 				} else refreshRecents();
+				healZeroGrindRecipes().catch((e) => log(`zero grind repair failed: ${e instanceof Error ? e.message : String(e)}`));
 				if (typeof fetch === "function") liveWorkflow().then((wf) => trackWorkflow(wf, true));
 			},
 			onUnload() {
