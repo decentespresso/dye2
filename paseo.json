@@ -1,0 +1,8 @@
+{
+  "worktree": {
+    "setup": [
+      "cd dye2-plugin",
+      "npm run serve "
+    ]
+  }
+}
