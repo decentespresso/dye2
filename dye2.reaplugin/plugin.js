@@ -6734,7 +6734,7 @@ function subscribeChanged() {
     if (sock || document.hidden) return;
     try {
       sock = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host +
-        '/api/v1/plugins/dye2.reaplugin/changed');
+        '/ws/v1/plugins/dye2.reaplugin/changed');
     } catch (e) { return; }
     sock.addEventListener('message', () => refreshDerivedSelection());
     const dead = () => {

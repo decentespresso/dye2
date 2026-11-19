@@ -165,7 +165,7 @@ appends a counter. The body's `beverage` is also stored on the new row.
 ## Freshness
 
 DYE2 exposes a push channel: the `changed` websocket endpoint,
-`ws://<bridge-host>:8080/api/v1/plugins/dye2.reaplugin/changed`. It emits
+`ws://<bridge-host>:8080/ws/v1/plugins/dye2.reaplugin/changed`. It emits
 `{ "what": "workflow" }` after DYE2's plugin runtime writes a KV key and after a
 recipe/favourite is applied (not `"skin"`: the skin only re-reads its DYE strip's KV
 data for pushes other than `{"what":"skin"}`). A push means "something
