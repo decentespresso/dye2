@@ -271,3 +271,11 @@ console.log("dashboard-open tests passed");
   assert.equal(new Set(fn(rows)).size, rows.length, 'one pill per recipe, no duplicates');
 }
 console.log('ok   the recipe rail shows the whole library, slotted first');
+
+// 10. Decaid serves websocket endpoints under /ws/v1 and answers 400 on /api/v1.
+{
+  const code = stripComments(dash);
+  assert.ok(code.includes("'/ws/v1/plugins/dye2.reaplugin/changed'"), 'the changed socket uses the websocket route');
+  assert.ok(!code.includes("'/api/v1/plugins/dye2.reaplugin/changed'"), 'and not the http route');
+}
+console.log('ok   the dashboard opens the changed socket on the websocket route');
