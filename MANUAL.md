@@ -1,367 +1,477 @@
 # DYE2 User Manual
 
-DYE2 ("Describe Your Espresso") is an add-on for the Decaid tablet software on your Decent
-Espresso machine. It gives you screens for the things Decaid stores but doesn't show you:
-your coffee, your grinders, your shot history, and the settings for the shot you're about
-to pull.
+DYE2 ("Describe Your Espresso") is an add-on for **Decaid**, the tablet software on your
+Decent Espresso machine. It helps you keep track of your coffee: what beans you used, how
+you ground them, how the shot went, and how to repeat a shot you loved.
 
-This manual assumes no technical knowledge. Read the first three sections, then dip into
-"How do I…?" when you need something specific.
+You don't need any technical knowledge to use it. Start with **"Your first five minutes"**,
+then jump to **"How do I…?"** whenever you want to do something specific.
 
 ---
 
-## What DYE2 does
+## Contents
 
-- **Look back at the shot you just pulled** — the graph, the numbers, the coffee you used.
-  Give it stars and a tasting note.
-- **Set up the next shot** — dose, drink weight, grind, RPM, profile, beans, who made it,
-  who drank it.
-- **Set up the your own recipes** — create your own and remembers the recipe of your favorite drinks.
-  Check out http://github.com/decentespresso/dye2/blob/main/MANUAL.md#recipes
-- **Keep a coffee library** — roaster, origin, roast date, bag weight, price, notes. One
-  entry per coffee, plus a *batch* for each bag you buy.
-- **Keep a grinder library** — burrs, step sizes, notes.
-- **Save recipes and favourites** — one tap puts a whole set of settings back in place.
-- **Send shots to Visualizer** — if you also have the Visualizer plugin installed.
+1. [What DYE2 can do](#what-dye2-can-do)
+2. [Getting DYE2 on the tablet](#getting-dye2-on-the-tablet)
+3. [Your first five minutes](#your-first-five-minutes)
+4. [The dashboard](#the-dashboard)
+5. [How do I…?](#how-do-i)
+6. [Your coffee library](#your-coffee-library)
+7. [Grinders, baskets and other equipment](#grinders-baskets-and-other-equipment)
+8. [Recipes](#recipes)
+9. [Favourites](#favourites)
+10. [Editing a shot you already pulled](#editing-a-shot-you-already-pulled)
+11. [Importing from Beanconqueror](#importing-from-beanconqueror)
+12. [Visualizer](#visualizer)
+13. [Handy habits](#handy-habits)
+14. [Things that don't work yet](#things-that-dont-work-yet)
+15. [Glossary](#glossary)
 
-Everything you type into DYE2 is stored by Decaid itself, not hidden inside DYE2. Other
-Decaid screens see the same beans, the same shots, the same grinders.
+---
+
+## What DYE2 can do
+
+- **Look back at any shot.** See the graph, the numbers and the coffee you used, and give
+  it a star rating.
+- **Find old shots fast.** Search by coffee, roaster, grinder, profile or rating.
+- **Plan your next shot.** Set the dose, drink weight, grind, RPM, profile, beans, basket,
+  barista and drinker, all from one screen.
+- **Save recipes.** Keep your favourite drinks as recipes and load one with a single tap.
+- **Get automatic favourites.** DYE2 watches your shot history and suggests the
+  coffee + profile + grinder combinations you use and rate the most.
+- **Keep libraries** of your coffees (with each bag you buy), your grinders, your baskets
+  and any other equipment (scales, WDT tools…).
+- **Bring your data over from Beanconqueror.**
+- **Send shots to Visualizer** (visualizer.coffee), if you also have the Visualizer plugin.
+
+Everything you enter is stored by Decaid itself, not hidden inside DYE2, so other Decaid
+screens see the same beans, shots and grinders.
 
 ---
 
 ## Getting DYE2 on the tablet
 
-Most people already have it: Decaid ships with a copy of DYE2 built in, so you only need
-to switch it on in Decaid's plugin settings.
+Most people already have it: Decaid ships with DYE2 built in. Just switch it on in Decaid's
+plugin settings.
 
 If you want a specific version, download `dye2.reaplugin-vX.Y.Z.zip` from the
-[Releases page](../../releases) and install it through Decaid's plugin settings screen. Using the + button on the top right corner.
+[Releases page](../../releases) and install it in Decaid's plugin settings with the **+**
+button in the top-right corner.
 
-Once it's enabled, open the DYE2 **Dashboard**. That's the front door — every other DYE2
-screen is reached from it. Its address, if a screen ever asks you for one, is:
+Once it's on, open the DYE2 **Dashboard**. Every other DYE2 screen is reached from there. If
+a screen ever asks for its address, it is:
 
 ```
 http://localhost:8080/api/v1/plugins/dye2.reaplugin/dashboard
 ```
 
-The screens are drawn for a tablet held sideways (landscape). They also work in a normal
-web browser on a laptop, if you'd rather poke around there first.
+The screens are made for a tablet held sideways (landscape). They also work in a normal web
+browser on a laptop, if you'd like to look around there first.
+
+---
+
+## Your first five minutes
+
+1. **Add your grinder.** On the dashboard, tap the word **Grind** (the blue label, not the
+   number) → **ADD NEW GRINDER +** → type the model → **SAVE**.
+2. **Add your coffee.** Tap the **Beans** line on the dashboard → **ADD NEW BEANS** → type the
+   bean name and roaster (both are required) → **CONFIRM**.
+3. **Pick a profile.** Tap the profile name in the middle of the right half.
+4. **Set dose, drink and grind** with the **−** and **+** buttons.
+5. **Pull your shot** on the machine as usual.
+6. **Rate it.** Back on the dashboard, tap a star on the left. That's it — it's saved.
+
+After a few shots, DYE2 starts suggesting **favourites** for you, and you can save the
+setups you like as **recipes**.
 
 ---
 
 ## The dashboard
 
+![The DYE2 dashboard](docs/manual-images/dashboard.jpg)
+
 The dashboard is split down the middle:
 
-- **Left half = the shot you already pulled.**
+- **Left half = a shot you already pulled.**
 - **Right half = the shot you're about to pull.**
 
 ### Left: Last Shot
 
 | What you see | What it does |
 | --- | --- |
-| `Last Shot: Today (3/248)` and a date | Which shot you're looking at — "Today", "Yesterday", or "N days ago" — and where it sits in your history. |
-| The graph | Pressure, flow, temperature and weight flow (how fast espresso is landing in the cup — not the total in the cup) during that shot. Dotted lines show what the profile *asked for*; solid lines show what actually happened. Temperature is drawn at one tenth of its real value so it fits on the same scale. |
-| The magnifying glass | Search your shots. Tap it, type, and the list narrows to matching shots — it matches coffee name, roaster, profile, grinder and your tasting notes, across your whole history. Beside the box it tells you where you are ("2 of 4 matches"), and `‹ ›` step through them. Tap the glass again (or press Escape) to go back to all shots. |
-| `‹` and `›` | Step back and forward through your shots. Every shot the machine has stored is reachable — older ones are fetched as you reach them, so the first tap past the fiftieth may pause for a moment. Past the oldest it loops back to the newest. |
-| `All Shots` / `Same Beans` | Tap to switch between them. `Same Beans` shows only shots pulled with the same coffee from the same roaster, searched across your whole history rather than just the recent ones. **The button shows the mode you are in now**, not the one you'd switch to. Switching jumps you to the newest shot in the new list. If the shot on screen has no coffee recorded, the button does nothing. |
-| Profile, dose/drink, beans, grinder, barista, drinker | A read-only summary of that shot. To change any of it, use `Edit Shot`. |
-| The five stars | Tap a star to rate the shot. It saves immediately — there is no extra confirm step. |
-| `Read Note` | Shows the tasting note saved with that shot. Greyed out when there is no note. |
-| `Edit Shot` | Opens the full shot editor (see "…fix the details on a shot I already pulled"). |
-| The `⌃` next to `Edit Shot` | A small menu: `Export Shot`, `View Text Profile`, `Delete Shot`. **Delete asks first, and cannot be undone.** |
-| `DYE Settings ⌃` | Opens `Favourites` or `Recipes` (their own sections below). |
-| `Visualizer ⌃` | `Upload to Visualizer` sends the shot currently on screen; `Visualizer Settings` opens the login box (see "Visualizer"). |
+| `Last Shot: Today (1/296)` and a date | Which shot you're looking at and where it sits in your history (here: the newest of 296). |
+| The graph | How the shot went: pressure (green), flow (blue), temperature (red) and weight. Dotted lines show what the profile *asked for*; solid lines show what really happened. |
+| `‹` and `›` | Step to older (`‹`) and newer (`›`) shots. Your whole history is reachable; older shots load as you get to them, so there may be a short pause now and then. Going past the oldest shot loops back to the newest. |
+| The magnifying glass | Opens the **shot search** (see "…find an old shot"). A small dot appears on it while a search is active. |
+| `All Shots` / `Same Beans` | Switches between every shot and only the shots made with the same coffee as the one on screen. **The button shows the mode you are in now.** |
+| Profile, drink, time, ratio, beans, grinder, barista, drinker | A read-only summary of that shot. To change any of it, use `Edit Shot`. |
+| The five stars | Tap one to rate the shot. **It saves straight away.** |
+| `Read Note` | Shows the note saved with that shot. Greyed out if there's no note. |
+| `Edit Shot` | Opens the full shot editor. |
+| The `⌃` beside `Edit Shot` | A small menu with `Delete Shot` (asks first, **cannot be undone**). |
+| `DYE Settings ⌃` | Opens **Favourites**, **Recipes** or **Equipment**. |
+| `Visualizer ⌃` | `Upload to Visualizer` and `Visualizer Settings`. A green tick means you're logged in. |
 
 ### Right: Next Shot Planning
 
-Everything on this side goes into Decaid's live settings — the ones the machine will use
-for your next shot.
-
-**Most of it saves as you go:** dose, drink, grind, RPM, barista, drinker, the note, and a
-favourite you apply are all written straight away.
-
-**Three things wait for `DONE`:** loading a recipe pill, the clipboard copy, and `Clear`.
-Those only change the screen until you press `DONE` — leave with `CANCEL` and they're
-thrown away.
+Everything here goes into Decaid's live settings — the ones the machine will use for your
+next shot.
 
 | What you see | What it does |
 | --- | --- |
-| Recipe pills (the row of names at the top) | Your saved recipes. Tap one to load its dose, drink weight, grind, RPM, profile, barista and drinker. `‹ ›` scroll along the row. Says "No recipes yet" until you save one. |
-| Profile name | Tap it to choose a different profile. |
-| `Dose` / `Drink` | Grams of coffee in, grams of espresso out. The brew ratio is shown under the drink weight. Use `−` and `+`, or **tap the number and type a value**. |
-| The row of grinder names | Tapping one highlights it, so you can see which grinder the numbers below belong to. The highlight itself isn't saved — the `Grind` and `RPM` values are. |
-| The word `Grind` itself | Tap the **label** `Grind` (not the number) to open the grinder library. This is the only way in. |
-| `Grind` / `RPM` | Your grind setting and the grinder's RPM. Each tap moves grind by 0.1 and RPM by 1 (dose moves by 0.5 g, drink by 1 g). |
-| `Beans` card | The coffee, its roaster, and how many days it is since roasting. Tap it to pick a different coffee. |
-| `Barista` / `Drinker` | Tap either one and type a name. Names you've used before appear in a drop-down; tap one, or finish typing and press Enter. |
-| `Add Note` | Writes a note for the **next** shot. After you pull it, `Read Note` on the left shows that note. |
-| History icon (top right) | A one-step undo for this panel. Tap it to go back to the values you had before your last change; tap again to bring them back. Greyed out until you change something. |
-| Clipboard icon (top right) | Copies every setting from the shot shown on the left into the next-shot panel. The quickest way to repeat a shot you liked. |
-| `Clear` | Empties the next-shot panel. The history icon undoes it. |
-| `CANCEL` / `DONE` | Both leave the dashboard. `DONE` saves the panel first. |
+| Recipe buttons (top rows) | All your saved recipes. Tap one to load it. Use `‹ ›` to scroll if you have many. |
+| Profile name | Tap to choose a different profile. |
+| `Dose` / `Drink` | Grams of coffee in / grams of espresso out. The brew ratio (e.g. `1:2.3`) shows under the drink. `−`/`+` move dose by 0.5 g and drink by 1 g, or **tap the number and type**. |
+| Row of grinder names | Tap a grinder to use it for the next shot. If that grinder has a default setting or RPM saved, those are filled in too. |
+| The word `Grind` | Tap the **label** to open your grinder library. |
+| `Grind` / `RPM` | Your grind setting and the grinder's speed. `−`/`+` move grind by 0.1 and RPM by 1. If your grinder has a minimum and maximum saved, the buttons stay inside that range. |
+| `Beans` | The coffee and its roaster. Tap to pick another coffee. |
+| `Basket` | The filter basket. Tap to pick another basket. |
+| `Barista` / `Drinker` | Tap and type a name. Names you've used before appear in a list underneath. |
+| `Add Note` | A note for the **next** shot. After you pull it, `Read Note` on the left shows it. |
+| History icon (top right) | **Undo.** Puts back the values you had before your last change. Tap again to redo. |
+| Clipboard icon (top right) | **Copy the shot on the left** into this panel — the quickest way to repeat a shot. |
+| `Clear` | Empties the panel. |
+| `CANCEL` / `DONE` | Both leave the dashboard. `DONE` saves first. |
+
+**What saves when?**
+
+- **Saved immediately:** dose, drink, grind, RPM, grinder, barista, drinker, the note, a
+  recipe button, and a favourite you apply.
+- **Waits for `DONE`:** the **clipboard copy** and **Clear**. They only change the screen. If
+  you leave with `CANCEL`, they are thrown away and nothing on the machine changes.
 
 ---
 
 ## How do I…?
 
 ### …rate the shot I just pulled
-Open the dashboard and tap a star on the left. Done — it saves itself. For a written note,
-tap `Edit Shot` and use the notes field there.
+Open the dashboard and tap a star on the left. It saves itself. To add a written note, tap
+`Edit Shot`.
 
 ### …pull the same shot again
-Find the shot with `‹ ›` on the left, then tap the **clipboard icon** on the right. Every
-setting from that shot lands in the next-shot panel — then press `DONE`, or the copy is
-thrown away when you leave.
+Find the shot on the left (with `‹ ›` or the search), tap the **clipboard icon** on the
+right, then press **DONE**.
 
-### …change dose, drink weight, grind or RPM
-Use `−` / `+` on the right, or tap the number itself and type. Press Enter to accept,
-Escape to cancel. **Tapping elsewhere also accepts** what you typed — it doesn't cancel.
+### …change dose, drink, grind or RPM
+Use `−` / `+`, or tap the number and type a new one. **Enter** accepts, **Escape** cancels.
+Tapping somewhere else also accepts what you typed.
 
 ### …use a different profile
-Tap the profile name on the right of the dashboard. You get a grid of profile cards with a
-search box; the sort rail here offers only `A-Z`, `Z-A`, `Recent` and `Oldest`. Tap a
-profile, then `CONFIRM`. `READ MORE` on a card shows its full description.
+Tap the profile name on the right. You get a grid of profiles with a search box and sort
+buttons (`A-Z`, `Z-A`, `Recent`, `Oldest`). Tap a profile, then **CONFIRM**. `Read more` on a
+card shows its full description.
 
 ### …use a different coffee
-Tap the `Beans` card on the right. You get a grid of coffee cards:
+Tap **Beans** on the right. Tap a coffee (it turns blue), then the button in the top right:
 
-1. Tap a coffee to select it (it turns blue).
-2. Tap the button in the top right. It says **CONFIRM** if that coffee already has a
-   roaster, or **SELECT ROASTER** if it doesn't — in which case you pick the roaster on the
-   next screen and tap **SELECT ROASTER** again there to finish.
+- It says **CONFIRM** if the coffee already has a roaster — you're done.
+- It says **SELECT ROASTER** if not — pick the roaster on the next screen, then tap
+  **SELECT ROASTER** again.
 
-The roaster screen has no search box, and its **ADD NEW ROASTER +** card opens the
-add-a-coffee form rather than a roaster-only form — you add a roaster by adding a coffee
-with that roaster's name on it.
+The coffee, roaster, roast date and bag all go into your next shot.
 
-The coffee, its roaster, its roast date and its bag are all written into the next shot.
+### …change the basket
+Tap **Basket** on the right, pick one, **CONFIRM**. **ADD NEW BASKET +** creates a new one.
 
-Use the search box at the top and the sort buttons down the left (`Recent`, `Oldest`,
-`A-Z`, `Z-A`) when the list gets long. The little **pencil** on a card opens that coffee
-for editing instead of selecting it.
+### …find an old shot
 
-### …add a bag of coffee
-In the bean picker, tap **ADD NEW BEANS**. The form is one long page you scroll through:
+![Shot search with filters](docs/manual-images/shot-search.jpg)
 
-- **Top** — bean name, roaster, roast date. Both name and roaster suggest entries you
-  already have as you type.
-- **Origin** — species, processing, country, region, producer, variety, altitude range, and
-  a decaf switch (turning it on reveals a decaf-process field).
+Tap the **magnifying glass** on the left.
+
+- **Type** anything — a coffee, roaster, profile, grinder or words from your notes. The left
+  side jumps to the first match and shows e.g. "1 of 4 matches". Use `‹ ›` to step through
+  the matches.
+- **Narrow it down** with the boxes below: **Bean**, **Roaster**, **Grinder**, **Profile** and
+  a minimum **Rating**. They all work together.
+- The **×** in the search box clears the text; **Clear filters** clears everything.
+- Tapping the glass again (or pressing Escape) **hides** the search box but **keeps the
+  search on** — the little dot on the glass reminds you. To see all shots again, open it and
+  tap **Clear filters**.
+
+The search asks the machine directly, so it finds shots from months ago instantly.
+
+### …see only shots with this coffee
+Tap **All Shots** so it changes to **Same Beans**. Tap again to go back.
+
+### …save what I'm drinking as a recipe
+See [Recipes](#recipes). The quickest way: open the shot in `Edit Shot` and tap **Save as
+Recipe**.
+
+---
+
+## Your coffee library
+
+![The coffee list](docs/manual-images/bean-picker.jpg)
+
+Tap **Beans** on the dashboard to see all your coffees. Each card shows the coffee, the
+roaster, and the roast date with how many days ago that was.
+
+- **Search box** and **sort buttons** (`Recent`, `Oldest`, `A-Z`, `Z-A`) on the left.
+- **Pencil** on a card: edit that coffee instead of selecting it.
+- **ADD NEW BEANS**: add a coffee.
+- **IMPORT FROM BEANCONQUEROR**: see [Importing from Beanconqueror](#importing-from-beanconqueror).
+
+### Adding a coffee
+The form is one long page you scroll through:
+
+- **Top** — bean name, roaster, roast date. Name and roaster suggest ones you already have.
+- **Origin** — species, processing, country, region, producer, variety, altitude, and a
+  decaf switch (turning it on shows a decaf-process box).
 - **Roast & Batch Details** — roast level, harvest date, quality score, frozen switch.
-- **Purchase & Storage** — price and currency, total and remaining weight, and dates for
-  buying, opening, best-before, freezing and unfreezing.
-- **Notes** — bean notes (about the coffee in general) and batch notes (about this bag).
+- **Purchase & Storage** — price, total and remaining weight, and dates for buying, opening,
+  best-before, freezing and unfreezing.
+- **Notes** — notes about the coffee in general, and about this particular bag.
 
-**Bean name and roaster are both required.** If either is empty, that box turns red and
-`CONFIRM` does nothing. Everything else is optional — fill in as much or as little as you
-like. `CONFIRM` saves; `CANCEL` throws the form away.
+**Bean name and roaster are required.** If one is empty, its box turns red and `CONFIRM`
+won't save. Everything else is optional.
 
-### …bring my coffees over from Beanconqueror
-DYE2 can read a Beanconqueror backup and create the matching beans, bags and grinders for
-you.
+### Coffees and bags
+DYE2 keeps one entry per **coffee**, plus one **batch** for each **bag** you buy. Buy the same
+coffee twice and you get one coffee with two batches, each with its own roast date and weight.
 
-1. In **Beanconqueror** on your phone: `Settings → Export`. That gives you a zip file.
-2. Unzip it and find **`Beanconqueror.json`** (if the export was split, there may also be
-   `Beanconqueror_Beans_0.json`).
-3. Get the file onto the tablet, or somewhere you can copy its text from.
-4. In DYE2: `Beans` card → **IMPORT FROM BEANCONQUEROR**.
-5. Either tap **CHOOSE FILE** and pick the file, **or** paste the text into the big box.
-   Pasting is the more reliable route on the tablet, because the file chooser isn't always
-   available there.
-6. The right-hand panel shows you what *would* happen — how many coffees are new, which
-   ones would just get blank fields filled in, how many grinders would be added.
-7. Happy with it? Tap **IMPORT** in the top right and watch the progress.
+### Roasters
+On the roaster screen there's no search box. To add a new roaster, add a coffee with that
+roaster's name on it (**ADD NEW ROASTER +** opens the add-a-coffee form).
 
-Two things worth knowing:
+---
 
-- **It won't overwrite the coffee details you typed.** For a coffee you already have, it
-  only fills in bean fields that are still empty.
-- **Bags are a different story.** A bag it imported before gets *refreshed* from the new
-  export, so your edits to that bag are replaced — except "remaining weight", which the
-  tablet keeps because it counts down as you pull shots.
-- **You can run it again.** After your next Beanconqueror export, import again — it matches
-  up what's already there instead of making duplicates.
+## Grinders, baskets and other equipment
 
-Baskets, drippers and other "preparation" gear are stored as reference data only; they
-don't appear as their own screen yet.
+### Grinders
 
-### …add my grinder
-On the dashboard, tap the **word `Grind`** on the right (the label, not the number). That
-opens the grinder library: the same cards, search box and sort buttons as the coffee list,
-plus an **ADD NEW GRINDER +** card. Tapping an existing card opens it for editing, and the
-form appears as a pop-up with its own `CANCEL` and `SAVE`. `DONE` in the top right takes
-you back.
+![Adding a grinder](docs/manual-images/grinder-form.jpg)
+
+Open the grinder library by tapping the word **Grind** on the dashboard. Tap a card to edit
+it, or **ADD NEW GRINDER +**. **DONE** takes you back.
 
 A grinder records:
 
-- **Model** (the only required field)
-- Burrs, burr type (flat or conical), burr size in mm
-- Setting type — *numeric* (a dial with numbers) or *preset* (named steps), and for preset
-  grinders a comma-separated list of the setting names
-- **Setting small step / big step** and **RPM small step / big step** — recorded on the
-  grinder, but nothing uses them yet: the dashboard always moves grind by 0.1 and RPM by 1
-- Notes
+- **Model** (the only required field), burrs, burr type (flat or conical), burr size.
+- **Setting type** — *Numeric* (a dial with numbers) or *Preset* (named steps). For preset
+  grinders, list the step names separated by commas.
+- **Setting Min / Max / Default** — the lowest and highest setting, and where you usually
+  start. The dashboard's `−`/`+` buttons won't go past min or max, and picking this grinder on
+  the dashboard fills in the default. Leave default blank to use the middle of the range.
+- **Highest Setting (multi-part dial)** — only for grinders whose setting has several parts,
+  like `1.12.4`. Enter the highest reading (for example `3.39.4`) and `−`/`+` will roll over
+  correctly (`1.12.4` → `1.13.0`).
+- **RPM Min / Max / Default** — the same idea for grinder speed.
+- **Step sizes** — recorded on the grinder; the dashboard still moves grind by 0.1 and RPM
+  by 1.
+- **Notes.**
 
-### …fix the details on a shot I already pulled
-Tap `Edit Shot` on the left of the dashboard. You get a fuller editor: dose, drink, TDS and
-extraction yield and the bean card on the left; grinder, grind setting, RPM, barista,
-drinker, notes and the star rating on the right.
+A greyed-out card marked **Archived** is a grinder you've retired. It stays for old shots but
+is out of the way.
 
-Along the bottom:
+### Baskets
+Reach them by tapping **Basket** on the dashboard. A basket has a name (required), size
+(single, double, bottomless…), diameter and notes.
 
-- `Delete Shot` — removes it, after asking.
-- `Clear all` — empties the form.
-- `Read From ⌃` — fills the form from `Current Workflow` or the `Previous Shot`, so you only
-  correct what's different.
-- `CANCEL` / `SAVE SHOT DATA`.
-
-`‹ ›` in the header move to another shot without leaving the editor. Unlike the dashboard
-they stop at the ends instead of looping.
-
-Also on this screen: tap the beans card to change the coffee, tap the grinder field to open
-a **Select Grinder** list (same cards, search and sorts, with its own **ADD NEW GRINDER +**),
-`READ MORE` shows the bean notes, and the pencil beside the drinker notes opens a pop-up to
-write in.
-
-**Nothing in the shot editor is saved until you press `SAVE SHOT DATA`** — including the
-stars, which behave differently here than on the dashboard.
-
-### …send a shot to Visualizer
-See "Visualizer" below.
+### Other equipment
+`DYE Settings ⌃ → Equipment`. Anything else you use — a scale, a WDT tool, a puck screen.
+Give it a name, then **+ Add field** to create your own fields (for example "circle: 2").
+In `Edit Shot`, the **Equipment** box lets you attach these to a shot and fill in the values
+for that shot.
 
 ---
 
 ## Recipes
 
-`DYE Settings → Recipes` (or the list button on the dashboard) opens **Select Recipe**: every
-recipe you have saved, as cards. Tap one to select it and **CONFIRM** to apply it; tap it again
-(or press and hold) to edit it. In the editor, **Assign recipe number** puts it on one of the five
-Streamline strip buttons (tap the lit number again to take it off the strip; the recipe stays in
-the library).
+A **recipe** is a complete setup — coffee, profile, dose, drink, grind and more — that you
+can load in one tap.
 
-**Loading a recipe does not tie your next changes to it.** Tap a recipe and it fills in the
-dose, grind and the rest; nudge any of them afterwards and the recipe itself is left alone, so
-a one-off change stays a one-off. When you have dialled something in and want to keep it, long
-press that recipe's button on the Streamline strip and choose **Save changes** — only the
-values you actually moved are written. Favourites work the same way. (Earlier versions saved
-every change back automatically, which meant the machine's state quietly became the recipe.)
+### Choosing a recipe
+`DYE Settings ⌃ → Recipes` opens **Select Recipe**.
 
-**Most of it fills itself.** Tap a profile and the dose, drink and brew temperature are read
-from that profile, and steam, flush and hot water take their first preset — so a new recipe
-starts from real numbers rather than blanks. `Read From ⌃ → From Favourite` fills everything the
-favourite actually holds (beans, grinder and its setting, basket, barista, drinker, dose, drink,
-ratio), moves the profile it was brewed with to the front of the profile row and highlights it,
-and falls back to a sensible default only where neither the favourite nor its profile has a
-value. Anything filled in this way is still yours to change before you save.
+- **Tap** a card to select it, then **CONFIRM** to load it.
+- **Tap the selected card again** (or press and hold) to **edit** it.
+- **ADD NEW RECIPE +** creates one.
+- Sort by `Recent`, `Oldest`, `A-Z`, `Z-A`, `Most Used`, `Least Used` or `Rating` (the
+  average stars of shots made with that recipe).
 
-- **Left column** — recipe name, the coffee it's for, the profile it uses, beverage type,
-  barista and drinker.
-- **Right column ("Dashboard Variables")** — dose, drink, brew temperature, steam (as flow
-  *or* time), flush, hot water (as volume *or* temperature), grind and RPM.
-- Under most of those numbers is a strip of four **preset chips**. Tap a chip to jump
-  straight to that value.
-  - Press and hold a chip for half a second to rewrite it with whatever the number
-    currently says. **This is a temporary convenience — rewritten chips go back to their
-    normal values next time the page is opened.** The recipe's actual values are saved;
-    the chips aren't. Flipping the Steam or Hot Water toggle also rebuilds those chips.
-  - The drink chips are *ratios* (1:2.3 and so on) and can't be rewritten this way.
+You can also just tap a recipe button at the top of the dashboard.
 
-At the bottom: `Clear all`, `Read From ⌃` (fill the recipe from `Current Workflow`, or
-`From Favourite`, which sends you off to the favourites list to pick one), a `Show on Streamline Dashboard` switch (turn it off to hide this recipe
-from the dashboard pills), `CANCEL` and `SAVE RECIPE`.
+**Loading a recipe doesn't lock you in.** Change the dose or grind afterwards and the recipe
+itself stays as it was. When you've dialled in something you want to keep, long-press that
+recipe's button on the Streamline strip and choose **Save changes** — only the values you
+actually changed are written to the recipe.
 
-**`SAVE RECIPE` saves the tab you're on, and only that one.** Save before switching tabs or
-your changes are lost.
+### Editing a recipe
+
+![The recipe editor](docs/manual-images/recipe-editor.jpg)
+
+- **Left side** — recipe name, the coffee (**Assign Bean**; `See All Beans` for the full
+  list), the profile (**Assign Profile**; `See All Profiles`), beverage, barista and drinker.
+- **Right side ("Dashboard Variables")** — dose, drink, brew temperature, steam, flush, hot
+  water, grinder, grind, RPM, feed rate, basket and equipment.
+- **Machine Settings** (tap to open, at the bottom on the right) — steam temperature, milk
+  stop temperature, hot water time and flow, flush temperature and flow. These are the same
+  settings as on Streamline's settings page.
+- Under most numbers is a row of **quick-pick chips**. Tap one to jump to that value. Press
+  and hold a chip for half a second to change it to the current number (this only lasts until
+  you leave the page).
+
+**Most of it fills itself in.** Pick a profile and the dose, drink and brew temperature are
+taken from it.
+
+### The five recipe buttons on Streamline
+The five buttons along the top of the recipe editor match the **five recipe buttons on the
+Streamline strip**. Each shows which recipe holds that spot now.
+
+- Tap one to put **this** recipe on that spot. If another recipe already has it, tap
+  **SAVE RECIPE** twice to confirm.
+- Tap the highlighted one again to take this recipe **off** the strip. It stays in your
+  library.
+
+### Buttons at the bottom
+- **Clear all** — empty the form.
+- **Read From ⌃** — fill the form from the **Current Workflow** (what's on the dashboard now)
+  or **From Favourite** (pick one of your favourites).
+- **Show on Streamline Dashboard** — turn off to hide this recipe from the Streamline strip.
+  It still shows on the DYE2 dashboard.
+- **CANCEL** / **SAVE RECIPE**.
 
 ---
 
 ## Favourites
 
-`DYE Settings → Favourites` shows your favourites as cards. The tabs group them by beans,
-recipe, profile or grinder, and the sort buttons work as elsewhere.
+![Favourites](docs/manual-images/favourites.jpg)
 
-- **Tap** a card to select it, then `CONFIRM` — the favourite is applied to the next shot.
-- **Press and hold** a card for half a second to open it for editing instead.
-- **ADD NEW FAVOURITE** creates one.
+**You don't have to create favourites — DYE2 makes them for you.** It looks at your recent
+shots and picks out the coffee + profile + grinder combinations you use and rate highly.
+Recent, well-rated combinations rank highest; ones you haven't used for about two months drop
+off.
 
-In the editor you give the favourite a title, a beverage, a number from 1 to 4, and choose
-whether it always shows on the dashboard. The number is its place on the dashboard's favourites
-strip, and only one favourite can hold each place — give a number that is already taken and the
-favourite that had it drops off the strip (it keeps everything else). The useful part is **Data to Copy** on the right:
-each row (profile, beans, roast date, grinder, grind setting, dose, drink, barista, drinker,
-note) has its own switch, and only the switched-on rows are copied when you use the
-favourite. So a favourite can carry a grind setting without dragging a coffee along with it.
-Profile, beans, grinder, grind setting, dose and drink start switched on. The pencil at the
-end of a row lets you type that row's value by hand, instead of taking it from a shot.
-`SAVE FAVOURITE` keeps the lot.
+`DYE Settings ⌃ → Favourites` shows them.
+
+- The tabs at the top group them by **Beans**, **Recipe**, **Profile** or **Grinder**.
+- Sort buttons on the left: `Recent`, `Oldest`, `A-Z`, `Z-A`, `Rating`.
+- **Tap** a card, then **CONFIRM** — the favourite's coffee, profile, grinder, grind, dose and
+  drink are loaded into your next shot, and you return to the dashboard.
+- **Press and hold** a card for half a second to open it for editing.
+
+### Turning a favourite into a recipe
+
+![Editing a favourite](docs/manual-images/favourite-edit.jpg)
+
+In the editor, **Data to Copy** lists everything the favourite holds: profile, beans, roast
+date, grinder, basket, equipment, grind setting, dose, drink, barista, drinker and note.
+
+- Each row has a **switch**. Only switched-on rows are copied.
+- The **pencil** at the end of a row lets you type that value yourself.
+- Give it a **title** and a **beverage**, then tap **SAVE TO RECIPE**. A **new recipe** is
+  created in your recipe library; the favourite itself isn't changed.
+
+---
+
+## Editing a shot you already pulled
+
+![The shot editor](docs/manual-images/edit-shot.jpg)
+
+Tap `Edit Shot` on the dashboard.
+
+- **Left** — dose, drink, TDS and extraction yield (EY), and the coffee (tap it to change it).
+- **Right** — grinder, grind setting, RPM, feed rate, basket, equipment, barista, drinker,
+  drinker notes (tap the pencil to write) and the star rating.
+- `‹ ›` in the top right move to another shot. Unlike the dashboard, they stop at the ends.
+
+Along the bottom:
+
+- **Delete Shot** — removes it after asking. **Cannot be undone.**
+- **Clear all** — empties the form.
+- **Save as Recipe** — opens the recipe editor filled in from this shot.
+- **Read From ⌃** — fill the form from the **Current Workflow** or the **Previous Shot**, so
+  you only fix what's different.
+- **CANCEL** / **SAVE SHOT DATA**.
+
+**Nothing here is saved until you tap `SAVE SHOT DATA`** — including the stars. (On the
+dashboard, stars save straight away.)
+
+---
+
+## Importing from Beanconqueror
+
+DYE2 can read a Beanconqueror backup and create your coffees, bags and grinders.
+
+1. In **Beanconqueror** on your phone: `Settings → Export`. You get a zip file.
+2. Unzip it and find **`Beanconqueror.json`** (big exports may also have
+   `Beanconqueror_Beans_0.json`).
+3. In DYE2: tap **Beans** → **IMPORT FROM BEANCONQUEROR**.
+4. Tap **CHOOSE FILE** and pick the file, **or** paste its text into the big box. (Pasting is
+   more reliable on the tablet.)
+5. The right side shows what *would* happen: how many new coffees, bags and grinders, and
+   which coffees would only get empty fields filled in. Nothing is saved yet.
+6. Happy? Tap **IMPORT** and watch the progress.
+
+Good to know:
+
+- **Your own typing is safe.** For coffees you already have, only empty fields are filled.
+- **Bags are refreshed.** A bag imported before is updated from the new export — except
+  "remaining weight", which the tablet keeps counting down as you pull shots.
+- **Run it again any time.** It matches what's already there instead of making duplicates.
+- Baskets, drippers and other preparation gear are stored for reference only.
 
 ---
 
 ## Visualizer
 
-DYE2 doesn't talk to visualizer.coffee by itself — it drives Decaid's separate **Visualizer
-plugin**, which has to be installed for any of this to work.
+DYE2 works with Decaid's separate **Visualizer plugin**, which must be installed.
 
 1. `Visualizer ⌃ → Visualizer Settings`.
-2. Type your visualizer.coffee username and password, and save. DYE2 checks them before
-   storing them and tells you if they're wrong.
-3. **Auto-upload starts switched on**, with a 5-second minimum shot length — shots shorter
-   than that aren't uploaded, which keeps flushes out of your Visualizer account. Turn it
-   off here if you'd rather upload by hand.
+2. Type your visualizer.coffee username and password and save. DYE2 checks them first and
+   tells you if they're wrong.
+3. **Auto-upload starts switched on**, skipping shots shorter than 5 seconds (so flushes
+   aren't uploaded). Turn it off here if you'd rather upload by hand.
 
-Two quirks of this box: it always opens showing auto-upload ticked and 5 seconds, whatever
-you saved last time, and saving again while logged in makes you retype your password.
+Once logged in, the **Visualizer** button shows a green tick, and `Upload to Visualizer` sends
+the shot currently shown on the left.
 
-Once you're logged in, the tick on the `Visualizer` button turns green, the settings box
-shows who you're logged in as and offers `Log Out`, and `Upload to Visualizer` sends
-whichever shot is showing on the left of the dashboard.
+Two quirks: the settings box always opens showing auto-upload on and 5 seconds, whatever you
+saved last time; and saving again while logged in asks for your password again.
 
 ---
 
-## Habits worth picking up
+## Handy habits
 
-- **Long press means "edit".** Half a second on a favourite card opens it for editing; half
-  a second on a preset chip in the recipe editor rewrites that chip.
-- **Tap a number to type it.** Dose, drink, grind and RPM all accept typed values — much
-  faster than holding `+` when you're a long way off.
-- **The next-shot panel saves as you go.** `DONE` is a save-and-leave, not the only save.
-- **The history icon is a one-step undo, and it toggles.** Press it twice and you're back
-  where you started.
-- **Shot navigation on the dashboard wraps around**, so `‹` repeatedly cycles the whole
-  list. In the shot editor it stops at the ends.
-- **The dashboard reaches your whole shot history**, a page at a time as you tap `‹`. The
-  bean and grinder pickers show your whole library too.
-- **Searching beats tapping `‹` fifty times.** To find a shot from weeks ago, use the
-  magnifying glass — it asks the machine for matches instead of walking back through
-  history.
+- **Tap a number to type it.** Much faster than holding `+` when you're far off.
+- **Long press means "edit"** on favourites and recipes, and "rewrite" on recipe chips.
+- **The undo button toggles.** Press it twice and you're back where you started.
+- **Use search instead of tapping `‹` fifty times.**
+- **Rate your shots.** Stars decide which favourites DYE2 suggests and power the `Rating`
+  sort.
+- **`DONE` is save-and-leave**, but most of the panel has already saved as you went.
 
 ---
 
 ## Things that don't work yet
 
-These are drawn on screen but don't do anything, so you're not doing it wrong:
+These are shown on screen but don't do anything yet — you're not doing it wrong:
 
-- The **magnifying glass in the shot editor** (the one on the dashboard works).
-- **Export Shot** in the `Edit Shot ⌃` menu.
-- **View Text Profile** in the same menu (shown greyed out on purpose).
-- **Most Used** and **Least Used** sorting, everywhere. In the bean, roaster and grinder
-  lists they quietly fall back to A-Z; on the favourites screen nothing counts your uses,
-  so the order doesn't change.
+- The **magnifying glass in the shot editor** (the dashboard one works).
+- **Export Shot** and **View Text Profile** in the `Edit Shot ⌃` menu.
+- **Most Used** / **Least Used** sorting for coffees, grinders and favourites (they work for
+  recipes). Coffees and grinders fall back to A-Z; favourites keep their order.
+- In the favourite editor, **Always display on Dashboard** and **Assign Fav Number** aren't
+  saved. Favourites place themselves on the strip automatically.
 
 ---
 
-## Small glossary
+## Glossary
 
 | Word | What it means here |
 | --- | --- |
-| **Batch** | One bag of a coffee. The same coffee bought twice gives you one bean entry and two batches, each with its own roast date and weight. |
-| **Profile** | The machine's recipe for pressure/flow/temperature during the shot. DYE2 lets you pick one; you build them elsewhere in Decaid. |
-| **Workflow** | Decaid's name for the settings the next shot will use — what the right half of the dashboard edits. |
-| **Dose / Drink** | Grams of dry coffee in / grams of espresso out. |
-| **Brew ratio** | Drink divided by dose. 18 g in and 40 g out is about 1:2.2. |
-| **RPM** | How fast your grinder's burrs turn, if your grinder can set it. |
-| **Recipe** | A DYE2 slot holding a full set of next-shot settings you can re-apply in one tap. |
-| **Favourite** | Like a recipe, but you choose exactly which fields it copies. |
+| **Batch** | One bag of a coffee. The same coffee bought twice = one coffee, two batches. |
+| **Profile** | The machine's plan for pressure, flow and temperature during a shot. You pick one in DYE2; you build them elsewhere in Decaid. |
+| **Workflow** | Decaid's word for the settings the next shot will use — the right half of the dashboard. |
+| **Dose / Drink** | Grams of ground coffee in / grams of espresso out. |
+| **Brew ratio** | Drink ÷ dose. 18 g in, 40 g out ≈ 1:2.2. |
+| **RPM** | How fast your grinder's burrs turn, if your grinder lets you set it. |
+| **Feed rate** | How fast beans go into the grinder, for grinders that let you control it. |
+| **TDS / EY** | Total dissolved solids (measured with a refractometer) and extraction yield. Optional. |
+| **Recipe** | A saved full setup you can load in one tap. |
+| **Favourite** | A setup DYE2 suggests automatically from your best recent shots. |
+| **Archived** | A grinder or basket you no longer use. Kept for old shots, shown greyed out. |
 | **Visualizer** | visualizer.coffee, a website for storing and comparing shots. |
 | **Decaid** | The tablet software DYE2 plugs into (formerly ReaPrime / Streamline). |
