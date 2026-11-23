@@ -249,8 +249,9 @@ function cssVarFallbacks(): string {
       --input-placeholder: #707485;
       --field-bg: #292c38;
       --button-grey: #292c38;
-      /* Guide says Buttons/Adjust.Active #101115, but on DYE2's #101217 ground the buttons
-         vanish; kept at Primary.Background.Inactive until the designer picks. */
+      /* As Streamline's main screen (index.html grind/dose/drink steppers use --button-grey,
+         Primary.Background.Inactive). The skin keeps Adjust.Active #101115 for its profile
+         editor only; on DYE2's #101217 ground that colour makes the buttons vanish. */
       --stepper-btn-bg: #292c38;
       --on-accent: #e8e8e8;        /* Button Text/FavButton.Text.Selected */
       --status-ok: #17c29a;        /* Status/Ongoing */
