@@ -38,7 +38,7 @@ const styles = `
     font-family: 'Inter', sans-serif;
     font-size: 21px;
     font-weight: 700;
-    color: #fff;
+    color: var(--on-accent);
     cursor: pointer;
     white-space: nowrap;
   }
@@ -107,7 +107,7 @@ const styles = `
      keeping their width stops the rail from widening, which would change how many pills
      fit and make this test flip back and forth. */
   .dye-rail-arrow-hide { visibility: hidden; pointer-events: none; }
-  .dye-recipe-pill.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  .dye-recipe-pill.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: var(--on-accent); }
   .dye-recipe-pill-label {
     min-width: 0;
     max-width: 100%;
@@ -161,7 +161,7 @@ const styles = `
     font-size: 20px; min-height: 24px; margin-bottom: 16px;
     color: var(--text-primary-disabled);
   }
-  .viz-status.error { color: #E53935; }
+  .viz-status.error { color: var(--danger); }
   .viz-status.success { color: #2E8B57; }
   .viz-footer { display: flex; justify-content: flex-end; gap: 14px; margin-top: 8px; }
   .viz-btn-cancel {
@@ -171,7 +171,7 @@ const styles = `
   }
   .viz-btn-save {
     padding: 0 36px; height: 60px; border-radius: 9999px;
-    background: var(--mimoja-blue); color: #fff;
+    background: var(--mimoja-blue); color: var(--on-accent);
     font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 700;
     cursor: pointer;
   }
@@ -308,7 +308,7 @@ function buildContent(): string { return `
              canvas bottom), so both columns use the same 70px centred band. -->
         <div class="flex items-center gap-[18px] shrink-0 h-[70px]">
           <div class="relative">
-            <div id="dye-edit-shot-btn" class="flex items-center gap-0 bg-[var(--mimoja-blue)] text-white rounded-[23px] h-[54px] cursor-pointer overflow-hidden">
+            <div id="dye-edit-shot-btn" class="flex items-center gap-0 bg-[var(--mimoja-blue)] text-[var(--on-accent)] rounded-[23px] h-[54px] cursor-pointer overflow-hidden">
               <span id="dye-edit-shot-go" class="px-[20px] h-full flex items-center font-semibold text-[21px] whitespace-nowrap">Edit Shot</span>
               <div class="w-[1px] h-[40px] bg-white opacity-40"></div>
               <span id="dye-edit-shot-chevron" class="px-[14px] h-full flex items-center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></span>
@@ -386,20 +386,20 @@ function buildContent(): string { return `
               <div class="flex items-center gap-[18px]">
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">Dose</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-dose-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-dose-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                   <input id="dye-dose-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center border-0 bg-transparent outline-none p-0 cursor-text" value="—" />
-                  <button id="dye-dose-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-dose-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
               <div class="flex items-center gap-[18px]">
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">Drink</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-drink-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-drink-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                   <div class="flex flex-col items-center w-[72px]">
                     <input id="dye-drink-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] text-center border-0 bg-transparent outline-none p-0 cursor-text w-full" value="—" />
                     <span id="dye-drink-ratio" class="font-semibold text-[18px] text-[var(--text-primary)] text-center"></span>
                   </div>
-                  <button id="dye-drink-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-drink-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
             </div>
@@ -428,17 +428,17 @@ function buildContent(): string { return `
               <div class="flex items-center gap-[18px]">
                 <span id="dye-grind-label" class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px] cursor-pointer">Grind</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-grind-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-grind-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                   <input id="dye-grind-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center border-0 bg-transparent outline-none p-0 cursor-text" value="—" />
-                  <button id="dye-grind-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-grind-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
               <div class="flex items-center gap-[18px]">
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">RPM</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-rpm-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-rpm-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                   <input id="dye-rpm-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center border-0 bg-transparent outline-none p-0 cursor-text" value="—" />
-                  <button id="dye-rpm-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-rpm-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
             </div>
@@ -486,7 +486,7 @@ function buildContent(): string { return `
           <button id="dye-clear-btn" class="border-2 border-[var(--mimoja-blue)] text-[var(--mimoja-blue)] rounded-[23px] px-[30px] h-[54px] font-semibold text-[21px] cursor-pointer">Clear</button>
           <div class="flex items-center gap-[12px]">
             <button id="dye-cancel-btn" class="flex items-center justify-center w-[240px] h-[62px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)] cursor-pointer">CANCEL</button>
-            <button id="dye-done-btn" class="flex items-center justify-center w-[240px] h-[62px] bg-[var(--mimoja-blue)] text-white rounded-[68px] font-bold text-[24px] cursor-pointer">DONE</button>
+            <button id="dye-done-btn" class="flex items-center justify-center w-[240px] h-[62px] bg-[var(--mimoja-blue)] text-[var(--on-accent)] rounded-[68px] font-bold text-[24px] cursor-pointer">DONE</button>
           </div>
         </div>
 
@@ -531,7 +531,7 @@ function buildContent(): string { return `
 
     <div class="viz-footer">
       <button id="viz-cancel-btn" class="viz-btn-cancel">Cancel</button>
-      <button id="viz-logout-btn" class="viz-btn-cancel" style="display:none;color:#E53935">Log Out</button>
+      <button id="viz-logout-btn" class="viz-btn-cancel" style="display:none;color:var(--danger)">Log Out</button>
       <button id="viz-save-btn" class="viz-btn-save">Save &amp; Login</button>
     </div>
   </div>
@@ -2574,7 +2574,7 @@ function showTransientMessage(text) {
   const el = document.createElement('div');
   el.textContent = text;
   el.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);' +
-    'background:var(--mimoja-blue);color:#fff;padding:14px 28px;border-radius:12px;' +
+    'background:var(--mimoja-blue);color: var(--on-accent);padding:14px 28px;border-radius:12px;' +
     'font-family:Inter,sans-serif;font-size:20px;font-weight:600;z-index:999;' +
     'box-shadow:0 4px 16px rgba(0,0,0,0.2)';
   document.body.appendChild(el);

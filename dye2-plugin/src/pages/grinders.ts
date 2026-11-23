@@ -20,7 +20,7 @@ const styles = `
   }
   .dye-sort-btn.dye-sort-active {
     background: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
     border-color: var(--mimoja-blue);
   }
 
@@ -48,7 +48,7 @@ const styles = `
   .dye-card.dye-card-selected {
     background: var(--mimoja-blue);
     border-color: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
   }
   .dye-card.dye-card-selected .dye-card-sub,
   .dye-card.dye-card-selected .dye-card-date { opacity: 0.85; }
@@ -125,7 +125,7 @@ const styles = `
     font-weight: 700; font-size: 22px; cursor: pointer; border: none;
     font-family: 'Inter', sans-serif;
   }
-  .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
+  .dye-btn-primary { background: var(--mimoja-blue); color: var(--on-accent); }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
   .dye-btn-danger { background: transparent; color: var(--danger-text); margin-right: auto; }
   .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
@@ -138,7 +138,7 @@ const content = `
   <!-- Top bar -->
   <div class="flex justify-between items-center px-[38px] border-b border-[var(--profile-button-outline-color)] bg-[var(--box-color)] h-[134px] shrink-0">
     <h1 class="text-[36px] font-bold text-[var(--text-primary)]">Grinders</h1>
-    <button id="dye-done-btn" class="flex items-center justify-center h-[60px] px-[30px] rounded-[9999px] font-bold text-[24px] bg-[var(--mimoja-blue)] text-white cursor-pointer">
+    <button id="dye-done-btn" class="flex items-center justify-center h-[60px] px-[30px] rounded-[9999px] font-bold text-[24px] bg-[var(--mimoja-blue)] text-[var(--on-accent)] cursor-pointer">
       DONE
     </button>
   </div>

@@ -32,7 +32,7 @@ export const gridStyles = `
   .afav { background: var(--af-page); }
   .afav-header > div { background: var(--af-surface); border-bottom: 1px solid var(--af-border); }
   .afav-header h1, .afav-header #dye-cancel-btn { color: var(--af-text); }
-  .afav-header #dye-confirm-btn { background: var(--af-action); color: #fff; }
+  .afav-header #dye-confirm-btn { background: var(--af-action); color: var(--on-accent); }
   /* "Sort by" label and the 1px divider between the sort rail and the grid. */
   #dye-sort-sidebar { border-right: 1px solid var(--af-border); align-items: center; width: 302px; padding: 30px 0 0; }
   #dye-sort-sidebar::before {
@@ -67,7 +67,7 @@ export const gridStyles = `
   #dye-cards-grid .dye-card-divider { margin: 0; }
   .dye-card.dye-card-selected .fav-card-title,
   .dye-card.dye-card-selected .fav-card-sub,
-  .dye-card.dye-card-selected .fav-card-date { color: #fff; }
+  .dye-card.dye-card-selected .fav-card-date { color: var(--on-accent); }
   .fav-group-header {
     grid-column: 1 / -1;
     font-family: 'Inter', sans-serif; font-weight: 700; font-size: 24px;
@@ -93,7 +93,7 @@ const styles = gridStyles + `
     cursor: pointer; white-space: nowrap;
   }
   .dye-tab-btn.active {
-    background: var(--af-action); border-color: var(--af-action); color: #fff;
+    background: var(--af-action); border-color: var(--af-action); color: var(--on-accent);
   }
 `;
 

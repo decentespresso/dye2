@@ -182,7 +182,7 @@ function buildContent(): string {
     </div>
     <div class="flex items-center gap-[16px]">
       <button id="afe-cancel-btn" class="flex justify-center items-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)]">CANCEL</button>
-      <button id="afe-save-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[310px] h-[82px] rounded-[68px] font-bold text-[24px]">SAVE TO RECIPE</button>
+      <button id="afe-save-btn" class="bg-[var(--mimoja-blue)] text-[var(--on-accent)] flex items-center justify-center w-[310px] h-[82px] rounded-[68px] font-bold text-[24px]">SAVE TO RECIPE</button>
     </div>
   </div>
 

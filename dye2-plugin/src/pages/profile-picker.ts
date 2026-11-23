@@ -12,7 +12,7 @@ const styles = `
     text-align: center; color: var(--mimoja-blue); background: transparent;
     cursor: pointer; white-space: nowrap;
   }
-  .dye-sort-btn.dye-sort-active { background: var(--mimoja-blue); color: #fff; border-color: var(--mimoja-blue); }
+  .dye-sort-btn.dye-sort-active { background: var(--mimoja-blue); color: var(--on-accent); border-color: var(--mimoja-blue); }
 
   /* Fixed height so every card is the same size regardless of notes length. */
   .dye-card {
@@ -24,7 +24,7 @@ const styles = `
     overflow: hidden;
   }
   .dye-card:hover { opacity: 0.85; }
-  .dye-card.dye-card-selected { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  .dye-card.dye-card-selected { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: var(--on-accent); }
 
   .dye-card-name  { font-size: 22px; font-weight: 600; line-height: 1.3; }
   .dye-card-sub   { font-size: 18px; font-weight: 400; opacity: 0.7; }
@@ -34,7 +34,7 @@ const styles = `
   .dye-card-readmore { font-size: 16px; font-weight: 600; color: var(--mimoja-blue); cursor: pointer; }
   .dye-card.dye-card-selected .dye-card-sub,
   .dye-card.dye-card-selected .dye-card-note { opacity: 0.85; }
-  .dye-card.dye-card-selected .dye-card-readmore { color: #fff; text-decoration: underline; }
+  .dye-card.dye-card-selected .dye-card-readmore { color: var(--on-accent); text-decoration: underline; }
 
   /* Full-note modal */
   .pp-modal-backdrop { position: fixed; inset: 0; background: var(--overlay-scrim);
@@ -46,10 +46,10 @@ const styles = `
   .pp-modal-title { font-size: 26px; font-weight: 700; margin-bottom: 14px; }
   .pp-modal-body { font-size: 20px; line-height: 1.5; white-space: pre-wrap; }
   .pp-modal-close { margin-top: 22px; height: 56px; padding: 0 34px; border: none; border-radius: 9999px;
-    background: var(--mimoja-blue); color: #fff; font-size: 20px; font-weight: 700; cursor: pointer; }
+    background: var(--mimoja-blue); color: var(--on-accent); font-size: 20px; font-weight: 700; cursor: pointer; }
 
   .dye-confirm-disabled { background: var(--fav-button-wait, #e0e0e0); color: var(--text-primary-disabled, #aaa); cursor: not-allowed; }
-  .dye-confirm-enabled  { background: var(--mimoja-blue); color: #fff; cursor: pointer; }
+  .dye-confirm-enabled  { background: var(--mimoja-blue); color: var(--on-accent); cursor: pointer; }
 
   .dye-search-wrap { position: relative; width: 100%; margin-bottom: 10px; }
   .dye-search-input {

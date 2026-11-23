@@ -41,11 +41,11 @@ const styles = `
   .notes-modal h2 { font-size: 28px; font-weight: 700; margin-bottom: 20px; color: var(--mimoja-blue); }
   .notes-modal-close {
     margin-top: 30px; padding: 14px 40px;
-    background: var(--mimoja-blue); color: #fff;
+    background: var(--mimoja-blue); color: var(--on-accent);
     border-radius: 9999px; font-size: 22px; font-weight: 700; cursor: pointer;
   }
   .footer-btn-danger {
-    border: 2px solid #E53935; color: #E53935; border-radius: 23px;
+    border: 2px solid var(--danger); color: var(--danger); border-radius: 23px;
     padding: 0 28px; height: 60px; font-size: 21px; font-weight: 600; cursor: pointer;
     font-family: 'Inter', sans-serif;
   }
@@ -68,9 +68,9 @@ const styles = `
     cursor: pointer; white-space: nowrap;
   }
   .read-from-item + .read-from-item { border-top: 1px solid var(--profile-button-outline-color); }
-  .read-from-item:hover { background: var(--mimoja-blue); color: #fff; }
+  .read-from-item:hover { background: var(--mimoja-blue); color: var(--on-accent); }
   .equip-edit-icon { display: flex; flex-shrink: 0; color: var(--mimoja-blue); }
-  .read-from-item:hover .equip-edit-icon { color: #fff; }
+  .read-from-item:hover .equip-edit-icon { color: var(--on-accent); }
   .dye-name-dropdown {
     position: absolute; top: calc(100% + 4px); left: 0; right: 0;
     max-height: 320px; overflow-y: auto;
@@ -223,7 +223,7 @@ function buildContent(): string {
     </div>
     <div class="flex-1"></div>
     <button id="es-cancel-btn" class="text-[24px] font-bold text-[var(--text-primary)] px-[30px] h-[62px]">CANCEL</button>
-    <button id="es-save-btn" class="bg-[var(--mimoja-blue)] text-white rounded-[68px] h-[62px] px-[40px] text-[24px] font-bold cursor-pointer">SAVE SHOT DATA</button>
+    <button id="es-save-btn" class="bg-[var(--mimoja-blue)] text-[var(--on-accent)] rounded-[68px] h-[62px] px-[40px] text-[24px] font-bold cursor-pointer">SAVE SHOT DATA</button>
   </div>
 </div>
 

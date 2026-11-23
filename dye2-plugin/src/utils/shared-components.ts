@@ -13,7 +13,7 @@ export function sortSidebarCss(): string {
     text-align: center; color: var(--mimoja-blue); background: transparent;
     cursor: pointer; white-space: nowrap;
   }
-  .dye-sort-btn.dye-sort-active { background: var(--mimoja-blue); color: #fff; }
+  .dye-sort-btn.dye-sort-active { background: var(--mimoja-blue); color: var(--on-accent); }
   `;
 }
 
@@ -51,7 +51,7 @@ export function pickerCardCss(): string {
     user-select: none; min-height: 90px;
   }
   .dye-card:hover { opacity: 0.85; }
-  .dye-card.dye-card-selected { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  .dye-card.dye-card-selected { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: var(--on-accent); }
   .dye-card-add {
     border-color: var(--mimoja-blue); color: var(--mimoja-blue);
     font-weight: 700; flex-direction: row; align-items: center;
@@ -85,7 +85,7 @@ export function pickerHeaderHtml(
     <h1 class="text-[38px] font-bold text-[var(--text-primary)] no-select">${title}</h1>
     <div class="flex items-center gap-[16px]">
       <button id="dye-cancel-btn" class="flex justify-center items-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)]">CANCEL</button>
-      <button id="dye-confirm-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px]${opacity}">${primaryLabel}</button>
+      <button id="dye-confirm-btn" class="bg-[var(--mimoja-blue)] text-[var(--on-accent)] flex items-center justify-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px]${opacity}">${primaryLabel}</button>
     </div>
   </div>`;
 }
@@ -101,7 +101,7 @@ export function favNumCss(): string {
     display: flex; align-items: center; justify-content: center;
   }
   .afe-fav-num.active {
-    background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff;
+    background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: var(--on-accent);
   }
   `;
 }
@@ -112,7 +112,7 @@ export function stepperCss(): string {
   return `
   .dye-stepper-btn {
     display: flex; align-items: center; justify-content: center;
-    width: 72px; height: 72px; background: var(--button-grey);
+    width: 72px; height: 72px; background: var(--stepper-btn-bg);
     border-radius: 15px; cursor: pointer; flex-shrink: 0;
   }
   .dye-stepper-val {
@@ -240,7 +240,7 @@ export function segmentControlHtml(id: string, options: string[], initialIdx = 0
   const buttons = options
     .map(
       (opt, i) =>
-        `<button class="dye-seg-btn${i === initialIdx ? ' active' : ''}" data-idx="${i}" data-for="${id}" style="flex:1;font-family:'Inter',sans-serif;font-size:24px;font-weight:600;cursor:pointer;${i === initialIdx ? 'background:var(--mimoja-blue);color:#fff;' : 'background:transparent;color:var(--text-primary);'}">${opt}</button>`
+        `<button class="dye-seg-btn${i === initialIdx ? ' active' : ''}" data-idx="${i}" data-for="${id}" style="flex:1;font-family:'Inter',sans-serif;font-size:24px;font-weight:600;cursor:pointer;${i === initialIdx ? 'background:var(--mimoja-blue);color: var(--on-accent);' : 'background:transparent;color:var(--text-primary);'}">${opt}</button>`
     )
     .join('');
   return `<div id="${id}" class="flex rounded-[15px] overflow-hidden border-2 border-[var(--mimoja-blue)]" style="height:72px">${buttons}</div>`;
@@ -392,7 +392,7 @@ function setupSegmentControls() {
         const active = i === parseInt(btn.dataset.idx);
         b.classList.toggle('active', active);
         b.style.background = active ? 'var(--mimoja-blue)' : 'transparent';
-        b.style.color = active ? '#fff' : 'var(--text-primary)';
+        b.style.color = active ? 'var(--on-accent)' : 'var(--text-primary)';
       });
     });
   });
@@ -482,7 +482,7 @@ export const dyePickerCss = `
   }
   .dye-sort-btn.dye-sort-active {
     background: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
     border-color: var(--mimoja-blue);
   }
 
@@ -511,7 +511,7 @@ export const dyePickerCss = `
   .dye-card.dye-card-selected {
     background: var(--mimoja-blue);
     border-color: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
   }
   .dye-card-add {
     border: 2px solid var(--mimoja-blue);
@@ -543,7 +543,7 @@ export const dyePickerCss = `
   }
   .dye-confirm-enabled {
     background: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
     cursor: pointer;
   }
 

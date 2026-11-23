@@ -26,7 +26,7 @@ export function datePickerCss(): string {
     background: var(--box-color); color: var(--mimoja-blue);
     font-size: 26px; font-weight: 700; line-height: 48px; text-align: center; cursor: pointer;
   }
-  .dye-dp-nav:active { background: var(--mimoja-blue); color: #fff; }
+  .dye-dp-nav:active { background: var(--mimoja-blue); color: var(--on-accent); }
   .dye-dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
   .dye-dp-dow { font-size: 18px; font-weight: 700; color: var(--muted-grey); text-align: center; padding: 6px 0; }
   .dye-dp-day {
@@ -37,14 +37,14 @@ export function datePickerCss(): string {
   .dye-dp-day:active { background: var(--button-grey); }
   .dye-dp-day.dye-dp-muted { color: var(--chip-stroke); cursor: default; }
   .dye-dp-day.dye-dp-today { border-color: var(--chip-stroke); }
-  .dye-dp-day.dye-dp-sel { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  .dye-dp-day.dye-dp-sel { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: var(--on-accent); }
   .dye-dp-foot { display: flex; gap: 12px; margin-top: 16px; }
   .dye-dp-btn {
     flex: 1; height: 56px; border-radius: 23px; border: 2px solid var(--mimoja-blue);
     background: var(--box-color); color: var(--mimoja-blue);
     font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 600; cursor: pointer;
   }
-  .dye-dp-btn-primary { background: var(--mimoja-blue); color: #fff; }
+  .dye-dp-btn-primary { background: var(--mimoja-blue); color: var(--on-accent); }
 `;
 }
 

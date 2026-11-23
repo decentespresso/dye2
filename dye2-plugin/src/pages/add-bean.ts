@@ -150,7 +150,7 @@ const styles = `
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .dye-dropdown-item:hover, .dye-dropdown-item.dye-dropdown-highlight { background: var(--mimoja-blue); color: #fff; }
+  .dye-dropdown-item:hover, .dye-dropdown-item.dye-dropdown-highlight { background: var(--mimoja-blue); color: var(--on-accent); }
   .dye-dropdown-item + .dye-dropdown-item { border-top: 1px solid var(--profile-button-outline-color); }
   .dye-dropdown-empty { padding: 18px 23px; font-family: 'Inter', sans-serif; font-size: 22px; color: var(--low-contrast-white); font-style: italic; }
   .dye-dropdown-menu::-webkit-scrollbar { width: 12px; }
@@ -195,7 +195,7 @@ const content = `
       <button id="dye-cancel-btn" class="flex justify-center items-center w-[240px] h-[82px] py-[27px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)]">
         CANCEL
       </button>
-      <button id="dye-confirm-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[240px] h-[82px] py-[27px] rounded-[68px] font-bold text-[24px]">
+      <button id="dye-confirm-btn" class="bg-[var(--mimoja-blue)] text-[var(--on-accent)] flex items-center justify-center w-[240px] h-[82px] py-[27px] rounded-[68px] font-bold text-[24px]">
         CONFIRM
       </button>
     </div>

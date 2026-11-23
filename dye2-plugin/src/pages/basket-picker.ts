@@ -20,7 +20,7 @@ const styles = `
   }
   .dye-sort-btn.dye-sort-active {
     background: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
     border-color: var(--mimoja-blue);
   }
 
@@ -47,7 +47,7 @@ const styles = `
   .dye-card.dye-card-selected {
     background: var(--mimoja-blue);
     border-color: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
   }
   .dye-card-add {
     border: 2px solid var(--mimoja-blue);
@@ -76,7 +76,7 @@ const styles = `
   }
   .dye-confirm-enabled {
     background: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
     cursor: pointer;
   }
 
@@ -128,7 +128,7 @@ const styles = `
     font-weight: 700; font-size: 22px; cursor: pointer; border: none;
     font-family: 'Inter', sans-serif;
   }
-  .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
+  .dye-btn-primary { background: var(--mimoja-blue); color: var(--on-accent); }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
   .dye-btn-danger { background: transparent; color: var(--danger-text); margin-right: auto; }
   /* Archived: listed here so it can be brought back, dimmed and dashed so it reads as set

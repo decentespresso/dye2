@@ -13,7 +13,7 @@ var createPlugin = (function() {
 	}
 	//#endregion
 	//#region src/styles/tailwind.generated.css?inline
-	var tailwind_generated_default = "*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:\"\"}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.\\!container{width:100%!important}.container{width:100%}@media (min-width:640px){.\\!container{max-width:640px!important}.container{max-width:640px}}@media (min-width:768px){.\\!container{max-width:768px!important}.container{max-width:768px}}@media (min-width:1024px){.\\!container{max-width:1024px!important}.container{max-width:1024px}}@media (min-width:1280px){.\\!container{max-width:1280px!important}.container{max-width:1280px}}@media (min-width:1536px){.\\!container{max-width:1536px!important}.container{max-width:1536px}}.visible{visibility:visible}.invisible{visibility:hidden}.collapse{visibility:collapse}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.left-\\[38px\\]{left:38px}.right-0{right:0}.right-\\[38px\\]{right:38px}.top-0{top:0}.top-\\[122px\\]{top:122px}.z-\\[45\\]{z-index:45}.mb-8{margin-bottom:2rem}.mb-\\[14px\\]{margin-bottom:14px}.mb-\\[6px\\]{margin-bottom:6px}.ml-\\[16px\\]{margin-left:16px}.ml-auto{margin-left:auto}.mt-16{margin-top:4rem}.mt-8{margin-top:2rem}.mt-\\[20px\\]{margin-top:20px}.mt-\\[4px\\]{margin-top:4px}.mt-\\[6px\\]{margin-top:6px}.mt-auto{margin-top:auto}.block{display:block}.inline{display:inline}.flex{display:flex}.table{display:table}.\\!grid{display:grid!important}.grid{display:grid}.hidden{display:none}.h-\\[110px\\]{height:110px}.h-\\[124px\\]{height:124px}.h-\\[12px\\]{height:12px}.h-\\[134px\\]{height:134px}.h-\\[150px\\]{height:150px}.h-\\[165px\\]{height:165px}.h-\\[2px\\]{height:2px}.h-\\[40px\\]{height:40px}.h-\\[54px\\]{height:54px}.h-\\[60px\\]{height:60px}.h-\\[62px\\]{height:62px}.h-\\[70px\\]{height:70px}.h-\\[72px\\]{height:72px}.h-\\[76px\\]{height:76px}.h-\\[82px\\]{height:82px}.h-\\[90px\\]{height:90px}.h-full{height:100%}.min-h-0{min-height:0}.min-h-\\[330px\\]{min-height:330px}.w-1\\/2{width:50%}.w-\\[1200px\\]{width:1200px}.w-\\[12px\\]{width:12px}.w-\\[180px\\]{width:180px}.w-\\[1px\\]{width:1px}.w-\\[240px\\]{width:240px}.w-\\[2px\\]{width:2px}.w-\\[300px\\]{width:300px}.w-\\[310px\\]{width:310px}.w-\\[54px\\]{width:54px}.w-\\[60px\\]{width:60px}.w-\\[69px\\]{width:69px}.w-\\[720px\\]{width:720px}.w-\\[72px\\]{width:72px}.w-\\[75px\\]{width:75px}.w-\\[820px\\]{width:820px}.w-\\[960px\\]{width:960px}.w-full{width:100%}.min-w-0{min-width:0}.flex-1{flex:1 1 0%}.flex-shrink{flex-shrink:1}.flex-shrink-0{flex-shrink:0}.shrink{flex-shrink:1}.shrink-0{flex-shrink:0}.flex-grow,.grow{flex-grow:1}.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.cursor-text{cursor:text}.resize{resize:both}.auto-cols-\\[225px\\]{grid-auto-columns:225px}.grid-flow-col{grid-auto-flow:column}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-rows-\\[repeat\\(2\\2c 60px\\)\\]{grid-template-rows:repeat(2,60px)}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.items-baseline{align-items:baseline}.items-stretch{align-items:stretch}.justify-end{justify-content:flex-end}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0{gap:0}.gap-\\[10px\\]{gap:10px}.gap-\\[12px\\]{gap:12px}.gap-\\[14px\\]{gap:14px}.gap-\\[15px\\]{gap:15px}.gap-\\[16px\\]{gap:16px}.gap-\\[18px\\]{gap:18px}.gap-\\[20px\\]{gap:20px}.gap-\\[22px\\]{gap:22px}.gap-\\[24px\\]{gap:24px}.gap-\\[27px\\]{gap:27px}.gap-\\[28px\\]{gap:28px}.gap-\\[30px\\]{gap:30px}.gap-\\[45px\\]{gap:45px}.gap-\\[48px\\]{gap:48px}.gap-\\[4px\\]{gap:4px}.gap-\\[60px\\]{gap:60px}.gap-\\[8px\\]{gap:8px}.gap-\\[90px\\]{gap:90px}.gap-x-\\[24px\\]{-moz-column-gap:24px;column-gap:24px}.gap-y-\\[18px\\]{row-gap:18px}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded-\\[12px\\]{border-radius:12px}.rounded-\\[15px\\]{border-radius:15px}.rounded-\\[16px\\]{border-radius:16px}.rounded-\\[23px\\]{border-radius:23px}.rounded-\\[68px\\]{border-radius:68px}.rounded-\\[8px\\]{border-radius:8px}.rounded-\\[9999px\\],.rounded-full{border-radius:9999px}.border{border-width:1px}.border-0{border-width:0}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\\[var\\(--card-bg\\)\\]{border-color:var(--card-bg)}.border-\\[var\\(--mimoja-blue\\)\\]{border-color:var(--mimoja-blue)}.border-\\[var\\(--profile-button-outline-color\\)\\]{border-color:var(--profile-button-outline-color)}.bg-\\[var\\(--bgmain-color\\)\\]{background-color:var(--bgmain-color)}.bg-\\[var\\(--box-color\\)\\]{background-color:var(--box-color)}.bg-\\[var\\(--button-grey\\)\\]{background-color:var(--button-grey)}.bg-\\[var\\(--card-bg\\)\\]{background-color:var(--card-bg)}.bg-\\[var\\(--mimoja-blue\\)\\]{background-color:var(--mimoja-blue)}.bg-\\[var\\(--profile-button-outline-color\\)\\]{background-color:var(--profile-button-outline-color)}.bg-transparent{background-color:transparent}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.p-0{padding:0}.p-\\[30px\\]{padding:30px}.px-\\[14px\\]{padding-left:14px;padding-right:14px}.px-\\[16px\\]{padding-left:16px;padding-right:16px}.px-\\[20px\\]{padding-left:20px;padding-right:20px}.px-\\[24px\\]{padding-left:24px;padding-right:24px}.px-\\[30px\\]{padding-left:30px;padding-right:30px}.px-\\[37px\\]{padding-left:37px;padding-right:37px}.px-\\[38px\\]{padding-left:38px;padding-right:38px}.px-\\[40px\\]{padding-left:40px;padding-right:40px}.px-\\[48px\\]{padding-left:48px;padding-right:48px}.py-\\[12px\\]{padding-top:12px;padding-bottom:12px}.py-\\[1px\\]{padding-top:1px;padding-bottom:1px}.py-\\[20px\\]{padding-top:20px;padding-bottom:20px}.py-\\[27px\\]{padding-top:27px;padding-bottom:27px}.py-\\[28px\\]{padding-top:28px;padding-bottom:28px}.py-\\[32px\\]{padding-top:32px;padding-bottom:32px}.py-\\[36px\\]{padding-top:36px;padding-bottom:36px}.py-\\[40px\\]{padding-top:40px;padding-bottom:40px}.pb-\\[20px\\]{padding-bottom:20px}.pb-\\[28px\\]{padding-bottom:28px}.pb-\\[40px\\]{padding-bottom:40px}.pl-\\[24px\\]{padding-left:24px}.pl-\\[37px\\]{padding-left:37px}.pr-\\[20px\\]{padding-right:20px}.pr-\\[30px\\]{padding-right:30px}.pr-\\[44px\\]{padding-right:44px}.pt-\\[20px\\]{padding-top:20px}.pt-\\[23px\\]{padding-top:23px}.pt-\\[28px\\]{padding-top:28px}.pt-\\[30px\\]{padding-top:30px}.pt-\\[32px\\]{padding-top:32px}.text-center{text-align:center}.font-\\[\\'Inter\\'\\2c sans-serif\\]{font-family:Inter,sans-serif}.text-\\[16px\\]{font-size:16px}.text-\\[18px\\]{font-size:18px}.text-\\[20px\\]{font-size:20px}.text-\\[21px\\]{font-size:21px}.text-\\[22px\\]{font-size:22px}.text-\\[24px\\]{font-size:24px}.text-\\[26px\\]{font-size:26px}.text-\\[30px\\]{font-size:30px}.text-\\[36px\\]{font-size:36px}.text-\\[38px\\]{font-size:38px}.font-bold{font-weight:700}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.italic{font-style:italic}.leading-\\[1\\.2\\]{line-height:1.2}.text-\\[var\\(--danger-text\\)\\]{color:var(--danger-text)}.text-\\[var\\(--low-contrast-white\\)\\]{color:var(--low-contrast-white)}.text-\\[var\\(--mimoja-blue\\)\\]{color:var(--mimoja-blue)}.text-\\[var\\(--text-primary\\)\\]{color:var(--text-primary)}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.underline{text-decoration-line:underline}.opacity-40{opacity:.4}.opacity-50{opacity:.5}.opacity-60{opacity:.6}.shadow{--tw-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color),0 1px 2px -1px var(--tw-shadow-color)}.shadow,.shadow-\\[0_8px_24px_rgba\\(0\\2c 0\\2c 0\\2c 0\\.12\\)\\]{box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\\[0_8px_24px_rgba\\(0\\2c 0\\2c 0\\2c 0\\.12\\)\\]{--tw-shadow:0 8px 24px rgba(0,0,0,.12);--tw-shadow-colored:0 8px 24px var(--tw-shadow-color)}.outline-none{outline:2px solid transparent;outline-offset:2px}.outline{outline-style:solid}.ring{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.blur{--tw-blur:blur(8px)}.blur,.invert{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.invert{--tw-invert:invert(100%)}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}";
+	var tailwind_generated_default = "*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:\"\"}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.\\!container{width:100%!important}.container{width:100%}@media (min-width:640px){.\\!container{max-width:640px!important}.container{max-width:640px}}@media (min-width:768px){.\\!container{max-width:768px!important}.container{max-width:768px}}@media (min-width:1024px){.\\!container{max-width:1024px!important}.container{max-width:1024px}}@media (min-width:1280px){.\\!container{max-width:1280px!important}.container{max-width:1280px}}@media (min-width:1536px){.\\!container{max-width:1536px!important}.container{max-width:1536px}}.visible{visibility:visible}.invisible{visibility:hidden}.collapse{visibility:collapse}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.left-\\[38px\\]{left:38px}.right-0{right:0}.right-\\[38px\\]{right:38px}.top-0{top:0}.top-\\[122px\\]{top:122px}.z-\\[45\\]{z-index:45}.mb-8{margin-bottom:2rem}.mb-\\[14px\\]{margin-bottom:14px}.mb-\\[6px\\]{margin-bottom:6px}.ml-\\[16px\\]{margin-left:16px}.ml-auto{margin-left:auto}.mt-16{margin-top:4rem}.mt-8{margin-top:2rem}.mt-\\[20px\\]{margin-top:20px}.mt-\\[4px\\]{margin-top:4px}.mt-\\[6px\\]{margin-top:6px}.mt-auto{margin-top:auto}.block{display:block}.inline{display:inline}.flex{display:flex}.table{display:table}.\\!grid{display:grid!important}.grid{display:grid}.hidden{display:none}.h-\\[110px\\]{height:110px}.h-\\[124px\\]{height:124px}.h-\\[12px\\]{height:12px}.h-\\[134px\\]{height:134px}.h-\\[150px\\]{height:150px}.h-\\[165px\\]{height:165px}.h-\\[2px\\]{height:2px}.h-\\[40px\\]{height:40px}.h-\\[54px\\]{height:54px}.h-\\[60px\\]{height:60px}.h-\\[62px\\]{height:62px}.h-\\[70px\\]{height:70px}.h-\\[72px\\]{height:72px}.h-\\[76px\\]{height:76px}.h-\\[82px\\]{height:82px}.h-\\[90px\\]{height:90px}.h-full{height:100%}.min-h-0{min-height:0}.min-h-\\[330px\\]{min-height:330px}.w-1\\/2{width:50%}.w-\\[1200px\\]{width:1200px}.w-\\[12px\\]{width:12px}.w-\\[180px\\]{width:180px}.w-\\[1px\\]{width:1px}.w-\\[240px\\]{width:240px}.w-\\[2px\\]{width:2px}.w-\\[300px\\]{width:300px}.w-\\[310px\\]{width:310px}.w-\\[54px\\]{width:54px}.w-\\[60px\\]{width:60px}.w-\\[69px\\]{width:69px}.w-\\[720px\\]{width:720px}.w-\\[72px\\]{width:72px}.w-\\[75px\\]{width:75px}.w-\\[820px\\]{width:820px}.w-\\[960px\\]{width:960px}.w-full{width:100%}.min-w-0{min-width:0}.flex-1{flex:1 1 0%}.flex-shrink{flex-shrink:1}.flex-shrink-0{flex-shrink:0}.shrink{flex-shrink:1}.shrink-0{flex-shrink:0}.flex-grow,.grow{flex-grow:1}.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.cursor-text{cursor:text}.resize{resize:both}.auto-cols-\\[225px\\]{grid-auto-columns:225px}.grid-flow-col{grid-auto-flow:column}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-rows-\\[repeat\\(2\\2c 60px\\)\\]{grid-template-rows:repeat(2,60px)}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.items-baseline{align-items:baseline}.items-stretch{align-items:stretch}.justify-end{justify-content:flex-end}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0{gap:0}.gap-\\[10px\\]{gap:10px}.gap-\\[12px\\]{gap:12px}.gap-\\[14px\\]{gap:14px}.gap-\\[15px\\]{gap:15px}.gap-\\[16px\\]{gap:16px}.gap-\\[18px\\]{gap:18px}.gap-\\[20px\\]{gap:20px}.gap-\\[22px\\]{gap:22px}.gap-\\[24px\\]{gap:24px}.gap-\\[27px\\]{gap:27px}.gap-\\[28px\\]{gap:28px}.gap-\\[30px\\]{gap:30px}.gap-\\[45px\\]{gap:45px}.gap-\\[48px\\]{gap:48px}.gap-\\[4px\\]{gap:4px}.gap-\\[60px\\]{gap:60px}.gap-\\[8px\\]{gap:8px}.gap-\\[90px\\]{gap:90px}.gap-x-\\[24px\\]{-moz-column-gap:24px;column-gap:24px}.gap-y-\\[18px\\]{row-gap:18px}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded-\\[12px\\]{border-radius:12px}.rounded-\\[15px\\]{border-radius:15px}.rounded-\\[16px\\]{border-radius:16px}.rounded-\\[23px\\]{border-radius:23px}.rounded-\\[68px\\]{border-radius:68px}.rounded-\\[8px\\]{border-radius:8px}.rounded-\\[9999px\\],.rounded-full{border-radius:9999px}.border{border-width:1px}.border-0{border-width:0}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\\[var\\(--card-bg\\)\\]{border-color:var(--card-bg)}.border-\\[var\\(--mimoja-blue\\)\\]{border-color:var(--mimoja-blue)}.border-\\[var\\(--profile-button-outline-color\\)\\]{border-color:var(--profile-button-outline-color)}.bg-\\[var\\(--bgmain-color\\)\\]{background-color:var(--bgmain-color)}.bg-\\[var\\(--box-color\\)\\]{background-color:var(--box-color)}.bg-\\[var\\(--card-bg\\)\\]{background-color:var(--card-bg)}.bg-\\[var\\(--mimoja-blue\\)\\]{background-color:var(--mimoja-blue)}.bg-\\[var\\(--profile-button-outline-color\\)\\]{background-color:var(--profile-button-outline-color)}.bg-\\[var\\(--stepper-btn-bg\\)\\]{background-color:var(--stepper-btn-bg)}.bg-transparent{background-color:transparent}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.p-0{padding:0}.p-\\[30px\\]{padding:30px}.px-\\[14px\\]{padding-left:14px;padding-right:14px}.px-\\[16px\\]{padding-left:16px;padding-right:16px}.px-\\[20px\\]{padding-left:20px;padding-right:20px}.px-\\[24px\\]{padding-left:24px;padding-right:24px}.px-\\[30px\\]{padding-left:30px;padding-right:30px}.px-\\[37px\\]{padding-left:37px;padding-right:37px}.px-\\[38px\\]{padding-left:38px;padding-right:38px}.px-\\[40px\\]{padding-left:40px;padding-right:40px}.px-\\[48px\\]{padding-left:48px;padding-right:48px}.py-\\[12px\\]{padding-top:12px;padding-bottom:12px}.py-\\[1px\\]{padding-top:1px;padding-bottom:1px}.py-\\[20px\\]{padding-top:20px;padding-bottom:20px}.py-\\[27px\\]{padding-top:27px;padding-bottom:27px}.py-\\[28px\\]{padding-top:28px;padding-bottom:28px}.py-\\[32px\\]{padding-top:32px;padding-bottom:32px}.py-\\[36px\\]{padding-top:36px;padding-bottom:36px}.py-\\[40px\\]{padding-top:40px;padding-bottom:40px}.pb-\\[20px\\]{padding-bottom:20px}.pb-\\[28px\\]{padding-bottom:28px}.pb-\\[40px\\]{padding-bottom:40px}.pl-\\[24px\\]{padding-left:24px}.pl-\\[37px\\]{padding-left:37px}.pr-\\[20px\\]{padding-right:20px}.pr-\\[30px\\]{padding-right:30px}.pr-\\[44px\\]{padding-right:44px}.pt-\\[20px\\]{padding-top:20px}.pt-\\[23px\\]{padding-top:23px}.pt-\\[28px\\]{padding-top:28px}.pt-\\[30px\\]{padding-top:30px}.pt-\\[32px\\]{padding-top:32px}.text-center{text-align:center}.font-\\[\\'Inter\\'\\2c sans-serif\\]{font-family:Inter,sans-serif}.text-\\[16px\\]{font-size:16px}.text-\\[18px\\]{font-size:18px}.text-\\[20px\\]{font-size:20px}.text-\\[21px\\]{font-size:21px}.text-\\[22px\\]{font-size:22px}.text-\\[24px\\]{font-size:24px}.text-\\[26px\\]{font-size:26px}.text-\\[30px\\]{font-size:30px}.text-\\[36px\\]{font-size:36px}.text-\\[38px\\]{font-size:38px}.font-bold{font-weight:700}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.italic{font-style:italic}.leading-\\[1\\.2\\]{line-height:1.2}.text-\\[var\\(--danger-text\\)\\]{color:var(--danger-text)}.text-\\[var\\(--low-contrast-white\\)\\]{color:var(--low-contrast-white)}.text-\\[var\\(--mimoja-blue\\)\\]{color:var(--mimoja-blue)}.text-\\[var\\(--on-accent\\)\\]{color:var(--on-accent)}.text-\\[var\\(--text-primary\\)\\]{color:var(--text-primary)}.underline{text-decoration-line:underline}.opacity-40{opacity:.4}.opacity-50{opacity:.5}.opacity-60{opacity:.6}.shadow{--tw-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color),0 1px 2px -1px var(--tw-shadow-color)}.shadow,.shadow-\\[0_8px_24px_rgba\\(0\\2c 0\\2c 0\\2c 0\\.12\\)\\]{box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\\[0_8px_24px_rgba\\(0\\2c 0\\2c 0\\2c 0\\.12\\)\\]{--tw-shadow:0 8px 24px rgba(0,0,0,.12);--tw-shadow-colored:0 8px 24px var(--tw-shadow-color)}.outline-none{outline:2px solid transparent;outline-offset:2px}.outline{outline-style:solid}.ring{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.blur{--tw-blur:blur(8px)}.blur,.invert{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.invert{--tw-invert:invert(100%)}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}";
 	/** Inline in <head>, before the stylesheet, so the attribute is set before first paint. */
 	var themeBootstrap = `
 (function () {
@@ -289,6 +289,8 @@ ${kbPlanScript}
       --input-placeholder: #9ca3af;
       --field-bg: #edf0f4;
       --button-grey: #ededed;
+      --stepper-btn-bg: #ededed;   /* the − / + squares; same as --button-grey in light */
+      --on-accent: #ffffff;        /* text on --mimoja-blue fills */
       --toggle-off: #d1d5db;
       --chip-stroke: #c5cdda;
       --chip-text: #5f7ba8;
@@ -327,7 +329,8 @@ ${kbPlanScript}
          reason — so nothing here is invented. ~3.9:1 on --box-color. */
       --text-primary-disabled: #707485;
       --low-contrast-white: #707485;
-      --fav-button-wait: #353948;
+      /* Colours below follow Figma Style Guide 432:2710 (Dark Mode/…). */
+      --fav-button-wait: #1d2332;   /* Action/Action.Primary.Inactive: a disabled CONFIRM */
       --profile-button-background-color: #292c38;
       --card-bg: #101217;
       --input-bg: #17191e;
@@ -335,10 +338,14 @@ ${kbPlanScript}
       --input-placeholder: #707485;
       --field-bg: #292c38;
       --button-grey: #292c38;
-      --toggle-off: #353948;
+      /* Guide says Buttons/Adjust.Active #101115, but on DYE2's #101217 ground the buttons
+         vanish; kept at Primary.Background.Inactive until the designer picks. */
+      --stepper-btn-bg: #292c38;
+      --on-accent: #e8e8e8;        /* Button Text/FavButton.Text.Selected */
+      --status-ok: #17c29a;        /* Status/Ongoing */
+      --toggle-off: #292c38;        /* Buttons/Primary.Background.Inactive */
       --chip-stroke: #3d4255;
-      /* dye2's own pick: the Figma slate-blue is too dim on the dark ground. */
-      --chip-text: #8da2cf;
+      --chip-text: #707485;         /* Text/Secondary */
       --tab-idle: #707485;
       --box-border: #3d4255;
       --ink: #e8e8e8;
@@ -1457,7 +1464,7 @@ function attachCardLongPress(card, onLong) {
   }
   .dye-sort-btn.dye-sort-active {
     background: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
     border-color: var(--mimoja-blue);
   }
 
@@ -1485,7 +1492,7 @@ function attachCardLongPress(card, onLong) {
   .dye-card.dye-card-selected {
     background: var(--mimoja-blue);
     border-color: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
   }
   .dye-card.dye-card-selected .dye-card-sub,
   .dye-card.dye-card-selected .dye-card-date { opacity: 0.85; }
@@ -1562,7 +1569,7 @@ function attachCardLongPress(card, onLong) {
     font-weight: 700; font-size: 22px; cursor: pointer; border: none;
     font-family: 'Inter', sans-serif;
   }
-  .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
+  .dye-btn-primary { background: var(--mimoja-blue); color: var(--on-accent); }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
   .dye-btn-danger { background: transparent; color: var(--danger-text); margin-right: auto; }
   .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
@@ -1574,7 +1581,7 @@ function attachCardLongPress(card, onLong) {
   <!-- Top bar -->
   <div class="flex justify-between items-center px-[38px] border-b border-[var(--profile-button-outline-color)] bg-[var(--box-color)] h-[134px] shrink-0">
     <h1 class="text-[36px] font-bold text-[var(--text-primary)]">Grinders</h1>
-    <button id="dye-done-btn" class="flex items-center justify-center h-[60px] px-[30px] rounded-[9999px] font-bold text-[24px] bg-[var(--mimoja-blue)] text-white cursor-pointer">
+    <button id="dye-done-btn" class="flex items-center justify-center h-[60px] px-[30px] rounded-[9999px] font-bold text-[24px] bg-[var(--mimoja-blue)] text-[var(--on-accent)] cursor-pointer">
       DONE
     </button>
   </div>
@@ -2055,7 +2062,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   }
   .dye-sort-btn.dye-sort-active {
     background: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
     border-color: var(--mimoja-blue);
   }
 
@@ -2153,9 +2160,9 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
     font-weight: 700; font-size: 22px; cursor: pointer; border: none;
     font-family: 'Inter', sans-serif;
   }
-  .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
+  .dye-btn-primary { background: var(--mimoja-blue); color: var(--on-accent); }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
-  .dye-btn-danger { background: transparent; color: #E53935; border: 2px solid #E53935; margin-right: auto; }
+  .dye-btn-danger { background: transparent; color: var(--danger); border: 2px solid var(--danger); margin-right: auto; }
   .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
 `;
@@ -2165,7 +2172,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   <!-- Top bar -->
   <div class="flex justify-between items-center px-[38px] border-b border-[var(--profile-button-outline-color)] bg-[var(--box-color)] h-[134px] shrink-0">
     <h1 class="text-[36px] font-bold text-[var(--text-primary)]">Equipment</h1>
-    <button id="dye-done-btn" class="flex items-center justify-center h-[60px] px-[30px] rounded-[9999px] font-bold text-[24px] bg-[var(--mimoja-blue)] text-white cursor-pointer">
+    <button id="dye-done-btn" class="flex items-center justify-center h-[60px] px-[30px] rounded-[9999px] font-bold text-[24px] bg-[var(--mimoja-blue)] text-[var(--on-accent)] cursor-pointer">
       DONE
     </button>
   </div>
@@ -2454,7 +2461,7 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
     text-align: center; color: var(--mimoja-blue); background: transparent;
     cursor: pointer; white-space: nowrap;
   }
-  .dye-sort-btn.dye-sort-active { background: var(--mimoja-blue); color: #fff; }
+  .dye-sort-btn.dye-sort-active { background: var(--mimoja-blue); color: var(--on-accent); }
   `;
 	}
 	function sortSidebarHtml() {
@@ -2482,7 +2489,7 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
     user-select: none; min-height: 90px;
   }
   .dye-card:hover { opacity: 0.85; }
-  .dye-card.dye-card-selected { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  .dye-card.dye-card-selected { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: var(--on-accent); }
   .dye-card-add {
     border-color: var(--mimoja-blue); color: var(--mimoja-blue);
     font-weight: 700; flex-direction: row; align-items: center;
@@ -2508,7 +2515,7 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
     <h1 class="text-[38px] font-bold text-[var(--text-primary)] no-select">${title}</h1>
     <div class="flex items-center gap-[16px]">
       <button id="dye-cancel-btn" class="flex justify-center items-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)]">CANCEL</button>
-      <button id="dye-confirm-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px]${primaryDisabled ? " opacity-50" : ""}">${primaryLabel}</button>
+      <button id="dye-confirm-btn" class="bg-[var(--mimoja-blue)] text-[var(--on-accent)] flex items-center justify-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px]${primaryDisabled ? " opacity-50" : ""}">${primaryLabel}</button>
     </div>
   </div>`;
 	}
@@ -2522,7 +2529,7 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
     display: flex; align-items: center; justify-content: center;
   }
   .afe-fav-num.active {
-    background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff;
+    background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: var(--on-accent);
   }
   `;
 	}
@@ -2530,7 +2537,7 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
 		return `
   .dye-stepper-btn {
     display: flex; align-items: center; justify-content: center;
-    width: 72px; height: 72px; background: var(--button-grey);
+    width: 72px; height: 72px; background: var(--stepper-btn-bg);
     border-radius: 15px; cursor: pointer; flex-shrink: 0;
   }
   .dye-stepper-val {
@@ -2607,7 +2614,7 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
   `;
 	}
 	function segmentControlHtml(id, options, initialIdx = 0) {
-		return `<div id="${id}" class="flex rounded-[15px] overflow-hidden border-2 border-[var(--mimoja-blue)]" style="height:72px">${options.map((opt, i) => `<button class="dye-seg-btn${i === initialIdx ? " active" : ""}" data-idx="${i}" data-for="${id}" style="flex:1;font-family:'Inter',sans-serif;font-size:24px;font-weight:600;cursor:pointer;${i === initialIdx ? "background:var(--mimoja-blue);color:#fff;" : "background:transparent;color:var(--text-primary);"}">${opt}</button>`).join("")}</div>`;
+		return `<div id="${id}" class="flex rounded-[15px] overflow-hidden border-2 border-[var(--mimoja-blue)]" style="height:72px">${options.map((opt, i) => `<button class="dye-seg-btn${i === initialIdx ? " active" : ""}" data-idx="${i}" data-for="${id}" style="flex:1;font-family:'Inter',sans-serif;font-size:24px;font-weight:600;cursor:pointer;${i === initialIdx ? "background:var(--mimoja-blue);color: var(--on-accent);" : "background:transparent;color:var(--text-primary);"}">${opt}</button>`).join("")}</div>`;
 	}
 	function starRatingHtml(id, count = 5, size = 36) {
 		return `<div id="${id}" class="flex items-center gap-[8px]">${Array.from({ length: count }, (_, i) => `<svg class="dye-star" data-index="${i + 1}" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="var(--profile-button-outline-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`).join("")}</div>`;
@@ -2677,7 +2684,7 @@ function setupSegmentControls() {
         const active = i === parseInt(btn.dataset.idx);
         b.classList.toggle('active', active);
         b.style.background = active ? 'var(--mimoja-blue)' : 'transparent';
-        b.style.color = active ? '#fff' : 'var(--text-primary)';
+        b.style.color = active ? 'var(--on-accent)' : 'var(--text-primary)';
       });
     });
   });
@@ -2759,7 +2766,7 @@ function syncPresetActive(idPrefix, currentVal) {
   }
   .dye-sort-btn.dye-sort-active {
     background: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
     border-color: var(--mimoja-blue);
   }
 
@@ -2788,7 +2795,7 @@ function syncPresetActive(idPrefix, currentVal) {
   .dye-card.dye-card-selected {
     background: var(--mimoja-blue);
     border-color: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
   }
   .dye-card-add {
     border: 2px solid var(--mimoja-blue);
@@ -2820,7 +2827,7 @@ function syncPresetActive(idPrefix, currentVal) {
   }
   .dye-confirm-enabled {
     background: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
     cursor: pointer;
   }
 
@@ -3218,7 +3225,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   }
   .dye-sort-btn.dye-sort-active {
     background: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
     border-color: var(--mimoja-blue);
   }
 
@@ -3245,7 +3252,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   .dye-card.dye-card-selected {
     background: var(--mimoja-blue);
     border-color: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
   }
   .dye-card-add {
     border: 2px solid var(--mimoja-blue);
@@ -3274,7 +3281,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   }
   .dye-confirm-enabled {
     background: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
     cursor: pointer;
   }
 
@@ -3326,7 +3333,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
     font-weight: 700; font-size: 22px; cursor: pointer; border: none;
     font-family: 'Inter', sans-serif;
   }
-  .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
+  .dye-btn-primary { background: var(--mimoja-blue); color: var(--on-accent); }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
   .dye-modal-error { color: var(--danger-text); font-size: 18px; margin-top: 12px; }
   .dye-hidden { display: none !important; }
@@ -3732,7 +3739,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   }
   .dye-sort-btn.dye-sort-active {
     background: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
     border-color: var(--mimoja-blue);
   }
 
@@ -3759,7 +3766,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   .dye-card.dye-card-selected {
     background: var(--mimoja-blue);
     border-color: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
   }
   .dye-card-add {
     border: 2px solid var(--mimoja-blue);
@@ -3788,7 +3795,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
   }
   .dye-confirm-enabled {
     background: var(--mimoja-blue);
-    color: #fff;
+    color: var(--on-accent);
     cursor: pointer;
   }
 
@@ -3840,7 +3847,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
     font-weight: 700; font-size: 22px; cursor: pointer; border: none;
     font-family: 'Inter', sans-serif;
   }
-  .dye-btn-primary { background: var(--mimoja-blue); color: #fff; }
+  .dye-btn-primary { background: var(--mimoja-blue); color: var(--on-accent); }
   .dye-btn-ghost { background: transparent; color: var(--text-primary); }
   .dye-btn-danger { background: transparent; color: var(--danger-text); margin-right: auto; }
   /* Archived: listed here so it can be brought back, dimmed and dashed so it reads as set
@@ -4249,7 +4256,7 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
     text-align: center; color: var(--mimoja-blue); background: transparent;
     cursor: pointer; white-space: nowrap;
   }
-  .dye-sort-btn.dye-sort-active { background: var(--mimoja-blue); color: #fff; border-color: var(--mimoja-blue); }
+  .dye-sort-btn.dye-sort-active { background: var(--mimoja-blue); color: var(--on-accent); border-color: var(--mimoja-blue); }
 
   /* Fixed height so every card is the same size regardless of notes length. */
   .dye-card {
@@ -4261,7 +4268,7 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
     overflow: hidden;
   }
   .dye-card:hover { opacity: 0.85; }
-  .dye-card.dye-card-selected { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  .dye-card.dye-card-selected { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: var(--on-accent); }
 
   .dye-card-name  { font-size: 22px; font-weight: 600; line-height: 1.3; }
   .dye-card-sub   { font-size: 18px; font-weight: 400; opacity: 0.7; }
@@ -4271,7 +4278,7 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
   .dye-card-readmore { font-size: 16px; font-weight: 600; color: var(--mimoja-blue); cursor: pointer; }
   .dye-card.dye-card-selected .dye-card-sub,
   .dye-card.dye-card-selected .dye-card-note { opacity: 0.85; }
-  .dye-card.dye-card-selected .dye-card-readmore { color: #fff; text-decoration: underline; }
+  .dye-card.dye-card-selected .dye-card-readmore { color: var(--on-accent); text-decoration: underline; }
 
   /* Full-note modal */
   .pp-modal-backdrop { position: fixed; inset: 0; background: var(--overlay-scrim);
@@ -4283,10 +4290,10 @@ initializeDyeBaskets().catch(e => console.error('initializeDyeBaskets failed:', 
   .pp-modal-title { font-size: 26px; font-weight: 700; margin-bottom: 14px; }
   .pp-modal-body { font-size: 20px; line-height: 1.5; white-space: pre-wrap; }
   .pp-modal-close { margin-top: 22px; height: 56px; padding: 0 34px; border: none; border-radius: 9999px;
-    background: var(--mimoja-blue); color: #fff; font-size: 20px; font-weight: 700; cursor: pointer; }
+    background: var(--mimoja-blue); color: var(--on-accent); font-size: 20px; font-weight: 700; cursor: pointer; }
 
   .dye-confirm-disabled { background: var(--fav-button-wait, #e0e0e0); color: var(--text-primary-disabled, #aaa); cursor: not-allowed; }
-  .dye-confirm-enabled  { background: var(--mimoja-blue); color: #fff; cursor: pointer; }
+  .dye-confirm-enabled  { background: var(--mimoja-blue); color: var(--on-accent); cursor: pointer; }
 
   .dye-search-wrap { position: relative; width: 100%; margin-bottom: 10px; }
   .dye-search-input {
@@ -4829,7 +4836,7 @@ async function deleteBeanWithBatches(beanId, api) {
     background: var(--box-color); color: var(--mimoja-blue);
     font-size: 26px; font-weight: 700; line-height: 48px; text-align: center; cursor: pointer;
   }
-  .dye-dp-nav:active { background: var(--mimoja-blue); color: #fff; }
+  .dye-dp-nav:active { background: var(--mimoja-blue); color: var(--on-accent); }
   .dye-dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
   .dye-dp-dow { font-size: 18px; font-weight: 700; color: var(--muted-grey); text-align: center; padding: 6px 0; }
   .dye-dp-day {
@@ -4840,14 +4847,14 @@ async function deleteBeanWithBatches(beanId, api) {
   .dye-dp-day:active { background: var(--button-grey); }
   .dye-dp-day.dye-dp-muted { color: var(--chip-stroke); cursor: default; }
   .dye-dp-day.dye-dp-today { border-color: var(--chip-stroke); }
-  .dye-dp-day.dye-dp-sel { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  .dye-dp-day.dye-dp-sel { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: var(--on-accent); }
   .dye-dp-foot { display: flex; gap: 12px; margin-top: 16px; }
   .dye-dp-btn {
     flex: 1; height: 56px; border-radius: 23px; border: 2px solid var(--mimoja-blue);
     background: var(--box-color); color: var(--mimoja-blue);
     font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 600; cursor: pointer;
   }
-  .dye-dp-btn-primary { background: var(--mimoja-blue); color: #fff; }
+  .dye-dp-btn-primary { background: var(--mimoja-blue); color: var(--on-accent); }
 `;
 	}
 	function datePickerScript() {
@@ -5088,7 +5095,7 @@ async function deleteBeanWithBatches(beanId, api) {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .dye-dropdown-item:hover, .dye-dropdown-item.dye-dropdown-highlight { background: var(--mimoja-blue); color: #fff; }
+  .dye-dropdown-item:hover, .dye-dropdown-item.dye-dropdown-highlight { background: var(--mimoja-blue); color: var(--on-accent); }
   .dye-dropdown-item + .dye-dropdown-item { border-top: 1px solid var(--profile-button-outline-color); }
   .dye-dropdown-empty { padding: 18px 23px; font-family: 'Inter', sans-serif; font-size: 22px; color: var(--low-contrast-white); font-style: italic; }
   .dye-dropdown-menu::-webkit-scrollbar { width: 12px; }
@@ -5132,7 +5139,7 @@ async function deleteBeanWithBatches(beanId, api) {
       <button id="dye-cancel-btn" class="flex justify-center items-center w-[240px] h-[82px] py-[27px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)]">
         CANCEL
       </button>
-      <button id="dye-confirm-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[240px] h-[82px] py-[27px] rounded-[68px] font-bold text-[24px]">
+      <button id="dye-confirm-btn" class="bg-[var(--mimoja-blue)] text-[var(--on-accent)] flex items-center justify-center w-[240px] h-[82px] py-[27px] rounded-[68px] font-bold text-[24px]">
         CONFIRM
       </button>
     </div>
@@ -6205,7 +6212,7 @@ function shotWeights(shot) {
     font-family: 'Inter', sans-serif;
     font-size: 21px;
     font-weight: 700;
-    color: #fff;
+    color: var(--on-accent);
     cursor: pointer;
     white-space: nowrap;
   }
@@ -6274,7 +6281,7 @@ function shotWeights(shot) {
      keeping their width stops the rail from widening, which would change how many pills
      fit and make this test flip back and forth. */
   .dye-rail-arrow-hide { visibility: hidden; pointer-events: none; }
-  .dye-recipe-pill.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  .dye-recipe-pill.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: var(--on-accent); }
   .dye-recipe-pill-label {
     min-width: 0;
     max-width: 100%;
@@ -6328,7 +6335,7 @@ function shotWeights(shot) {
     font-size: 20px; min-height: 24px; margin-bottom: 16px;
     color: var(--text-primary-disabled);
   }
-  .viz-status.error { color: #E53935; }
+  .viz-status.error { color: var(--danger); }
   .viz-status.success { color: #2E8B57; }
   .viz-footer { display: flex; justify-content: flex-end; gap: 14px; margin-top: 8px; }
   .viz-btn-cancel {
@@ -6338,7 +6345,7 @@ function shotWeights(shot) {
   }
   .viz-btn-save {
     padding: 0 36px; height: 60px; border-radius: 9999px;
-    background: var(--mimoja-blue); color: #fff;
+    background: var(--mimoja-blue); color: var(--on-accent);
     font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 700;
     cursor: pointer;
   }
@@ -6477,7 +6484,7 @@ function shotWeights(shot) {
              canvas bottom), so both columns use the same 70px centred band. -->
         <div class="flex items-center gap-[18px] shrink-0 h-[70px]">
           <div class="relative">
-            <div id="dye-edit-shot-btn" class="flex items-center gap-0 bg-[var(--mimoja-blue)] text-white rounded-[23px] h-[54px] cursor-pointer overflow-hidden">
+            <div id="dye-edit-shot-btn" class="flex items-center gap-0 bg-[var(--mimoja-blue)] text-[var(--on-accent)] rounded-[23px] h-[54px] cursor-pointer overflow-hidden">
               <span id="dye-edit-shot-go" class="px-[20px] h-full flex items-center font-semibold text-[21px] whitespace-nowrap">Edit Shot</span>
               <div class="w-[1px] h-[40px] bg-white opacity-40"></div>
               <span id="dye-edit-shot-chevron" class="px-[14px] h-full flex items-center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></span>
@@ -6555,20 +6562,20 @@ function shotWeights(shot) {
               <div class="flex items-center gap-[18px]">
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">Dose</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-dose-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-dose-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                   <input id="dye-dose-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center border-0 bg-transparent outline-none p-0 cursor-text" value="—" />
-                  <button id="dye-dose-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-dose-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
               <div class="flex items-center gap-[18px]">
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">Drink</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-drink-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-drink-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                   <div class="flex flex-col items-center w-[72px]">
                     <input id="dye-drink-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] text-center border-0 bg-transparent outline-none p-0 cursor-text w-full" value="—" />
                     <span id="dye-drink-ratio" class="font-semibold text-[18px] text-[var(--text-primary)] text-center"></span>
                   </div>
-                  <button id="dye-drink-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-drink-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
             </div>
@@ -6597,17 +6604,17 @@ function shotWeights(shot) {
               <div class="flex items-center gap-[18px]">
                 <span id="dye-grind-label" class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px] cursor-pointer">Grind</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-grind-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-grind-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                   <input id="dye-grind-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center border-0 bg-transparent outline-none p-0 cursor-text" value="—" />
-                  <button id="dye-grind-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-grind-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
               <div class="flex items-center gap-[18px]">
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">RPM</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-rpm-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-rpm-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                   <input id="dye-rpm-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center border-0 bg-transparent outline-none p-0 cursor-text" value="—" />
-                  <button id="dye-rpm-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--button-grey)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-rpm-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
                 </div>
               </div>
             </div>
@@ -6655,7 +6662,7 @@ function shotWeights(shot) {
           <button id="dye-clear-btn" class="border-2 border-[var(--mimoja-blue)] text-[var(--mimoja-blue)] rounded-[23px] px-[30px] h-[54px] font-semibold text-[21px] cursor-pointer">Clear</button>
           <div class="flex items-center gap-[12px]">
             <button id="dye-cancel-btn" class="flex items-center justify-center w-[240px] h-[62px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)] cursor-pointer">CANCEL</button>
-            <button id="dye-done-btn" class="flex items-center justify-center w-[240px] h-[62px] bg-[var(--mimoja-blue)] text-white rounded-[68px] font-bold text-[24px] cursor-pointer">DONE</button>
+            <button id="dye-done-btn" class="flex items-center justify-center w-[240px] h-[62px] bg-[var(--mimoja-blue)] text-[var(--on-accent)] rounded-[68px] font-bold text-[24px] cursor-pointer">DONE</button>
           </div>
         </div>
 
@@ -6700,7 +6707,7 @@ function shotWeights(shot) {
 
     <div class="viz-footer">
       <button id="viz-cancel-btn" class="viz-btn-cancel">Cancel</button>
-      <button id="viz-logout-btn" class="viz-btn-cancel" style="display:none;color:#E53935">Log Out</button>
+      <button id="viz-logout-btn" class="viz-btn-cancel" style="display:none;color:var(--danger)">Log Out</button>
       <button id="viz-save-btn" class="viz-btn-save">Save &amp; Login</button>
     </div>
   </div>
@@ -8743,7 +8750,7 @@ function showTransientMessage(text) {
   const el = document.createElement('div');
   el.textContent = text;
   el.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);' +
-    'background:var(--mimoja-blue);color:#fff;padding:14px 28px;border-radius:12px;' +
+    'background:var(--mimoja-blue);color: var(--on-accent);padding:14px 28px;border-radius:12px;' +
     'font-family:Inter,sans-serif;font-size:20px;font-weight:600;z-index:999;' +
     'box-shadow:0 4px 16px rgba(0,0,0,0.2)';
   document.body.appendChild(el);
@@ -8849,11 +8856,11 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   .notes-modal h2 { font-size: 28px; font-weight: 700; margin-bottom: 20px; color: var(--mimoja-blue); }
   .notes-modal-close {
     margin-top: 30px; padding: 14px 40px;
-    background: var(--mimoja-blue); color: #fff;
+    background: var(--mimoja-blue); color: var(--on-accent);
     border-radius: 9999px; font-size: 22px; font-weight: 700; cursor: pointer;
   }
   .footer-btn-danger {
-    border: 2px solid #E53935; color: #E53935; border-radius: 23px;
+    border: 2px solid var(--danger); color: var(--danger); border-radius: 23px;
     padding: 0 28px; height: 60px; font-size: 21px; font-weight: 600; cursor: pointer;
     font-family: 'Inter', sans-serif;
   }
@@ -8876,9 +8883,9 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
     cursor: pointer; white-space: nowrap;
   }
   .read-from-item + .read-from-item { border-top: 1px solid var(--profile-button-outline-color); }
-  .read-from-item:hover { background: var(--mimoja-blue); color: #fff; }
+  .read-from-item:hover { background: var(--mimoja-blue); color: var(--on-accent); }
   .equip-edit-icon { display: flex; flex-shrink: 0; color: var(--mimoja-blue); }
-  .read-from-item:hover .equip-edit-icon { color: #fff; }
+  .read-from-item:hover .equip-edit-icon { color: var(--on-accent); }
   .dye-name-dropdown {
     position: absolute; top: calc(100% + 4px); left: 0; right: 0;
     max-height: 320px; overflow-y: auto;
@@ -9027,7 +9034,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
     </div>
     <div class="flex-1"></div>
     <button id="es-cancel-btn" class="text-[24px] font-bold text-[var(--text-primary)] px-[30px] h-[62px]">CANCEL</button>
-    <button id="es-save-btn" class="bg-[var(--mimoja-blue)] text-white rounded-[68px] h-[62px] px-[40px] text-[24px] font-bold cursor-pointer">SAVE SHOT DATA</button>
+    <button id="es-save-btn" class="bg-[var(--mimoja-blue)] text-[var(--on-accent)] rounded-[68px] h-[62px] px-[40px] text-[24px] font-bold cursor-pointer">SAVE SHOT DATA</button>
   </div>
 </div>
 
@@ -10809,7 +10816,7 @@ function sortByMeanRating(list, tail, idOf, fieldOf) {
   .afav { background: var(--af-page); }
   .afav-header > div { background: var(--af-surface); border-bottom: 1px solid var(--af-border); }
   .afav-header h1, .afav-header #dye-cancel-btn { color: var(--af-text); }
-  .afav-header #dye-confirm-btn { background: var(--af-action); color: #fff; }
+  .afav-header #dye-confirm-btn { background: var(--af-action); color: var(--on-accent); }
   /* "Sort by" label and the 1px divider between the sort rail and the grid. */
   #dye-sort-sidebar { border-right: 1px solid var(--af-border); align-items: center; width: 302px; padding: 30px 0 0; }
   #dye-sort-sidebar::before {
@@ -10844,7 +10851,7 @@ function sortByMeanRating(list, tail, idOf, fieldOf) {
   #dye-cards-grid .dye-card-divider { margin: 0; }
   .dye-card.dye-card-selected .fav-card-title,
   .dye-card.dye-card-selected .fav-card-sub,
-  .dye-card.dye-card-selected .fav-card-date { color: #fff; }
+  .dye-card.dye-card-selected .fav-card-date { color: var(--on-accent); }
   .fav-group-header {
     grid-column: 1 / -1;
     font-family: 'Inter', sans-serif; font-weight: 700; font-size: 24px;
@@ -10868,7 +10875,7 @@ function sortByMeanRating(list, tail, idOf, fieldOf) {
     cursor: pointer; white-space: nowrap;
   }
   .dye-tab-btn.active {
-    background: var(--af-action); border-color: var(--af-action); color: #fff;
+    background: var(--af-action); border-color: var(--af-action); color: var(--on-accent);
   }
 `;
 	var content$2 = `
@@ -11163,9 +11170,9 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
     cursor: pointer; white-space: nowrap;
   }
   .read-from-item + .read-from-item { border-top: 1px solid var(--profile-button-outline-color); }
-  .read-from-item:hover { background: var(--mimoja-blue); color: #fff; }
+  .read-from-item:hover { background: var(--mimoja-blue); color: var(--on-accent); }
   .equip-edit-icon { display: flex; flex-shrink: 0; color: var(--mimoja-blue); }
-  .read-from-item:hover .equip-edit-icon { color: #fff; }
+  .read-from-item:hover .equip-edit-icon { color: var(--on-accent); }
   .eq-values-overlay {
     display: none; position: fixed; inset: 0; background: var(--overlay-scrim-light);
     z-index: 100; align-items: center; justify-content: center;
@@ -11180,7 +11187,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
   .eq-values-modal h2 { font-size: 28px; font-weight: 700; margin-bottom: 20px; color: var(--mimoja-blue); }
   .eq-values-modal-btn {
     margin-top: 30px; padding: 14px 40px;
-    background: var(--mimoja-blue); color: #fff;
+    background: var(--mimoja-blue); color: var(--on-accent);
     border-radius: 9999px; font-size: 22px; font-weight: 700; cursor: pointer;
   }
   .equip-value-row { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; }
@@ -11495,7 +11502,7 @@ function initEquipmentField(field) {
     </div>
     <div class="flex items-center gap-[16px]">
       <button id="afe-cancel-btn" class="flex justify-center items-center w-[240px] h-[82px] rounded-[68px] font-bold text-[24px] text-[var(--text-primary)]">CANCEL</button>
-      <button id="afe-save-btn" class="bg-[var(--mimoja-blue)] text-white flex items-center justify-center w-[310px] h-[82px] rounded-[68px] font-bold text-[24px]">SAVE TO RECIPE</button>
+      <button id="afe-save-btn" class="bg-[var(--mimoja-blue)] text-[var(--on-accent)] flex items-center justify-center w-[310px] h-[82px] rounded-[68px] font-bold text-[24px]">SAVE TO RECIPE</button>
     </div>
   </div>
 
@@ -12182,7 +12189,7 @@ function assignQuery(slot, returnTo) {
     cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     flex-shrink: 0; padding: 0 20px;
   }
-  .re-tab.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  .re-tab.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: var(--on-accent); }
   .re-label { font-size: 24px; font-weight: 700; color: var(--mimoja-blue); margin-bottom: 8px; }
   /* Figma 2396:747: label sits inline beside the input, 164px wide */
   .re-field-label { font-size: 24px; font-weight: 700; color: var(--mimoja-blue); width: 164px; flex-shrink: 0; }
@@ -12231,7 +12238,7 @@ function assignQuery(slot, returnTo) {
     background: var(--box-color); color: var(--chip-text);
     cursor: pointer; padding: 6px 16px;
   }
-  .re-chip.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  .re-chip.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: var(--on-accent); }
   .re-see-all {
     height: 60px; display: flex; align-items: center; justify-content: center;
     font-size: 21px; font-weight: 600; color: var(--mimoja-blue); cursor: pointer;
@@ -12294,7 +12301,7 @@ function assignQuery(slot, returnTo) {
     cursor: pointer; white-space: nowrap;
   }
   .read-from-item + .read-from-item { border-top: 1px solid var(--profile-button-outline-color); }
-  .read-from-item:hover { background: var(--mimoja-blue); color: #fff; }
+  .read-from-item:hover { background: var(--mimoja-blue); color: var(--on-accent); }
   /* Machine Settings disclosure: the header reads as the pane's other section headings, so the
      caret and the held-count carry the affordance. */
   .re-machine-toggle {
@@ -12630,7 +12637,7 @@ function assignQuery(slot, returnTo) {
     </button>
     <div class="flex-1"></div>
     <button id="re-cancel-btn" class="text-[24px] font-bold text-[var(--text-primary)] w-[240px] h-[76px]">CANCEL</button>
-    <button id="re-save-btn" class="bg-[var(--mimoja-blue)] text-white rounded-[68px] h-[76px] w-[300px] text-[24px] font-bold cursor-pointer">SAVE RECIPE</button>
+    <button id="re-save-btn" class="bg-[var(--mimoja-blue)] text-[var(--on-accent)] rounded-[68px] h-[76px] w-[300px] text-[24px] font-bold cursor-pointer">SAVE RECIPE</button>
   </div>
 </div>
 `;

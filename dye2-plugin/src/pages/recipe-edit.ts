@@ -31,7 +31,7 @@ const styles = `
     cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     flex-shrink: 0; padding: 0 20px;
   }
-  .re-tab.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  .re-tab.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: var(--on-accent); }
   .re-label { font-size: 24px; font-weight: 700; color: var(--mimoja-blue); margin-bottom: 8px; }
   /* Figma 2396:747: label sits inline beside the input, 164px wide */
   .re-field-label { font-size: 24px; font-weight: 700; color: var(--mimoja-blue); width: 164px; flex-shrink: 0; }
@@ -80,7 +80,7 @@ const styles = `
     background: var(--box-color); color: var(--chip-text);
     cursor: pointer; padding: 6px 16px;
   }
-  .re-chip.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: #fff; }
+  .re-chip.active { background: var(--mimoja-blue); border-color: var(--mimoja-blue); color: var(--on-accent); }
   .re-see-all {
     height: 60px; display: flex; align-items: center; justify-content: center;
     font-size: 21px; font-weight: 600; color: var(--mimoja-blue); cursor: pointer;
@@ -143,7 +143,7 @@ const styles = `
     cursor: pointer; white-space: nowrap;
   }
   .read-from-item + .read-from-item { border-top: 1px solid var(--profile-button-outline-color); }
-  .read-from-item:hover { background: var(--mimoja-blue); color: #fff; }
+  .read-from-item:hover { background: var(--mimoja-blue); color: var(--on-accent); }
   /* Machine Settings disclosure: the header reads as the pane's other section headings, so the
      caret and the held-count carry the affordance. */
   .re-machine-toggle {
@@ -419,7 +419,7 @@ function buildContent(): string {
     </button>
     <div class="flex-1"></div>
     <button id="re-cancel-btn" class="text-[24px] font-bold text-[var(--text-primary)] w-[240px] h-[76px]">CANCEL</button>
-    <button id="re-save-btn" class="bg-[var(--mimoja-blue)] text-white rounded-[68px] h-[76px] w-[300px] text-[24px] font-bold cursor-pointer">SAVE RECIPE</button>
+    <button id="re-save-btn" class="bg-[var(--mimoja-blue)] text-[var(--on-accent)] rounded-[68px] h-[76px] w-[300px] text-[24px] font-bold cursor-pointer">SAVE RECIPE</button>
   </div>
 </div>
 `;

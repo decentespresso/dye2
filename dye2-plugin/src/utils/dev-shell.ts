@@ -200,6 +200,8 @@ function cssVarFallbacks(): string {
       --input-placeholder: #9ca3af;
       --field-bg: #edf0f4;
       --button-grey: #ededed;
+      --stepper-btn-bg: #ededed;   /* the − / + squares; same as --button-grey in light */
+      --on-accent: #ffffff;        /* text on --mimoja-blue fills */
       --toggle-off: #d1d5db;
       --chip-stroke: #c5cdda;
       --chip-text: #5f7ba8;
@@ -238,7 +240,8 @@ function cssVarFallbacks(): string {
          reason — so nothing here is invented. ~3.9:1 on --box-color. */
       --text-primary-disabled: #707485;
       --low-contrast-white: #707485;
-      --fav-button-wait: #353948;
+      /* Colours below follow Figma Style Guide 432:2710 (Dark Mode/…). */
+      --fav-button-wait: #1d2332;   /* Action/Action.Primary.Inactive: a disabled CONFIRM */
       --profile-button-background-color: #292c38;
       --card-bg: #101217;
       --input-bg: #17191e;
@@ -246,10 +249,14 @@ function cssVarFallbacks(): string {
       --input-placeholder: #707485;
       --field-bg: #292c38;
       --button-grey: #292c38;
-      --toggle-off: #353948;
+      /* Guide says Buttons/Adjust.Active #101115, but on DYE2's #101217 ground the buttons
+         vanish; kept at Primary.Background.Inactive until the designer picks. */
+      --stepper-btn-bg: #292c38;
+      --on-accent: #e8e8e8;        /* Button Text/FavButton.Text.Selected */
+      --status-ok: #17c29a;        /* Status/Ongoing */
+      --toggle-off: #292c38;        /* Buttons/Primary.Background.Inactive */
       --chip-stroke: #3d4255;
-      /* dye2's own pick: the Figma slate-blue is too dim on the dark ground. */
-      --chip-text: #8da2cf;
+      --chip-text: #707485;         /* Text/Secondary */
       --tab-idle: #707485;
       --box-border: #3d4255;
       --ink: #e8e8e8;
