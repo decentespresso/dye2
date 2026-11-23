@@ -9918,9 +9918,17 @@ function setupControls() {
   // rather than this page having to guess one.
   document.getElementById('es-save-recipe-btn')?.addEventListener('click', () => {
     if (!currentShot) return;
-    // The workflow as edited on this page, so a dose or grind corrected here carries over.
+    // The shot's workflow, with dose in / drink out replaced by what this shot actually did —
+    // the values this page shows and edits (annotations, else the last scale sample), not the
+    // workflow's targets, which are the profile's numbers. A 0 g drink means no scale: keep the
+    // target rather than seed a 0 g recipe.
+    const wf = JSON.parse(JSON.stringify(currentShot.workflow || {}));
+    const { doseIn, doseOut } = shotWeights(currentShot);
+    wf.context = wf.context || {};
+    if (doseIn > 0) wf.context.targetDoseWeight = doseIn;
+    if (doseOut > 0) wf.context.targetYield = doseOut;
     try {
-      sessionStorage.setItem('dye_recipeFromShotWf', JSON.stringify(currentShot.workflow || {}));
+      sessionStorage.setItem('dye_recipeFromShotWf', JSON.stringify(wf));
     } catch (e) { console.warn('Could not hand the shot to recipe-edit:', e); return; }
     // goToPicker stashes this page's unsaved shot + its index and sets dye_editShotReturn, so
     // leaving recipe-edit comes back here with the edits intact.

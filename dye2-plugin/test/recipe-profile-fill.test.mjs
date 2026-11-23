@@ -390,8 +390,12 @@ const fn = (src, sig) => { const i = src.indexOf(sig); return src.slice(i, src.i
   // The handoff: edit-shot stashes the recorded workflow, recipe-edit consumes it once.
   const handler = shot.slice(shot.indexOf("getElementById('es-save-recipe-btn')"));
   const body = handler.slice(0, handler.indexOf('\n  });'));
-  assert.match(body, /setItem\('dye_recipeFromShotWf', JSON\.stringify\(currentShot\.workflow/,
-    'the shot as edited on the page is what gets promoted');
+  assert.match(body, /JSON\.parse\(JSON\.stringify\(currentShot\.workflow/, 'a copy of the shot workflow is promoted');
+  assert.match(body, /shotWeights\(currentShot\)/, 'using the dose/drink this page shows');
+  assert.match(body, /if \(doseOut > 0\) wf\.context\.targetYield = doseOut/,
+    "the shot's actual drink, not the profile's target, becomes the recipe drink");
+  assert.match(body, /if \(doseIn > 0\) wf\.context\.targetDoseWeight = doseIn/, 'and its actual dose');
+  assert.match(body, /setItem\('dye_recipeFromShotWf', JSON\.stringify\(wf\)\)/, 'the adjusted copy is what gets stashed');
   assert.match(body, /setItem\('dye_recipeEditBack', 'edit-shot'\)/, 'and leaving the recipe comes back here');
   assert.match(body, /goToPicker\('recipe-edit\?new=1'\)/,
     'reuses the stash-and-navigate that keeps the unsaved shot');
