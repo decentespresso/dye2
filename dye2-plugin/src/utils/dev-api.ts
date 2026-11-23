@@ -745,10 +745,20 @@ async function verifyVisualizerCredentials(username, password) {
 }
 
 async function saveVisualizerSettings(username, password, autoUpload, minDuration) {
+  return postVisualizerSettings({ Username: username, Password: password, AutoUpload: autoUpload, LengthThreshold: minDuration });
+}
+
+// Logged in already: only the upload preferences. Decaid merges this into the stored settings
+// (plugin_loader_service.dart savePluginSettings), so the login is left untouched.
+async function saveVisualizerPrefs(autoUpload, minDuration) {
+  return postVisualizerSettings({ AutoUpload: autoUpload, LengthThreshold: minDuration });
+}
+
+async function postVisualizerSettings(body) {
   const res = await fetch('/api/v1/plugins/visualizer.reaplugin/settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ Username: username, Password: password, AutoUpload: autoUpload, LengthThreshold: minDuration }),
+    body: JSON.stringify(body),
   });
   // dye2#48: Decaid 0.9.2 requires a management token on this route, which a page must not
   // hold. Point the user at Decaid's own settings instead of a bare status code.

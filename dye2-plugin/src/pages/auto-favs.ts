@@ -11,7 +11,7 @@ import { ratingSortScript } from "../utils/recipe-sort";
 const TAB_KEYS = ['beans', 'recipe', 'profile', 'grinder'];
 const TAB_LABELS = ['Beans', 'Recipe', 'Profile', 'Grinder'];
 
-// Shared with select-recipe.ts: the sort rail, header and card grid. Only the tab strip is this page's.
+// The sort rail, header and card grid for this page. select-recipe.ts copies the card shape (recipeCardCss).
 export const gridStyles = `
   ${sortSidebarCss()}
   ${pickerCardCss()}

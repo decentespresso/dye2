@@ -509,6 +509,8 @@ function buildContent(): string { return `
 
     <!-- Login form -->
     <div id="viz-form-section">
+      <!-- Hidden once the Visualizer plugin already holds a login: Decaid keeps it, not DYE2. -->
+      <div id="viz-credentials">
       <div class="viz-field">
         <label for="viz-username">Username</label>
         <input id="viz-username" class="viz-input" type="text" placeholder="visualizer.coffee username" autocomplete="username" />
@@ -516,6 +518,7 @@ function buildContent(): string { return `
       <div class="viz-field">
         <label for="viz-password">Password</label>
         <input id="viz-password" class="viz-input" type="password" placeholder="Password" autocomplete="current-password" />
+      </div>
       </div>
       <div class="viz-checkbox-row">
         <input id="viz-auto-upload" class="viz-checkbox" type="checkbox" checked />
@@ -579,6 +582,9 @@ let currentStarRating = 0;
 let currentShotNote = '';
 let vizLoggedIn = false;
 let vizUsername = '';
+// The plugin's own saved values, so the dialog opens on them instead of the defaults.
+let vizAutoUpload = true;
+let vizMinDuration = 5;
 let lastEditSnapshot = null;
 // What this visit applied to the Workflow, reported to Streamline on the way
 // back so its strip can highlight (and auto-save to) the right item:
@@ -745,6 +751,8 @@ async function checkVisualizerLoggedIn() {
     const settings = await getVisualizerSettings();
     vizLoggedIn = !!(settings && settings.Username);
     vizUsername = (settings && settings.Username) || '';
+    if (settings && settings.AutoUpload != null) vizAutoUpload = settings.AutoUpload !== false;
+    if (settings && settings.LengthThreshold != null) vizMinDuration = settings.LengthThreshold;
   } catch (e) {
     vizLoggedIn = false;
     vizUsername = '';
@@ -766,6 +774,12 @@ function openVisualizerModal() {
 
   if (!overlay) return;
   if (statusEl) { statusEl.textContent = ''; statusEl.className = 'viz-status'; }
+  const credentials = document.getElementById('viz-credentials');
+  if (credentials) credentials.style.display = vizLoggedIn ? 'none' : '';
+  const autoUploadInput = document.getElementById('viz-auto-upload');
+  const minDurationInput = document.getElementById('viz-min-duration');
+  if (autoUploadInput) autoUploadInput.checked = vizAutoUpload;
+  if (minDurationInput) minDurationInput.value = vizMinDuration;
 
   if (vizLoggedIn) {
     if (titleEl) titleEl.textContent = 'Visualizer Settings';
@@ -819,6 +833,22 @@ function setupVisualizerModal() {
     const autoUpload = autoUploadInput ? autoUploadInput.checked : false;
     const minDuration = minDurationInput ? (parseInt(minDurationInput.value) || 5) : 5;
 
+    // Already logged in: the credentials are hidden and stay as the plugin has them. Decaid
+    // merges a settings POST into the stored settings, so send only what this dialog changes.
+    if (vizLoggedIn) {
+      saveBtn.disabled = true;
+      try {
+        await saveVisualizerPrefs(autoUpload, minDuration);
+        vizAutoUpload = autoUpload; vizMinDuration = minDuration;
+        if (statusEl) { statusEl.textContent = 'Saved!'; statusEl.className = 'viz-status success'; }
+        setTimeout(() => { if (overlay) overlay.classList.remove('open'); }, 800);
+      } catch (e) {
+        if (statusEl) { statusEl.textContent = 'Error: ' + e.message; statusEl.className = 'viz-status error'; }
+      }
+      saveBtn.disabled = false;
+      return;
+    }
+
     if (!username || !password) {
       if (statusEl) { statusEl.textContent = 'Username and password required.'; statusEl.className = 'viz-status error'; }
       return;
@@ -836,6 +866,7 @@ function setupVisualizerModal() {
       await saveVisualizerSettings(username, password, autoUpload, minDuration);
       vizLoggedIn = true;
       vizUsername = username;
+      vizAutoUpload = autoUpload; vizMinDuration = minDuration;
       updateVisualizerButtonState();
       if (statusEl) { statusEl.textContent = 'Saved!'; statusEl.className = 'viz-status success'; }
       setTimeout(() => { if (overlay) overlay.classList.remove('open'); }, 800);

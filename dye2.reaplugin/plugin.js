@@ -1208,10 +1208,20 @@ async function verifyVisualizerCredentials(username, password) {
 }
 
 async function saveVisualizerSettings(username, password, autoUpload, minDuration) {
+  return postVisualizerSettings({ Username: username, Password: password, AutoUpload: autoUpload, LengthThreshold: minDuration });
+}
+
+// Logged in already: only the upload preferences. Decaid merges this into the stored settings
+// (plugin_loader_service.dart savePluginSettings), so the login is left untouched.
+async function saveVisualizerPrefs(autoUpload, minDuration) {
+  return postVisualizerSettings({ AutoUpload: autoUpload, LengthThreshold: minDuration });
+}
+
+async function postVisualizerSettings(body) {
   const res = await fetch('/api/v1/plugins/visualizer.reaplugin/settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ Username: username, Password: password, AutoUpload: autoUpload, LengthThreshold: minDuration }),
+    body: JSON.stringify(body),
   });
   // dye2#48: Decaid 0.9.2 requires a management token on this route, which a page must not
   // hold. Point the user at Decaid's own settings instead of a bare status code.
@@ -6709,6 +6719,8 @@ function shotWeights(shot) {
 
     <!-- Login form -->
     <div id="viz-form-section">
+      <!-- Hidden once the Visualizer plugin already holds a login: Decaid keeps it, not DYE2. -->
+      <div id="viz-credentials">
       <div class="viz-field">
         <label for="viz-username">Username</label>
         <input id="viz-username" class="viz-input" type="text" placeholder="visualizer.coffee username" autocomplete="username" />
@@ -6716,6 +6728,7 @@ function shotWeights(shot) {
       <div class="viz-field">
         <label for="viz-password">Password</label>
         <input id="viz-password" class="viz-input" type="password" placeholder="Password" autocomplete="current-password" />
+      </div>
       </div>
       <div class="viz-checkbox-row">
         <input id="viz-auto-upload" class="viz-checkbox" type="checkbox" checked />
@@ -6779,6 +6792,9 @@ let currentStarRating = 0;
 let currentShotNote = '';
 let vizLoggedIn = false;
 let vizUsername = '';
+// The plugin's own saved values, so the dialog opens on them instead of the defaults.
+let vizAutoUpload = true;
+let vizMinDuration = 5;
 let lastEditSnapshot = null;
 // What this visit applied to the Workflow, reported to Streamline on the way
 // back so its strip can highlight (and auto-save to) the right item:
@@ -6945,6 +6961,8 @@ async function checkVisualizerLoggedIn() {
     const settings = await getVisualizerSettings();
     vizLoggedIn = !!(settings && settings.Username);
     vizUsername = (settings && settings.Username) || '';
+    if (settings && settings.AutoUpload != null) vizAutoUpload = settings.AutoUpload !== false;
+    if (settings && settings.LengthThreshold != null) vizMinDuration = settings.LengthThreshold;
   } catch (e) {
     vizLoggedIn = false;
     vizUsername = '';
@@ -6966,6 +6984,12 @@ function openVisualizerModal() {
 
   if (!overlay) return;
   if (statusEl) { statusEl.textContent = ''; statusEl.className = 'viz-status'; }
+  const credentials = document.getElementById('viz-credentials');
+  if (credentials) credentials.style.display = vizLoggedIn ? 'none' : '';
+  const autoUploadInput = document.getElementById('viz-auto-upload');
+  const minDurationInput = document.getElementById('viz-min-duration');
+  if (autoUploadInput) autoUploadInput.checked = vizAutoUpload;
+  if (minDurationInput) minDurationInput.value = vizMinDuration;
 
   if (vizLoggedIn) {
     if (titleEl) titleEl.textContent = 'Visualizer Settings';
@@ -7019,6 +7043,22 @@ function setupVisualizerModal() {
     const autoUpload = autoUploadInput ? autoUploadInput.checked : false;
     const minDuration = minDurationInput ? (parseInt(minDurationInput.value) || 5) : 5;
 
+    // Already logged in: the credentials are hidden and stay as the plugin has them. Decaid
+    // merges a settings POST into the stored settings, so send only what this dialog changes.
+    if (vizLoggedIn) {
+      saveBtn.disabled = true;
+      try {
+        await saveVisualizerPrefs(autoUpload, minDuration);
+        vizAutoUpload = autoUpload; vizMinDuration = minDuration;
+        if (statusEl) { statusEl.textContent = 'Saved!'; statusEl.className = 'viz-status success'; }
+        setTimeout(() => { if (overlay) overlay.classList.remove('open'); }, 800);
+      } catch (e) {
+        if (statusEl) { statusEl.textContent = 'Error: ' + e.message; statusEl.className = 'viz-status error'; }
+      }
+      saveBtn.disabled = false;
+      return;
+    }
+
     if (!username || !password) {
       if (statusEl) { statusEl.textContent = 'Username and password required.'; statusEl.className = 'viz-status error'; }
       return;
@@ -7036,6 +7076,7 @@ function setupVisualizerModal() {
       await saveVisualizerSettings(username, password, autoUpload, minDuration);
       vizLoggedIn = true;
       vizUsername = username;
+      vizAutoUpload = autoUpload; vizMinDuration = minDuration;
       updateVisualizerButtonState();
       if (statusEl) { statusEl.textContent = 'Saved!'; statusEl.className = 'viz-status success'; }
       setTimeout(() => { if (overlay) overlay.classList.remove('open'); }, 800);
@@ -14127,12 +14168,13 @@ function renderCards() {
     card.className = 'dye-card' + (recipe.id === selectedRecipeId ? ' dye-card-selected' : '');
     const title = recipe.name || recipe.title || 'Untitled recipe';
     const sub = [recipe.beanName, recipe.profileTitle].filter(Boolean).join(' · ') || recipe.subtitle || '';
-    const foot = [recipe.stripSlot ? 'Recipe ' + recipe.stripSlot : ''].filter(Boolean).join(' · ');
+    const foot = [recipe.stripSlot ? 'Recipe ' + recipe.stripSlot : '', formatFavDate(recipe.capturedAt)].filter(Boolean).join(' · ');
     card.title = 'Long-press to edit';
+    // Same card as Auto Favourites (Figma 2386:669): title + sub, a full-width divider, footer.
     card.innerHTML =
-      '<div class="dye-card-name">' + esc(title) + '</div>' +
-      (sub ? '<div class="dye-card-sub">' + esc(sub) + '</div>' : '') +
-      (foot ? '<div class="dye-card-date">' + esc(foot) + '</div>' : '');
+      '<div class="sr-card-head"><div class="sr-card-title">' + esc(title) + '</div>' +
+      (sub ? '<div class="sr-card-sub">' + esc(sub) + '</div>' : '') + '</div>' +
+      (foot ? '<hr class="dye-card-divider"><div class="sr-card-foot">' + esc(foot) + '</div>' : '');
     // First tap selects, a second tap on the selected card or a
     // 500ms long-press opens the editor, and attachCardLongPress swallows the click that ends it.
     card.addEventListener('click', () => {
@@ -14208,12 +14250,30 @@ initSelectRecipe().catch(e => console.error('initSelectRecipe failed:', e));
 // A page restored from bfcache never re-runs init, so a recipe saved in recipe-edit would be missing.
 window.addEventListener('pageshow', function(e) { if (e.persisted) window.location.reload(); });
 `;
+	var recipeCardCss = `
+  #dye-cards-grid .dye-card:not(.dye-card-add) {
+    padding: 0; min-height: 225px; justify-content: flex-start; align-items: stretch;
+    text-align: center; border-radius: 15px; overflow: hidden; border: 1px solid var(--box-border);
+  }
+  #dye-cards-grid .dye-card-divider { margin: 0; border-top-color: var(--box-border); }
+  .sr-card-head { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 8px 16px; }
+  .sr-card-title { font-size: 24px; font-weight: 600; line-height: 1.2; color: var(--ink); }
+  .sr-card-sub   { font-size: 24px; font-weight: 400; line-height: 1.2; color: var(--ink); margin-top: 12px; }
+  .sr-card-foot  { font-size: 24px; font-weight: 400; line-height: 1.2; color: var(--ink); padding: 12px 16px; }
+  .dye-card.dye-card-selected .sr-card-title,
+  .dye-card.dye-card-selected .sr-card-sub,
+  .dye-card.dye-card-selected .sr-card-foot { color: var(--on-accent); }
+`;
 	function renderSelectRecipePage(request) {
 		return {
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Select Recipe", content$1, dyePickerCss, [devApiScript, pageScript$1])
+			body: devPageShell("Select Recipe", content$1, dyePickerCss + recipeCardCss, [
+				devApiScript,
+				favDateScript,
+				pageScript$1
+			])
 		};
 	}
 	//#endregion

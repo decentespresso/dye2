@@ -428,8 +428,9 @@ DYE2 works with Decaid's separate **Visualizer plugin**, which must be installed
 Once logged in, the **Visualizer** button shows a green tick, and `Upload to Visualizer` sends
 the shot currently shown on the left.
 
-Two quirks: the settings box always opens showing auto-upload on and 5 seconds, whatever you
-saved last time; and saving again while logged in asks for your password again.
+If you're already logged in (here or in Decaid's own Visualizer settings), the settings box
+just says **Logged in as …** — no username or password boxes. You can still change auto-upload
+and the minimum shot length and tap **Save Settings**, or tap **Log Out**.
 
 ---
 

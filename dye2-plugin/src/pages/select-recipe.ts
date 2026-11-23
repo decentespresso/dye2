@@ -2,6 +2,7 @@ import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
 import { recipeUseSortScript, ratingSortScript } from "../utils/recipe-sort";
 import { favCardTapScript, cardLongPressScript } from "../utils/fav-card-tap";
+import { favDateScript } from "../utils/fav-date";
 import { sortSidebarScript, dyePickerCss, dyePickerHeaderHtml, dyePickerRailHtml } from "../utils/shared-components";
 import { recipeStripScript } from "../utils/recipe-strip";
 
@@ -119,12 +120,13 @@ function renderCards() {
     card.className = 'dye-card' + (recipe.id === selectedRecipeId ? ' dye-card-selected' : '');
     const title = recipe.name || recipe.title || 'Untitled recipe';
     const sub = [recipe.beanName, recipe.profileTitle].filter(Boolean).join(' · ') || recipe.subtitle || '';
-    const foot = [recipe.stripSlot ? 'Recipe ' + recipe.stripSlot : ''].filter(Boolean).join(' · ');
+    const foot = [recipe.stripSlot ? 'Recipe ' + recipe.stripSlot : '', formatFavDate(recipe.capturedAt)].filter(Boolean).join(' · ');
     card.title = 'Long-press to edit';
+    // Same card as Auto Favourites (Figma 2386:669): title + sub, a full-width divider, footer.
     card.innerHTML =
-      '<div class="dye-card-name">' + esc(title) + '</div>' +
-      (sub ? '<div class="dye-card-sub">' + esc(sub) + '</div>' : '') +
-      (foot ? '<div class="dye-card-date">' + esc(foot) + '</div>' : '');
+      '<div class="sr-card-head"><div class="sr-card-title">' + esc(title) + '</div>' +
+      (sub ? '<div class="sr-card-sub">' + esc(sub) + '</div>' : '') + '</div>' +
+      (foot ? '<hr class="dye-card-divider"><div class="sr-card-foot">' + esc(foot) + '</div>' : '');
     // First tap selects, a second tap on the selected card or a
     // 500ms long-press opens the editor, and attachCardLongPress swallows the click that ends it.
     card.addEventListener('click', () => {
@@ -201,11 +203,27 @@ initSelectRecipe().catch(e => console.error('initSelectRecipe failed:', e));
 window.addEventListener('pageshow', function(e) { if (e.persisted) window.location.reload(); });
 `;
 
+// Auto Favourites' card shape (auto-favs.ts, Figma 2386:669) on this page's own colours.
+const recipeCardCss = `
+  #dye-cards-grid .dye-card:not(.dye-card-add) {
+    padding: 0; min-height: 225px; justify-content: flex-start; align-items: stretch;
+    text-align: center; border-radius: 15px; overflow: hidden; border: 1px solid var(--box-border);
+  }
+  #dye-cards-grid .dye-card-divider { margin: 0; border-top-color: var(--box-border); }
+  .sr-card-head { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 8px 16px; }
+  .sr-card-title { font-size: 24px; font-weight: 600; line-height: 1.2; color: var(--ink); }
+  .sr-card-sub   { font-size: 24px; font-weight: 400; line-height: 1.2; color: var(--ink); margin-top: 12px; }
+  .sr-card-foot  { font-size: 24px; font-weight: 400; line-height: 1.2; color: var(--ink); padding: 12px 16px; }
+  .dye-card.dye-card-selected .sr-card-title,
+  .dye-card.dye-card-selected .sr-card-sub,
+  .dye-card.dye-card-selected .sr-card-foot { color: var(--on-accent); }
+`;
+
 export function renderSelectRecipePage(request: HttpRequest): HttpResponse {
   return {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Select Recipe", content, dyePickerCss, [devApiScript, pageScript]),
+    body: devPageShell("Select Recipe", content, dyePickerCss + recipeCardCss, [devApiScript, favDateScript, pageScript]),
   };
 }
