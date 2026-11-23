@@ -303,6 +303,8 @@ function cssVarFallbacks(): string {
       100% { background-color: transparent; }
     }
     .dye-pm-flash { animation: dye-pm-flash 0.28s linear forwards; }
+    /* Same-origin page changes cross-fade instead of cutting (Chromium 126+; ignored elsewhere). */
+    @view-transition { navigation: auto; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     /* Pages are authored at the fixed 1920x1200 design reference and fit into the
        viewport by the fit script, which scales+positions <body> directly (see

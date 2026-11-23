@@ -388,6 +388,8 @@ document.addEventListener('click', function (e) {
       100% { background-color: transparent; }
     }
     .dye-pm-flash { animation: dye-pm-flash 0.28s linear forwards; }
+    /* Same-origin page changes cross-fade instead of cutting (Chromium 126+; ignored elsewhere). */
+    @view-transition { navigation: auto; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     /* Pages are authored at the fixed 1920x1200 design reference and fit into the
        viewport by the fit script, which scales+positions <body> directly (see
@@ -7971,7 +7973,11 @@ function centreRailOn(item) {
   const r = rail.getBoundingClientRect(), p = item.getBoundingClientRect();
   const scale = r.width / rail.clientWidth || 1;
   const delta = ((p.left + p.width / 2) - (r.left + r.width / 2)) / scale;
-  rail.scrollBy({ left: delta, behavior: 'smooth' });   // the browser clamps at both ends
+  // Instant the first time (page arrival), smooth after that, so the rail does not visibly
+  // slide on every load.
+  const smooth = rail.dataset.centred === '1';
+  rail.dataset.centred = '1';
+  rail.scrollBy({ left: delta, behavior: smooth ? 'smooth' : 'instant' });   // the browser clamps at both ends
 }
 
 // One arrow press moves one item. A rail with nothing in it cannot scroll anyway.
@@ -8824,9 +8830,19 @@ function showTransientMessage(text) {
 
 dashboardReady = initializeDyeDashboard().catch(e => console.error('initializeDyeDashboard failed:', e));
 
-// Returning here via history.back() can restore the page frozen from bfcache, so init
-// (and the apply-selected-auto-favourite step) never re-runs — reload to re-fetch + apply.
-window.addEventListener('pageshow', function(e) { if (e.persisted) window.location.reload(); });
+// Returning via history.back() can restore this page frozen from bfcache, where init never
+// re-runs. Reload only when init has work waiting: a hand-off another page left in
+// sessionStorage (edited shot, confirmed favourite or recipe), or a shot pulled meanwhile.
+// Otherwise keep the instant restore and just re-read the workflow; the pageshow 'wake' in
+// subscribeChanged refreshes the derived selection.
+window.addEventListener('pageshow', async function(e) {
+  if (!e.persisted) return;
+  if (['dye_editShotId', 'dye_selectedAutoFavId', 'dye_selectedRecipeId'].some(k => sessionStorage.getItem(k))) { window.location.reload(); return; }
+  const latest = await getLatestShot().catch(() => null);
+  if (latest && shots[0] && latest.id !== shots[0].id) { window.location.reload(); return; }
+  await refreshWorkflow().catch(() => {});
+  if (currentWorkflow) renderNextShot();
+});
 `;
 	function renderDashboardPage(request) {
 		return {
