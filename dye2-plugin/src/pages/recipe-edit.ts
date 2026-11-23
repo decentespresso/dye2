@@ -1405,16 +1405,6 @@ function setupModeToggle(cls) {
 }
 
 // ── Name lookups: pick from previously entered values ───────────────────────
-async function distinctNames(key) {
-  const shots = await getShots({ limit: 200 }).catch(() => []);
-  const seen = new Set();
-  (Array.isArray(shots) ? shots : (shots.items || [])).forEach(s => {
-    const ctx = (s.workflow && s.workflow.context) || {};
-    const name = ctx[key] || (s.metadata && s.metadata[key === 'baristaName' ? 'barista' : 'drinker']);
-    if (name) seen.add(name);
-  });
-  return [...seen];
-}
 async function distinctBeverages() {
   const [recipeList, favs] = await Promise.all([getRecipes().catch(() => []), getAutoFavourites().catch(() => [])]);
   const seen = new Set();

@@ -273,23 +273,13 @@ function normList(result, labelFn) {
   const items = Array.isArray(result) ? result : (result.items || []);
   return items.map(it => ({ id: it.id || labelFn(it), label: labelFn(it) })).filter(o => o.label && o.label !== '—');
 }
-async function distinctNames(key) {
-  const shots = await getShots({ limit: 200 }).catch(() => []);
-  const seen = new Map();
-  (Array.isArray(shots) ? shots : (shots.items || [])).forEach(s => {
-    const ctx = (s.workflow && s.workflow.context) || {};
-    const name = ctx[key] || (s.metadata && s.metadata[key === 'baristaName' ? 'barista' : 'drinker']);
-    if (name && !seen.has(name)) seen.set(name, { id: name, label: name });
-  });
-  return [...seen.values()];
-}
 const LOOKUP_SOURCES = {
   'afe-profile': { load: async () => normList(await getProfiles(), p => (p.profile && p.profile.title) || p.title || p.name || p.id) },
   'afe-beans':   { load: async () => normList(await getBeans(), b => [b.roaster, b.name].filter(Boolean).join(' ') || b.name || b.id) },
   'afe-grinder': { load: async () => normList(await getGrinders(), g => g.model || g.name || g.id) },
   'afe-basket':  { load: async () => normList(await getBaskets(), b => b.name || b.id) },
-  'afe-barista': { load: () => distinctNames('baristaName') },
-  'afe-drinker': { load: () => distinctNames('drinkerName') },
+  'afe-barista': { load: async () => (await distinctNames('baristaName')).map(n => ({ id: n, label: n })) },
+  'afe-drinker': { load: async () => (await distinctNames('drinkerName')).map(n => ({ id: n, label: n })) },
 };
 // Profile/Beans/Grinder/Basket only ever point at a real existing row (pick-only — a new
 // one is created on its own page, not here). Barista/Drinker are free-form names, so they

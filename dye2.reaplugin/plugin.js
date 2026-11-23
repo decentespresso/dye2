@@ -991,6 +991,27 @@ function recipeSubtitle(r) {
 // Recipes (R mode)
 async function getRecipes() { return kvGetArray('recipes'); }
 
+// Barista / Drinker names used before — saved recipes plus shot history — for the name combos.
+// Case-insensitive: "Mark" and "mark" keep the first seen.
+async function distinctNames(key) {
+  const out = new Map();
+  const add = (n) => { const t = typeof n === 'string' ? n.trim() : ''; if (t && !out.has(t.toLowerCase())) out.set(t.toLowerCase(), t); };
+  const recipeKey = key === 'baristaName' ? 'barista' : 'drinker';
+  (await getRecipes().catch(() => [])).forEach(r => add(r && r[recipeKey]));
+  // Decaid clamps limit to 100 (shots_handler.dart), so page through.
+  // ponytail: stops at 1000 shots (10 requests); a names endpoint or KV cache if history outgrows it.
+  for (let offset = 0; offset < 1000; offset += 100) {
+    const res = await getShots({ limit: 100, offset }).catch(() => null);
+    const items = Array.isArray(res) ? res : ((res && res.items) || []);
+    items.forEach(s => {
+      const ctx = (s.workflow && s.workflow.context) || {};
+      add(ctx[key] || (s.metadata && s.metadata[recipeKey]));
+    });
+    if (items.length < 100) break;
+  }
+  return [...out.values()];
+}
+
 async function getRecipe(id) {
   const arr = await kvGetArray('recipes');
   return arr.find(x => x && x.id === id) || null;
@@ -8329,18 +8350,7 @@ function setupBasketField() {
   el.addEventListener('click', () => { window.location.href = 'basket-picker'; });
 }
 
-// Names previously used on shots, so Barista / Drinker can be picked instead of retyped.
-async function distinctNames(key) {
-  // Decaid clamps limit to 100 (shots_handler.dart), so ask for what it will actually return.
-  const res = await getShots({ limit: 100 }).catch(() => []);
-  const seen = new Set();
-  (Array.isArray(res) ? res : (res.items || [])).forEach(s => {
-    const ctx = (s.workflow && s.workflow.context) || {};
-    const name = ctx[key] || (s.metadata && s.metadata[key === 'baristaName' ? 'barista' : 'drinker']);
-    if (name) seen.add(name);
-  });
-  return [...seen];
-}
+// distinctNames(key) lives in dev-api.ts (shared with recipe-edit).
 
 // Tap Barista / Drinker on Next Shot to pick a previous name or type a new one. Swaps the
 // value for an input the way the auto-fav-edit rows do, then writes the whole workflow
@@ -11573,23 +11583,13 @@ function normList(result, labelFn) {
   const items = Array.isArray(result) ? result : (result.items || []);
   return items.map(it => ({ id: it.id || labelFn(it), label: labelFn(it) })).filter(o => o.label && o.label !== '—');
 }
-async function distinctNames(key) {
-  const shots = await getShots({ limit: 200 }).catch(() => []);
-  const seen = new Map();
-  (Array.isArray(shots) ? shots : (shots.items || [])).forEach(s => {
-    const ctx = (s.workflow && s.workflow.context) || {};
-    const name = ctx[key] || (s.metadata && s.metadata[key === 'baristaName' ? 'barista' : 'drinker']);
-    if (name && !seen.has(name)) seen.set(name, { id: name, label: name });
-  });
-  return [...seen.values()];
-}
 const LOOKUP_SOURCES = {
   'afe-profile': { load: async () => normList(await getProfiles(), p => (p.profile && p.profile.title) || p.title || p.name || p.id) },
   'afe-beans':   { load: async () => normList(await getBeans(), b => [b.roaster, b.name].filter(Boolean).join(' ') || b.name || b.id) },
   'afe-grinder': { load: async () => normList(await getGrinders(), g => g.model || g.name || g.id) },
   'afe-basket':  { load: async () => normList(await getBaskets(), b => b.name || b.id) },
-  'afe-barista': { load: () => distinctNames('baristaName') },
-  'afe-drinker': { load: () => distinctNames('drinkerName') },
+  'afe-barista': { load: async () => (await distinctNames('baristaName')).map(n => ({ id: n, label: n })) },
+  'afe-drinker': { load: async () => (await distinctNames('drinkerName')).map(n => ({ id: n, label: n })) },
 };
 // Profile/Beans/Grinder/Basket only ever point at a real existing row (pick-only — a new
 // one is created on its own page, not here). Barista/Drinker are free-form names, so they
@@ -13610,16 +13610,6 @@ function setupModeToggle(cls) {
 }
 
 // ── Name lookups: pick from previously entered values ───────────────────────
-async function distinctNames(key) {
-  const shots = await getShots({ limit: 200 }).catch(() => []);
-  const seen = new Set();
-  (Array.isArray(shots) ? shots : (shots.items || [])).forEach(s => {
-    const ctx = (s.workflow && s.workflow.context) || {};
-    const name = ctx[key] || (s.metadata && s.metadata[key === 'baristaName' ? 'barista' : 'drinker']);
-    if (name) seen.add(name);
-  });
-  return [...seen];
-}
 async function distinctBeverages() {
   const [recipeList, favs] = await Promise.all([getRecipes().catch(() => []), getAutoFavourites().catch(() => [])]);
   const seen = new Set();

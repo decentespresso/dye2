@@ -556,6 +556,27 @@ function recipeSubtitle(r) {
 // Recipes (R mode)
 async function getRecipes() { return kvGetArray('recipes'); }
 
+// Barista / Drinker names used before — saved recipes plus shot history — for the name combos.
+// Case-insensitive: "Mark" and "mark" keep the first seen.
+async function distinctNames(key) {
+  const out = new Map();
+  const add = (n) => { const t = typeof n === 'string' ? n.trim() : ''; if (t && !out.has(t.toLowerCase())) out.set(t.toLowerCase(), t); };
+  const recipeKey = key === 'baristaName' ? 'barista' : 'drinker';
+  (await getRecipes().catch(() => [])).forEach(r => add(r && r[recipeKey]));
+  // Decaid clamps limit to 100 (shots_handler.dart), so page through.
+  // ponytail: stops at 1000 shots (10 requests); a names endpoint or KV cache if history outgrows it.
+  for (let offset = 0; offset < 1000; offset += 100) {
+    const res = await getShots({ limit: 100, offset }).catch(() => null);
+    const items = Array.isArray(res) ? res : ((res && res.items) || []);
+    items.forEach(s => {
+      const ctx = (s.workflow && s.workflow.context) || {};
+      add(ctx[key] || (s.metadata && s.metadata[recipeKey]));
+    });
+    if (items.length < 100) break;
+  }
+  return [...out.values()];
+}
+
 async function getRecipe(id) {
   const arr = await kvGetArray('recipes');
   return arr.find(x => x && x.id === id) || null;

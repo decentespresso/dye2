@@ -2186,18 +2186,7 @@ function setupBasketField() {
   el.addEventListener('click', () => { window.location.href = 'basket-picker'; });
 }
 
-// Names previously used on shots, so Barista / Drinker can be picked instead of retyped.
-async function distinctNames(key) {
-  // Decaid clamps limit to 100 (shots_handler.dart), so ask for what it will actually return.
-  const res = await getShots({ limit: 100 }).catch(() => []);
-  const seen = new Set();
-  (Array.isArray(res) ? res : (res.items || [])).forEach(s => {
-    const ctx = (s.workflow && s.workflow.context) || {};
-    const name = ctx[key] || (s.metadata && s.metadata[key === 'baristaName' ? 'barista' : 'drinker']);
-    if (name) seen.add(name);
-  });
-  return [...seen];
-}
+// distinctNames(key) lives in dev-api.ts (shared with recipe-edit).
 
 // Tap Barista / Drinker on Next Shot to pick a previous name or type a new one. Swaps the
 // value for an input the way the auto-fav-edit rows do, then writes the whole workflow
