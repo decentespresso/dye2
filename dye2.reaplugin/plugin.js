@@ -1185,6 +1185,11 @@ async function saveVisualizerSettings(username, password, autoUpload, minDuratio
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ Username: username, Password: password, AutoUpload: autoUpload, LengthThreshold: minDuration }),
   });
+  // dye2#48: Decaid 0.9.2 requires a management token on this route, which a page must not
+  // hold. Point the user at Decaid's own settings instead of a bare status code.
+  if (res.status === 401 || res.status === 403) {
+    throw new Error("this version of Decaid blocks it here (HTTP " + res.status + "). Change Visualizer settings in Decaid's own Settings, or update Decaid.");
+  }
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
