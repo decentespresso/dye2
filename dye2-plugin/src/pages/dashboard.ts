@@ -7,7 +7,7 @@ import { enjoymentScaleScript } from "../utils/shared-components";
 import { recordedShotScript } from "../utils/recorded-shot";
 import { shotWeightsScript } from "../utils/shot-weights";
 import { cardLongPressScript } from "../utils/fav-card-tap";
-import { grinderLimitsScript } from "../utils/grinder-form";
+import { grinderLimitsScript, grindStepScript } from "../utils/grinder-form";
 
 const styles = `
   /* The Undo and Clipboard buttons are the two legacy base64 PNGs from utils/icons.ts, so
@@ -1513,6 +1513,7 @@ function renderNextShot() {
   const grindVal = document.getElementById('dye-grind-value');
   const rpmVal = document.getElementById('dye-rpm-value');
   if (grindVal) grindVal.value = ctx.grinderSetting != null ? ctx.grinderSetting : '—';
+  syncGrindButtons('dye-grind-value');
   if (rpmVal) rpmVal.value = (ctx.extras && ctx.extras.rpm != null) ? ctx.extras.rpm : '—';
 
   renderGrinderTabs();
@@ -1973,12 +1974,24 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
   const plusBtn = document.getElementById(plusId);
   if (!minusBtn || !plusBtn) return;
   let debounceTimer = null;
+  // Text that is not plainly a number (dye2#49) steps as text, never through parseFloat, which
+  // reads "1.12.0" as 1.12. allowText may be a function giving the grinder's highest setting,
+  // which says where each part carries. False leaves an empty field to the numeric path.
+  const stepText = (valueEl, dir) => {
+    const v = valueEl.value.trim();
+    if (v === '' || v === '—') return false;
+    const next = stepGrindText(v, typeof allowText === 'function' ? allowText() : null, dir);
+    if (next == null) { valueEl.focus(); return true; }   // no number to move: type it instead
+    valueEl.value = next;
+    syncGrindButtons(valueId);
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => onChange(next), 500);
+    return true;
+  };
   minusBtn.addEventListener('click', () => {
     const valueEl = document.getElementById(valueId);
     if (!valueEl) return;
-    // Free text has no step to move by, and stepping would coerce it to a number.
-    // Leave it alone — typing is the way to change it.
-    if (allowText && !isNumericText(valueEl.value)) return;
+    if (allowText && !isNumericText(valueEl.value) && stepText(valueEl, -1)) return;
     const lo = bound(min);
     const raw = parseFloat(valueEl.value);
     // Empty field shows "—" → start from min so − begins working.
@@ -1992,9 +2005,7 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
   plusBtn.addEventListener('click', () => {
     const valueEl = document.getElementById(valueId);
     if (!valueEl) return;
-    // Free text has no step to move by, and stepping would coerce it to a number.
-    // Leave it alone — typing is the way to change it.
-    if (allowText && !isNumericText(valueEl.value)) return;
+    if (allowText && !isNumericText(valueEl.value) && stepText(valueEl, 1)) return;
     const lo = bound(min);
     const hi = bound(max);
     const raw = parseFloat(valueEl.value);
@@ -2005,6 +2016,11 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
     debounceTimer = setTimeout(() => onChange(val), 500);
   });
   makeValueEditable(valueId, min, max, formatter, onChange, allowText);
+  if (allowText) {
+    const el = document.getElementById(valueId);
+    if (el) ['input', 'blur'].forEach(ev => el.addEventListener(ev, () => syncGrindButtons(valueId)));
+    syncGrindButtons(valueId);
+  }
 }
 
 // Tap the number to type a value directly (tablet-friendly).
@@ -2090,7 +2106,7 @@ function setupDoseControls() {
     () => grinderLimits(currentGrinder()).settingMax,
     val => (typeof val === 'number' ? val.toFixed(1) : String(val)),
     val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.grinderSetting = String(val); pushWorkflow().catch(e => console.warn(e)); },
-    true   // grind is free text: see isNumericText
+    () => grinderHighest(currentGrinder())   // grind is free text: see isNumericText
   );
   wireAdjuster('dye-rpm-minus', 'dye-rpm-plus', 'dye-rpm-value', 1,
     () => { const l = grinderLimits(currentGrinder()); return l.rpmMin != null ? l.rpmMin : 1; },
@@ -2588,6 +2604,6 @@ export function renderDashboardPage(request: HttpRequest): HttpResponse {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Dashboard", buildContent(), styles, [devApiScript, shotPagingScript, chartScript, cardLongPressScript, grinderLimitsScript, pageScript], { echarts: true }),
+    body: devPageShell("Dashboard", buildContent(), styles, [devApiScript, shotPagingScript, chartScript, cardLongPressScript, grinderLimitsScript, grindStepScript, pageScript], { echarts: true }),
   };
 }

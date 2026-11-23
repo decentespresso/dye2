@@ -139,6 +139,14 @@ stores no setting range — its positions are named, so a numeric min/max over t
 nothing — while rpm is independent of the setting type. A reversed range is refused on save,
 at the one place it can be typed, rather than defended at each place it is read.
 
+`extras.settingHighest` is the one text field there (dye2#49): a multi-part dial's top reading
+in its own notation, e.g. `"3.39.4"`, or `null`. Each part runs from 0 to that number and
+carries into the part before it, which is how the three grind steppers (dashboard, edit-shot,
+recipe-edit) step a value like `1.12.4` → `1.13.0` (`grindStepScript` in `grinder-form.ts`).
+Without it, +/− move only the last number in the text, never below 0. A value with no number
+at all, such as `Fine`, dims the buttons, and tapping one opens the value for typing. Only the
+grinders page edits it, and anything but whole numbers separated by dots is refused on save.
+
 Two things use them. The dashboard's grind and rpm steppers take their bounds from whichever
 grinder the live workflow names, resolved at the moment of the tap rather than at wiring time
 (`wireAdjuster`'s `min`/`max` accept a function). And a **manual** grinder change — the

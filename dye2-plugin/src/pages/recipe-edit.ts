@@ -1,5 +1,6 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
+import { grindStepScript } from "../utils/grinder-form";
 import { lucideIcon } from "../utils/lucide";
 import {
   stepperCss, stepperHtml,
@@ -522,9 +523,17 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, allow
     btn.addEventListener('click', () => {
       const el = document.getElementById(valueId);
       if (!el) return;
-      // Free text has no step to move by, and stepping would coerce it to a number.
-      // Leave it alone — typing is the way to change it.
-      if (allowText && !isNumericText(el.value)) return;
+      // Text that is not plainly a number steps as text, never through parseFloat (dye2#49):
+      // see grindStepScript. An empty field falls through to the numeric path below.
+      const tv = el.value.trim();
+      if (allowText && !isNumericText(tv) && tv !== '' && tv !== '—') {
+        const next = stepGrindText(tv, typeof allowText === 'function' ? allowText() : null, btnId === minusId ? -1 : 1);
+        if (next == null) { el.focus(); return; }   // no number to move: type it instead
+        el.value = next;
+        syncGrindButtons(valueId);
+        syncPresetActive(valueId.replace('-value', ''), next);
+        return;
+      }
       const lo = resolveBound(min), hi = resolveBound(max);
       const raw = parseFloat(el.value);
       // Empty field shows "—" → start from min (or 0) so + / − begin working.
@@ -538,6 +547,11 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, allow
     });
   });
   makeValueEditable(valueId, min, max, formatter, allowText);
+  if (allowText) {
+    const el = document.getElementById(valueId);
+    if (el) ['input', 'blur'].forEach(ev => el.addEventListener(ev, () => syncGrindButtons(valueId)));
+    syncGrindButtons(valueId);
+  }
 }
 
 // A field where 0 is a real value meaning off (the steam heater, the milk stop). Off sits one
@@ -656,6 +670,7 @@ function renderRecipe(recipe) {
     set(prefix + '-value', dv[key] != null ? machineFmt(unit, off)(dv[key]) : '—');
   }
   set('re-grind-value', dv.grind    != null ? String(dv.grind)       : '—');
+  syncGrindButtons('re-grind-value');
   set('re-rpm-value',   dv.rpm      != null ? String(dv.rpm)         : '—');
   const feedRateEl = document.getElementById('re-feedrate-input');
   if (feedRateEl) feedRateEl.value = dv.feedRate != null ? String(dv.feedRate) : '';
@@ -1601,7 +1616,8 @@ async function initRecipeEdit() {
     else wireAdjuster(prefix + '-minus', prefix + '-plus', prefix + '-value', step, min, max, machineFmt(unit, false));
   }
   wireAdjuster('re-grind-minus', 're-grind-plus', 're-grind-value', 0.1, 0, null,
-    v => (typeof v === 'number' ? v.toFixed(1) : String(v)), true);   // grind is free text
+    v => (typeof v === 'number' ? v.toFixed(1) : String(v)),
+    () => grinderHighest(grinders.find(g => g && g.id === selectedGrinderId)));   // grind is free text
   wireAdjuster('re-rpm-minus',   're-rpm-plus',   're-rpm-value',   1,   1, null, v => String(v));
 
   let loadedRecipes = [];
@@ -1756,6 +1772,6 @@ export function renderRecipeEditPage(request: HttpRequest): HttpResponse {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Edit Recipes", buildContent(), styles, [devApiScript, pageScript]),
+    body: devPageShell("Edit Recipes", buildContent(), styles, [devApiScript, grindStepScript, pageScript]),
   };
 }

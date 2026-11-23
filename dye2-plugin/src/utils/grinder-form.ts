@@ -48,7 +48,9 @@ function buildGrinderBody(fields, isEdit, existingExtras) {
   const ranged = ['settingMin','settingMax','settingDefault','rpmMin','rpmMax','rpmDefault'];
   const given = k => { const v = fields[k]; return v !== '' && v != null && !isNaN(parseFloat(v)); };
   const fr = fields.feedRate;
-  if (fr || isEdit || ranged.some(given)) {
+  // Text, not a number: a multi-part dial's top reading, e.g. "3.39.4" (dye2#49).
+  const hs = (fields.settingHighest || '').trim();
+  if (fr || hs || isEdit || ranged.some(given)) {
     body.extras = { ...(existingExtras || {}) };
     body.extras.feedRate = fr || null;
     // Same isEdit rule as every field above: on an edit a blank clears to an explicit null,
@@ -58,8 +60,10 @@ function buildGrinderBody(fields, isEdit, existingExtras) {
       else if (isEdit) body.extras[k] = null;
     });
     // A preset grinder's positions are named: a numeric range over them is meaningless.
+    if (hs) body.extras.settingHighest = hs;
+    else if (isEdit) body.extras.settingHighest = null;
     if (st !== 'numeric') {
-      ['settingMin','settingMax','settingDefault'].forEach(k => {
+      ['settingMin','settingMax','settingDefault','settingHighest'].forEach(k => {
         if (isEdit) body.extras[k] = null; else delete body.extras[k];
       });
     }
@@ -132,5 +136,65 @@ function grinderDefaultsPatch(g) {
     : midOfRange(l.rpmMin, l.rpmMax, g && g.rpmSmallStep);
   if (rpm != null) out.rpm = rpm;
   return out;
+}
+`;
+
+/**
+ * Grind +/− for a setting that is not plainly a number (dye2#49), shared by the three grind
+ * steppers (dashboard, edit-shot, recipe-edit). A grinder's `extras.settingHighest` is its
+ * top reading in its own notation, "3.39.4": each part runs 0..that number and carries into
+ * the part before it, like a clock. Without one, only the last number in the text moves, by
+ * 1, never below 0, with no carry. Returns null when the text holds no number at all.
+ *
+ * The buttons follow the pages' own naming, `<x>-value` beside `<x>-minus` / `<x>-plus`, so
+ * syncGrindButtons needs only the value's id. A button that cannot step is dimmed, not
+ * disabled: tapping it opens the value for typing instead.
+ */
+export const grindStepScript = `
+function grindParts(t) {
+  return typeof t === 'string' && /^\\d+(\\.\\d+)+$/.test(t.trim()) ? t.trim().split('.').map(Number) : null;
+}
+
+function grinderHighest(g) {
+  const h = g && g.extras && g.extras.settingHighest;
+  return grindParts(h) ? h.trim() : null;
+}
+
+function stepGrindText(value, highest, dir) {
+  const v = String(value == null ? '' : value).trim();
+  const top = grindParts(highest);
+  const cur = grindParts(v);
+  if (top && cur && cur.length === top.length) {
+    let total = 0, max = 0;
+    for (let i = 0; i < top.length; i++) {
+      total = total * (top[i] + 1) + Math.min(cur[i], top[i]);
+      max = max * (top[i] + 1) + top[i];
+    }
+    total = Math.max(0, Math.min(max, total + dir));
+    const out = [];
+    for (let i = top.length - 1; i >= 0; i--) { out.unshift(total % (top[i] + 1)); total = Math.floor(total / (top[i] + 1)); }
+    return out.join('.');
+  }
+  const m = v.match(/^(.*?)(\\d+)(\\D*)$/);
+  if (!m) return null;
+  return m[1] + String(Math.max(0, Number(m[2]) + dir)).padStart(m[2].length, '0') + m[3];
+}
+
+// An empty field ("—") still steps: it starts from the grinder's minimum.
+function grindCanStep(v) {
+  const s = String(v == null ? '' : v).trim();
+  return s === '' || s === '—' || /\\d/.test(s);
+}
+
+function syncGrindButtons(valueId) {
+  const el = document.getElementById(valueId);
+  if (!el) return;
+  const on = grindCanStep(el.value);
+  ['-minus', '-plus'].forEach(suffix => {
+    const b = document.getElementById(valueId.replace(/-value$/, suffix));
+    if (!b) return;
+    b.style.opacity = on ? '' : '0.35';
+    b.setAttribute('aria-disabled', on ? 'false' : 'true');
+  });
 }
 `;

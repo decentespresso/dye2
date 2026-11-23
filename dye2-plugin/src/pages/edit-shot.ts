@@ -1,5 +1,6 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
+import { grindStepScript } from "../utils/grinder-form";
 import { lucideIcon } from "../utils/lucide";
 import {
   stepperCss, stepperHtml,
@@ -273,6 +274,7 @@ ${recordedShotScript}
 ${shotWeightsScript}
 const PENCIL_SVG = ${equipPencilSvgJs};
 let currentShot = null;
+let esGrinders = [];   // only for the grind stepper's highest setting
 let currentStarRating = 0;
 let allShots = [];
 let shotIndex = 0;
@@ -318,9 +320,18 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
     btn.addEventListener('click', () => {
       const el = document.getElementById(valueId);
       if (!el) return;
-      // Free text has no step to move by, and stepping would coerce it to a number.
-      // Leave it alone — typing is the way to change it.
-      if (allowText && !isNumericText(el.value)) return;
+      // Text that is not plainly a number steps as text, never through parseFloat (dye2#49):
+      // see grindStepScript. An empty field falls through to the numeric path below.
+      const tv = el.value.trim();
+      if (allowText && !isNumericText(tv) && tv !== '' && tv !== '—') {
+        const next = stepGrindText(tv, typeof allowText === 'function' ? allowText() : null, btnId === minusId ? -1 : 1);
+        if (next == null) { el.focus(); return; }   // no number to move: type it instead
+        el.value = next;
+        syncGrindButtons(valueId);
+        clearTimeout(t);
+        t = setTimeout(() => onChange(next), 500);
+        return;
+      }
       const raw = parseFloat(el.value);
       // Empty field shows "—" → start from min (or 0) so + / − begin working.
       const base = isNaN(raw) ? (min != null ? min : 0) : raw;
@@ -334,6 +345,11 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
     });
   });
   makeValueEditable(valueId, min, max, formatter, onChange, allowText);
+  if (allowText) {
+    const el = document.getElementById(valueId);
+    if (el) ['input', 'blur'].forEach(ev => el.addEventListener(ev, () => syncGrindButtons(valueId)));
+    syncGrindButtons(valueId);
+  }
 }
 
 // Tap the number to type a value directly (tablet-friendly).
@@ -734,6 +750,7 @@ function renderShot(shot) {
   if (grinderEl) grinderEl.textContent = grinderName || '—';
 
   setVal('es-setting-value', ctx.grinderSetting != null ? ctx.grinderSetting : (gd.setting != null ? gd.setting : '—'));
+  syncGrindButtons('es-setting-value');
   // RPM and basket have no schema field: an edit made here (annotations.extras) wins over
   // what the dashboard set before the shot (the shot's workflow.context.extras).
   const basketRpm = shotBasketRpm(shot);
@@ -905,10 +922,14 @@ function setupControls() {
   wireAdjuster('es-ey-minus','es-ey-plus','es-ey-value', 0.01, 0, null, v => v.toFixed(2) + '%', v => {
     if (currentShot) { ann().drinkEy = v; }
   });
+  getGrinders().then(gs => { esGrinders = gs || []; }).catch(() => {});
   wireAdjuster('es-setting-minus','es-setting-plus','es-setting-value', 0.1, 0, null,
     v => (typeof v === 'number' ? v.toFixed(1) : String(v)), v => {
     if (currentShot) { currentShot.workflow = currentShot.workflow || {}; currentShot.workflow.context = currentShot.workflow.context || {}; currentShot.workflow.context.grinderSetting = String(v); }
-  }, true);   // grind is free text: see isNumericText
+  }, () => {   // grind is free text: see isNumericText. The shot's grinder says where it carries.
+    const gid = ((currentShot && currentShot.workflow && currentShot.workflow.context) || {}).grinderId;
+    return grinderHighest(esGrinders.find(g => g && g.id === gid));
+  });
   wireAdjuster('es-rpm-minus','es-rpm-plus','es-rpm-value', 1, 1, null, v => String(v), v => {
     // RPM has no schema field — store in annotations.extras (see README: annotations.extras for DYE2 per-shot extras).
     if (currentShot) { ann().extras = ann().extras || {}; ann().extras.rpm = v; }
@@ -1161,6 +1182,6 @@ export function renderEditShotPage(request: HttpRequest): HttpResponse {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Edit Shot", buildContent(), styles, [devApiScript, pageScript]),
+    body: devPageShell("Edit Shot", buildContent(), styles, [devApiScript, grindStepScript, pageScript]),
   };
 }

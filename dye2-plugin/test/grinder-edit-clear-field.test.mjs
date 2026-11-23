@@ -34,13 +34,13 @@ assert.equal(body.notes, null, 'clearing notes on an edit sends explicit null');
 // current extras through, or an unrelated key there (e.g. a Beanconqueror `bcUuid`) is wiped.
 
 body = buildGrinderBody({ model: 'P64', feedRate: '', settingType: 'numeric' }, true, { bcUuid: 'abc' });
-assert.deepEqual(body.extras, { bcUuid: 'abc', feedRate: null, settingMin: null, settingMax: null, settingDefault: null, rpmMin: null, rpmMax: null, rpmDefault: null }, 'clearing feedRate on an edit sends explicit null, preserving other extras keys; blank range fields clear the same way');
+assert.deepEqual(body.extras, { bcUuid: 'abc', feedRate: null, settingMin: null, settingMax: null, settingDefault: null, rpmMin: null, rpmMax: null, rpmDefault: null, settingHighest: null }, 'clearing feedRate on an edit sends explicit null, preserving other extras keys; blank range fields clear the same way');
 
 body = buildGrinderBody({ model: 'P64', feedRate: 'FF/MF/SF', settingType: 'numeric' }, true, { bcUuid: 'abc' });
-assert.deepEqual(body.extras, { bcUuid: 'abc', feedRate: 'FF/MF/SF', settingMin: null, settingMax: null, settingDefault: null, rpmMin: null, rpmMax: null, rpmDefault: null }, 'a non-empty feedRate value is sent as-is, preserving other extras keys');
+assert.deepEqual(body.extras, { bcUuid: 'abc', feedRate: 'FF/MF/SF', settingMin: null, settingMax: null, settingDefault: null, rpmMin: null, rpmMax: null, rpmDefault: null, settingHighest: null }, 'a non-empty feedRate value is sent as-is, preserving other extras keys');
 
 body = buildGrinderBody({ model: 'P64', settingType: 'numeric' }, true);
-assert.deepEqual(body.extras, { feedRate: null, settingMin: null, settingMax: null, settingDefault: null, rpmMin: null, rpmMax: null, rpmDefault: null }, 'an edit with no feedRate and no prior extras still clears it explicitly');
+assert.deepEqual(body.extras, { feedRate: null, settingMin: null, settingMax: null, settingDefault: null, rpmMin: null, rpmMax: null, rpmDefault: null, settingHighest: null }, 'an edit with no feedRate and no prior extras still clears it explicitly');
 
 body = buildGrinderBody({ model: 'P64', burrSize: '', rpmSmallStep: '', rpmBigStep: '', settingType: 'numeric' }, true);
 assert.equal(body.burrSize, null, 'clearing a numeric field on an edit sends explicit null');

@@ -1,6 +1,6 @@
 import { devPageShell } from "../utils/dev-shell";
 import { devApiScript } from "../utils/dev-api";
-import { buildGrinderBodyScript, grinderLimitsScript } from "../utils/grinder-form";
+import { buildGrinderBodyScript, grinderLimitsScript, grindStepScript } from "../utils/grinder-form";
 import { cardLongPressScript } from "../utils/fav-card-tap";
 
 const styles = `
@@ -227,6 +227,10 @@ const content = `
             <input name="settingDefault" type="number" step="any" placeholder="blank = middle of the range" />
           </div>
         </div>
+        <div id="dye-numeric-highest" class="dye-field">
+          <label>Highest Setting (multi-part dial)</label>
+          <input name="settingHighest" type="text" autocomplete="off" placeholder="e.g. 3.39.4 -- where each part carries; blank = last number only" />
+        </div>
         <div id="dye-preset-settings" class="dye-field dye-hidden">
           <label>Setting Values (comma-separated)</label>
           <input name="settingValues" placeholder="e.g. Fine, Medium, Coarse" />
@@ -402,6 +406,7 @@ function toggleSettingSections() {
   // mean nothing there -- settingValues is its whole vocabulary. RPM is independent of the
   // setting type and stays visible either way.
   document.getElementById('dye-numeric-range').classList.toggle('dye-hidden', !isNumeric);
+  document.getElementById('dye-numeric-highest').classList.toggle('dye-hidden', !isNumeric);
   document.getElementById('dye-preset-settings').classList.toggle('dye-hidden', isNumeric);
 }
 
@@ -415,6 +420,7 @@ function openModal(g) {
   if (g) {
     ['model','burrs','burrType','burrSize','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','notes'].forEach(k => setField(k, g[k]));
     setField('feedRate', editingExtras.feedRate);
+    setField('settingHighest', editingExtras.settingHighest);
     ['settingMin','settingMax','settingDefault','rpmMin','rpmMax','rpmDefault']
       .forEach(k => setField(k, editingExtras[k]));
     setField('settingValues', Array.isArray(g.settingValues) ? g.settingValues.join(', ') : (g.settingValues || ''));
@@ -442,9 +448,17 @@ async function submitForm() {
   const fd = new FormData(form());
   const fields = {};
   ['model','burrs','burrType','burrSize','feedRate','notes','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','settingValues',
-   'settingMin','settingMax','settingDefault','rpmMin','rpmMax','rpmDefault']
+   'settingMin','settingMax','settingDefault','rpmMin','rpmMax','rpmDefault','settingHighest']
     .forEach(k => { fields[k] = fd.get(k); });
   const body = buildGrinderBody(fields, !!editingId, editingExtras);
+  // A highest setting the steppers cannot read would be silently ignored on every +/−.
+  const hsErr = body.extras && body.extras.settingHighest != null && !grindParts(body.extras.settingHighest);
+  if (hsErr) {
+    const errEl = document.getElementById('dye-modal-error');
+    errEl.textContent = 'Highest Setting must be whole numbers separated by dots, e.g. 3.39.4.';
+    errEl.classList.remove('dye-hidden');
+    return;
+  }
   // A reversed range silently breaks every clamp that reads it, so it is refused at the one
   // place it can be entered rather than defended at each of the places it is used.
   const ex = body.extras || {};
@@ -578,6 +592,6 @@ export function renderGrindersPage(request: HttpRequest): HttpResponse {
     requestId: request.requestId,
     status: 200,
     headers: { "Content-Type": "text/html; charset=utf-8" },
-    body: devPageShell("Grinders", content, styles, [devApiScript, buildGrinderBodyScript, grinderLimitsScript, cardLongPressScript, pageScript]),
+    body: devPageShell("Grinders", content, styles, [devApiScript, buildGrinderBodyScript, grinderLimitsScript, grindStepScript, cardLongPressScript, pageScript]),
   };
 }

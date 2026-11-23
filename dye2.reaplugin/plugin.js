@@ -1230,7 +1230,9 @@ function buildGrinderBody(fields, isEdit, existingExtras) {
   const ranged = ['settingMin','settingMax','settingDefault','rpmMin','rpmMax','rpmDefault'];
   const given = k => { const v = fields[k]; return v !== '' && v != null && !isNaN(parseFloat(v)); };
   const fr = fields.feedRate;
-  if (fr || isEdit || ranged.some(given)) {
+  // Text, not a number: a multi-part dial's top reading, e.g. "3.39.4" (dye2#49).
+  const hs = (fields.settingHighest || '').trim();
+  if (fr || hs || isEdit || ranged.some(given)) {
     body.extras = { ...(existingExtras || {}) };
     body.extras.feedRate = fr || null;
     // Same isEdit rule as every field above: on an edit a blank clears to an explicit null,
@@ -1240,8 +1242,10 @@ function buildGrinderBody(fields, isEdit, existingExtras) {
       else if (isEdit) body.extras[k] = null;
     });
     // A preset grinder's positions are named: a numeric range over them is meaningless.
+    if (hs) body.extras.settingHighest = hs;
+    else if (isEdit) body.extras.settingHighest = null;
     if (st !== 'numeric') {
-      ['settingMin','settingMax','settingDefault'].forEach(k => {
+      ['settingMin','settingMax','settingDefault','settingHighest'].forEach(k => {
         if (isEdit) body.extras[k] = null; else delete body.extras[k];
       });
     }
@@ -1313,6 +1317,65 @@ function grinderDefaultsPatch(g) {
     : midOfRange(l.rpmMin, l.rpmMax, g && g.rpmSmallStep);
   if (rpm != null) out.rpm = rpm;
   return out;
+}
+`;
+	/**
+	* Grind +/− for a setting that is not plainly a number (dye2#49), shared by the three grind
+	* steppers (dashboard, edit-shot, recipe-edit). A grinder's `extras.settingHighest` is its
+	* top reading in its own notation, "3.39.4": each part runs 0..that number and carries into
+	* the part before it, like a clock. Without one, only the last number in the text moves, by
+	* 1, never below 0, with no carry. Returns null when the text holds no number at all.
+	*
+	* The buttons follow the pages' own naming, `<x>-value` beside `<x>-minus` / `<x>-plus`, so
+	* syncGrindButtons needs only the value's id. A button that cannot step is dimmed, not
+	* disabled: tapping it opens the value for typing instead.
+	*/
+	var grindStepScript = `
+function grindParts(t) {
+  return typeof t === 'string' && /^\\d+(\\.\\d+)+$/.test(t.trim()) ? t.trim().split('.').map(Number) : null;
+}
+
+function grinderHighest(g) {
+  const h = g && g.extras && g.extras.settingHighest;
+  return grindParts(h) ? h.trim() : null;
+}
+
+function stepGrindText(value, highest, dir) {
+  const v = String(value == null ? '' : value).trim();
+  const top = grindParts(highest);
+  const cur = grindParts(v);
+  if (top && cur && cur.length === top.length) {
+    let total = 0, max = 0;
+    for (let i = 0; i < top.length; i++) {
+      total = total * (top[i] + 1) + Math.min(cur[i], top[i]);
+      max = max * (top[i] + 1) + top[i];
+    }
+    total = Math.max(0, Math.min(max, total + dir));
+    const out = [];
+    for (let i = top.length - 1; i >= 0; i--) { out.unshift(total % (top[i] + 1)); total = Math.floor(total / (top[i] + 1)); }
+    return out.join('.');
+  }
+  const m = v.match(/^(.*?)(\\d+)(\\D*)$/);
+  if (!m) return null;
+  return m[1] + String(Math.max(0, Number(m[2]) + dir)).padStart(m[2].length, '0') + m[3];
+}
+
+// An empty field ("—") still steps: it starts from the grinder's minimum.
+function grindCanStep(v) {
+  const s = String(v == null ? '' : v).trim();
+  return s === '' || s === '—' || /\\d/.test(s);
+}
+
+function syncGrindButtons(valueId) {
+  const el = document.getElementById(valueId);
+  if (!el) return;
+  const on = grindCanStep(el.value);
+  ['-minus', '-plus'].forEach(suffix => {
+    const b = document.getElementById(valueId.replace(/-value$/, suffix));
+    if (!b) return;
+    b.style.opacity = on ? '' : '0.35';
+    b.setAttribute('aria-disabled', on ? 'false' : 'true');
+  });
 }
 `;
 	//#endregion
@@ -1574,6 +1637,10 @@ function attachCardLongPress(card, onLong) {
             <input name="settingDefault" type="number" step="any" placeholder="blank = middle of the range" />
           </div>
         </div>
+        <div id="dye-numeric-highest" class="dye-field">
+          <label>Highest Setting (multi-part dial)</label>
+          <input name="settingHighest" type="text" autocomplete="off" placeholder="e.g. 3.39.4 -- where each part carries; blank = last number only" />
+        </div>
         <div id="dye-preset-settings" class="dye-field dye-hidden">
           <label>Setting Values (comma-separated)</label>
           <input name="settingValues" placeholder="e.g. Fine, Medium, Coarse" />
@@ -1748,6 +1815,7 @@ function toggleSettingSections() {
   // mean nothing there -- settingValues is its whole vocabulary. RPM is independent of the
   // setting type and stays visible either way.
   document.getElementById('dye-numeric-range').classList.toggle('dye-hidden', !isNumeric);
+  document.getElementById('dye-numeric-highest').classList.toggle('dye-hidden', !isNumeric);
   document.getElementById('dye-preset-settings').classList.toggle('dye-hidden', isNumeric);
 }
 
@@ -1761,6 +1829,7 @@ function openModal(g) {
   if (g) {
     ['model','burrs','burrType','burrSize','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','notes'].forEach(k => setField(k, g[k]));
     setField('feedRate', editingExtras.feedRate);
+    setField('settingHighest', editingExtras.settingHighest);
     ['settingMin','settingMax','settingDefault','rpmMin','rpmMax','rpmDefault']
       .forEach(k => setField(k, editingExtras[k]));
     setField('settingValues', Array.isArray(g.settingValues) ? g.settingValues.join(', ') : (g.settingValues || ''));
@@ -1788,9 +1857,17 @@ async function submitForm() {
   const fd = new FormData(form());
   const fields = {};
   ['model','burrs','burrType','burrSize','feedRate','notes','settingType','settingSmallStep','settingBigStep','rpmSmallStep','rpmBigStep','settingValues',
-   'settingMin','settingMax','settingDefault','rpmMin','rpmMax','rpmDefault']
+   'settingMin','settingMax','settingDefault','rpmMin','rpmMax','rpmDefault','settingHighest']
     .forEach(k => { fields[k] = fd.get(k); });
   const body = buildGrinderBody(fields, !!editingId, editingExtras);
+  // A highest setting the steppers cannot read would be silently ignored on every +/−.
+  const hsErr = body.extras && body.extras.settingHighest != null && !grindParts(body.extras.settingHighest);
+  if (hsErr) {
+    const errEl = document.getElementById('dye-modal-error');
+    errEl.textContent = 'Highest Setting must be whole numbers separated by dots, e.g. 3.39.4.';
+    errEl.classList.remove('dye-hidden');
+    return;
+  }
   // A reversed range silently breaks every clamp that reads it, so it is refused at the one
   // place it can be entered rather than defended at each of the places it is used.
   const ex = body.extras || {};
@@ -1927,6 +2004,7 @@ initializeDyeGrinders().catch(e => console.error('initializeDyeGrinders failed:'
 				devApiScript,
 				buildGrinderBodyScript,
 				grinderLimitsScript,
+				grindStepScript,
 				cardLongPressScript,
 				pageScript$14
 			])
@@ -7578,6 +7656,7 @@ function renderNextShot() {
   const grindVal = document.getElementById('dye-grind-value');
   const rpmVal = document.getElementById('dye-rpm-value');
   if (grindVal) grindVal.value = ctx.grinderSetting != null ? ctx.grinderSetting : '—';
+  syncGrindButtons('dye-grind-value');
   if (rpmVal) rpmVal.value = (ctx.extras && ctx.extras.rpm != null) ? ctx.extras.rpm : '—';
 
   renderGrinderTabs();
@@ -8038,12 +8117,24 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
   const plusBtn = document.getElementById(plusId);
   if (!minusBtn || !plusBtn) return;
   let debounceTimer = null;
+  // Text that is not plainly a number (dye2#49) steps as text, never through parseFloat, which
+  // reads "1.12.0" as 1.12. allowText may be a function giving the grinder's highest setting,
+  // which says where each part carries. False leaves an empty field to the numeric path.
+  const stepText = (valueEl, dir) => {
+    const v = valueEl.value.trim();
+    if (v === '' || v === '—') return false;
+    const next = stepGrindText(v, typeof allowText === 'function' ? allowText() : null, dir);
+    if (next == null) { valueEl.focus(); return true; }   // no number to move: type it instead
+    valueEl.value = next;
+    syncGrindButtons(valueId);
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => onChange(next), 500);
+    return true;
+  };
   minusBtn.addEventListener('click', () => {
     const valueEl = document.getElementById(valueId);
     if (!valueEl) return;
-    // Free text has no step to move by, and stepping would coerce it to a number.
-    // Leave it alone — typing is the way to change it.
-    if (allowText && !isNumericText(valueEl.value)) return;
+    if (allowText && !isNumericText(valueEl.value) && stepText(valueEl, -1)) return;
     const lo = bound(min);
     const raw = parseFloat(valueEl.value);
     // Empty field shows "—" → start from min so − begins working.
@@ -8057,9 +8148,7 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
   plusBtn.addEventListener('click', () => {
     const valueEl = document.getElementById(valueId);
     if (!valueEl) return;
-    // Free text has no step to move by, and stepping would coerce it to a number.
-    // Leave it alone — typing is the way to change it.
-    if (allowText && !isNumericText(valueEl.value)) return;
+    if (allowText && !isNumericText(valueEl.value) && stepText(valueEl, 1)) return;
     const lo = bound(min);
     const hi = bound(max);
     const raw = parseFloat(valueEl.value);
@@ -8070,6 +8159,11 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
     debounceTimer = setTimeout(() => onChange(val), 500);
   });
   makeValueEditable(valueId, min, max, formatter, onChange, allowText);
+  if (allowText) {
+    const el = document.getElementById(valueId);
+    if (el) ['input', 'blur'].forEach(ev => el.addEventListener(ev, () => syncGrindButtons(valueId)));
+    syncGrindButtons(valueId);
+  }
 }
 
 // Tap the number to type a value directly (tablet-friendly).
@@ -8155,7 +8249,7 @@ function setupDoseControls() {
     () => grinderLimits(currentGrinder()).settingMax,
     val => (typeof val === 'number' ? val.toFixed(1) : String(val)),
     val => { if (!currentWorkflow) return; snapshotWorkflow(); currentWorkflow.context = currentWorkflow.context || {}; currentWorkflow.context.grinderSetting = String(val); pushWorkflow().catch(e => console.warn(e)); },
-    true   // grind is free text: see isNumericText
+    () => grinderHighest(currentGrinder())   // grind is free text: see isNumericText
   );
   wireAdjuster('dye-rpm-minus', 'dye-rpm-plus', 'dye-rpm-value', 1,
     () => { const l = grinderLimits(currentGrinder()); return l.rpmMin != null ? l.rpmMin : 1; },
@@ -8658,6 +8752,7 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 				chartScript,
 				cardLongPressScript,
 				grinderLimitsScript,
+				grindStepScript,
 				pageScript$6
 			], { echarts: true })
 		};
@@ -8963,6 +9058,7 @@ ${recordedShotScript}
 ${shotWeightsScript}
 const PENCIL_SVG = ${JSON.stringify(lucideIcon("pencil", 20, "currentColor", 2))};
 let currentShot = null;
+let esGrinders = [];   // only for the grind stepper's highest setting
 let currentStarRating = 0;
 let allShots = [];
 let shotIndex = 0;
@@ -9008,9 +9104,18 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
     btn.addEventListener('click', () => {
       const el = document.getElementById(valueId);
       if (!el) return;
-      // Free text has no step to move by, and stepping would coerce it to a number.
-      // Leave it alone — typing is the way to change it.
-      if (allowText && !isNumericText(el.value)) return;
+      // Text that is not plainly a number steps as text, never through parseFloat (dye2#49):
+      // see grindStepScript. An empty field falls through to the numeric path below.
+      const tv = el.value.trim();
+      if (allowText && !isNumericText(tv) && tv !== '' && tv !== '—') {
+        const next = stepGrindText(tv, typeof allowText === 'function' ? allowText() : null, btnId === minusId ? -1 : 1);
+        if (next == null) { el.focus(); return; }   // no number to move: type it instead
+        el.value = next;
+        syncGrindButtons(valueId);
+        clearTimeout(t);
+        t = setTimeout(() => onChange(next), 500);
+        return;
+      }
       const raw = parseFloat(el.value);
       // Empty field shows "—" → start from min (or 0) so + / − begin working.
       const base = isNaN(raw) ? (min != null ? min : 0) : raw;
@@ -9024,6 +9129,11 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, onCha
     });
   });
   makeValueEditable(valueId, min, max, formatter, onChange, allowText);
+  if (allowText) {
+    const el = document.getElementById(valueId);
+    if (el) ['input', 'blur'].forEach(ev => el.addEventListener(ev, () => syncGrindButtons(valueId)));
+    syncGrindButtons(valueId);
+  }
 }
 
 // Tap the number to type a value directly (tablet-friendly).
@@ -9424,6 +9534,7 @@ function renderShot(shot) {
   if (grinderEl) grinderEl.textContent = grinderName || '—';
 
   setVal('es-setting-value', ctx.grinderSetting != null ? ctx.grinderSetting : (gd.setting != null ? gd.setting : '—'));
+  syncGrindButtons('es-setting-value');
   // RPM and basket have no schema field: an edit made here (annotations.extras) wins over
   // what the dashboard set before the shot (the shot's workflow.context.extras).
   const basketRpm = shotBasketRpm(shot);
@@ -9595,10 +9706,14 @@ function setupControls() {
   wireAdjuster('es-ey-minus','es-ey-plus','es-ey-value', 0.01, 0, null, v => v.toFixed(2) + '%', v => {
     if (currentShot) { ann().drinkEy = v; }
   });
+  getGrinders().then(gs => { esGrinders = gs || []; }).catch(() => {});
   wireAdjuster('es-setting-minus','es-setting-plus','es-setting-value', 0.1, 0, null,
     v => (typeof v === 'number' ? v.toFixed(1) : String(v)), v => {
     if (currentShot) { currentShot.workflow = currentShot.workflow || {}; currentShot.workflow.context = currentShot.workflow.context || {}; currentShot.workflow.context.grinderSetting = String(v); }
-  }, true);   // grind is free text: see isNumericText
+  }, () => {   // grind is free text: see isNumericText. The shot's grinder says where it carries.
+    const gid = ((currentShot && currentShot.workflow && currentShot.workflow.context) || {}).grinderId;
+    return grinderHighest(esGrinders.find(g => g && g.id === gid));
+  });
   wireAdjuster('es-rpm-minus','es-rpm-plus','es-rpm-value', 1, 1, null, v => String(v), v => {
     // RPM has no schema field — store in annotations.extras (see README: annotations.extras for DYE2 per-shot extras).
     if (currentShot) { ann().extras = ann().extras || {}; ann().extras.rpm = v; }
@@ -9850,7 +9965,11 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Edit Shot", buildContent$2(), styles$4, [devApiScript, pageScript$5])
+			body: devPageShell("Edit Shot", buildContent$2(), styles$4, [
+				devApiScript,
+				grindStepScript,
+				pageScript$5
+			])
 		};
 	}
 	//#endregion
@@ -12609,9 +12728,17 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, allow
     btn.addEventListener('click', () => {
       const el = document.getElementById(valueId);
       if (!el) return;
-      // Free text has no step to move by, and stepping would coerce it to a number.
-      // Leave it alone — typing is the way to change it.
-      if (allowText && !isNumericText(el.value)) return;
+      // Text that is not plainly a number steps as text, never through parseFloat (dye2#49):
+      // see grindStepScript. An empty field falls through to the numeric path below.
+      const tv = el.value.trim();
+      if (allowText && !isNumericText(tv) && tv !== '' && tv !== '—') {
+        const next = stepGrindText(tv, typeof allowText === 'function' ? allowText() : null, btnId === minusId ? -1 : 1);
+        if (next == null) { el.focus(); return; }   // no number to move: type it instead
+        el.value = next;
+        syncGrindButtons(valueId);
+        syncPresetActive(valueId.replace('-value', ''), next);
+        return;
+      }
       const lo = resolveBound(min), hi = resolveBound(max);
       const raw = parseFloat(el.value);
       // Empty field shows "—" → start from min (or 0) so + / − begin working.
@@ -12625,6 +12752,11 @@ function wireAdjuster(minusId, plusId, valueId, step, min, max, formatter, allow
     });
   });
   makeValueEditable(valueId, min, max, formatter, allowText);
+  if (allowText) {
+    const el = document.getElementById(valueId);
+    if (el) ['input', 'blur'].forEach(ev => el.addEventListener(ev, () => syncGrindButtons(valueId)));
+    syncGrindButtons(valueId);
+  }
 }
 
 // A field where 0 is a real value meaning off (the steam heater, the milk stop). Off sits one
@@ -12743,6 +12875,7 @@ function renderRecipe(recipe) {
     set(prefix + '-value', dv[key] != null ? machineFmt(unit, off)(dv[key]) : '—');
   }
   set('re-grind-value', dv.grind    != null ? String(dv.grind)       : '—');
+  syncGrindButtons('re-grind-value');
   set('re-rpm-value',   dv.rpm      != null ? String(dv.rpm)         : '—');
   const feedRateEl = document.getElementById('re-feedrate-input');
   if (feedRateEl) feedRateEl.value = dv.feedRate != null ? String(dv.feedRate) : '';
@@ -13688,7 +13821,8 @@ async function initRecipeEdit() {
     else wireAdjuster(prefix + '-minus', prefix + '-plus', prefix + '-value', step, min, max, machineFmt(unit, false));
   }
   wireAdjuster('re-grind-minus', 're-grind-plus', 're-grind-value', 0.1, 0, null,
-    v => (typeof v === 'number' ? v.toFixed(1) : String(v)), true);   // grind is free text
+    v => (typeof v === 'number' ? v.toFixed(1) : String(v)),
+    () => grinderHighest(grinders.find(g => g && g.id === selectedGrinderId)));   // grind is free text
   wireAdjuster('re-rpm-minus',   're-rpm-plus',   're-rpm-value',   1,   1, null, v => String(v));
 
   let loadedRecipes = [];
@@ -13842,7 +13976,11 @@ window.addEventListener('pageshow', function(e) { if (e.persisted) window.locati
 			requestId: request.requestId,
 			status: 200,
 			headers: { "Content-Type": "text/html; charset=utf-8" },
-			body: devPageShell("Edit Recipes", buildContent(), styles$1, [devApiScript, pageScript$2])
+			body: devPageShell("Edit Recipes", buildContent(), styles$1, [
+				devApiScript,
+				grindStepScript,
+				pageScript$2
+			])
 		};
 	}
 	//#endregion
