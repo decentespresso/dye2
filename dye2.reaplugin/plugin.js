@@ -270,6 +270,13 @@ ${kbPlanScript}
 	* `:root[data-theme="dark"]` (not bare `[data-theme="dark"]`) so a page that redeclares a
 	* token in its own `:root` rule, which comes later in the cascade, cannot beat it.
 	*/
+	var pmFlashScript = `
+document.addEventListener('click', function (e) {
+  var b = e.target && e.target.closest && e.target.closest('.dye-stepper-btn, .dye-pm');
+  if (!b) return;
+  b.classList.remove('dye-pm-flash'); void b.offsetWidth; b.classList.add('dye-pm-flash');
+  setTimeout(function () { b.classList.remove('dye-pm-flash'); }, 280);
+});`;
 	function cssVarFallbacks() {
 		return `
     :root {
@@ -290,6 +297,9 @@ ${kbPlanScript}
       --field-bg: #edf0f4;
       --button-grey: #ededed;
       --stepper-btn-bg: #ededed;   /* the − / + squares; same as --button-grey in light */
+      /* Streamline's plus/minus press flash (main.css --plus-minus-flash-on-color*). */
+      --plus-minus-flash-on-color: #b8b8b8;
+      --plus-minus-flash-on-color2: #cfcfcf;
       --on-accent: #ffffff;        /* text on --mimoja-blue fills */
       --toggle-off: #d1d5db;
       --chip-stroke: #c5cdda;
@@ -342,6 +352,8 @@ ${kbPlanScript}
          Primary.Background.Inactive). The skin keeps Adjust.Active #101115 for its profile
          editor only; on DYE2's #101217 ground that colour makes the buttons vanish. */
       --stepper-btn-bg: #292c38;
+      --plus-minus-flash-on-color: #272a34;
+      --plus-minus-flash-on-color2: #1b1d24;
       --on-accent: #e8e8e8;        /* Button Text/FavButton.Text.Selected */
       --status-ok: #17c29a;        /* Status/Ongoing */
       --toggle-off: #292c38;        /* Buttons/Primary.Background.Inactive */
@@ -369,6 +381,13 @@ ${kbPlanScript}
     [data-theme="dark"] ::-webkit-scrollbar-track { background: transparent; }
     [data-theme="dark"] ::-webkit-scrollbar-thumb { background-color: #707485; border-radius: 8px; }
     [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background-color: #8a8fa3; }
+    @keyframes dye-pm-flash {
+      0%   { background-color: var(--plus-minus-flash-on-color2); }
+      14%  { background-color: var(--plus-minus-flash-on-color); }
+      71%  { background-color: var(--plus-minus-flash-on-color2); }
+      100% { background-color: transparent; }
+    }
+    .dye-pm-flash { animation: dye-pm-flash 0.28s linear forwards; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     /* Pages are authored at the fixed 1920x1200 design reference and fit into the
        viewport by the fit script, which scales+positions <body> directly (see
@@ -434,10 +453,11 @@ ${kbPlanScript}
 			"",
 			"</style>\n</head>\n<body>\n  ",
 			"\n  <script>",
+			"<\/script>\n  <script>",
 			"<\/script>\n  ",
 			"\n  ",
 			"\n</body>\n</html>"
-		])), title, themeBootstrap, tailwind_generated_default, cssVarFallbacks(), styles, content, fitScript, scripts.map((s) => `<script>${s}<\/script>`).join("\n"), opts.echarts ? "<script src=\"echarts\" charset=\"utf-8\" onload=\"window.dispatchEvent(new Event('dye2-echarts-ready'))\"><\/script>" : "");
+		])), title, themeBootstrap, tailwind_generated_default, cssVarFallbacks(), styles, content, fitScript, pmFlashScript, scripts.map((s) => `<script>${s}<\/script>`).join("\n"), opts.echarts ? "<script src=\"echarts\" charset=\"utf-8\" onload=\"window.dispatchEvent(new Event('dye2-echarts-ready'))\"><\/script>" : "");
 	}
 	//#endregion
 	//#region src/utils/dev-api.ts
@@ -2534,6 +2554,9 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
   }
   `;
 	}
+	function pmSvg(kind) {
+		return `<svg aria-hidden="true" width="37.5" height="37.5" viewBox="0 0 50 50" fill="none"><path d="${kind === "plus" ? "M24.9993 10.4165V39.5832M10.416 24.9998H39.5827" : "M10.416 25H39.5827"}" stroke="var(--text-primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+	}
 	function stepperCss() {
 		return `
   .dye-stepper-btn {
@@ -2553,8 +2576,8 @@ initializeDyeEquipment().catch(e => console.error('initializeDyeEquipment failed
   `;
 	}
 	function stepperHtml(idPrefix, label, labelWidth = "75px", showSub = false, subHtml = "") {
-		const minusSvg = lucideIcon("minus", 38, "var(--text-primary)", 2.5);
-		const plusSvg = lucideIcon("plus", 38, "var(--text-primary)", 2.5);
+		const minusSvg = pmSvg("minus");
+		const plusSvg = pmSvg("plus");
 		return `<div class="flex items-center gap-[18px]">
     ${subHtml ? `<div class="flex flex-col" style="width:${labelWidth};flex-shrink:0">
          <span class="dye-stepper-label">${label}</span>
@@ -6563,20 +6586,20 @@ function shotWeights(shot) {
               <div class="flex items-center gap-[18px]">
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">Dose</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-dose-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-dose-minus" class="dye-pm flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer">${pmSvg("minus")}</button>
                   <input id="dye-dose-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center border-0 bg-transparent outline-none p-0 cursor-text" value="—" />
-                  <button id="dye-dose-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-dose-plus" class="dye-pm flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer">${pmSvg("plus")}</button>
                 </div>
               </div>
               <div class="flex items-center gap-[18px]">
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">Drink</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-drink-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-drink-minus" class="dye-pm flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer">${pmSvg("minus")}</button>
                   <div class="flex flex-col items-center w-[72px]">
                     <input id="dye-drink-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] text-center border-0 bg-transparent outline-none p-0 cursor-text w-full" value="—" />
                     <span id="dye-drink-ratio" class="font-semibold text-[18px] text-[var(--text-primary)] text-center"></span>
                   </div>
-                  <button id="dye-drink-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-drink-plus" class="dye-pm flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer">${pmSvg("plus")}</button>
                 </div>
               </div>
             </div>
@@ -6605,17 +6628,17 @@ function shotWeights(shot) {
               <div class="flex items-center gap-[18px]">
                 <span id="dye-grind-label" class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px] cursor-pointer">Grind</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-grind-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-grind-minus" class="dye-pm flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer">${pmSvg("minus")}</button>
                   <input id="dye-grind-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center border-0 bg-transparent outline-none p-0 cursor-text" value="—" />
-                  <button id="dye-grind-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-grind-plus" class="dye-pm flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer">${pmSvg("plus")}</button>
                 </div>
               </div>
               <div class="flex items-center gap-[18px]">
                 <span class="font-bold text-[24px] text-[var(--mimoja-blue)] w-[75px]">RPM</span>
                 <div class="flex items-center gap-[24px]">
-                  <button id="dye-rpm-minus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-rpm-minus" class="dye-pm flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer">${pmSvg("minus")}</button>
                   <input id="dye-rpm-value" type="text" inputmode="decimal" autocomplete="off" class="font-bold text-[26px] text-[var(--text-primary)] w-[72px] text-center border-0 bg-transparent outline-none p-0 cursor-text" value="—" />
-                  <button id="dye-rpm-plus" class="flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                  <button id="dye-rpm-plus" class="dye-pm flex items-center justify-center w-[72px] h-[72px] bg-[var(--stepper-btn-bg)] rounded-[15px] cursor-pointer">${pmSvg("plus")}</button>
                 </div>
               </div>
             </div>

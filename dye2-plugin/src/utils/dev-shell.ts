@@ -181,6 +181,17 @@ ${kbPlanScript}
  * `:root[data-theme="dark"]` (not bare `[data-theme="dark"]`) so a page that redeclares a
  * token in its own `:root` rule, which comes later in the cascade, cannot beat it.
  */
+// Streamline's tap feedback on every − / + (streamline_project ui.js flashPlusMinusButton,
+// main.css @keyframes button-flash): 280ms through two darker shades, then back to the fill.
+// Shared steppers carry .dye-stepper-btn; the dashboard's own carry .dye-pm.
+const pmFlashScript = `
+document.addEventListener('click', function (e) {
+  var b = e.target && e.target.closest && e.target.closest('.dye-stepper-btn, .dye-pm');
+  if (!b) return;
+  b.classList.remove('dye-pm-flash'); void b.offsetWidth; b.classList.add('dye-pm-flash');
+  setTimeout(function () { b.classList.remove('dye-pm-flash'); }, 280);
+});`;
+
 function cssVarFallbacks(): string {
   return `
     :root {
@@ -201,6 +212,9 @@ function cssVarFallbacks(): string {
       --field-bg: #edf0f4;
       --button-grey: #ededed;
       --stepper-btn-bg: #ededed;   /* the − / + squares; same as --button-grey in light */
+      /* Streamline's plus/minus press flash (main.css --plus-minus-flash-on-color*). */
+      --plus-minus-flash-on-color: #b8b8b8;
+      --plus-minus-flash-on-color2: #cfcfcf;
       --on-accent: #ffffff;        /* text on --mimoja-blue fills */
       --toggle-off: #d1d5db;
       --chip-stroke: #c5cdda;
@@ -253,6 +267,8 @@ function cssVarFallbacks(): string {
          Primary.Background.Inactive). The skin keeps Adjust.Active #101115 for its profile
          editor only; on DYE2's #101217 ground that colour makes the buttons vanish. */
       --stepper-btn-bg: #292c38;
+      --plus-minus-flash-on-color: #272a34;
+      --plus-minus-flash-on-color2: #1b1d24;
       --on-accent: #e8e8e8;        /* Button Text/FavButton.Text.Selected */
       --status-ok: #17c29a;        /* Status/Ongoing */
       --toggle-off: #292c38;        /* Buttons/Primary.Background.Inactive */
@@ -280,6 +296,13 @@ function cssVarFallbacks(): string {
     [data-theme="dark"] ::-webkit-scrollbar-track { background: transparent; }
     [data-theme="dark"] ::-webkit-scrollbar-thumb { background-color: #707485; border-radius: 8px; }
     [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background-color: #8a8fa3; }
+    @keyframes dye-pm-flash {
+      0%   { background-color: var(--plus-minus-flash-on-color2); }
+      14%  { background-color: var(--plus-minus-flash-on-color); }
+      71%  { background-color: var(--plus-minus-flash-on-color2); }
+      100% { background-color: transparent; }
+    }
+    .dye-pm-flash { animation: dye-pm-flash 0.28s linear forwards; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     /* Pages are authored at the fixed 1920x1200 design reference and fit into the
        viewport by the fit script, which scales+positions <body> directly (see
@@ -359,6 +382,7 @@ export function devPageShell(
 <body>
   ${content}
   <script>${fitScript}</script>
+  <script>${pmFlashScript}</script>
   ${scripts.map((s) => `<script>${s}</script>`).join("\n")}
   ${/* Last in body so the ~500 KB parse does not block the first data request; a page script that touches echarts at top level would now fail. Served by our own "echarts" route, never a CDN — the tablet is offline. Deliberately
         page-relative so it resolves under both runtimes: /api/v1/plugins/dye2.reaplugin/

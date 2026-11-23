@@ -108,6 +108,13 @@ export function favNumCss(): string {
 
 // ── Stepper ──────────────────────────────────────────────────────────────────
 
+// Streamline's own − / + glyph (streamline_project index.html grind/dose/drink steppers):
+// 37.5px on a 50 box, 3-unit round stroke. Kept identical so the two apps' steppers match.
+export function pmSvg(kind: 'minus' | 'plus'): string {
+  const d = kind === 'plus' ? 'M24.9993 10.4165V39.5832M10.416 24.9998H39.5827' : 'M10.416 25H39.5827';
+  return `<svg aria-hidden="true" width="37.5" height="37.5" viewBox="0 0 50 50" fill="none"><path d="${d}" stroke="var(--text-primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
 export function stepperCss(): string {
   return `
   .dye-stepper-btn {
@@ -134,8 +141,8 @@ export function stepperHtml(
   showSub = false,
   subHtml = ''
 ): string {
-  const minusSvg = lucideIcon('minus', 38, 'var(--text-primary)', 2.5);
-  const plusSvg  = lucideIcon('plus',  38, 'var(--text-primary)', 2.5);
+  const minusSvg = pmSvg('minus');
+  const plusSvg  = pmSvg('plus');
   // subHtml renders under the label (e.g. a Flow|Time mode toggle) as a left column.
   const labelBlock = subHtml
     ? `<div class="flex flex-col" style="width:${labelWidth};flex-shrink:0">
