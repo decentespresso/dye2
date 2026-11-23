@@ -9,9 +9,9 @@ editing.
 `dye2-plugin/src/` is TypeScript that runs inside `flutter_js`: no DOM, and no `fetch`
 **unless** the plugin declares the `api` permission (dye2's manifest does). The plugin
 wrapper then shadows a local `const fetch` bound to that plugin's own bridge token
-(`plugin_manager.dart:2033-2035`, in scope for the injected plugin source at `:2229-2230`)
-— not the always-rejecting `globalThis.fetch` defined earlier (`:921-963`; it calls
-`__fetchFor` with a null bridge token, which rejects at `:943`). Most code still answers
+(`plugin_manager.dart:2216-2218`, in scope for the injected plugin source at `:2447`)
+— not the always-rejecting `globalThis.fetch` defined earlier (`:1063-1086`; it calls
+`__fetchFor` with a null bridge token, which rejects at `:1067`). Most code still answers
 `__httpRequestHandler` calls by returning HTML strings — a server-side renderer — but plugin
 code that isn't a page (`recent-favs.ts`) can and does call `fetch` itself.
 

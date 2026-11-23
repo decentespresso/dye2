@@ -51,12 +51,12 @@ screens see the same beans, shots and grinders.
 
 ## Getting DYE2 on the tablet
 
-Most people already have it: Decaid ships with DYE2 built in. Just switch it on in Decaid's
-plugin settings.
+Most people already have it: Decaid ships with DYE2 built in and switched on, and Decaid's
+update check brings in new DYE2 releases.
 
 If you want a specific version, download `dye2.reaplugin-vX.Y.Z.zip` from the
-[Releases page](../../releases) and install it in Decaid's plugin settings with the **+**
-button in the top-right corner.
+[Releases page](../../releases). In Decaid, open the **Plugins** screen, tap the menu in the
+top-right corner and choose **Install plugin**.
 
 Once it's on, open the DYE2 **Dashboard**. Every other DYE2 screen is reached from there. If
 a screen ever asks for its address, it is:
