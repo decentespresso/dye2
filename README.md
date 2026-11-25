@@ -53,9 +53,7 @@ dye2/
 │   ├── src/
 │   │   ├── plugin.ts         # Entry point — implements PluginInstance
 │   │   ├── host.d.ts         # flutter_js host API types
-│   │   ├── pages/            # One renderer per page route (layout.ts is dead code)
-│   │   ├── components/       # Web Component experiment — dead code
-│   │   ├── api/client.ts     # Earlier REST client — dead code
+│   │   ├── pages/            # One renderer per page route
 │   │   ├── styles/           # Tailwind input + generated CSS
 │   │   ├── utils/            # Browser-script strings, the page shell, html``/escaping,
 │   │   │                     #   and the DOM-free plugin-runtime modules
@@ -157,11 +155,11 @@ The JSON endpoints are described under [Data](#data-real-resources-vs-the-kv-sto
 
 - **Browser code as string exports.** A runtime with no DOM ships browser JavaScript by returning it as text. Shared browser code lives in `src/utils/`, for example `dev-api.ts` (`devApiScript`), `shot-paging.ts` (`shotPagingScript`), `chart.ts` (`chartScript`) and `shared-components.ts` (`*Script` strings beside `*Html`/`*Css` builders). Each is a template literal that the shell inlines as a `<script>` tag. Icons are markup strings from `lucide.ts` and `icons.ts`.
 - **Page assembly.** Every live page calls `devPageShell(title, content, styles, scripts, opts)` from `src/utils/dev-shell.ts`, passing the shared strings plus its own orchestration script. For example, `pages/grinders.ts` ends with `devPageShell("Grinders", content, styles, [devApiScript, buildGrinderBodyScript, grinderLimitsScript, grindStepScript, cardLongPressScript, pageScript])`.
-- **HTML safety.** The `html` tagged template in `src/utils/html.ts` does **not** escape. Wrap anything user-supplied in `escapeHtml()` from the same file.
+- **HTML safety.** The `html` tagged template in `src/utils/html.ts` does **not** escape. Browser scripts wrap anything user-supplied in `esc()`, defined once in `devApiScript` (`src/utils/dev-api.ts`), which every page loads first.
 - **API base.** Browser code calls `/api/v1/*` directly. The dev server proxies it; Decaid routes it in production. No base-URL config anywhere.
 - **Not every module is a page.** `src/utils/recent-favs.ts` and `src/utils/workflow-record.ts` run in the plugin runtime as real TypeScript, not as exported strings: `plugin.ts` imports them, they touch no DOM, they take `fetch` as an argument, and so `node:test` imports them directly (`test/recent-favs.test.mjs`, `test/workflow-record.test.mjs`). That is where work belongs that has to happen without a page open — answering an event, or writing the store after a shot. Code shaped this way is type-checked and testable; the page strings are neither.
 
-Three pieces are dead code with no importers: `src/components/` (a Web Component experiment, and the only `customElements.define` in the tree), `src/api/client.ts`, and all of `pages/layout.ts` (`pageShell()` and `sharedStyles()`). Older docs described them as the house style. They are not. Don't copy or extend them; copy `devPageShell` and the `utils/` strings.
+Older docs describe a Web Component layer (`src/components/`), a REST client (`src/api/client.ts`) and a `pages/layout.ts` shell as the house style. Those were dead code and have been deleted. Build pages with `devPageShell` and the `utils/` strings.
 
 ### Data: real resources vs. the KV store
 

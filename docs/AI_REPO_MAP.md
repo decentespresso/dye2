@@ -24,7 +24,7 @@ If you are about to edit anything under `dye2-plugin/src/`, read `AI_RUNTIME_NOT
 | Adding a page, or a route 404ing | `src/plugin.ts`, `dev-server.mjs`, `manifest.src.json` | `AI_RUNTIME_NOTES.md` |
 | Page shell, scaling, stretch, keyboard avoidance | `src/utils/dev-shell.ts` | `AI_RUNTIME_NOTES.md` |
 | Writing or debugging browser-side JS | The page module, then the `src/utils/*` string it pulls in | `AI_RUNTIME_NOTES.md` |
-| HTML escaping, user data in markup | `src/utils/html.ts`, the interpolation site | `AI_RUNTIME_NOTES.md` |
+| HTML escaping, user data in markup | `esc()` in `src/utils/dev-api.ts`, the interpolation site | `AI_RUNTIME_NOTES.md` |
 | Dev server, proxying, reload | `dye2-plugin/dev-server.mjs` | `AI_RUNTIME_NOTES.md` |
 | Beans, grinders, shots, profiles — typed resources | `src/utils/dev-api.ts`, the call site, `rea_restapi.yml` | `AI_DATA_NOTES.md` |
 | Auto-favourites, recipes, baskets, equipment | `src/utils/dev-api.ts` KV section | `docs/KV_CONTRACT.md`, then `AI_DATA_NOTES.md` |
@@ -67,11 +67,8 @@ If you are about to edit anything under `dye2-plugin/src/`, read `AI_RUNTIME_NOT
   two separate copies for the two page families (`dye2-plugin/` and `dev/` each chart on their
   own stack; `dev/` still uses Plotly).
 - `BeanconquerorTestData.json` — import fixture, not app data.
-- **Dead code, zero importers — do not copy or extend:** `dye2-plugin/src/components/` (an
-  abandoned Web Component experiment, the only `customElements.define` in the tree),
-  `dye2-plugin/src/api/client.ts`, and all of `dye2-plugin/src/pages/layout.ts` (both
-  `pageShell()` and `sharedStyles()`). Older docs described these as the house style. They
-  are not.
+- **Deleted dead code:** `src/components/` (Web Component experiment), `src/api/client.ts` and
+  `src/pages/layout.ts` are gone. Older docs that describe them as the house style are stale.
 - `DYE2_REDESIGN_PLAN.md`, `AUTOFAV_DASHBOARD_PLAN.md` — historical intent and design specs.
   Useful for *why* and for Figma measurements; not evidence of what the code does now.
 - `MANUAL.md` — user manual. `README.md` — user and plugin-developer docs. Neither is an

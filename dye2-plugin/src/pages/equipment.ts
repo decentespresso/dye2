@@ -193,10 +193,6 @@ let currentSort = 'recent';
 // (new or edited) selects that row and returns to edit-shot instead of staying on this page.
 const pickerMode = sessionStorage.getItem('dye_editShotReturn') === '1';
 
-function esc(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 function itemName(e) { return e.name || 'Unnamed'; }
 function itemFields(e) { return Array.isArray(e.custom) ? e.custom : []; }

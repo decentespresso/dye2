@@ -114,10 +114,6 @@ let profilesCache = [];
 let searchQuery = '';
 let selectedProfileId = null;
 
-function esc(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 // The bridge nests profile fields under p.profile; keep flat fallbacks for safety.
 function profileName(p) { const pr = (p && p.profile) || {}; return pr.title || p.title || p.name || 'Untitled Profile'; }

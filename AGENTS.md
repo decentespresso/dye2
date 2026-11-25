@@ -33,7 +33,7 @@ A Decaid plugin is two programs in one repo that never share a scope:
 - **Browser runtime**: the same files' exported template-literal strings, inlined as `<script>`
   tags by the shell. Inert text — no type checking, no build error; a typo fails at runtime on the
   tablet. `${...}` is interpolated by the plugin at render time, not the browser; escape literals
-  with `\${`. `html` does **not** escape — wrap user data in `escapeHtml()`. Do not import browser
+  with `\${`. `html` does **not** escape — wrap user data in `esc()` (from `devApiScript`). Do not import browser
   APIs into plugin-runtime code.
 
 ## Commands (all in `dye2-plugin/`)
@@ -93,4 +93,3 @@ npm test         # runs exactly the suites named in package.json's "test" script
 - `dye2-plugin/src/pages/` — one module per route; each ends with `devPageShell(...)`.
 - `dye2-plugin/dev-server.mjs` — local host + bridge proxy; serves the **build output**, not src.
 - `dev/` — legacy plain JS/HTML for Decaid's native DYE pages; no build step, reference material.
-- Dead code — do not copy or extend: `dye2-plugin/src/components/`, `dye2-plugin/src/api/client.ts`, `dye2-plugin/src/pages/layout.ts`.

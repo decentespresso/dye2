@@ -106,9 +106,8 @@ own `<script>`.
 resolves both as `/api/v1/plugins/dye2.reaplugin/echarts` on the tablet and `/echarts` in dev.
 Do not make it absolute.
 
-`src/pages/layout.ts` is **dead** — zero importers, both `pageShell()` and `sharedStyles()`.
-There is one shell and one visual language, not two. Ignore the file; do not extend it.
-Same for `src/components/` and `src/api/client.ts`.
+There is one shell and one visual language. The old `pages/layout.ts` shell, `src/components/`
+and `src/api/client.ts` were dead code and are deleted; older docs that mention them are stale.
 
 ## CSS Variables Are Plugin-Defined
 
@@ -184,7 +183,9 @@ the plugin runtime gives you. It serves the routes and proxies `/api/v1/*` to th
 
 `html` (`src/utils/html.ts:6`) is a marker for syntax highlighting and **does not escape**.
 Interpolate user-provided data — bean names, roaster names, notes, drinker names — through
-`escapeHtml()` (`html.ts:17`). Everything in this app is user-entered text, so the default
+`esc()`, defined once at the top of `devApiScript` (`src/utils/dev-api.ts`), which every page
+loads before its own script. Do not redeclare `esc` in a page script: it is a global, and a
+second `const`/`function esc` in another `<script>` throws at load. Everything in this app is user-entered text, so the default
 assumption for any value reaching HTML should be "needs escaping".
 
 ## Troubleshooting

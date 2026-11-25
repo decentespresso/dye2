@@ -12,7 +12,7 @@ const TAB_KEYS = ['beans', 'recipe', 'profile', 'grinder'];
 const TAB_LABELS = ['Beans', 'Recipe', 'Profile', 'Grinder'];
 
 // The sort rail, header and card grid for this page. select-recipe.ts copies the card shape (recipeCardCss).
-export const gridStyles = `
+const gridStyles = `
   ${sortSidebarCss()}
   ${pickerCardCss()}
   /* Figma 2386:669 colours. Page-scoped values so the shared picker helpers and other pages
@@ -148,10 +148,6 @@ function sortFavs(favs, sortKey) {
   return s;
 }
 
-function esc(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 // Bean batches, fetched once per page load by loadRoastDates(); cards render first with
 // the plain date and are redrawn once it lands.

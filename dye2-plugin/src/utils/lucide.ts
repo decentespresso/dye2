@@ -34,7 +34,3 @@ export function lucideIcon(
   const paths = PATHS[name] ?? '<circle cx="12" cy="12" r="10"/>';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill}" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
 }
-
-export function starIcon(filled: boolean, size = 36, color = 'var(--mimoja-blue)'): string {
-  return lucideIcon('star', size, color, 2, filled ? color : 'none');
-}

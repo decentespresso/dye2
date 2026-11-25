@@ -69,8 +69,8 @@ Font is `'Inter'` then system fallbacks. Type runs large — labels ~24px, butto
 ## Icons
 
 Primary system is `src/utils/lucide.ts` — `PATHS` keyed by the exact kebab-case Lucide name,
-rendered by `lucideIcon(name, size=36, color='currentColor', strokeWidth=2, fill='none')`,
-with `starIcon(filled)` as a helper. An unknown name falls back to a circle.
+rendered by `lucideIcon(name, size=36, color='currentColor', strokeWidth=2, fill='none')`
+(a filled star is `lucideIcon('star', size, color, 2, color)`). An unknown name falls back to a circle.
 
 Figma designs mostly use Lucide already. When they do: add the path data to `PATHS` under
 the exact Lucide name and call `lucideIcon('name')`. **Do not export icon PNGs from Figma

@@ -289,10 +289,6 @@ let editingArchived = false;
 let currentSort = 'recent';
 let selectedGrinderId = null;
 
-function esc(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 function grinderName(g) { return g.model || g.name || 'Unnamed'; }
 function grinderSub(g) {

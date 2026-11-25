@@ -1,7 +1,7 @@
 /**
  * Tagged template literal for HTML strings.
  * Provides a visual marker for syntax highlighting in editors.
- * Does NOT escape interpolated values — use escapeHtml() for user data.
+ * Does NOT escape interpolated values — browser scripts use esc() from devApiScript.
  */
 export function html(
   strings: TemplateStringsArray,
@@ -13,12 +13,3 @@ export function html(
   }, "");
 }
 
-/** Escape HTML special characters in user-provided strings */
-export function escapeHtml(unsafe: string): string {
-  return unsafe
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}

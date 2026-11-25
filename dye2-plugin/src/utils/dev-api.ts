@@ -4,6 +4,12 @@
  * Covers all functions used by dye.js and dyeDashboard.js.
  */
 export const devApiScript = `
+// HTML-escape user text before it goes into markup. Every page loads this script first.
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 const API_BASE_URL = '/api/v1';
 
 // Every DYE2 page runs inside Decaid's skin WebView, whose console is piped to

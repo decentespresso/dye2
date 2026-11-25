@@ -31,8 +31,7 @@ When adding a control: follow the triad, export it from `shared-components.ts`, 
 convention (`${id}-input`, `${id}-drop`) rather than by passing references, because the two
 halves cannot share values at runtime.
 
-`src/components/` is a dead Web Component experiment — the only `customElements.define` in
-the tree, zero importers. Do not copy or extend it.
+There are no Web Components: the old `src/components/` experiment was dead code and is deleted.
 
 ## Dropdowns And Combo Pickers
 

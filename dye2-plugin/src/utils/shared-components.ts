@@ -218,29 +218,6 @@ export function toggleCss(): string {
   `;
 }
 
-export function toggleRowHtml(
-  id: string,
-  label: string,
-  value: string,
-  initialOn = true,
-  editable = true
-): string {
-  const checkSvg  = lucideIcon('check', 16, '#fff', 2.5);
-  const xSvg      = lucideIcon('x',     16, '#9CA3AF', 2.5);
-  const pencilSvg = lucideIcon('pencil', 26, 'var(--mimoja-blue)', 2);
-  return `<div class="dye-toggle-row" id="${id}-row">
-    <div id="${id}-track" class="dye-toggle-track${initialOn ? ' on' : ''}" data-toggle="${id}">
-      <div class="dye-toggle-thumb">
-        <span class="dye-toggle-icon-on">${checkSvg}</span>
-        <span class="dye-toggle-icon-off">${xSvg}</span>
-      </div>
-    </div>
-    <span class="dye-toggle-label">${label}</span>
-    <span id="${id}-value" class="dye-toggle-value${initialOn ? '' : ' off'}">${value}</span>
-    ${editable ? `<button class="dye-toggle-edit" data-edit="${id}">${pencilSvg}</button>` : ''}
-  </div>`;
-}
-
 // ── Segment control (Yes / No) ────────────────────────────────────────────────
 
 export function segmentControlHtml(id: string, options: string[], initialIdx = 0): string {
@@ -273,19 +250,6 @@ export function expandFieldHtml(id: string, label: string, placeholder = '—'):
     <div class="flex items-center flex-1 border border-[var(--profile-button-outline-color)] rounded-[12px] px-[20px] h-[72px] bg-[var(--box-color)] gap-[12px]">
       <span id="${id}-text" class="flex-1 text-[24px] font-normal text-[var(--text-primary)]">${placeholder}</span>
       <button id="${id}-expand" class="flex-shrink-0">${expandSvg}</button>
-    </div>
-  </div>`;
-}
-
-// ── Text input field ──────────────────────────────────────────────────────────
-
-export function textInputHtml(id: string, label: string, placeholder = ''): string {
-  const pencilSvg = lucideIcon('pencil', 26, 'var(--text-primary-disabled)', 2);
-  return `<div class="flex items-center gap-[18px]">
-    <span class="dye-stepper-label" style="width:180px;flex-shrink:0">${label}</span>
-    <div class="flex items-center flex-1 border border-[var(--profile-button-outline-color)] rounded-[12px] px-[20px] h-[72px] bg-[var(--box-color)] gap-[12px]">
-      <span id="${id}-value" class="flex-1 text-[24px] font-normal text-[var(--text-primary)]">${placeholder}</span>
-      <button id="${id}-edit" class="flex-shrink-0">${pencilSvg}</button>
     </div>
   </div>`;
 }

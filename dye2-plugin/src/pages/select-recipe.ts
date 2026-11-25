@@ -79,10 +79,6 @@ function sortRecipes(list, sortKey) {
   return s;
 }
 
-function esc(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 function syncConfirmButton() {
   const btn = document.getElementById('dye-confirm-btn');

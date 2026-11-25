@@ -230,10 +230,6 @@ let confirmBtn = null;
 let editingId = null;
 let editingArchived = false;
 
-function esc(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 function basketName(b) { return b.name || 'Unnamed'; }
 
